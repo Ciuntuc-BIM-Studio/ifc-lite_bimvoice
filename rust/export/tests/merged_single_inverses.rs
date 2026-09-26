@@ -110,3 +110,101 @@ fn ifc2x3_never_folds_into_an_override_or_across_rel_types() {
         assert_eq!(warnings.iter().filter(|w| w.contains("lost that relationship")).count(), 1, "{owner}: {warnings:?}");
     }
 }
+
+/// How many written `rel_type` lines name `id` in argument `claimed`.
+fn naming(out: &str, rel_type: &str, claimed: usize, id: u32) -> usize {
+    let target = format!("#{id}");
+    out.lines()
+        .filter(|l| l.contains(&format!("={rel_type}(")))
+        .filter(|l| {
+            let args = &l[l.find('(').unwrap() + 1..l.rfind(')').unwrap()];
+            let mut depth = 0;
+            let mut slots = vec![String::new()];
+            for c in args.chars() {
+                match c {
+                    '(' => depth += 1,
+                    ')' => depth -= 1,
+                    ',' if depth == 0 => {
+                        slots.push(String::new());
+                        continue;
+                    }
+                    _ => {}
+                }
+                slots.last_mut().unwrap().push(c);
+            }
+            slots[claimed].trim_matches(['(', ')']).split(',').any(|r| r.trim() == target)
+        })
+        .count()
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Row {
+    schema: String,
+    rel_type: String,
+    inverse: String,
+    claimed: usize,
+    partner: usize,
+    claimed_list: bool,
+    partner_list: bool,
+    arity: usize,
+}
+
+/// #5923: every row of the TypeScript rule table (`inverseRules`, pinned to
+/// the EXPRESS schemas and written to `fixtures/merged_inverse_rules.json` by
+/// `merged-inverse-claims.test.ts`) holds for the Rust merge too. Two models
+/// each state the row's relationship about an entity they share by GlobalId
+/// (#10), with a partner of their own (#11); the merged file names the shared
+/// entity on the claimed side once. A Rust table that drops a row or moves an
+/// index fails here.
+#[test]
+fn every_rule_of_the_shared_table_keeps_one_relationship() {
+    let fixture = include_str!("fixtures/merged_inverse_rules.json");
+    let rows: Vec<Row> = serde_json::from_value(serde_json::from_str::<serde_json::Value>(fixture).unwrap()["rows"].clone()).unwrap();
+    assert!(rows.len() >= 50, "the fixture lists every rule");
+    for row in rows {
+        let file_schema = if row.schema == "IFC4X3" { "IFC4X3_ADD2" } else { row.schema.as_str() };
+        let model_of = |tag: &str| {
+            let args: Vec<String> = (0..row.arity).map(|i| match i {
+                0 => format!("'{}'", guid(&format!("r{tag}"))),
+                i if i == row.claimed => if row.claimed_list { "(#10)".into() } else { "#10".into() },
+                i if i == row.partner => if row.partner_list { "(#11)".into() } else { "#11".into() },
+                _ => "$".into(),
+            }).collect();
+            model(file_schema, &[
+                format!("#1=IFCPROJECT('{}',$,'P',$,$,$,$,$,$);", guid(&format!("p{tag}"))),
+                format!("#10=IFCBUILDINGELEMENTPROXY('{}',$,'shared',$,$,$,$,$,$);", guid("shared")),
+                format!("#11=IFCBUILDINGELEMENTPROXY('{}',$,'own',$,$,$,$,$,$);", guid(&format!("own{tag}"))),
+                format!("#20={}({});", row.rel_type, args.join(",")),
+            ])
+        };
+        let (out, _) = merge(&row.schema, &[model_of("a"), model_of("b")]);
+        let shared = id_of(&out, "shared");
+        assert_eq!(naming(&out, &row.rel_type, row.claimed, shared), 1, "{} {} {}:\n{out}", row.schema, row.rel_type, row.inverse);
+    }
+}
+
+/// A type's later objects join the type's first `IfcRelDefinesByType`, so no
+/// object loses its type (#5923).
+#[test]
+fn a_later_model_s_new_object_joins_the_shared_type_s_first_rel() {
+    for (schema, file_schema) in [("IFC2X3", "IFC2X3"), ("IFC4", "IFC4")] {
+        let model_of = |tag: &str, objects: &[&str]| {
+            let mut lines = vec![
+                format!("#1=IFCPROJECT('{}',$,'P',$,$,$,$,$,$);", guid(&format!("p{tag}"))),
+                format!("#5=IFCBUILDINGELEMENTPROXYTYPE('{}',$,'T',$,$,$,$,$,$,.NOTDEFINED.);", guid("type")),
+            ];
+            let refs: Vec<String> = objects.iter().enumerate().map(|(i, o)| {
+                lines.push(format!("#{}=IFCBUILDINGELEMENTPROXY('{}',$,'{o}',$,$,$,$,$,$);", 10 + i, guid(o)));
+                format!("#{}", 10 + i)
+            }).collect();
+            lines.push(format!("#20=IFCRELDEFINESBYTYPE('{}',$,$,$,({}),#5);", guid(&format!("r{tag}")), refs.join(",")));
+            model(file_schema, &lines)
+        };
+        let (out, _) = merge(schema, &[model_of("a", &["wall"]), model_of("b", &["wall", "door"])]);
+        let (wall, door) = (id_of(&out, "wall"), id_of(&out, "door"));
+        assert_eq!(naming(&out, "IFCRELDEFINESBYTYPE", 5, id_of(&out, "type")), 1, "{schema}:\n{out}");
+        assert_eq!(naming(&out, "IFCRELDEFINESBYTYPE", 4, wall), 1, "{schema}");
+        assert_eq!(naming(&out, "IFCRELDEFINESBYTYPE", 4, door), 1, "{schema}: the door keeps its type");
+    }
+}
