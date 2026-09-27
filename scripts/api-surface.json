@@ -5487,6 +5487,8 @@
     "EffectiveSourceRecord: interface",
     "EntityConversionInfo: interface",
     "EntityConversionKind: type",
+    "EntitySubgraph: interface",
+    "EntitySubgraphRequest: interface",
     "ExportProgress: interface",
     "GenerateLod1Options: type",
     "GenerateLod1Result: type",
@@ -5548,7 +5550,9 @@
     "parseGLB: function",
     "parseGLBToMeshData: function",
     "planAuthoredResourceCleanup: function",
+    "remeshContextRoots: function",
     "serializeEntityArgs: function",
+    "serializeEntitySubgraph: function",
     "stripNodePathPrefix: function",
     "tableToCsv: function"
   ],
