@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import type { ComponentType } from 'react';
+import { useId, type ComponentType } from 'react';
 import { ChevronRight, CopyPlus } from 'lucide-react';
 import type { DuplicateDirection } from '@/store/slices/mutationSlice';
 import { useViewerStore } from '@/store';
@@ -31,6 +31,7 @@ interface MenuItemProps {
 }
 
 export function MenuItem({ icon: Icon, label, onClick, disabled, shortcut, title, tone = 'default' }: MenuItemProps) {
+  const descriptionId = useId();
   const iconClass = tone === 'destructive'
     ? 'h-4 w-4 text-red-500 dark:text-red-400'
     : 'h-4 w-4 text-muted-foreground';
@@ -42,13 +43,16 @@ export function MenuItem({ icon: Icon, label, onClick, disabled, shortcut, title
       <button
         type="button"
         aria-label={label}
+        aria-describedby={disabled && title ? descriptionId : undefined}
         title={title}
+        disabled={disabled}
         className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm outline-none ${focusClass}`}
         onClick={onClick}
       >
         <Icon className={iconClass} />
         <span className="min-w-0 flex-1">{label}</span>
         {shortcut && <span className="shrink-0 font-mono text-2xs text-muted-foreground">{shortcut}</span>}
+        {disabled && title && <span id={descriptionId} className="sr-only">{title}</span>}
       </button>
     </ContextMenuItem>
   );
@@ -64,26 +68,31 @@ const DIRECTIONS: ReadonlyArray<{ direction: DuplicateDirection; label: string }
 ];
 
 /** Default duplicate remains one action; directional copies are keyboard-reachable submenu items. */
-export function DuplicateItems({ onDuplicate }: { onDuplicate: (dir: DuplicateDirection) => void }) {
+export function DuplicateItems({ onDuplicate, disabled = false, reason }: {
+  onDuplicate: (dir: DuplicateDirection) => void;
+  disabled?: boolean;
+  reason?: string;
+}) {
   const { t } = useTranslation();
   return (
     <>
       <MenuItem
         icon={CopyPlus}
         label={t('entityContextMenu.duplicateLabel')}
-        title={t('entityContextMenu.duplicateDefaultTitle')}
+        title={disabled ? reason : t('entityContextMenu.duplicateDefaultTitle')}
+        disabled={disabled}
         shortcut="⌘D"
         onClick={() => onDuplicate('+X')}
       />
       <ContextMenuSub>
-        <ContextMenuSubTrigger>
+        <ContextMenuSubTrigger disabled={disabled} title={reason} aria-description={reason}>
           <CopyPlus className="mr-2 h-4 w-4 text-muted-foreground" />
           <span className="flex-1">{t('entityContextMenu.duplicateDirectionLabel')}</span>
           <ChevronRight className="h-4 w-4" />
         </ContextMenuSubTrigger>
         <ContextMenuSubContent>
           {DIRECTIONS.map(({ direction, label }) => (
-            <MenuItem key={direction} icon={CopyPlus} label={label} onClick={() => onDuplicate(direction)} />
+            <MenuItem key={direction} icon={CopyPlus} label={label} disabled={disabled} title={reason} onClick={() => onDuplicate(direction)} />
           ))}
         </ContextMenuSubContent>
       </ContextMenuSub>
