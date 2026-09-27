@@ -78,6 +78,35 @@ describe('#5894 Rules-backed Lists over parsed IFC', () => {
   };
   const name: PropertyCondition = { source: 'attribute', propertyName: 'Name', operator: 'contains', value: 'wall' };
 
+  it('keeps authored zone and exact Building filters scoped to the owning model at 1 and N (#5894)', async () => {
+    const zone: PropertyCondition = { source: 'zone', psetName: 'sections', propertyName: 'Zone', operator: 'equals', value: 'Section A' };
+    const building: PropertyCondition = { source: 'spatial', propertyName: 'Building', operator: 'contains', value: 'East' };
+    const pairs = (await parsedPairs()).map((pair) => ({
+      ...pair,
+      provider: {
+        ...pair.provider,
+        getZoneAssignment: (id: number, setId: string) => setId === 'sections'
+          ? { zoneName: id === (pair.modelId === 'm1' ? 20 : 10) ? 'Section A' : 'Section B', straddles: false, touchedZoneNames: [] }
+          : null,
+        getBuildingName: (id: number) => id === (pair.modelId === 'm1' ? 20 : 10) ? 'East Wing' : 'West Wing',
+      },
+    }));
+    const def = definition({
+      entityTypes: [IfcTypeEnum.IfcWall], conditions: [zone, building],
+      groups: [{ rules: [], combinator: 'AND' }],
+      unreadableConditions: [
+        { condition: zone, reason: 'unsupported-source' },
+        { condition: building, reason: 'unsupported-source' },
+      ],
+      columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
+    });
+    for (const selected of [pairs.slice(0, 1), pairs]) {
+      const result = await runListFederated(def, selected, state);
+      const expected = selected.map(({ modelId }) => [modelId, modelId === 'm1' ? 20 : 10]);
+      assert.deepEqual(result.rows.map(({ modelId, entityId }) => [modelId, entityId]), expected);
+    }
+  });
+
   it('preserves saved v1 rows and order in one and two models, including a live property edit', async () => {
     const pairs = await parsedPairs();
     const conditions = [property, name];
@@ -177,6 +206,21 @@ describe('#5894 Rules-backed Lists over parsed IFC', () => {
 const noTags = { modelTags: new Map<string, ModelTag>(), modelTagAssignments: new Map<string, ReadonlySet<string>>() };
 
 describe('runListFederated (#5142)', () => {
+  it('rejects null and invalid-value saved List rows with a removable-filter message (#5894)', async () => {
+    const state = { models: new Map([['a', {}]]), ...noTags };
+    const malformed = [
+      null,
+      { condition: { source: 'property', psetName: 'Pset_Test', propertyName: 'Code', operator: 'equals', value: { raw: 1 } }, reason: 'invalid-value' },
+      { condition: { source: 'property', psetName: 'Pset_Test', propertyName: 'Code', operator: 'equals', value: { raw: 1 } }, reason: 'unsupported-source' },
+      { condition: { source: 'property', psetName: 'Pset_Test', propertyName: 'Code', operator: 'equals', value: 'A' }, reason: 'future-reason' },
+    ];
+    for (const row of malformed) {
+      const def = definition({ groups: [{ rules: [], combinator: 'AND' }],
+        unreadableConditions: [row] as ListDefinition['unreadableConditions'] });
+      await assert.rejects(() => runListFederated(def, [pair('a')], state), /malformed condition.*Remove it in the list editor/);
+    }
+  });
+
   it('merges the rows of every model in scope and sums execution time', async () => {
     const pairs = [pair('a'), pair('b')];
     const result = await runListFederated(definition(), pairs, { models: new Map([['a', {}], ['b', {}]]), ...noTags });
