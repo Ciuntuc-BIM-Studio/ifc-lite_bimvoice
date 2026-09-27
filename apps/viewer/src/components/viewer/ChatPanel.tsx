@@ -52,6 +52,7 @@ import { extractCodeBlocks } from '@/lib/llm/code-extractor';
 import { extractScriptEditOps, filterUnappliedScriptOps } from '@/lib/llm/script-edit-ops';
 import { createPatchDiagnostic, getPrimaryRootCause, type RepairScope, type ScriptDiagnostic } from '@/lib/llm/script-diagnostics';
 import { shortcutLabel } from '@/lib/commands/shortcut-label';
+import { registerKeyboardCommand } from '@/lib/commands/dispatcher';
 import { buildRepairSessionKey, getEscalatedRepairScope, pruneMessagesForRepair } from '@/lib/llm/repair-loop';
 import type { ChatMessage, ChatRepairRequest, FileAttachment } from '@/lib/llm/types';
 import { canUsePlainCodeBlockFallback, type ScriptMutationIntent } from '@/lib/llm/script-preservation';
@@ -324,22 +325,16 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
-    const handler = (e: globalThis.KeyboardEvent) => {
-      // Cmd+L / Ctrl+L → focus chat input
-      if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-      // Escape → close panel (only if chat input isn't focused or is empty)
-      if (e.key === 'Escape' && onClose) {
-        const isChatFocused = document.activeElement === inputRef.current;
-        if (!isChatFocused || !inputText) {
-          onClose();
-        }
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    const removeFocus = registerKeyboardCommand('chat.focusInput', () => {
+      inputRef.current?.focus();
+    }, { allowInTextEntry: true });
+    const removeClose = registerKeyboardCommand('chat.close', () => {
+      if (!onClose) return false;
+      const isChatFocused = document.activeElement === inputRef.current;
+      if (isChatFocused && inputText) return false;
+      onClose();
+    }, { allowInTextEntry: true, layer: 'popover' });
+    return () => { removeFocus(); removeClose(); };
   }, [onClose, inputText]);
 
   const buildRepairPromptFromLiveState = useCallback((request: ChatRepairRequest) => {

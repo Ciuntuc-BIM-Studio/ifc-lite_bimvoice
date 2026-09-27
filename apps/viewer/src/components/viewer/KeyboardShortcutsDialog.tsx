@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { X, Sparkles, Info, Keyboard, ExternalLink, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LearnTab } from '@/components/tours/LearnTab';
 import { navigateToPath } from '@/services/app-navigation';
 import { useTranslation } from '@/i18n';
-import { isTextEntryTarget } from '@/lib/keyboard-event';
+import { registerKeyboardCommand } from '@/lib/commands/dispatcher';
 import { AboutTab } from './KeyboardShortcutsDialogTabs';
 import { ShortcutsTab } from './ShortcutsTab';
 import { WhatsNewTab } from './KeyboardShortcutsWhatsNewTab';
@@ -140,18 +140,18 @@ export function useKeyboardShortcutsDialog() {
     setOpen(true);
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isTextEntryTarget(e)) return;
-      if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
-        e.preventDefault();
-        setTab('shortcuts'); // `?` is the documented shortcuts key: open there, not on About
-        setOpen((o) => !o);
-      }
+  useLayoutEffect(() => {
+    const toggleFromKey = () => {
+      setTab('shortcuts');
+      setOpen((value) => !value);
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    const removeGlobal = registerKeyboardCommand('help.shortcuts', toggleFromKey);
+    // The same key closes its own modal; other global keys stay blocked.
+    const removeModal = open
+      ? registerKeyboardCommand('help.shortcuts', toggleFromKey, { layer: 'modal' })
+      : () => {};
+    return () => { removeGlobal(); removeModal(); };
+  }, [open]);
 
   return { open, tab, toggle, close, openTab };
 }
