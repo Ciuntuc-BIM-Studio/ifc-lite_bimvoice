@@ -87,7 +87,6 @@ function LensEditor({
       id: newRuleId(),
       name: 'New Rule',
       enabled: true,
-      criteria: { type: 'and', conditions: [] },
       groups: [emptyFilterGroup()],
       action: 'colorize',
       color: LENS_PALETTE[colorIndex],
@@ -120,12 +119,11 @@ function LensEditor({
   };
 
   const handleSave = () => {
-    const validRules = rules.filter(isRuleValid);
-    if (!name.trim() || validRules.length === 0) return;
-    onSave({ ...initial, name: name.trim(), rules: validRules });
+    if (!name.trim() || rules.length === 0 || !rules.every(isRuleValid)) return;
+    onSave({ ...initial, name: name.trim(), rules });
   };
 
-  const canSave = name.trim().length > 0 && rules.some(isRuleValid);
+  const canSave = name.trim().length > 0 && rules.length > 0 && rules.every(isRuleValid);
 
   return (
     <div className="border-2 border-primary bg-white dark:bg-zinc-900 rounded-sm">
