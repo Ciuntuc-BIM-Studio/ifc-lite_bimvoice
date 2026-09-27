@@ -18,7 +18,7 @@ import { configureMutationView } from '../../utils/configureMutationView.js';
 import { composeDocument, estimateTextWidth, wrapText } from './compose.js';
 import { largestBucketIds } from '../charts/buckets.js';
 import { generateDocumentPdf, topicLines, type DocumentPdfSeams } from './generate-document-pdf.js';
-import { parseDocumentFile } from './persistence.js';
+import { loadDocuments, parseDocumentFile } from './persistence.js';
 import { blankDocument, coverSheetDocument } from './presets.js';
 import { resolveValidationTableState } from './resolve-validation-table.js';
 import { DOCUMENT_VERSION, validateDocumentSpec, type DocumentSpec, type ListTableSource, type TableBlock, type ValidationTableSource } from './types.js';
@@ -256,6 +256,22 @@ describe('document file', () => {
     const imported = parseDocumentFile(JSON.stringify(v3Doc));
     assert.equal(imported.version, DOCUMENT_VERSION);
     assert.deepEqual(validateDocumentSpec(imported), []);
+    const importedList = ((imported.blocks[0] as TableBlock).source as ListTableSource).list;
+    assert.deepEqual(importedList.groups, []);
+    assert.equal('conditions' in importedList, false);
+  });
+
+  it('migrates v1 List predicates inside a current-version table document (#5894)', () => {
+    const list = {
+      id: 'l', name: 'Filtered walls', createdAt: 0, updatedAt: 0,
+      entityTypes: [], columns: [],
+      conditions: [{ source: 'property', psetName: 'Pset_WallCommon', propertyName: 'FireRating', operator: 'equals', value: '2HR' }],
+    };
+    const raw = { ...coverSheetDocument(), blocks: [{ kind: 'table', id: 'tb', source: { kind: 'list', list } }] };
+    const imported = parseDocumentFile(JSON.stringify(raw));
+    const migrated = ((imported.blocks[0] as TableBlock).source as ListTableSource).list;
+    assert.equal(migrated.groups[0].rules[0].kind, 'property');
+    assert.equal('conditions' in migrated, false);
   });
 
   it('migrates a version 1 or 2 file to the current version and validates the #4940 fields', { skip: !migrateDocumentSpec && 'migrateDocumentSpec is not exported (production reverted)' }, () => {
@@ -710,7 +726,7 @@ describe('generateDocumentPdf', () => {
 
 describe('table block (#5142)', () => {
   const listOf = (extra: Partial<ListDefinition> = {}): ListDefinition => ({
-    id: 'list-walls', name: 'Walls', createdAt: 0, updatedAt: 0, entityTypes: [IfcTypeEnum.IfcWall], conditions: [],
+    id: 'list-walls', name: 'Walls', createdAt: 0, updatedAt: 0, entityTypes: [IfcTypeEnum.IfcWall], groups: [],
     columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }, { id: 'storey', source: 'spatial', propertyName: 'Storey' }, { id: 'fr', source: 'property', psetName: 'Pset_WallCommon', propertyName: 'FireRating' }],
     ...extra,
   });
@@ -725,6 +741,8 @@ describe('table block (#5142)', () => {
     assert.deepEqual(bad({ ...tableBlock(), maxRows: 2.5 }), ['blocks[0].maxRows']);
     assert.deepEqual(bad({ ...tableBlock(), source: { kind: 'elements' } }), ['blocks[0].source']);
     assert.deepEqual(bad({ ...tableBlock(), source: { kind: 'list', list: { ...listOf(), columns: undefined } } }), ['blocks[0].source.list']);
+    assert.deepEqual(bad({ ...tableBlock(), source: { kind: 'list', list: { ...listOf(), id: '' } } }), ['blocks[0].source.list']);
+    assert.deepEqual(bad({ ...tableBlock(), source: { kind: 'list', list: { ...listOf(), groups: undefined, conditions: [] } } }), ['blocks[0].source.list']);
     assert.deepEqual(bad({ ...tableBlock(), source: { kind: 'list', list: { ...listOf(), expressIdsByModel: { m: [1] } } } }), ['blocks[0].source.list.expressIdsByModel']);
     assert.deepEqual(bad({ kind: 'table', id: 'x' }), ['blocks[0].source']);
     assert.deepEqual(validateDocumentSpec(docWith([{ kind: 'rows' } as unknown as TableBlock])).map((e) => e.message), ['expected a non-empty string', 'expected text | image | chart | topic | spacer | table | ids-report']);
@@ -736,6 +754,20 @@ describe('table block (#5142)', () => {
     assert.notEqual(source.list.id, 'list-walls', 'the copy never shares an id with a library list');
     assert.equal(source.fromListId, 'preset-wall-schedule', 'the back-pointer is kept');
     assert.equal(source.list.columns.length, 3);
+  });
+
+  it('rejects malformed embedded Rules groups while keeping valid neighboring saved documents (#5894)', () => {
+    const brokenList = { ...listOf(), groups: [null] };
+    const broken = docWith([{ ...tableBlock(), source: { kind: 'list', list: brokenList } } as unknown as TableBlock]);
+    const valid = { ...docWith([tableBlock()]), id: 'valid-neighbor' };
+    assert.deepEqual(validateDocumentSpec(broken).map(({ path }) => path), ['blocks[0].source.list']);
+    assert.throws(() => parseDocumentFile(JSON.stringify(broken)), /blocks\[0\]\.source\.list/);
+    try {
+      localStorage.setItem('ifc-lite-documents', JSON.stringify([broken, valid]));
+      assert.deepEqual(loadDocuments().map(({ id }) => id), ['valid-neighbor']);
+    } finally {
+      localStorage.removeItem('ifc-lite-documents');
+    }
   });
 
   it('listCopyForDocument drops the selection snapshot and takes the given id', { skip: !tableExports.listCopyForDocument && 'listCopyForDocument is not exported (production reverted)' }, () => {
@@ -853,7 +885,7 @@ describe('validation-results table source (#5138)', () => {
 
   it('an older document with only a list-sourced table block (no validation source anywhere) still validates and loads (#5142 compat)', () => {
     const list: ListDefinition = {
-      id: 'list-walls', name: 'Walls', createdAt: 0, updatedAt: 0, entityTypes: [IfcTypeEnum.IfcWall], conditions: [],
+      id: 'list-walls', name: 'Walls', createdAt: 0, updatedAt: 0, entityTypes: [IfcTypeEnum.IfcWall], groups: [],
       columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
     };
     const oldDoc = docWith([{ kind: 'table', id: 'tb', source: { kind: 'list', list, fromListId: 'preset-wall-schedule' }, maxRows: 10 }]);

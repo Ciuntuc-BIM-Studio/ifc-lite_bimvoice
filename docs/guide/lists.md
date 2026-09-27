@@ -8,9 +8,9 @@ A **list definition** describes what to tabulate:
 
 - **Entity types** - Which IFC classes to include (e.g. all `IfcDoor`)
 - **Columns** - Which values to pull for each entity (attributes, properties, quantities, ...)
-- **Conditions** - Optional filters on property values
+- **Filter groups** - Optional shared Rules predicates, evaluated by the viewer before column extraction
 
-`executeList` runs the definition against a **data provider** (an adapter over your parsed model) and returns a `ListResult` with one row per matching entity.
+`executeList` runs a definition with empty filter groups against a **data provider** (an adapter over your parsed model) and returns a `ListResult` with one row per matching entity. See [migrating saved v1 conditions](#migrating-saved-v1-conditions) for Rules-backed definitions.
 
 ## Quick Start
 
@@ -226,12 +226,19 @@ Conditions and lookups that match by name accept either an exact string or a reg
 
 ## Migrating saved v1 conditions
 
-`migrateLegacyListConditions(conditions)` decodes a saved flat AND list into one
-Rules `FilterGroup`. It returns `unreadableConditions` for sources and name
-patterns that cannot yet be represented without changing their results. Keep
-those original conditions when saving the definition, and show the unreadable
-rows to the user; the Lists engine still applies the v1 conditions during the
-staged migration.
+`migrateLegacyListDefinition(definition)` converts a saved v1 definition's flat
+`conditions` into `groups: FilterGroup[]` before the viewer runs it. Its
+`unreadableConditions` retain predicates that cannot be represented without
+changing their results. The viewer shows those rows with a warning and still
+applies them; saving or exporting writes only the canonical groups and
+unreadable rows. `migrateLegacyListConditions(conditions)` exposes the pure
+condition conversion for other v1 importers.
+
+`executeList` is the synchronous provider-only source and column engine. First
+evaluate any Rules groups, then pass an execution copy such as
+`{ ...definition, groups: [], expressIdsByModel: filteredIdsByModel }`.
+Passing the original definition with nonempty groups throws, even when it has
+an `expressIdsByModel` snapshot, to avoid silently returning extra rows.
 
 ## Key Exports
 
@@ -245,6 +252,7 @@ staged migration.
 | `discoverColumns(providers, entityTypes)` | Sample available attributes/properties/quantities |
 | `compileNameMatcher(pattern)` / `isNamePattern(pattern)` | Exact-or-regex name matching |
 | `migrateLegacyListConditions(conditions)` | Decode saved v1 conditions into one AND `FilterGroup` and explicit unreadable rows |
+| `migrateLegacyListDefinition(definition)` | Normalize a saved v1 definition to the public `groups` shape |
 | `LIST_PRESETS` | Built-in schedule definitions |
 | `ENTITY_ATTRIBUTES` | The attribute names available to `attribute` columns |
 

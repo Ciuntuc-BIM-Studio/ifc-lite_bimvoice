@@ -232,7 +232,7 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
       createdAt: Date.now(),
       updatedAt: Date.now(),
       entityTypes: [],
-      conditions: [],
+      groups: [],
       columns: [],
       expressIdsByModel: { default: [42] },
     } as unknown as ListDefinition;
@@ -257,7 +257,10 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     const initial: ListDefinition = {
       id: 'legacy-filter', name: 'Legacy filter', createdAt: 1, updatedAt: 1,
       entityTypes: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
-      conditions: [{ source: 'attribute', propertyName: 'Name', operator: 'contains', value: 'Wall' }],
+      groups: [], unreadableConditions: [{
+        condition: { source: 'attribute', propertyName: 'Name', operator: 'contains', value: 'Wall' },
+        reason: 'unsupported-attribute',
+      }],
     };
     let saved: ListDefinition | undefined;
     const container = render(
@@ -280,7 +283,6 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     assert.equal(container.querySelector('input[placeholder="value"]'), null);
     click([...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Save') as Element);
     assert.deepEqual(saved?.unreadableConditions, []);
-    assert.deepEqual(saved?.conditions, []);
   });
 
   it('authors zone and exact spatial modes through the retained Lists evaluator (#5894)', () => {
@@ -292,7 +294,7 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     let saved: ListDefinition | undefined;
     const initial: ListDefinition = {
       id: 'compat-authoring', name: 'Compatibility authoring', createdAt: 1, updatedAt: 1,
-      entityTypes: [], conditions: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
+      entityTypes: [], groups: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
     };
     const container = render(
       <ListBuilder providers={[buildProvider(store)]} stores={[store]} initial={initial}
@@ -320,7 +322,6 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
       { source: 'zone', psetName: 'takt', propertyName: 'Zone', operator: 'equals', value: 'Takt B' },
       { source: 'spatial', propertyName: 'Building', operator: 'contains', value: 'East' },
     ]);
-    assert.deepEqual(saved?.conditions, saved?.unreadableConditions?.map((row) => row.condition));
   });
 
   it('promotes a now-lossless inherited property into every AND Rules group (#5894)', () => {
@@ -328,7 +329,7 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     let saved: ListDefinition | undefined;
     const initial: ListDefinition = {
       id: 'inherited-property', name: 'Inherited property', createdAt: 1, updatedAt: 1,
-      entityTypes: [], conditions: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
+      entityTypes: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
       groups: [{ rules: [], combinator: 'AND' }, { rules: [], combinator: 'AND' }],
       unreadableConditions: [{ condition: {
         source: 'property', psetName: 'Pset_Test', propertyName: 'Code', operator: 'equals', value: 'A', inherit: 'aggregation',
@@ -351,7 +352,7 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     let saved: ListDefinition | undefined;
     const initial: ListDefinition = {
       id: 'or-property', name: 'OR property', createdAt: 1, updatedAt: 1,
-      entityTypes: [], conditions: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
+      entityTypes: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
       groups: [{ rules: [], combinator: 'OR' }],
       unreadableConditions: [{ condition: {
         source: 'property', psetName: 'Pset_Test', propertyName: 'Code', operator: 'equals', value: 'A', inherit: 'aggregation',
@@ -373,7 +374,7 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     const store = buildStore();
     const initial: ListDefinition = {
       id: 'malformed-filter', name: 'Malformed filter', createdAt: 1, updatedAt: 1,
-      entityTypes: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }], conditions: [], groups: [],
+      entityTypes: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }], groups: [],
       unreadableConditions: [{ condition: null, reason: 'invalid-condition' }],
     };
     let saved: ListDefinition | undefined;
@@ -383,10 +384,11 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     );
     assert.ok(container.querySelector('[role="alert"]')?.textContent?.includes('Malformed saved condition'));
     click([...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Save') as Element);
-    assert.deepEqual(saved?.conditions, []);
     assert.deepEqual(saved?.unreadableConditions, initial.unreadableConditions);
     click([...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Remove saved filter') as Element);
     assert.equal(container.querySelector('[role="alert"]'), null);
+    click([...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Save') as Element);
+    assert.deepEqual(saved?.unreadableConditions, []);
   });
 
   it('warns and preserves future source/operator and invalid-value filters instead of rendering broken editors (#5894)', () => {
@@ -400,7 +402,7 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     ];
     const initial = {
       id: 'future-filter', name: 'Future filter', createdAt: 1, updatedAt: 1,
-      entityTypes: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }], conditions: [], groups: [],
+      entityTypes: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }], groups: [],
       unreadableConditions: raw,
     } as unknown as ListDefinition;
     let saved: ListDefinition | undefined;
@@ -426,7 +428,7 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     let saved: ListDefinition | undefined;
     const initial: ListDefinition = {
       id: 'group-edits', name: 'Group edits', createdAt: 1, updatedAt: 1,
-      entityTypes: [], conditions: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
+      entityTypes: [], groups: [], columns: [{ id: 'name', source: 'attribute', propertyName: 'Name' }],
     };
     const container = render(
       <ListBuilder providers={[buildProvider(store)]} stores={[store]} initial={initial} onSave={(value) => { saved = value; }} onCancel={() => {}} onExecute={() => {}} />,
@@ -437,7 +439,7 @@ describe('ListBuilder localization (#4918)', { skip: !HAS_CATALOGUE && 'lists.en
     click([...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Save') as Element);
     assert.equal(saved?.groups?.length, 2);
     assert.deepEqual(saved?.groups?.map(({ combinator }) => combinator), ['AND', 'AND']);
-    assert.deepEqual(saved?.conditions, []);
+    assert.deepEqual(saved?.unreadableConditions, []);
   });
 
   it('translates the custom-column editor: Property/Quantity chips, placeholders, pattern hint, and add/close actions', () => {

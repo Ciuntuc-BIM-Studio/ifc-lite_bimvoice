@@ -22,7 +22,7 @@ import { executeList, summariseListRows } from '@ifc-lite/lists';
 import type { MutablePropertyView } from '@ifc-lite/mutations';
 import { evaluateFilterGroupsFederated, type EvaluatorModel } from '@ifc-lite/rules';
 import { mergeResultColumns } from './merge-result-columns.js';
-import { isEditableCondition } from './compatibility-condition.js';
+import { isExecutableCondition } from './compatibility-condition.js';
 import { scopeModelPairs, type ListModelTagState } from './model-tag-scope.js';
 
 /** One loaded model as the list engine sees it: its provider, keyed by the store's model id. */
@@ -51,26 +51,23 @@ export async function runListFederated(
   // unresolved or empty scope throws its reason.
   const scoped = scopeModelPairs(definition, pairs, state);
   let parts: ListResult[];
-  let scanDuration: number | undefined;
-  if (definition.groups === undefined) {
-    // V1 definitions still used by package consumers take their existing path.
-    parts = scoped.map(({ modelId, provider }) => executeList(definition, provider, modelId));
-  } else {
+  let scanDuration: number;
+  {
     const start = performance.now();
     // `executeList` remains the source-set and column engine. Its first pass
     // has no columns or presentation work: it applies the list's type/snapshot
     // scope plus only v1 predicates that lack a lossless Rules representation.
-    // Once `groups` exists it is authoritative, even when the user cleared
-    // every rule. `conditions` retains readable v1 rows only during migration.
-    const unreadable: ListDefinition['conditions'] = [];
+    // Rules groups stay authoritative even when the user clears every rule.
+    // Only explicitly unreadable v1 predicates remain on the legacy path.
+    const unreadable: NonNullable<ListDefinition['legacyConditions']> = [];
     for (const row of definition.unreadableConditions ?? []) {
-      if (!isEditableCondition(row)) {
+      if (!isExecutableCondition(row)) {
         throw new Error('This saved list has a malformed condition. Remove it in the list editor before running.');
       }
       unreadable.push(row.condition);
     }
     const candidates = new Map(scoped.map(({ modelId, provider }) => [modelId, executeList({
-      ...definition, conditions: unreadable, columns: [], grouping: undefined, sortBy: undefined,
+      ...definition, groups: [], legacyConditions: unreadable, columns: [], grouping: undefined, sortBy: undefined,
     }, provider, modelId).rows.map(({ entityId }) => entityId)] as const));
     const hasRules = definition.groups.some((group) => group.rules.length > 0);
     const matchedByModel = new Map<string, Set<number>>();
@@ -94,7 +91,7 @@ export async function runListFederated(
       }
     }
     parts = scoped.map(({ modelId, provider }) => executeList({
-      ...definition, conditions: [],
+      ...definition, groups: [], legacyConditions: [],
       expressIdsByModel: { [modelId]: (candidates.get(modelId) ?? []).filter((id) => !hasRules || matchedByModel.get(modelId)?.has(id)) },
     }, provider, modelId));
     // Include the Rules scan in the user-visible execution time below.
@@ -102,7 +99,7 @@ export async function runListFederated(
   }
 
   const rows = parts.flatMap((r) => r.rows);
-  const executionTime = scanDuration ?? parts.reduce((sum, r) => sum + r.executionTime, 0);
+  const executionTime = scanDuration;
 
   // Re-derive groups/summary over the merged rows so grouping works across
   // federated models (and isn't dropped on the merge).

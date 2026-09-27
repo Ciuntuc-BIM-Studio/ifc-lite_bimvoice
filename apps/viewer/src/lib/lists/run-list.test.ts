@@ -13,7 +13,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { executeList, migrateLegacyListConditions, type ConditionOperator, type ListDataProvider, type ListDefinition, type PropertyCondition } from '@ifc-lite/lists';
+import { executeList, migrateLegacyListConditions, migrateLegacyListDefinition, type ConditionOperator, type ListDataProvider, type ListDefinition, type PropertyCondition } from '@ifc-lite/lists';
 import { IfcTypeEnum, QuantityType, type QuantitySet } from '@ifc-lite/data';
 import { IfcParser, extractPropertiesOnDemand, type IfcDataStore } from '@ifc-lite/parser';
 import { MutablePropertyView } from '@ifc-lite/mutations';
@@ -46,7 +46,7 @@ const definition = (extra: Partial<ListDefinition> = {}): ListDefinition => ({
   createdAt: 0,
   updatedAt: 0,
   entityTypes: [IfcTypeEnum.IfcWall],
-  conditions: [],
+  groups: [],
   columns: [
     { id: 'name', source: 'attribute', propertyName: 'Name' },
     { id: 'vol', source: 'quantity', psetName: 'Qto', propertyName: 'NetVolume' },
@@ -92,7 +92,7 @@ describe('#5894 Rules-backed Lists over parsed IFC', () => {
       },
     }));
     const def = definition({
-      entityTypes: [IfcTypeEnum.IfcWall], conditions: [zone, building],
+      entityTypes: [IfcTypeEnum.IfcWall],
       groups: [{ rules: [], combinator: 'AND' }],
       unreadableConditions: [
         { condition: zone, reason: 'unsupported-source' },
@@ -112,14 +112,14 @@ describe('#5894 Rules-backed Lists over parsed IFC', () => {
     const conditions = [property, name];
     const migrated = migrateLegacyListConditions(conditions);
     const def = definition({
-      entityTypes: [IfcTypeEnum.IfcWall], conditions, ...migrated,
+      entityTypes: [IfcTypeEnum.IfcWall], ...migrated,
       columns: [
         { id: 'name', source: 'attribute', propertyName: 'Name' },
         { id: 'text', source: 'property', psetName: 'Pset_Test', propertyName: 'Text' },
       ],
     });
     for (const selected of [pairs.slice(0, 1), pairs]) {
-      const old = selected.flatMap(({ modelId, provider }) => executeList(def, provider, modelId).rows);
+      const old = selected.flatMap(({ modelId, provider }) => executeList({ ...def, groups: [], legacyConditions: conditions }, provider, modelId).rows);
       const result = await runListFederated(def, selected, state, {
         evaluatorModels: selected.map(({ modelId, store, mutationView }) => ({ id: modelId, store, mutationView })),
       });
@@ -141,8 +141,8 @@ describe('#5894 Rules-backed Lists over parsed IFC', () => {
       const conditions: PropertyCondition[] = [{
         source: 'property', psetName: 'Pset_Test', propertyName: field, operator, value,
       }];
-      const def = definition({ conditions, expressIdsByModel: { m1: IDS }, ...migrateLegacyListConditions(conditions) });
-      const old = executeList(def, model.provider, model.modelId).rows.map(({ entityId }) => entityId);
+      const def = definition({ expressIdsByModel: { m1: IDS }, ...migrateLegacyListConditions(conditions) });
+      const old = executeList({ ...def, groups: [], legacyConditions: conditions }, model.provider, model.modelId).rows.map(({ entityId }) => entityId);
       const result = await runListFederated(def, [model], state);
       assert.deepEqual(result.rows.map(({ entityId }) => entityId), old, operator);
     }
@@ -156,7 +156,7 @@ describe('#5894 Rules-backed Lists over parsed IFC', () => {
       modelTagAssignments: new Map<string, ReadonlySet<string>>([['m2', new Set(['architecture'])]]),
     };
     const def = definition({
-      entityTypes: [IfcTypeEnum.IfcWall], conditions: [],
+      entityTypes: [IfcTypeEnum.IfcWall],
       expressIdsByModel: { m1: [10], m2: [20] },
       groups: [{ combinator: 'AND', rules: [Rule.modelTag('hasAny', ['architecture'])] }],
     });
@@ -169,7 +169,6 @@ describe('#5894 Rules-backed Lists over parsed IFC', () => {
   it('uses edited Rules groups instead of stale readable v1 conditions', async () => {
     const [model] = await parsedPairs();
     const def = definition({
-      conditions: [property],
       groups: [{ combinator: 'AND', rules: [Rule.property('Pset_Test', 'Text', 'eq', 'Red')] }],
     });
     const result = await runListFederated(def, [model], state);
@@ -187,17 +186,60 @@ describe('#5894 Rules-backed Lists over parsed IFC', () => {
       source: 'attribute', propertyName: 'Name', operator: 'contains', value: 'Missing',
     }]);
     const def = definition({
-      conditions: [], ...migrated,
+      ...migrated,
       groups: [{ combinator: 'AND', rules: [Rule.property('Pset_Test', 'Text', 'eq', 'Blue')] }],
     });
     const result = await runListFederated(def, [model], state);
     assert.deepEqual(result.rows, [], 'the unreadable Name predicate still excludes the Blue wall');
   });
 
+  it('narrows existing OR groups with mixed saved v1 conditions in one and two parsed IFC models (#5894)', async () => {
+    const pairs = await parsedPairs();
+    const mixed = migrateLegacyListDefinition({ ...definition(),
+      groups: [
+        { combinator: 'AND', rules: [Rule.property('Pset_Test', 'Text', 'eq', 'Red')] },
+        { combinator: 'AND', rules: [Rule.property('Pset_Test', 'Text', 'eq', 'Blue')] },
+      ],
+      conditions: [property],
+    });
+    assert.equal(mixed.unreadableConditions?.[0].reason, 'mixed-groups');
+    for (const selected of [pairs.slice(0, 1), pairs]) {
+      const expected = selected.flatMap(({ modelId, provider }) => executeList({
+        ...mixed, groups: [], unreadableConditions: [], legacyConditions: [property],
+      }, provider, modelId).rows.map(({ entityId }) => [modelId, entityId]));
+      const result = await runListFederated(mixed, selected, state, {
+        evaluatorModels: selected.map(({ modelId, store, mutationView }) => ({ id: modelId, store, mutationView })),
+      });
+      const unconstrained = await runListFederated({ ...mixed, unreadableConditions: [] }, selected, state);
+      assert.ok(unconstrained.rows.length > result.rows.length, 'the saved v1 row narrows the OR union');
+      assert.deepEqual(result.rows.map(({ modelId, entityId }) => [modelId, entityId]), expected);
+    }
+  });
+
+  it('runs a mixed saved numeric geometry predicate through the provider in one and two parsed IFC models (#5894)', async () => {
+    const pairs = (await parsedPairs()).map((pair) => ({
+      ...pair,
+      provider: { ...pair.provider, getWorldPosition: (id: number) => ({ x: id / 10, y: 0, z: 0 }) },
+    }));
+    const mixed = migrateLegacyListDefinition({ ...definition(),
+      groups: [
+        { combinator: 'AND', rules: [Rule.property('Pset_Test', 'Text', 'eq', 'Red')] },
+        { combinator: 'AND', rules: [Rule.property('Pset_Test', 'Text', 'eq', 'Blue')] },
+      ],
+      conditions: [{ source: 'geometry', propertyName: 'X', operator: 'gt', value: 1.5 }],
+    });
+    assert.equal(mixed.unreadableConditions?.[0].reason, 'mixed-groups');
+    for (const selected of [pairs.slice(0, 1), pairs]) {
+      const result = await runListFederated(mixed, selected, state);
+      assert.deepEqual(result.rows.map(({ modelId, entityId }) => [modelId, entityId]),
+        selected.flatMap(({ modelId }) => [[modelId, 20], [modelId, 30]]));
+    }
+  });
+
   it('reports a malformed saved condition for removal instead of evaluating it (#5894)', async () => {
     const [model] = await parsedPairs();
     const migrated = migrateLegacyListConditions([null]);
-    const def = definition({ conditions: [], ...migrated });
+    const def = definition({ unreadableConditions: migrated.unreadableConditions });
     await assert.rejects(() => runListFederated(def, [model], state),
       /malformed condition.*Remove it in the list editor/);
   });

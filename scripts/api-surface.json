@@ -6420,9 +6420,11 @@
     "groupPathKey: function",
     "groupingColumnIds: function",
     "isNamePattern: function",
+    "isSavedListShape: function",
     "isZoneVolumeMode: function",
     "listResultToCSV: function",
     "migrateLegacyListConditions: function",
+    "migrateLegacyListDefinition: function",
     "summariseListRows: function",
     "toScheduleRows: function"
   ],

@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { isFilterRule } from '@ifc-lite/rules';
 import { migrateLegacyListConditions } from './legacy-condition-migration.js';
-import type { ConditionOperator, PropertyCondition } from './types.js';
+import type { ConditionOperator, ListDefinition, PropertyCondition } from './types.js';
 
 const property = (operator: ConditionOperator): PropertyCondition => ({
   source: 'property', psetName: 'Pset_WallCommon', propertyName: 'FireRating',
@@ -21,6 +21,60 @@ describe('v1 List condition migration (#5894)', () => {
       { condition: 42, reason: 'invalid-condition' },
       { condition: { source: 'property' }, reason: 'invalid-condition' },
     ]);
+  });
+
+  it('normalizes persisted v1 definitions without saving the removed conditions field', async () => {
+    // Resolve the new export at assertion time so reverting #5894 leaves a
+    // failing behavior assertion rather than an ESM module-load failure.
+    const migrate = (await import('./index.js')).migrateLegacyListDefinition;
+    expect(typeof migrate).toBe('function');
+    const old: Omit<ListDefinition, 'groups'> & { conditions: PropertyCondition[] } = {
+      id: 'old', name: 'Old', createdAt: 1, updatedAt: 1, entityTypes: [], columns: [],
+      conditions: [property('contains'), { source: 'attribute', propertyName: 'Name', operator: 'contains', value: 'Wall' }],
+    };
+    const normalized = migrate(old);
+    expect(normalized.groups[0].rules).toHaveLength(1);
+    expect(normalized.unreadableConditions?.[0].condition).toEqual(old.conditions[1]);
+    expect('conditions' in normalized).toBe(false);
+    expect(migrate(normalized)).toEqual(normalized);
+  });
+
+  it('rejects malformed whole definitions and malformed Rules groups before execution (#5894)', async () => {
+    const migrateLegacyListDefinition = (await import('./index.js')).migrateLegacyListDefinition;
+    const valid = { id: 'walls', name: 'Walls', createdAt: 1, updatedAt: 1,
+      entityTypes: [], columns: [], groups: [] };
+    for (const malformed of [[], { id: 'x' }, { ...valid, id: '' }, { ...valid, columns: {} },
+      { ...valid, groups: [null] }, { ...valid, groups: [{ combinator: 'AND', rules: [null] }] },
+      { ...valid, expressIdsByModel: { m1: 'bad' } },
+      { ...valid, expressIdsByModel: { m1: [1, 'bad'] } },
+      { ...valid, grouping: { columnId: 'name' } },
+      { ...valid, grouping: { columnId: 'name', sumColumnIds: [42] } }]) {
+      expect(() => migrateLegacyListDefinition(malformed)).toThrow('Invalid saved list definition');
+    }
+    expect(migrateLegacyListDefinition(valid)).toEqual(valid);
+  });
+
+  it('keeps both existing and newly discovered unreadable rows in mixed saved JSON (#5894)', async () => {
+    const migrate = (await import('./index.js')).migrateLegacyListDefinition;
+    const old = { id: 'mixed', name: 'Mixed', createdAt: 1, updatedAt: 1,
+      entityTypes: [], columns: [], groups: [{ combinator: 'AND', rules: [] }],
+      unreadableConditions: [{ condition: { source: 'attribute', propertyName: 'Name', operator: 'equals', value: 'A' }, reason: 'unsupported-attribute' }],
+      conditions: [property('equals'), null],
+    };
+    const migrated = migrate(old);
+    expect(migrated.groups).toEqual(old.groups);
+    expect(migrated.unreadableConditions?.map((row) => row.reason)).toEqual([
+      'unsupported-attribute', 'mixed-groups', 'invalid-condition',
+    ]);
+    expect('conditions' in migrated).toBe(false);
+    expect(migrate(migrated)).toEqual(migrated);
+
+    const v1 = { ...old, groups: undefined };
+    const converted = migrate(v1);
+    expect(converted.unreadableConditions?.map((row) => row.reason)).toEqual([
+      'unsupported-attribute', 'invalid-condition',
+    ]);
+    expect(converted.groups[0].rules).toHaveLength(1);
   });
 
   it('preserves every persisted operator in one AND group for the new Rules evaluator', () => {
