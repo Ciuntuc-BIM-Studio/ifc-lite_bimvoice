@@ -4,7 +4,6 @@
 #raw access is removed so a future regression still fails.
 apps/viewer/src/store/slices/mutationSlice.ts
 apps/viewer/src/store/slices/storeyPlacement.ts
-apps/viewer/src/components/viewer/properties/RawStepCard.tsx
 packages/cache/src/adapt.ts
 packages/cache/src/sections/entities.ts
 packages/cache/src/sections/entity-index.ts
@@ -58,7 +57,6 @@ packages/parser/src/structural-step-values.ts
 packages/parser/src/columnar-parser-root-attributes.ts
 packages/parser/src/exact-relationship-edges.ts
 packages/parser/src/identity-hints.ts
-packages/parser/src/owning-project.ts
 packages/parser/src/property-unit.ts
 packages/parser/src/property-value-parser.ts
 packages/parser/src/project-units.ts
