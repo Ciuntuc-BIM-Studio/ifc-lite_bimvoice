@@ -40,6 +40,19 @@ and GPU-process private memory after applying a lens: the renderer's resident
 geometry counter alone omits the allocation that dominated the old path.
 See the [browser evidence](evidence/color-overrides-6148/README.md).
 
+## Reusable swept-disk source definitions (#5785)
+
+The source/instance API is opt-in. Its bounded walk reuses decoded raw
+solids within one extraction; the default mesh pipeline remains separate.
+Five alternating fresh-process native AC20-FZK-Haus pairs compared merged
+main `80d1ba901` with the #5810 source head `55109fdbd`, each with five
+inner iterations and ordered mesh fingerprints. Counts and fingerprints were
+identical throughout; parse, geometry, and total timing ranges overlapped.
+Verdict: no supported default full-load speed change on this fixture. The
+lesson is to measure cache benefits in opt-in extraction and browser worker
+pools rather than infer them from a default mesh probe. The PR records the
+numeric measurements, binary hashes, and fixture provenance.
+
 ## Derived swept-disk metrics (#5754)
 
 The length/bend calculations run only when an analytic description is
