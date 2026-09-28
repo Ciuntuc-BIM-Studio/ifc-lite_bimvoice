@@ -53,6 +53,39 @@ lesson is to measure cache benefits in opt-in extraction and browser worker
 pools rather than infer them from a default mesh probe. The PR records the
 numeric measurements, binary hashes, and fixture provenance.
 
+## Opt-in swept-disk WASM bridge (#5770)
+
+The geometry bridge exposes a new explicit extraction call; ordinary mesh
+loading does not call it. For the #5770 control, native `perf_probe` builds
+from base `724674528` and bridge head `6e454b771` were byte-identical
+(SHA-256 `b5681610450366214773ddaaf808d4fa8ea8fd00894f9ffec5a81ffdc32c9bb4`).
+The base is an ancestor of the PR's main parent `f06d11798`, with no intervening
+changes under `rust/core`, `rust/geometry`, or `rust/processing`. Both builds used
+`cargo build --profile profiling -p ifc-lite-processing --example perf_probe`.
+On AC20-FZK-Haus (fixture SHA-256 `ea6f04eaf92fac4d7ad0038bc3d2dfea4c094dd3f516ecc33c50bf1835ca108d`),
+`perf_probe <fixture> --iters 1 --json --fingerprint` returned the same ordered
+mesh FNV-1a64 `c4d504b83ff698ea`, 285 meshes, 35,940 vertices, and 20,322
+triangles from each binary. Verdict: the normal **native** load executes the
+same binary, so a noisy timing comparison of those binaries would add no evidence.
+After the checker merged, a new five-pair, balanced fresh-process AC20 control
+compared a profiling binary from checker source `cdbefec6e` (Rust/Cargo identical
+to merged main `80d1ba901`) with bridge source `b72d706de` (identical native
+source to the final comment-only head). Each process ran five iterations with
+ordered mesh fingerprints. Every run kept the same mesh counts and ordered FNV;
+parse, geometry, and total ranges overlapped. Verdict: the bridge preserves
+ordinary native-load output, with no supported default-path speed change.
+After #5810 advanced main to `ba85514d3`, those timings remain prior-base
+evidence. The bridge's current-base diff has no changes under `rust/core`,
+`rust/geometry`, `rust/processing`, Cargo manifests/lockfile, the native probe,
+or the fixture manifest. Both sides therefore compile the same native default
+path; #5810's own control above preserved the ordered mesh fingerprint. This
+source-equivalence check supports no new native-load work from the bridge, but
+does not turn the earlier timings into a measurement against `ba85514d3`.
+The added WASM export's browser startup and opt-in extraction cost were not
+measured; this result does not establish a browser worker-pool speed change.
+For an opt-in bridge, prove the default path is unchanged separately from
+measuring the new call when a frequent caller exists.
+
 ## Derived swept-disk metrics (#5754)
 
 The length/bend calculations run only when an analytic description is
