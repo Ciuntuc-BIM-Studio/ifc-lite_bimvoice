@@ -671,6 +671,11 @@ same representation map share a source but remain separate instances with
 deterministic ordinals and mapped-item paths. `source_modified` still marks CSG
 operands.
 
+`extract_swept_disk_views` returns the world descriptions and reusable raw
+definitions together from one bounded walk and one decoded source cache. The
+rebar schedule uses this paired view to retain complete world-space sweeps even
+if the independent definition output budget omits a reusable source key.
+
 Each instance's column-major f64 `world_from_source` maps raw source
 coordinates directly into absolute IFC Z-up metres; it includes the file-unit
 scale, product placement and nested mapped transforms. A source radius is not
@@ -704,6 +709,27 @@ geometry and invalid or singular occurrence transforms have explicit statuses.
 `source_modified` marks CSG operands, not final post-boolean geometry. Source
 and instance output budgets are independent and report truncation in
 `diagnostics`.
+
+`ifc_lite_export::build_rebar_schedule(ifc_bytes, ids, &options)` returns one
+row per selected `IfcReinforcingBar` entity, including rows whose body has no
+supported swept-disk source. `rows` is keyed by occurrence STEP ID. Each row
+exposes and serializes its IFC identity as `GlobalId` and `Name`, matching `IfcRoot`.
+Every represented source sweep has its own ordinal, solid/directrix IDs, mapping path,
+outer/inner radii, directrix metrics, geometric check report and an optional
+reusable `SweptDiskSourceKey`. It keeps repeated mapped sources and CSG operands
+distinct; repeated uses of one map share the source key. A missing key is
+reported per row without dropping the world sweep. The `authored` map uses exact EXPRESS
+attribute names; each entry identifies the occurrence or type entity that
+supplied it. Numeric measures retain `value_file_units` and their `value_si`
+conversion, while centreline lengths are separately derived world metres.
+An authored `CrossSectionArea` of zero remains in the record with its provenance;
+the row diagnostic states that it does not establish a physical section area.
+Radii are effective world metres for complete paths; an unsupported transform
+retains source radii in metres without implying a world circular radius.
+Conflicting occurrence/type values are reported, with the occurrence taking
+precedence. `bar_entity_count` and `represented_sweep_count` count IFC records,
+not manufactured bars. The API provides no physical bar count, cutting length,
+or certified fabrication result.
 
 ### Appearance authoring
 
