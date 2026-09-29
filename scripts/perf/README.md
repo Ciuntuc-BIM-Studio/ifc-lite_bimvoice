@@ -2558,3 +2558,22 @@ they establish no browser worker-pool speedup or analytic-call memory win.
 The lesson is to cache only immutable source facts and to measure opt-in
 analytic extraction separately: far fewer source validations need not shorten
 the full call.
+
+## Shared trimmed line and circle decoding (#6402)
+
+The final decoder was measured against its parent in alternating,
+fresh-process native pairs on AC20 and the real Snowdon structural IFC.
+Every ordered mesh fingerprint and mesh, vertex, and triangle count matched;
+separate source-verified builds had distinct binary hashes. The timing shifts
+overlap normal run-to-run noise, so this change has no measured native pipeline
+regression or speedup on these fixtures. This does not measure browser
+worker-pool cost. The final-head timings and paired deltas are in the PR.
+
+An [earlier hosted run](https://github.com/LTplus-AG/ifc-lite/actions/runs/36485574030)
+recorded raw phase timings and passed native mesh-determinism and quick
+committed-reference IfcOpenShell parity checks. Later review fixes changed the
+decoder, so its timing result is not the final-head measurement above.
+
+The lesson is that sharing trim-select decoding need not perturb common mesh
+output: keep strict IFC validation for analytic curves separate from the mesh
+recovery policy, and test malformed circular spans as well as valid trims.
