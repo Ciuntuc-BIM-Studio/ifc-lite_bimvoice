@@ -6,6 +6,121 @@ use super::*;
 
 const REBAR: &str = include_str!("../../geometry/tests/fixtures/swept_disk_composite_arc_ubar.ifc");
 const MAPPED: &str = include_str!("../../geometry/tests/fixtures/swept_disk_trimmed_line.ifc");
+const CRANK: &str = include_str!("../../geometry/tests/fixtures/swept_disk_composite_arc_crankbar.ifc");
+
+#[test]
+fn issue_6305_preflight_equality_failures_and_mm_geometry() {
+    let options = SweptDiskCheckOptions::default();
+    let loose = RebarPreflightLimits {
+        min_inside_bend_radius_m: 0.0,
+        min_straight_segment_length_m: 0.0,
+        max_developed_centreline_length_m: Some(10.0),
+    };
+    let first = build_rebar_schedule_with_preflight(REBAR.as_bytes(), None, &options, &loose).unwrap();
+    let sweep = &first.rows[&125].sweeps[0];
+    let comparisons = sweep.preflight.as_ref().unwrap().comparisons.as_ref().unwrap();
+    let bend = comparisons.iter().find(|item| item.kind == "inside_bend_radius").unwrap();
+    let straight = comparisons.iter().filter(|item| item.kind == "straight_segment_length")
+        .min_by(|left, right| left.measured_m.total_cmp(&right.measured_m)).unwrap();
+    let length = comparisons.iter().find(|item| item.kind == "developed_centreline_length").unwrap();
+    assert!((bend.measured_m - 0.087).abs() < 1e-12);
+    assert_eq!(bend.segment_index, Some(1));
+    let equal = RebarPreflightLimits {
+        min_inside_bend_radius_m: bend.measured_m,
+        min_straight_segment_length_m: straight.measured_m,
+        max_developed_centreline_length_m: Some(length.measured_m),
+    };
+    let schedule = build_rebar_schedule_with_preflight(REBAR.as_bytes(), None, &options, &equal).unwrap();
+    let row = &schedule.rows[&125];
+    assert!(row.sweeps[0].preflight.as_ref().unwrap().comparisons.as_ref().unwrap().iter().all(|item| item.passed));
+    assert!(!row.authored.contains_key("BarLength"));
+    assert!(row.sweeps[0].directrix_metrics.is_some());
+    let strict = RebarPreflightLimits {
+        min_inside_bend_radius_m: bend.measured_m + 0.001,
+        min_straight_segment_length_m: straight.measured_m + 0.001,
+        max_developed_centreline_length_m: Some(length.measured_m - 0.001),
+    };
+    let schedule = build_rebar_schedule_with_preflight(REBAR.as_bytes(), None, &options, &strict).unwrap();
+    let failed = schedule.rows[&125].sweeps[0].preflight.as_ref().unwrap().comparisons
+        .as_ref().unwrap().iter().filter(|item| !item.passed).collect::<Vec<_>>();
+    assert!(failed.iter().any(|item| item.kind == "inside_bend_radius" && item.segment_index.is_some()));
+    assert!(failed.iter().any(|item| item.kind == "straight_segment_length" && item.segment_index.is_some()));
+    assert!(failed.iter().any(|item| item.kind == "developed_centreline_length" && item.segment_index.is_none()));
+    assert!(build_rebar_schedule_with_preflight(CRANK.as_bytes(), None, &options, &loose)
+        .unwrap().rows[&79].sweeps[0].preflight.as_ref().unwrap().comparisons.as_ref().unwrap().len() >= 5);
+    let line_only = build_rebar_schedule_with_preflight(MAPPED.as_bytes(), None, &options, &loose).unwrap();
+    let report = line_only.rows[&50].sweeps[0].preflight.as_ref().unwrap();
+    assert!(report.unassessed_reasons.iter().any(|reason| reason.contains("no arc segments")));
+    let arc_only = REBAR.replace(
+        "#71=IFCCOMPOSITECURVE((#48,#55,#60,#65,#70),.F.);",
+        "#71=IFCCOMPOSITECURVE((#55),.F.);",
+    );
+    let schedule = build_rebar_schedule_with_preflight(arc_only.as_bytes(), None, &options, &loose).unwrap();
+    let report = schedule.rows[&125].sweeps[0].preflight.as_ref().unwrap();
+    assert!(report.unassessed_reasons.iter().any(|reason| reason.contains("no line segments")));
+}
+
+#[test]
+fn issue_6305_preflight_explains_missing_modified_and_invalid_inputs() {
+    let options = SweptDiskCheckOptions::default();
+    let limits = RebarPreflightLimits {
+        min_inside_bend_radius_m: 0.0,
+        min_straight_segment_length_m: 0.0,
+        max_developed_centreline_length_m: None,
+    };
+    let absent = REBAR.replace("#33,#124,$,$,29.", "#33,$,$,$,29.");
+    let row = &build_rebar_schedule_with_preflight(absent.as_bytes(), None, &options, &limits)
+        .unwrap().rows[&125];
+    assert!(row.sweeps.is_empty());
+    assert_eq!(
+        row.preflight_skipped_reason.as_deref(),
+        Some("no swept-disk source in selected body representation"),
+    );
+    let modified = MAPPED.replace(
+        "#44=IFCSHAPEREPRESENTATION(#16,'Body','AdvancedSweptSolid',(#43));",
+        "#1001=IFCBOOLEANRESULT(.UNION.,#43,#43);\n#44=IFCSHAPEREPRESENTATION(#16,'Body','AdvancedSweptSolid',(#1001));",
+    );
+    let schedule = build_rebar_schedule_with_preflight(modified.as_bytes(), None, &options, &limits).unwrap();
+    for sweep in &schedule.rows[&50].sweeps {
+        let report = sweep.preflight.as_ref().unwrap();
+        assert!(report.skipped_reason.as_ref().unwrap().contains("modified"));
+        assert!(report.comparisons.is_none());
+    }
+    let unsupported = MAPPED.replace(
+        "#46=IFCCARTESIANTRANSFORMATIONOPERATOR3D($,$,#10,$,$);",
+        "#46=IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM($,$,#10,$,$,2.,1.);",
+    );
+    let schedule = build_rebar_schedule_with_preflight(unsupported.as_bytes(), None, &options, &limits).unwrap();
+    let report = schedule.rows[&50].sweeps[0].preflight.as_ref().unwrap();
+    assert!(report.skipped_reason.as_ref().unwrap().contains("unsupported"));
+    assert!(report.comparisons.is_none());
+    for invalid in [f64::NAN, -1.0, f64::INFINITY] {
+        let bad = RebarPreflightLimits { min_inside_bend_radius_m: invalid, ..limits };
+        assert!(build_rebar_schedule_with_preflight(REBAR.as_bytes(), Some(&HashSet::new()), &options, &bad).is_err());
+    }
+}
+
+#[test]
+fn issue_6305_preflight_assesses_zero_and_negative_inside_bend_radius() {
+    let options = SweptDiskCheckOptions::default();
+    let limits = RebarPreflightLimits::new(0.0, 0.0, None).unwrap();
+    for (outer_radius_mm, expected_m, passed) in [(101.5, 0.0, true), (102.5, -0.001, false)] {
+        let file = REBAR.replace(
+            "#72=IFCSWEPTDISKSOLID(#71,14.5,$,0.,820.826726273522);",
+            &format!("#72=IFCSWEPTDISKSOLID(#71,{outer_radius_mm},$,0.,820.826726273522);"),
+        );
+        let schedule = build_rebar_schedule_with_preflight(file.as_bytes(), None, &options, &limits).unwrap();
+        let sweep = &schedule.rows[&125].sweeps[0];
+        let report = sweep.preflight.as_ref().unwrap();
+        let bend = report.comparisons.as_ref().unwrap().iter().find(|item|
+            item.kind == "inside_bend_radius" && item.segment_index == Some(1)).unwrap();
+        assert!((bend.measured_m - expected_m).abs() < 1e-12);
+        assert_eq!(bend.passed, passed);
+        assert!(!report.unassessed_reasons.iter().any(|reason| reason.contains("inside bend radius")));
+        assert!(sweep.checks.findings.iter().any(|finding|
+            finding.code == ifc_lite_processing::SweptDiskFindingCode::ArcRadiusNotGreaterThanDiskRadius));
+    }
+}
 
 #[test]
 fn issue_5759_zero_authored_area_is_retained_and_diagnosed() {
@@ -24,6 +139,48 @@ fn issue_5759_zero_authored_area_is_retained_and_diagnosed() {
     );
     assert!(row.diagnostics.iter().any(|message| message ==
         "CrossSectionArea on occurrence: authored zero retained; physical section area is not established"));
+}
+
+#[test]
+fn issue_6305_preflight_skips_disconnected_and_degenerate_source_paths() {
+    use ifc_lite_processing::SweptDiskFindingCode;
+
+    let options = SweptDiskCheckOptions::default();
+    let limits = RebarPreflightLimits::new(0.0, 0.0, Some(10.0)).unwrap();
+    let cases = [
+        (
+            REBAR.replace(
+                "#56=IFCCARTESIANPOINT((101.5,0.,-423.5));",
+                "#56=IFCCARTESIANPOINT((102.5,0.,-423.5));",
+            ),
+            SweptDiskFindingCode::ConsecutiveGap,
+        ),
+        (
+            REBAR.replace(
+                "(IFCPARAMETERVALUE(322.)),.T.,.PARAMETER.",
+                "(IFCPARAMETERVALUE(0.0000001)),.T.,.PARAMETER.",
+            ),
+            SweptDiskFindingCode::ZeroLengthSegment,
+        ),
+    ];
+    for (source, expected) in cases {
+        let schedule = build_rebar_schedule_with_preflight(
+            source.as_bytes(), None, &options, &limits,
+        ).unwrap();
+        let sweep = &schedule.rows[&125].sweeps[0];
+        assert!(sweep.checks.findings.iter().any(|finding| finding.code == expected));
+        if expected == SweptDiskFindingCode::ConsecutiveGap {
+            let joins = sweep.checks.findings.iter()
+                .filter(|finding| finding.code == SweptDiskFindingCode::ConsecutiveGap)
+                .map(|finding| (finding.segment_index, finding.next_segment_index))
+                .collect::<Vec<_>>();
+            // Moving the middle line's start opens both adjacent joins, one finding per join.
+            assert_eq!(joins, [(1, Some(2)), (2, Some(3))]);
+        }
+        let preflight = sweep.preflight.as_ref().unwrap();
+        assert!(preflight.skipped_reason.is_some());
+        assert!(preflight.comparisons.is_none());
+    }
 }
 
 #[test]
@@ -53,6 +210,25 @@ fn issue_5759_revit_snowdon_schedule_preserves_authored_and_measured_lengths() {
     assert_eq!(metrics.segments.len(), 11);
     assert_eq!(metrics.segments.iter().filter(|part| part.bend_angle.is_some()).count(), 5);
     assert!((metrics.total_length - authored_m).abs() > 0.009);
+    let preflight = build_rebar_schedule_with_preflight(&content, Some(&ids),
+        &SweptDiskCheckOptions::default(), &RebarPreflightLimits {
+            min_inside_bend_radius_m: 0.0,
+            min_straight_segment_length_m: 0.0,
+            max_developed_centreline_length_m: None,
+        }).unwrap();
+    let report = preflight.rows[&132347].sweeps[0].preflight.as_ref().unwrap();
+    assert!(report.skipped_reason.is_none());
+    let bend = report.comparisons.as_ref().unwrap().iter().find(|item|
+        item.kind == "inside_bend_radius" && item.segment_index == Some(1)).unwrap();
+    assert!((bend.measured_m - 0.05715).abs() < 1e-6);
+    let straight = report.comparisons.as_ref().unwrap().iter().find(|item|
+        item.kind == "straight_segment_length" && item.segment_index == Some(0)).unwrap();
+    assert!((straight.measured_m - 0.122300732366).abs() < 1e-6);
+    let miter = &preflight.rows[&132562].sweeps[0];
+    assert!(miter.checks.findings.iter().any(|finding|
+        finding.code == ifc_lite_processing::SweptDiskFindingCode::TangentDiscontinuity));
+    assert!(miter.preflight.as_ref().unwrap().skipped_reason.is_none());
+    assert_eq!(preflight.rows[&132347].authored["BarLength"].value, bar.authored["BarLength"].value);
 }
 
 #[test]
