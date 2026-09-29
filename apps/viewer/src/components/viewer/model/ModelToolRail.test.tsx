@@ -41,12 +41,12 @@ afterEach(() => {
 });
 
 describe('Model tool rail (#6232 M2.1)', () => {
-  it('shows only while the workspace is open, with Select, the build tools, Split and Leave', () => {
+  it('shows only while the workspace is open, with Select, the build tools, Split, the plan toggle (M2.4) and Leave', () => {
     const ui = mount();
     assert.equal(ui.querySelector('[data-model-tool-rail]'), null, 'no rail while viewing');
     act(() => { useViewerStore.getState().enterModelWorkspace(); });
     const ids = [...ui.querySelectorAll('[data-rail-tool]')].map((b) => b.getAttribute('data-rail-tool'));
-    assert.deepEqual(ids, ['select', 'wall.place', 'slab.place', 'column.place', 'beam.place', 'element.split', 'leave']);
+    assert.deepEqual(ids, ['select', 'wall.place', 'slab.place', 'column.place', 'beam.place', 'element.split', 'plan', 'leave']);
     assert.equal(tool(ui, 'select')?.getAttribute('aria-pressed'), 'true');
   });
 

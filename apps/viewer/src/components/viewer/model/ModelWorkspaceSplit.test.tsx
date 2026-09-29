@@ -11,6 +11,9 @@
  */
 
 import '@/test/setup-dom.js';
+// A measured 1280 px split: wide enough for Plan ‖ 3D under `model-layout.ts` (#6232 M2.4).
+import { installLayout } from '@/test/dom-layout.js';
+installLayout();
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react';

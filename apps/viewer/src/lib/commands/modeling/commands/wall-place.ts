@@ -19,6 +19,7 @@
 
 import { WallPlaceBar } from '@/components/viewer/tools/command/PlacementBars';
 import { WallPlaceScene } from '@/components/viewer/tools/command/WallPlaceScene';
+import { WallPlacePlan } from '@/components/viewer/tools/command/WallPlacePlan';
 import { dist } from '@/lib/snap/constraints';
 import { commandGhostId, wallGhostMesh } from '../ghost.js';
 import { MIN_WALL_LENGTH, alignedAxis, anchorOf, currentAngle, currentLength, endPoint, type WallPlaceGesture } from './wall-place-geometry.js';
@@ -50,6 +51,7 @@ export const WALL_PLACE: ModelingCommand<WallPlaceGesture> = {
   hud: {
     Bar: WallPlaceBar,
     Scene: WallPlaceScene,
+    Plan: WallPlacePlan,
     hint: (g) => (g.chain.length === 0 ? 'modelingCommand.wall.hintStart' : 'modelingCommand.wall.hintNext'),
   },
   fields: FIELDS,

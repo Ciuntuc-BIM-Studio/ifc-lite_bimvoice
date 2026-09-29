@@ -79,14 +79,15 @@ describe('Model workspace sidebar hand-over (#6232 M2.1)', () => {
 });
 
 describe('Model workspace layout (#6232 M2.1)', () => {
-  it('3D alone by default; a chosen layout persists per browser', () => {
-    assert.equal(loadModelLayout(), '3d');
-    useViewerStore.getState().setModelLayout('split');
-    assert.equal(useViewerStore.getState().modelLayout, 'split');
-    assert.equal(loadModelLayout(), 'split', 'a new session starts from it');
-    localStorage.setItem('ifc-lite:model-layout', 'sideways');
-    assert.equal(loadModelLayout(), '3d', 'an unknown value falls back');
+  it("'auto' until the user picks (#6232 M2.4, model-layout.ts decides); a chosen layout persists per browser", () => {
+    localStorage.removeItem('ifc-lite:model-layout');
+    assert.equal(loadModelLayout(), 'auto');
     useViewerStore.getState().setModelLayout('3d');
+    assert.equal(useViewerStore.getState().modelLayout, '3d');
+    assert.equal(loadModelLayout(), '3d', 'a new session starts from it');
+    localStorage.setItem('ifc-lite:model-layout', 'sideways');
+    assert.equal(loadModelLayout(), 'auto', 'an unknown value falls back');
+    useViewerStore.getState().setModelLayout('split');
   });
 });
 

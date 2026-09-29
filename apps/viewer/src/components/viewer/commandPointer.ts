@@ -10,7 +10,7 @@
  * Resolution, on the session workplane:
  *   1. the cursor: the geometry under it (mapped onto the plane), else the
  *      cursor ray ∩ the plane;
- *   2. the WP3 solver (`solveSnap`): the command's anchor, chain and typed
+ *   2. the shared solver (`snap-solve.ts`, also the plan's): the command's anchor, chain and typed
  *      locks, Shift (angle step) / Alt (suspend snapping), and — while
  *      snapping is on — the WP3 sources: the mesh source over the renderer's
  *      magnetic pick, and the semantic source over the session storey's
@@ -20,9 +20,7 @@
  * cursor position and modifiers of that frame.
  */
 
-import { MODELING_SNAP_PROFILE } from '@/lib/snap/rank';
-import { solveSnap } from '@/lib/snap/solve';
-import type { SnapProfile, SnapResult, SnapSource, Vec2 } from '@/lib/snap/types';
+import type { SnapResult, SnapSource, Vec2 } from '@/lib/snap/types';
 import {
   commandDoubleClick,
   commandPointerDown,
@@ -32,18 +30,15 @@ import {
 } from '@/lib/commands/modeling/runtime';
 import type { ModelingCommand, Vec3, Workplane } from '@/lib/commands/modeling/types';
 import { commandGhostId } from '@/lib/commands/modeling/ghost';
+import {
+  NO_MODIFIERS, semanticSource, solveCommandSnap, type PointerModifiers,
+} from '@/lib/commands/modeling/snap-solve';
 import { useViewerStore } from '@/store';
 import { createMeshSource, type MeshPick } from '@/lib/snap/sources/mesh';
-import { createSemanticSource, type SemanticSource } from '@/lib/snap/sources/semantic';
-import { storeyWallAxes } from '@/lib/snap/sources/semantic-walls';
 import type { MouseHandlerContext } from './mouseHandlerTypes.js';
-
-/** `detail` is the click count: the second click of a double-click has 2. */
-export interface PointerModifiers { shiftKey: boolean; altKey: boolean; detail?: number }
 
 /** Ghost ids a command preview may use (`ghost.ts` allocates from `commandGhostId`). */
 const GHOST_PICK_GUARD = 4;
-const NO_MODIFIERS: PointerModifiers = { shiftKey: false, altKey: false };
 let latest: { x: number; y: number; mods: PointerModifiers } | null = null;
 
 /** The cursor ray in render space, from CSS-pixel canvas coordinates. */
@@ -65,11 +60,6 @@ function onPlane(ctx: MouseHandlerContext, plane: Workplane, x: number, y: numbe
   return ray ? plane.intersectRay(ray)?.local ?? null : null;
 }
 
-function profileOf(command: ModelingCommand): SnapProfile {
-  // Space Sketch's profile arrives with WP3 PR3.2; every command today snaps as 'modeling'.
-  return typeof command.snap === 'string' ? MODELING_SNAP_PROFILE : command.snap;
-}
-
 /** Pick options that never hit the command's own ghost preview. */
 function pickOptions(ctx: MouseHandlerContext, command: ModelingCommand) {
   const options = ctx.getPickOptions();
@@ -89,28 +79,6 @@ function magneticPick(ctx: MouseHandlerContext, command: ModelingCommand, x: num
     ...pickOptions(ctx, command),
     snapOptions: { snapToVertices: true, snapToEdges: true, snapToFaces: true, screenSnapRadius: 40 },
   }) as MeshPick;
-}
-
-/** One semantic (wall-axis) source per session model; it rebuilds itself on edits and storey changes. */
-let semantic: { modelId: string; source: SemanticSource } | null = null;
-
-function semanticSource(modelId: string): SemanticSource {
-  if (semantic?.modelId === modelId) return semantic.source;
-  const source = createSemanticSource({
-    modelId,
-    // Wall lines passing near the cursor feed extension / intersection guides.
-    extensions: true,
-    version: () => useViewerStore.getState().mutationVersion,
-    storeyId: () => useViewerStore.getState().session?.storeyId ?? null,
-    loadAxes: (storeyId) => {
-      const s = useViewerStore.getState();
-      const store = s.models.get(modelId)?.ifcDataStore;
-      const view = s.mutationViews.get(modelId);
-      return store && view ? storeyWallAxes(store, view, storeyId) : [];
-    },
-  });
-  semantic = { modelId, source };
-  return source;
 }
 
 function resolveCommandSnap(
@@ -150,18 +118,7 @@ function resolveCommandSnap(
     semanticSource(commandCtx.modelId),
   ] : [];
   ctx.setSnapTarget(pick?.snapTarget ?? null);
-  const input = command.snapQuery?.(runtime.gesture) ?? { anchor: null, chain: [], locks: {} };
-  const solved = solveSnap(
-    { cursor, metresPerPixel, ...input, modifiers: { shift: mods.shiftKey, alt: mods.altKey } },
-    sources,
-    profileOf(command),
-    runtime.snap ?? undefined,
-  );
-  return {
-    ...solved,
-    render: plane.localToRender([solved.local[0], solved.local[1], 0]),
-    modifiers: { shift: mods.shiftKey, alt: mods.altKey },
-  };
+  return solveCommandSnap(runtime, plane, { cursor, metresPerPixel, sources, mods });
 }
 
 /** True when a command is running and took the event. */
