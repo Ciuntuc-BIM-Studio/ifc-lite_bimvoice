@@ -54,6 +54,8 @@ export interface IdsReportCheckSummary {
  * report omitted passing entities, so an exact per-rule count is unavailable. */
 export interface IdsReportRuleSummary {
   id: string;
+  /** Bare attribute / property name (#6470), for the compact layout. Absent in older documents. */
+  name?: string;
   shortDescription: string;
   longDescription?: string;
   checked: number;
@@ -81,6 +83,10 @@ export interface IdsReportCardinality {
   max?: number;
 }
 
+/** `compact`: one bar row per check / requirement. `long`: full requirement text, never truncated. */
+export type IdsReportVariant = 'compact' | 'long';
+export const IDS_REPORT_VARIANTS: readonly IdsReportVariant[] = ['compact', 'long'];
+
 /**
  * A frozen snapshot of an IDS / information-validation report (#5125, #6372),
  * taken from the live `ValidationReport` when the block is added or refreshed
@@ -90,6 +96,8 @@ export interface IdsReportCardinality {
 export interface IdsReportBlock {
   kind: 'ids-report';
   id: string;
+  /** Layout (#6470). Absent in documents saved before it existed, which keep printing the original layout (one truncated line per field) until the author picks one. */
+  variant?: IdsReportVariant;
   /** Which engine produced the snapshot (#6372). Absent means `'ids'`: every block saved before this field existed was labelled IDS. */
   sourceKind?: ReportSourceKind;
   /** IDS document title, or rule-set name, printed in the block's heading. */
@@ -136,6 +144,7 @@ export function validateIdsReportBlock(block: Record<string, unknown>, at: strin
   if (block.sourceKind !== undefined && block.sourceKind !== 'ids' && block.sourceKind !== 'rules') errors.push({ path: `${at}.sourceKind`, message: 'expected ids | rules' });
   if (!isString(block.sourceName)) errors.push({ path: `${at}.sourceName`, message: 'expected a string' });
   if (!isString(block.generatedAt)) errors.push({ path: `${at}.generatedAt`, message: 'expected a string' });
+  if (block.variant !== undefined && !IDS_REPORT_VARIANTS.includes(block.variant as IdsReportVariant)) errors.push({ path: `${at}.variant`, message: `expected ${IDS_REPORT_VARIANTS.join(' | ')}` });
   const summary = block.summary;
   if (!isRecord(summary) || !isCount(summary.checked) || !isCount(summary.passed) || !isCount(summary.failed) || !isRate(summary.passRate)
     || (summary.warnings !== undefined && !isCount(summary.warnings))) {
@@ -163,6 +172,7 @@ export function validateIdsReportBlock(block: Record<string, unknown>, at: strin
       if (!isRecord(rule)) { errors.push({ path: ruleAt, message: 'expected an object' }); return; }
       if (!isString(rule.id) || rule.id.length === 0) errors.push({ path: `${ruleAt}.id`, message: 'expected a non-empty string' });
       if (!isString(rule.shortDescription)) errors.push({ path: `${ruleAt}.shortDescription`, message: 'expected a string' });
+      if (rule.name !== undefined && !isString(rule.name)) errors.push({ path: `${ruleAt}.name`, message: 'expected a string' });
       if (rule.longDescription !== undefined && !isString(rule.longDescription)) errors.push({ path: `${ruleAt}.longDescription`, message: 'expected a string' });
       if (!isCount(rule.checked)) errors.push({ path: `${ruleAt}.checked`, message: 'expected a non-negative number' });
       const unavailable = rule.passed === null && rule.failed === null && rule.passRate === null;

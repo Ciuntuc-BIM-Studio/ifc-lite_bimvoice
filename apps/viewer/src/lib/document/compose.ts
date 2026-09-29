@@ -15,7 +15,7 @@
 import type { ReportPageSetup } from '@ifc-lite/charts';
 import { pageBox, REPORT_MARGIN } from '../export/report/compose.js';
 import { CHART_BLOCK_HEIGHT_DEFAULT, isHalfPairable, type BlockWidth, type PageBreakBlock, type TextBlock, type TextFont } from './types.js';
-import { layoutTable, type LayoutCursor, type TableColumnLayout, type TableLayoutBlock, type TextDrawnItem } from './compose-table.js';
+import { layoutTable, type LayoutCursor, type TableColumnLayout, type TableLayoutBlock, type TextDrawnItem, type RectDrawnItem } from './compose-table.js';
 import { layoutIdsReport, type IdsReportLayoutBlock } from './compose-ids-report.js';
 import { layoutManualReport, type ManualReportLayoutBlock, type RingDrawnItem } from './compose-manual-report.js';
 import type { TableRowOut } from './resolve-table.js';
@@ -74,6 +74,7 @@ export type ResolvedBlock =
 
 export type DrawnItem =
   | TextDrawnItem
+  | RectDrawnItem
   | { kind: 'text-background'; x: number; y: number; w: number; h: number; color: string }
   /** A manual-validation ring chart (#6401), drawn from its counts. */
   | RingDrawnItem
@@ -346,7 +347,7 @@ export function composeDocument(input: ComposeDocumentInput): DocumentLayout {
           break;
         }
         case 'ids-report': {
-          layoutIdsReport(block, cursor, contentW, BLOCK_GAP);
+          layoutIdsReport(block, cursor, contentW, BLOCK_GAP, (text, width, size, bold) => wrapText(text, width, size, bold, input.measure));
           break;
         }
         case 'manual-report': {

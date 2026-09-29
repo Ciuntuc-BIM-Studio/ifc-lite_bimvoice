@@ -19,7 +19,7 @@ import { validateManualReportBlock, type ManualReportBlock } from './manual-repo
 import { validateIdsReportBlock, type IdsReportBlock } from './ids-report-types.js';
 
 export { reportBlockSourceKind } from './ids-report-types.js';
-export type { IdsReportBlock, IdsReportCardinality, IdsReportCheckSummary, IdsReportRuleSummary, IdsReportSetRow, ReportSourceKind } from './ids-report-types.js';
+export type { IdsReportBlock, IdsReportCardinality, IdsReportCheckSummary, IdsReportRuleSummary, IdsReportSetRow, IdsReportVariant, ReportSourceKind } from './ids-report-types.js';
 
 export const DOCUMENT_VERSION = 8;
 

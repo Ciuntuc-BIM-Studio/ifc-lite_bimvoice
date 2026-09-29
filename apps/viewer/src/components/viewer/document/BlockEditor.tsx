@@ -20,7 +20,7 @@ import { readImageFile } from '@/lib/document/persistence';
 import type { BindingContext } from '@/lib/document/bindings';
 import { idsReportBlockFromReport } from '@/lib/document/ids-report';
 import { TAB_SIZE, tabEdit } from '@/lib/document/text-tabs';
-import { CHART_BLOCK_HEIGHT_MAX, CHART_BLOCK_HEIGHT_MIN, TEXT_SIZE_MAX, TEXT_SIZE_MIN, reportBlockSourceKind, type DocumentBlock, type IdsReportBlock, type TextBlock, type TextFont } from '@/lib/document/types';
+import { CHART_BLOCK_HEIGHT_MAX, CHART_BLOCK_HEIGHT_MIN, TEXT_SIZE_MAX, TEXT_SIZE_MIN, reportBlockSourceKind, type DocumentBlock, type IdsReportBlock, type IdsReportVariant, type TextBlock, type TextFont } from '@/lib/document/types';
 import { ClampedNumberInput, WidthEditor, field } from './BlockEditor.parts';
 import { TableBlockEditor } from './TableBlockEditor';
 import { ManualReportBlockEditor } from './ManualReportBlockEditor';
@@ -69,6 +69,18 @@ function ReportBlockSource({ block, report, onChange }: { block: IdsReportBlock;
       <div className="flex items-center gap-1 text-muted-foreground">{t('document.block.idsReportSourceLabel')}
         <span className="min-w-0 truncate font-medium text-foreground" title={block.sourceName}>{block.sourceName}</span>
       </div>
+      <label className="inline-flex items-center gap-1 text-muted-foreground">{t('document.block.idsReportVariantLabel')}
+        <select
+          className={field}
+          value={block.variant ?? ''}
+          onChange={(e) => onChange({ ...block, variant: (e.target.value || undefined) as IdsReportVariant | undefined })}
+          aria-label={t('document.block.idsReportVariantAriaLabel')}
+        >
+          {block.variant === undefined && <option value="">{t('document.block.idsReportVariantClassic')}</option>}
+          <option value="compact">{t('document.block.idsReportVariantCompact')}</option>
+          <option value="long">{t('document.block.idsReportVariantLong')}</option>
+        </select>
+      </label>
       <Button
         variant="outline"
         size="sm"
@@ -77,7 +89,7 @@ function ReportBlockSource({ block, report, onChange }: { block: IdsReportBlock;
         title={refreshable ? undefined : t(kind === 'rules' ? 'document.block.rulesReportRefreshDisabledTitle' : 'document.block.idsReportRefreshDisabledTitle')}
         onClick={() => {
           if (!report || report.source.kind !== kind) return;
-          onChange(idsReportBlockFromReport(report, block.id));
+          onChange(idsReportBlockFromReport(report, block.id, block.variant));
           toast.success(t('document.block.idsReportRefreshed'));
         }}
       >

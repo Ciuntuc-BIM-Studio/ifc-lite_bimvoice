@@ -267,6 +267,7 @@ export async function generateDocumentPdf(input: DocumentPdfInput, seams: Docume
           doc.text(item.text, item.x, item.y);
           doc.setTextColor(0);
           break;
+        case 'rect':
         case 'text-background':
           doc.fillRect(item.x, item.y, item.w, item.h, item.color);
           break;
