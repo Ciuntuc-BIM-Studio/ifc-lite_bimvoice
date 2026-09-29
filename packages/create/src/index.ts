@@ -65,7 +65,12 @@ export {
   type ProfiledColumnInStoreParams,
   type ColumnBuildResult,
 } from './in-store/column.js';
-export { addWallToStore, type WallInStoreParams, type WallBuildResult } from './in-store/wall.js';
+export { addWallToStore, emitWallAxisRepresentation, emitWallBodyProfile, wallJoinWallFromParams, type WallInStoreParams, type WallBuildResult } from './in-store/wall.js';
+// Wall joins (L / T / butt) and the IfcRelConnectsPathElements they write.
+export { computeWallJoin, wallBodyLateralRange, wallBodyOutline } from './in-store/wall-join.js';
+export type * from './in-store/wall-join.js';
+export { applyWallJoinToStore, wallJoinTargetFromBuild, type WallJoinApplyOptions, type WallJoinApplyResult, type WallJoinTarget } from './in-store/wall-join-apply.js';
+export { addRelConnectsPathElementsToStore, type RelConnectsAnchor, type RelConnectsPathElementsParams } from './in-store/rel-connects-path.js';
 export { addSlabToStore, type SlabInStoreParams, type SlabRectangleParams, type SlabPolygonParams, type SlabBuildResult } from './in-store/slab.js';
 export { addBeamToStore, type BeamInStoreParams, type ProfiledBeamInStoreParams, type BeamBuildResult } from './in-store/beam.js';
 export {
