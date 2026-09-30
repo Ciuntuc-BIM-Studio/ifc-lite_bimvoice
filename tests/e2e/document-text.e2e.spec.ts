@@ -190,3 +190,124 @@ test('#6485 named model fields retain their source and authored page breaks expo
   expect(text).not.toContain('not loaded');
   expect(duplicateKeys).toEqual([]);
 });
+
+test('#6500 real IFC checks survive reload and remain independently selectable in documentation', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const loaded = page.waitForEvent('console', {
+    predicate: (message) => message.text().includes('[ifc-lite] Added model building-architecture.ifc'),
+    timeout: 120000,
+  });
+  await page.goto(`${viewerUrl}?model=/samples/building-architecture.ifc`);
+  await loaded;
+  await page.evaluate(() => globalThis.__ifc_lite_viewer_store__.getState().showWorkspacePanel('validation'));
+  await page.getByTestId('validation-entry-ids').click();
+  await page.locator('input[type="file"][accept=".ids,.xml"]').last().setInputFiles(join(ROOT, 'apps/viewer/public/samples/building-architecture.ids'));
+  await page.getByRole('button', { name: 'Run Validation', exact: true }).click();
+  const history = page.locator('[data-saved-validation-reports]');
+  await expect(history.locator('summary')).toHaveText('Saved reports (1)', { timeout: 60000 });
+  await history.locator('summary').click();
+  await history.getByRole('textbox', { name: 'Report name', exact: true }).fill('Architecture check one');
+  await history.getByRole('textbox', { name: 'Report name', exact: true }).blur();
+  await page.getByRole('button', { name: 'Re-run validation', exact: true }).click();
+  await expect(history.locator('summary')).toHaveText('Saved reports (2)', { timeout: 60000 });
+  // Record a manual review against the same genuinely loaded IFC through the
+  // canonical checklist actions and the real Save report button.
+  await page.evaluate(() => {
+    const state = globalThis.__ifc_lite_viewer_store__.getState();
+    const model = [...state.models.values()].find((entry) => entry.name === 'building-architecture.ifc');
+    if (!model?.sourceFingerprint) throw new Error('Loaded IFC has no source identity');
+    state.newManualChecklist();
+    state.renameManualChecklist('Architecture coordination review');
+    const group = state.addManualGroup('Delivery');
+    const item = group && state.addManualItem(group, 'Confirm model origin');
+    if (!item) throw new Error('Checklist item could not be created');
+    state.setManualAnswer(model.sourceFingerprint, item, { status: 'warning', comment: 'Confirm survey origin' });
+  });
+  await page.getByRole('tab', { name: 'Manual validation', exact: true }).click();
+  await page.getByRole('button', { name: 'Save report', exact: true }).click();
+  await expect(history.locator('summary')).toHaveText('Saved reports (3)');
+  const reports = await page.evaluate(() => globalThis.__ifc_lite_viewer_store__.getState().savedValidationReports.map((entry) => ({ id: entry.id, name: entry.name })));
+  expect(reports[0].id).not.toBe(reports[1].id);
+  await history.getByRole('combobox', { name: 'Select saved validation report', exact: true }).selectOption(reports[0].id);
+  await expect(history.getByRole('textbox', { name: 'Report name', exact: true })).toHaveValue('Architecture check one');
+  await expect(history.getByText('Models: building-architecture.ifc', { exact: true }).first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('saved-real-ifc-check-history.png') });
+
+  // A live report remembers evaluated scope even if its current model is
+  // renamed after validation. Both Add and Refresh use that captured evidence.
+  await page.evaluate(async () => {
+    const moduleUrl = '/src/lib/document/presets.ts';
+    const { blankDocument }: typeof import('../../apps/viewer/src/lib/document/presets') = await import(moduleUrl);
+    const state = globalThis.__ifc_lite_viewer_store__.getState();
+    const model = [...state.models.values()].find(entry => entry.name === 'building-architecture.ifc');
+    if (!model) throw new Error('Real validated model missing');
+    state.setModelName(model.id, 'Renamed after evaluation.ifc');
+    const document = { ...blankDocument(), name: 'Live evaluated scope', blocks: [] };
+    state.upsertDocument(document);
+    state.setActiveDocumentId(document.id);
+    state.openPanelInHome('document');
+  });
+  const livePanel = page.locator('[data-document-panel]').first();
+  await livePanel.getByRole('button', { name: 'Add block', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'IDS validation report', exact: true }).click();
+  await expect(livePanel.locator('[data-report-model-scope]')).toHaveText('Models: building-architecture.ifc');
+  await livePanel.getByRole('button', { name: 'Refresh from current validation report', exact: true }).click();
+  await expect(livePanel.locator('[data-report-model-scope]')).toHaveText('Models: building-architecture.ifc');
+  await page.screenshot({ path: testInfo.outputPath('live-evaluated-scope-after-model-rename.png') });
+
+  // A fresh page has neither the live model nor its latest result. Frozen
+  // evidence still loads and can be copied to independent document blocks.
+  await page.evaluate(() => globalThis.__ifc_lite_viewer_store__.getState().setManualChecklist(null));
+  await page.goto(viewerUrl);
+  await page.waitForFunction(() => globalThis.__ifc_lite_viewer_store__ !== undefined);
+  await page.evaluate(() => {
+    const state = globalThis.__ifc_lite_viewer_store__.getState();
+    state.upsertDocument({ version: 8, id: 'history-6500', name: 'Saved checks', page: { size: 'A4', orientation: 'portrait' }, blocks: [] });
+    state.setActiveDocumentId('history-6500');
+    state.openPanelInHome('document');
+  });
+  const panel = page.locator('[data-document-panel]').first();
+  await expect(panel).toBeVisible();
+  for (const report of reports) {
+    await panel.getByRole('button', { name: 'Add block', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Saved validation report', exact: true }).click();
+    await panel.getByRole('combobox', { name: 'Saved report source', exact: true }).last().selectOption(report.id);
+  }
+  const layouts = panel.getByRole('combobox', { name: 'IDS report layout', exact: true });
+  await expect(layouts).toHaveCount(2);
+  await expect(layouts.first()).toHaveValue('');
+  await layouts.first().selectOption('compact');
+  await layouts.last().selectOption('long');
+  await panel.getByRole('combobox', { name: 'Saved report source', exact: true }).first().selectOption(reports[1].id);
+  await expect(layouts.first()).toHaveValue('compact');
+  await panel.getByRole('combobox', { name: 'Saved report source', exact: true }).first().selectOption(reports[0].id);
+  await expect(panel.locator('[data-ids-report-variant="compact"]')).toHaveCount(1);
+  await expect(panel.getByRole('button', { name: 'Refresh from current validation report', exact: true })).toHaveCount(0);
+  const embedded = await page.evaluate(() => {
+    const state = globalThis.__ifc_lite_viewer_store__.getState();
+    return { models: state.models.size, reports: state.savedValidationReports.length, blocks: state.documents.find((document) => document.id === 'history-6500')?.blocks };
+  });
+  expect(embedded.models).toBe(0);
+  expect(embedded.reports).toBe(3);
+  expect(embedded.blocks).toHaveLength(3);
+  expect(embedded.blocks?.map((block) => 'savedReportId' in block ? block.savedReportId : undefined)).toEqual(reports.map((report) => report.id));
+  expect(embedded.blocks?.map((block) => block.kind)).toEqual(['ids-report', 'ids-report', 'manual-report']);
+  await page.screenshot({ path: testInfo.outputPath('saved-checks-document-no-live-model.png') });
+  await page.getByRole('button', { name: 'Maximize', exact: true }).click();
+  await expect(panel.getByRole('combobox', { name: 'Saved report source', exact: true })).toHaveCount(3);
+  await page.screenshot({ path: testInfo.outputPath('saved-checks-document-maximized.png') });
+  const downloadPromise = page.waitForEvent('download');
+  await panel.locator('[data-document-export]').click();
+  const download = await downloadPromise;
+  await download.saveAs(testInfo.outputPath('saved-checks-document.pdf'));
+  const { readFile } = await import('node:fs/promises');
+  const bytes = Array.from(await readFile(testInfo.outputPath('saved-checks-document.pdf')));
+  const text = await page.evaluate(async (bytes) => {
+    const moduleUrl = '/src/lib/llm/document-text.ts';
+    const documentText: typeof import('../../apps/viewer/src/lib/llm/document-text') = await import(moduleUrl);
+    return documentText.extractPdfText(new Blob([new Uint8Array(bytes)]));
+  }, bytes);
+  expect(text).toContain('building-architecture.ifc');
+  expect(text).toContain('Architecture coordination review');
+  expect(text).toContain('Confirm survey origin');
+});
