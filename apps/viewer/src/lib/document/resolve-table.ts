@@ -44,16 +44,17 @@ export function flattenRawModel(model: RawTableModel, maxRows: number, labels: T
  * and prints "resolving" until it settles; a validation-results table (#5138)
  * resolves synchronously from the store's report, so it never has a
  * `'resolving'` state of its own — only `'ok'`, or one of the two states
- * that are specific to it (`'no-report'`, `'rule-not-found'`). The two `'ok'`
+ * that are specific to it (`'no-report'`, `'rule-not-found'`). The `'ok'`
  * members share the `status` so every existing list-only check (`state.status
- * === 'ok'`) still narrows the way it always did; `kind` (present only on
- * the validation member) is the second discriminant a consumer that must
- * tell them apart switches on.
+ * === 'ok'`) still narrows the way it always did; `kind` is the second
+ * discriminant a consumer that must tell them apart switches on. Comparison snapshots are a second raw-table
+ * source and require no live model/report lookup.
  */
 export type TableState =
   | { status: 'resolving' }
   | { status: 'ok'; kind?: 'list'; model: ExportModel }
   | { status: 'ok'; kind: 'validation'; model: RawTableModel }
+  | { status: 'ok'; kind: 'comparison'; model: RawTableModel }
   | { status: 'error'; message: string }
   | { status: 'no-model' }
   | { status: 'no-report' }
@@ -65,7 +66,7 @@ export type TableMessageKind = 'resolving' | 'no-model' | 'error' | 'no-rows' | 
 export function tableMessageKind(state: TableState | undefined): TableMessageKind | null {
   if (!state || state.status === 'resolving') return 'resolving';
   if (state.status !== 'ok') return state.status;
-  const count = state.kind === 'validation' ? state.model.totalRows : state.model.totals.count;
+  const count = state.kind === 'validation' || state.kind === 'comparison' ? state.model.totalRows : state.model.totals.count;
   return count === 0 ? 'no-rows' : null;
 }
 
