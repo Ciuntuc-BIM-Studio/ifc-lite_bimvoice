@@ -1,7 +1,7 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -20,6 +20,19 @@ interface DevServer {
 let vite: DevServer;
 let viewerUrl: string;
 let viteCache: string;
+
+/** Measure the actual rendered text against its nearest opaque surface. */
+async function opaqueTextColors(locator: Locator) {
+  return locator.evaluate((text) => {
+    let surface: Element | null = text;
+    while (surface) {
+      const background = getComputedStyle(surface).backgroundColor;
+      if (background.startsWith('rgb(')) return { foreground: getComputedStyle(text).color, background };
+      surface = surface.parentElement;
+    }
+    throw new Error('Text has no opaque surface');
+  });
+}
 
 function mixedFontPdf(): number[] {
   const objects = [
@@ -421,17 +434,7 @@ test('#6506 three real model pairs survive reload and export the selected saved 
   await page.reload(); await settle(1); await openCompare();
   const library = page.locator('[data-saved-comparisons]');
   await expect(library.getByRole('alert')).toContainText('The original data was preserved');
-  const noticeColors = await library.getByRole('alert').evaluate((notice) => {
-    let surface: Element | null = notice;
-    while (surface) {
-      const background = getComputedStyle(surface).backgroundColor;
-      if (background.startsWith('rgb(')) {
-        return { foreground: getComputedStyle(notice).color, background };
-      }
-      surface = surface.parentElement;
-    }
-    throw new Error('Recovered comparison notice has no opaque surface');
-  });
+  const noticeColors = await opaqueTextColors(library.getByRole('alert'));
   const noticeContrast = contrastOfTextOnSurface(noticeColors.foreground, noticeColors.background);
   expect(noticeContrast).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT);
   const contrastPath = testInfo.outputPath('saved-model-comparison-recovery-contrast.json');
@@ -537,4 +540,103 @@ test('#6489 real IFC document tables retain independent ordering and coloured re
   const restored = page.locator('[data-block-editor="labels"]');
   await expect(restored.getByRole('combobox', { name: 'Group order', exact: true })).toHaveValue('label');
   await expect(restored.locator('input[aria-label="Header background"]')).toHaveValue('#ffee88');
+});
+
+test('#6507 real IFC discipline checklists remain independent and print their chosen presentation', async ({ page }, testInfo) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 1680, height: 1050 });
+  const loaded = page.waitForEvent('console', { predicate: message => message.text().includes('[ifc-lite] Added model building-architecture.ifc'), timeout: 120000 });
+  await page.goto(`${viewerUrl}?model=/samples/building-architecture.ifc`);
+  await loaded;
+  await page.evaluate(() => {
+    const state = globalThis.__ifc_lite_viewer_store__.getState();
+    state.showWorkspacePanel('validation');
+    state.setManualChecklist({ version: 1, name: 'Architecture review', groups: [{ id: 'coordination', name: 'Coordination', items: [{ id: 'origin', text: 'Survey origin checked', description: 'Confirm coordinates with the surveyor' }] }] });
+  });
+  // Assert the actual independent-instance workflow before consulting its
+  // identity: a revert must report missing behavior, not a missing field.
+  await expect(page.getByRole('button', { name: 'New from this checklist', exact: true })).toBeVisible();
+  const architectureId = await page.evaluate(() => globalThis.__ifc_lite_viewer_store__.getState().manualLibrary.activeId!);
+  const row = page.getByTestId('manual-check');
+  await row.getByRole('button', { name: 'Pass', exact: true }).click();
+  await row.getByRole('textbox').fill('Architecture survey approved');
+  await row.getByRole('textbox').blur();
+  await page.getByRole('button', { name: 'New from this checklist', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Checklist name', exact: true }).fill('Structure review');
+  const structureId = await page.evaluate(() => globalThis.__ifc_lite_viewer_store__.getState().manualLibrary.activeId!);
+  expect(structureId).not.toBe(architectureId);
+  await expect(row.getByRole('button', { name: 'Pass', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await row.getByRole('button', { name: 'Warning', exact: true }).click();
+  await row.getByRole('textbox').fill('Structure survey pending');
+  await row.getByRole('textbox').blur();
+  await page.getByRole('combobox', { name: 'Select checklist', exact: true }).selectOption(architectureId);
+  await expect(row.getByRole('button', { name: 'Pass', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(row.getByRole('textbox')).toHaveValue('Architecture survey approved');
+  await page.screenshot({ path: testInfo.outputPath('independent-checklists-real-ifc.png') });
+
+  // Reload the real authoring-tool IFC; the same source fingerprint restores
+  // each review, including copies with identical question identifiers.
+  const reloaded = page.waitForEvent('console', { predicate: message => message.text().includes('[ifc-lite] Added model building-architecture.ifc'), timeout: 120000 });
+  await page.reload();
+  await reloaded;
+  await page.evaluate(() => globalThis.__ifc_lite_viewer_store__.getState().showWorkspacePanel('validation'));
+  await page.getByRole('combobox', { name: 'Select checklist', exact: true }).selectOption(structureId);
+  await expect(row.getByRole('button', { name: 'Warning', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(row.getByRole('textbox')).toHaveValue('Structure survey pending');
+  await page.getByRole('combobox', { name: 'Select checklist', exact: true }).selectOption(architectureId);
+  await expect(row.getByRole('textbox')).toHaveValue('Architecture survey approved');
+  await page.evaluate(async () => {
+    const moduleUrl = '/src/lib/document/types.ts';
+    const { DOCUMENT_VERSION }: typeof import('../../apps/viewer/src/lib/document/types') = await import(moduleUrl);
+    const state = globalThis.__ifc_lite_viewer_store__.getState();
+    state.upsertDocument({ version: DOCUMENT_VERSION, id: 'reviews-6507', name: 'Independent discipline reviews', page: { size: 'A4', orientation: 'portrait' }, blocks: [] });
+    state.setActiveDocumentId('reviews-6507');
+    state.openPanelInHome('document');
+  });
+  const panel = page.locator('[data-document-panel]').first();
+  await page.getByRole('button', { name: 'Maximize', exact: true }).click();
+  for (const id of [architectureId, structureId]) {
+    await panel.getByRole('button', { name: 'Add block', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Manual validation report', exact: true }).click();
+    await panel.getByRole('combobox', { name: 'Checklist', exact: true }).last().selectOption(id);
+  }
+  expect(await page.evaluate(() => globalThis.__ifc_lite_viewer_store__.getState().manualLibrary.activeId)).toBe(architectureId);
+  await panel.getByRole('combobox', { name: 'Checklist layout', exact: true }).last().selectOption('compact');
+  await panel.getByRole('checkbox', { name: 'Show benchmark scores', exact: true }).last().uncheck();
+  const previews = panel.locator('[data-block-manual-report]');
+  await expect(previews).toHaveCount(2);
+  await expect(previews.first()).toContainText('Architecture survey approved');
+  await expect(previews.last()).not.toContainText('Structure survey pending');
+  await expect(previews.last()).toContainText('Warning');
+  await expect(previews.locator('[data-manual-report-benchmarks]')).toHaveCount(1);
+  // Remove the selected live Structure review. Its embedded report still
+  // prints, while explicit source availability disables its Refresh.
+  await page.evaluate(id => globalThis.__ifc_lite_viewer_store__.getState().removeManualChecklist(id), structureId);
+  await expect(panel.getByRole('button', { name: 'Refresh from current checklist', exact: true }).last()).toBeDisabled();
+  await expect(previews.last()).toContainText('Structure review');
+  const diagnosticColors = await opaqueTextColors(panel.locator('[data-manual-report-checklist-missing]'));
+  const diagnosticContrast = contrastOfTextOnSurface(diagnosticColors.foreground, diagnosticColors.background);
+  expect(diagnosticContrast).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT);
+  const contrastPath = testInfo.outputPath('deleted-checklist-diagnostic-contrast.json');
+  await writeFile(contrastPath, JSON.stringify({ ...diagnosticColors, contrast: diagnosticContrast }, null, 2));
+  await testInfo.attach('deleted-checklist-diagnostic-contrast', { path: contrastPath, contentType: 'application/json' });
+  await page.screenshot({ path: testInfo.outputPath('chosen-checklist-layouts-document.png') });
+  const downloadPromise = page.waitForEvent('download');
+  await panel.locator('[data-document-export]').click();
+  const download = await downloadPromise;
+  const pdfPath = testInfo.outputPath('independent-discipline-checklists.pdf');
+  await download.saveAs(pdfPath);
+  const { readFile } = await import('node:fs/promises');
+  const text = await page.evaluate(async bytes => {
+    const moduleUrl = '/src/lib/llm/document-text.ts';
+    const documentText: typeof import('../../apps/viewer/src/lib/llm/document-text') = await import(moduleUrl);
+    return documentText.extractPdfText(new Blob([new Uint8Array(bytes)]));
+  }, Array.from(await readFile(pdfPath)));
+  expect(text).toContain('Architecture review');
+  expect(text).toContain('Structure review');
+  expect(text).toContain('building-architecture.ifc');
+  expect(text).toContain('Architecture survey approved');
+  expect(text).toContain('Confirm coordinates with the surveyor');
+  expect(text).not.toContain('Structure survey pending');
+  expect(text).toContain('WARNING');
 });

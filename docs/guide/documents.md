@@ -51,7 +51,8 @@ Each grouped list table has its own **Group order**: **Largest first** (the defa
 
 **Header background** chooses an opaque RGB colour for any document table. Header text automatically uses black or white for readable contrast; **Reset** restores the default slate background. The selected palette appears in preview and on every repeated PDF header. Ordering and colours persist with the document; older documents retain their existing defaults.
 
-The file is `version: 9`; versions 1–8 open and re-save as version 9 automatically (version 8 added page breaks, and version 9 adds saved comparison table sources). Older viewers refuse a newer file with a clear version error. A table block embeds its list (lists otherwise live only in the browser), so a shared document brings its tables along; the copy never carries a selection snapshot (`expressIdsByModel`), which is bound to one load of one model. More than two columns per row, arbitrary font files, a per-chart legend position, page margins, and drag-resize are not currently available.
+
+The file is `version: 10`; versions 1–9 open and re-save as version 10 automatically (version 8 added page breaks, version 9 added saved comparison table sources, and version 10 adds live manual checklist sources and presentation options). Older viewers refuse a newer file with a clear version error. A table block embeds its list (lists otherwise live only in the browser), so a shared document brings its tables along; the copy never carries a selection snapshot (`expressIdsByModel`), which is bound to one load of one model. More than two columns per row, arbitrary font files, a per-chart legend position, page margins, and drag-resize are not currently available.
 
 ### Saved validation reports
 
@@ -86,3 +87,11 @@ When the backup cannot be written, the original remains untouched and saving is
 blocked; free browser storage and retry saving. Retry retains in-memory edits
 and reports whether the browser now saved them.
 Document format 9 adds comparison table sources; older documents remain readable.
+
+### Live manual checklists
+
+In **Data validation → Manual validation**, **New checklist** creates another independently editable checklist. Use **New from this checklist** to reuse the same questions in a new review with empty decisions. Name it for its discipline and use **Select checklist** to switch between reviews. Each checklist keeps its own decisions and comments for each model; importing templates with the same check identifiers does not share their answers. The selector shows completion for the currently selected model. A warning completes a check, while the report's pass score still counts only passes.
+
+**Close checklist** leaves the review in the selector for later. Reopening the same saved template selects its existing review and decisions. **Delete checklist** removes that editable review; previously saved reports and document snapshots remain unchanged. Existing open checklists and their decisions migrate automatically. Decisions retained after an older checklist was closed are kept until an imported template supplies matching check identifiers. The old data contains no template or discipline identity, so that recovery cannot establish which discipline originally supplied a decision; unmatched decisions remain available for another template. If browser storage refuses a write, the current review remains visible with a warning.
+
+In Documentation, a manual report’s **Checklist** selector chooses the specific review without changing the checklist open in Data validation. **Refresh from current checklist** reads that chosen review and the block’s selected model. Choose **Long** to print guidance and comments, or **Short** for questions and verdicts. **Show benchmark scores** controls the progress rings and numerical summaries in both preview and PDF. A report still embeds its last snapshot: deleting the live checklist leaves its printed evidence intact and disables Refresh. Older manual blocks retain their original detailed layout and active-checklist refresh behavior until you select a specific source.
