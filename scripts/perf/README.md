@@ -27,6 +27,43 @@ scripts/perf/flame.sh tests/models/ara3d/schependomlaan.ifc
 
 Fetch a fixture first if missing: `pnpm fixtures ara3d/schependomlaan.ifc`.
 
+## Opt-in map geometry compatibility export (#6587)
+
+The qualified comparison uses the actual main-based package prerequisite and
+the frozen ownership-corrected implementation, before the later mapped-depth
+preflight correction. Native loads, real browser worker-pool loads,
+and the default asynchronous STEP API retained byte-identical payloads,
+including browser instances. Their interleaved timings showed no consistent
+regression within the bounded cohort. Fresh tabs used distinct origins in a
+shared native browser runtime; DOM visibility was recorded, but physical panel
+foreground and cold-process performance were not established. Unrelated user
+applications remained open, so this is not a claim of an idle operating system.
+
+Earlier cohorts are retained as diagnostics: a later audit found continuous
+GPU work in validation tabs. Those timings are not pooled with the replacement
+cohort or used to establish the verdict. Agent-controlled builds, uploads and
+GPU evidence work were held during the qualified replacement measurements.
+
+The opt-in export has an explicit cost: it parses the mutation-resolved emitted
+model and produces canonical placement/representation patches. Its first call
+also imports and initializes the geometry backend. The WASM binary grows to
+carry the planner. These measurements establish bounded default-path evidence,
+not an optimization or a universal zero-cost claim. Raw witnesses and supported
+mutation proofs are under `scripts/perf/evidence/map-normalization-6587/`.
+
+The subsequent opt-in depth correction reserves a mapped wrapper and terminal
+leaf before serialization. Its new binary was rebuilt and behaviorally checked,
+but was not timed in that frozen cohort. The default mesh-production path is
+unchanged; the earlier measurements are evidence for their recorded binaries.
+
+Lesson: benchmark the real export API as well as the untouched load path.
+Keep unit conversion separate from physical map scale, reuse the strict Rust
+placement resolver, and settle changed entity IDs through the existing export
+ledger. Removing strict target-unit validation or reversing affine/placement
+order is detected by actual behavioral regressions, rather than merely making
+the new API disappear at import time. Audit background render loops before
+granting a timing window; stopping new actions alone does not stop old loops.
+
 ## Planar conic handedness (#6597)
 
 Interleaved base-versus-branch native full-load runs on the house fixture and
