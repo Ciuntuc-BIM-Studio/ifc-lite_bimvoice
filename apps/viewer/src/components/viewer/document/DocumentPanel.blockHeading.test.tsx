@@ -9,6 +9,7 @@
  * to draw, so neither is asserted by its source text.
  */
 import '@/test/setup-dom.js';
+import '@/test/content-fixture.js';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react';
@@ -16,7 +17,7 @@ import type { SpecificationResult, ValidationReport } from '@ifc-lite/ids';
 import { DEFAULT_THEME } from '@ifc-lite/charts';
 import { IfcTypeEnum } from '@ifc-lite/data';
 import { useViewerStore } from '@/store/index.js';
-import { blur, click, cleanup, render, type } from '@/test/render.js';
+import { blur, click, cleanup, render, type, waitFor } from '@/test/render.js';
 import { EVENT_FILE_DOWNLOADED } from '@/lib/tours/events.js';
 import type { BindingContext } from '@/lib/document/bindings';
 import type { DocumentPdfSeams } from '@/lib/document/generate-document-pdf.js';
@@ -73,7 +74,7 @@ beforeEach(() => {
   localStorage.clear();
   const document = spec();
   useViewerStore.setState({ models: new Map(), activeModelId: null, documents: [document], activeDocumentId: document.id, dashboards: [], selectedEntityIds: new Set(),
-    mutationViews: new Map(), mutationVersion: 0, idsValidationReport: null, validationSource: null, savedValidationReports: [], validationReportsLoadIssue: null,
+    mutationViews: new Map(), mutationVersion: 0, idsValidationReport: null, validationSource: null, savedValidationReports: [],
     bcfProject: { version: '3.0', topics: new Map([['topic-guid', { guid: 'topic-guid', title: 'Topic source', description: 'Coordinate', viewpoints: [], comments: [] }]]) } });
 });
 afterEach(() => { cleanup(); localStorage.clear(); });
@@ -113,7 +114,8 @@ describe('shared block heading controls (#6632)', () => {
       assert.equal(style.backgroundColor, FILL, `${kind}: preview background`);
     }
 
-    const saved = loadDocuments().find((d) => d.id === 'doc-6632');
+    await waitFor(() => useViewerStore.getState().documentsStorage.items['doc-6632'] === 'saved', 'all heading edits must commit before reloading');
+    const saved = (await loadDocuments()).find((d) => d.id === 'doc-6632');
     assert.ok(saved);
     for (const block of parseDocumentFile(JSON.stringify(saved)).blocks) {
       assert.deepEqual(blockTitleFields(block as IdsReportBlock), { title: `H:${block.kind}`, titleFontSize: SIZE, titleTextColor: INK, titleBackgroundColor: FILL }, `${block.kind} persists and reloads its heading style`);
@@ -155,7 +157,8 @@ describe('shared block heading controls (#6632)', () => {
       commitSize(input('Heading text size'), '');
       await settle();
     }
-    for (const block of loadDocuments()[0].blocks) {
+    await waitFor(() => useViewerStore.getState().documentsStorage.items['doc-6632'] === 'saved', 'all heading resets must commit before reloading');
+    for (const block of (await loadDocuments())[0].blocks) {
       assert.deepEqual(blockTitleFields(block as IdsReportBlock), { title: `H:${block.kind}`, titleFontSize: undefined, titleTextColor: undefined, titleBackgroundColor: undefined }, `${block.kind} keeps only its text`);
     }
   });
@@ -171,10 +174,12 @@ describe('shared block heading controls (#6632)', () => {
     assert.ok(editor && input);
     commitSize(input, '99');
     await settle();
-    assert.equal((loadDocuments()[0].blocks[0] as { titleFontSize?: number }).titleFontSize, 24, 'above the maximum clamps to it');
+    await waitFor(() => useViewerStore.getState().documentsStorage.items['doc-6632'] === 'saved', 'clamped heading size must commit before reloading');
+    assert.equal(((await loadDocuments())[0].blocks[0] as { titleFontSize?: number }).titleFontSize, 24, 'above the maximum clamps to it');
     commitSize(input, '1');
     await settle();
-    assert.equal((loadDocuments()[0].blocks[0] as { titleFontSize?: number }).titleFontSize, 6, 'below the minimum clamps to it');
+    await waitFor(() => useViewerStore.getState().documentsStorage.items['doc-6632'] === 'saved', 'clamped heading size must commit before reloading');
+    assert.equal(((await loadDocuments())[0].blocks[0] as { titleFontSize?: number }).titleFontSize, 6, 'below the minimum clamps to it');
     for (const kind of ['spacer', 'page-break']) {
       assert.equal(ui.querySelector(`[data-block-kind="${kind}"] input[aria-label="Heading text size"]`), null, `${kind} has no heading to size`);
     }
@@ -214,7 +219,7 @@ describe('heading style survives replacing a report block source (#6632)', () =>
     cleanup();
     const chosen: DocumentBlock[] = [];
     const second = editor(block, (b) => chosen.push(b));
-    selectOption([...second.querySelectorAll<HTMLSelectElement>('select')].find((el) => [...el.options].some((o) => o.value === 'saved-2'))!, 'saved-2');
+    selectOption([...second.querySelectorAll<HTMLSelectElement>('select')].find((el) => [...el.options].some((o) => o.value === 'saved:saved-2'))!, 'saved:saved-2');
     for (const result of [refreshed[0], chosen[0]] as IdsReportBlock[]) {
       assert.deepEqual(blockTitleFields(result), blockTitleFields(block));
       assert.equal(result.specificationsOnly, true, 'the compact layout option survives with the heading style');
@@ -237,9 +242,9 @@ describe('heading style survives replacing a report block source (#6632)', () =>
     useViewerStore.setState({ savedValidationReports: [entry] });
     const changes: DocumentBlock[] = [];
     const ui = editor(styled, (b) => changes.push(b));
-    const source = [...ui.querySelectorAll<HTMLSelectElement>('select')].find((el) => [...el.options].some((o) => o.value === 'saved-1'));
+    const source = [...ui.querySelectorAll<HTMLSelectElement>('select')].find((el) => [...el.options].some((o) => o.value === 'saved:saved-1'));
     assert.ok(source, 'the saved report picker is present');
-    selectOption(source, 'saved-1');
+    selectOption(source, 'saved:saved-1');
     assert.equal(changes.length, 1);
     const chosen = changes[0] as IdsReportBlock;
     assert.equal(chosen.savedReportId, 'saved-1');
