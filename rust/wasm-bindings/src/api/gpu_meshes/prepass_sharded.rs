@@ -9,7 +9,6 @@
 //! `prepass.rs` beside its serial twin.
 
 use crate::api::IfcAPI;
-use js_sys::Function;
 use wasm_bindgen::prelude::*;
 
 /// One `[r, g, b, a]` per id. `finalizePrepassStyles` reads four floats per id
