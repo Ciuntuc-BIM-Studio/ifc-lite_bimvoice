@@ -15,7 +15,7 @@ use super::prepass_discovery::{discover_from_columns, ColumnsDiscovery};
 
 type IndexColumns<'a> = (&'a [u32], &'a [u32], &'a [u32], &'a [u8]);
 
-pub(crate) enum ShardedColumns<'a> {
+pub(super) enum ShardedColumns<'a> {
     Borrowed { index: ColumnarEntityIndex, columns: IndexColumns<'a> },
     Owned { ids: Vec<u32>, starts: Vec<u32>, lengths: Vec<u32>, classes: &'a [u8] },
 }

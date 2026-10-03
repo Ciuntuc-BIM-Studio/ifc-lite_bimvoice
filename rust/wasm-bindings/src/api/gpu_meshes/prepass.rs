@@ -182,7 +182,7 @@ impl IfcAPI {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn pre_pass_streaming_impl(
+    pub(super) fn pre_pass_streaming_impl(
         &self,
         data: &[u8],
         on_event: &Function,
