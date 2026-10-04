@@ -15,6 +15,7 @@ The [full program](viewer-ai-plan.md) remains the completion contract. Every pac
 | [#6832](https://github.com/LTplus-AG/ifc-lite/pull/6832) | Reviewed native document drafts | Initial analysis answer/evidence conversion, citation existence, native document storage/PDF. Broader narrative schema and adapter coverage remain open. |
 | [#6835](https://github.com/LTplus-AG/ifc-lite/pull/6835) | Native load diagnostics and adapter register | Unavailable/failure/federation/sample/replacement invariants; native panel action and portable reports. Missing provider refusal and completion-visible CI capture; full adapter charter #6833 remains open. |
 | [#6837](https://github.com/LTplus-AG/ifc-lite/pull/6837) | Local HTTP BCF publication evidence | 50 connector/publication tests; parsed SketchUp identity and native archive roundtrip; permission/vocabulary rejection and committed-but-lost effects. Controlled peer is not vendor conformance or a durable outbox. |
+| [#6841](https://github.com/LTplus-AG/ifc-lite/pull/6841) | Shared frozen evidence view | Mounted discussion/document/Flow integration, captured/historical/stale states, federation omissions and escaped source text. Canonical fingerprint guard; successful CI journey video retention. Broader U02 remains open. |
 
 CI results are live measurements on each PR, not a permanent green claim in this document. Exhausted provider budgets are infrastructure failures, remain visible and do not replace evidence-based self-review. A successful “Review posted” job does not establish that a provider actually reviewed the code.
 
@@ -47,7 +48,7 @@ Publication acceptance uses a local test server, selected by the user. The user 
 | P20 | Pending | Save-to-Flow, project-scoped preferences/tools, Ideas integration and task recipes backed by host availability. |
 | P21 | Partial corpus | Real ArchiCAD IDS and committed SketchUp parse/PDF fixtures started. Complete independent labels, live quality/usage evaluations, acceptance journeys and pilot UX thresholds. |
 | U01 | Partial design contract | Recognizable incremental layout/style constraints captured. Complete coordinator task variants, navigation mapping and actual existing-user comparisons. |
-| U02 | Pending | Shared artifact headers, ResultView, scope/selection, libraries and activity tray across all analyses. |
+| U02 | Initial evidence view | Shared frozen source/coverage/model metadata view across discussion, report and Flow review. Complete native artifact headers, ResultView, scope/selection, libraries and activity tray across all analyses. |
 | U03 | Partial contextual entry | Registered assistant opens from native source panels. Complete coordinator preset/common chrome, keyboard/a11y/i18n and narrow-layout journeys. |
 | U04 | Pending | Panel/profile/extension/deep-link/session migration and deletion of replaced paths, with compatibility and rollback evidence. |
 
