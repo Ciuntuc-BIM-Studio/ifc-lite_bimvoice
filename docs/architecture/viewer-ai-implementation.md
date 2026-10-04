@@ -14,8 +14,11 @@ The [full program](viewer-ai-plan.md) remains the completion contract. Every pac
 | [#6828](https://github.com/LTplus-AG/ifc-lite/pull/6828) | Reviewed native Flow graph patches | Native registry validation; approval-gated apply/undo; standard-registry math execution oracle; no automatic graph execution. Receipts are session-only; graph durability uses native Save. |
 | [#6832](https://github.com/LTplus-AG/ifc-lite/pull/6832) | Reviewed native document drafts | Initial analysis answer/evidence conversion, citation existence, native document storage/PDF. Broader narrative schema and adapter coverage remain open. |
 | [#6835](https://github.com/LTplus-AG/ifc-lite/pull/6835) | Native load diagnostics and adapter register | Unavailable/failure/federation/sample/replacement invariants; native panel action and portable reports. Missing provider refusal and completion-visible CI capture; full adapter charter #6833 remains open. |
+| [#6837](https://github.com/LTplus-AG/ifc-lite/pull/6837) | Local HTTP BCF publication evidence | 50 connector/publication tests; parsed SketchUp identity and native archive roundtrip; permission/vocabulary rejection and committed-but-lost effects. Controlled peer is not vendor conformance or a durable outbox. |
 
 CI results are live measurements on each PR, not a permanent green claim in this document. Exhausted provider budgets are infrastructure failures, remain visible and do not replace evidence-based self-review. A successful “Review posted” job does not establish that a provider actually reviewed the code.
+
+Publication acceptance uses a local test server, selected by the user. The user will review recorded coordinator workflows; final UX acceptance is still outstanding. Native HTTP publication and recovery boundaries are measured in the [BCF evidence register](viewer-ai-bcf-publication.md).
 
 ## Package coverage and remaining completion work
 
@@ -32,7 +35,7 @@ CI results are live measurements on each PR, not a permanent green claim in this
 | P09 | Partial graph editing | Complete graph creation/debugging with actual run diagnostics, tracking branches and real-fixture authoring/rerun acceptance. |
 | P10 | Pending | Native enrichment, full finding partition, reviewed taxonomy/classification/group proposals and manual review continuity. |
 | P11 | Pending | BCF local drafts, identity mappings and split/merge/revision reconciliation; archive roundtrips. |
-| P12 | Pending | Durable outbox, actual connected publication, uncertain-outcome blocking and conflict/idempotency recovery. |
+| P12 | Native HTTP acceptance started | Controlled loopback server exercises native create/update/comments/viewpoints/pull/archive and committed-but-lost responses. Durable outbox, actual connected publication UI, uncertain-outcome blocking and conflict/idempotency recovery remain. |
 | P13 | Pending | Native query/filter/list/lens/chart proposals, exact population/units/denominators and ambiguity handling. |
 | P14 | Pending | Native scene actions, screenshot/selection grounding, coordinate validation and prior-view restoration. |
 | P15 | Pending | Reviewed approved mappings, expected old values, native transaction constraints, undo/redo, export/reparse and check reruns. |
