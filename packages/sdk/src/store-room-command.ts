@@ -59,7 +59,12 @@ export interface RoomCommandHost {
 }
 export type RoomCommandModelResolver = (modelId: string) => CostStoreModelResolution;
 
-const mutationHead = (model: CostStoreModelResolution) => model.mutationView.getMutations().map(m => m.id).join('|');
+/** Native preparation must retry after concurrent state changes or busy ownership. */
+export class RoomCommandConflictError extends Error {
+  constructor(message: string) { super(message); this.name = 'RoomCommandConflictError'; }
+}
+
+const overlayRevision = (model: CostStoreModelResolution) => model.mutationView.getMutationRevision();
 
 export function createRoomCommandBackend(resolve: RoomCommandModelResolver, provide: RoomGeometryProvider, host: RoomCommandHost) {
   const modelStores = new Map<string, WeakRef<CostStoreModelResolution['store']>>();
@@ -68,7 +73,7 @@ export function createRoomCommandBackend(resolve: RoomCommandModelResolver, prov
   return {
     async roomCommand(modelId: string, storeyId: number, op: RoomCommand): Promise<RoomCommandResult> {
       op.signal?.throwIfAborted();
-      if (running.has(modelId)) throw new Error('Another Room command is preparing this model');
+      if (running.has(modelId)) throw new RoomCommandConflictError('Another Room command is preparing this model');
       if (!['auto', 'pick', 'footprint', 'query', 'update', 'edit'].includes(op.action)) throw new Error('Unsupported Room command action');
       if (!Number.isSafeInteger(storeyId) || storeyId <= 0) throw new Error('Room requires a positive storey expressId');
       const weld = op.weld ?? .05, minArea = op.minArea ?? .3, boundary = op.boundary ?? 'inner';
@@ -78,7 +83,7 @@ export function createRoomCommandBackend(resolve: RoomCommandModelResolver, prov
       if (op.action === 'update' && (!Array.isArray(op.expressIds) || op.expressIds.length === 0 || op.expressIds.length > 10000 || !Array.from(op.expressIds).every(id => Number.isSafeInteger(id) && id > 0) || new Set(op.expressIds).size !== op.expressIds.length)) throw new Error('Room update requires 1..10000 unique positive safe-integer rooms');
       running.add(modelId);
       try {
-        const model = resolve(modelId), head = host.historyHead(modelId), journal = mutationHead(model), epoch = generation;
+        const model = resolve(modelId), head = host.historyHead(modelId), revision = overlayRevision(model), epoch = generation;
         const attached = modelStores.has(modelId), previousStore = modelStores.get(modelId)?.deref();
         if (previousStore !== model.store) {
           // Unloading a viewer model must not retain its parsed source. A
@@ -89,7 +94,7 @@ export function createRoomCommandBackend(resolve: RoomCommandModelResolver, prov
         const geometry = await provide(model, storeyId);
         op.signal?.throwIfAborted();
         const current = resolve(modelId);
-        if (epoch !== generation || current.store !== model.store || current.mutationView !== model.mutationView || host.historyHead(modelId) !== head || mutationHead(current) !== journal) throw new Error('The model changed while native Room geometry was preparing; retry the command');
+        if (epoch !== generation || current.store !== model.store || current.mutationView !== model.mutationView || host.historyHead(modelId) !== head || overlayRevision(current) !== revision) throw new RoomCommandConflictError('The model changed while native Room geometry was preparing; retry the command');
         const spaces = geometry.spaces ?? existingSpaceFootprintEntriesByStorey(model.store, model.mutationView).get(storeyId) ?? [];
         const occupied = geometry.occupied ?? occupancyTest(spaces.map(space => space.footprint), []);
         const entry = host.layouts.read(modelId, storeyId, weld, head, geometry.walls.map(wall => wall.corners), geometry.factory);
