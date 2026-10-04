@@ -5,8 +5,8 @@
 //! Sharded pre-pass wasm APIs (split from `prepass.rs`): the per-worker
 //! entity-index shard scan, the per-worker styled-item slice resolver, and
 //! the canonical styles finalize that merges the shard results. The main
-//! sharded pre-pass entry (`buildPrePassStreamingSharded`) stays in
-//! `prepass.rs` beside its serial twin.
+//! sharded pre-pass entry (`buildPrePassStreamingSharded`) lives in
+//! `prepass_owned_columns.rs`; its serial twin lives in `prepass.rs`.
 
 use crate::api::IfcAPI;
 use wasm_bindgen::prelude::*;
