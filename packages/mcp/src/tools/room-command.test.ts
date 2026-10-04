@@ -119,15 +119,14 @@ for (const count of [1, 2]) it.skipIf(!available)(`public Room query/Auto/edit/U
 
 it.skipIf(!available)('public Room command refuses ambiguous routing and read-only writes before geometry/overlay changes', async () => {
   const multi = await liveToolSession(2), readonly = await liveToolSession(1, true);
-  // #6804: Keep strict IFC equality independent of the wall-clock second at each export.
-  const exportOptions = { timeStamp: '2026-10-03T00:00:00' };
+  // #6804: Reuse the real exporter helper's fixed clock for strict IFC equality.
   try {
-    const before = multi.registry.get('beta')!.bim.export.ifc(null, exportOptions);
+    const before = exported(multi.registry.get('beta')!);
     expect((await multi.call('room_command', { storey_express_id: 42, command: { action: 'auto' } })).isError).toBe(true);
-    expect(multi.registry.get('beta')!.bim.export.ifc(null, exportOptions)).toEqual(before);
-    const readonlyBefore = readonly.registry.get('alpha')!.bim.export.ifc(null, exportOptions);
+    expect(exported(multi.registry.get('beta')!)).toEqual(before);
+    const readonlyBefore = exported(readonly.registry.get('alpha')!);
     expect((await readonly.call('room_command', { storey_express_id: 42, command: { action: 'auto' } })).isError).toBe(true);
-    expect(readonly.registry.get('alpha')!.bim.export.ifc(null, exportOptions)).toEqual(readonlyBefore);
+    expect(exported(readonly.registry.get('alpha')!)).toEqual(readonlyBefore);
   } finally {
     for (const loaded of multi.registry.list()) loaded.backend.dispose();
     for (const loaded of readonly.registry.list()) loaded.backend.dispose();
