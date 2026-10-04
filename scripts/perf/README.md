@@ -110,6 +110,27 @@ canonical parser; defer mechanisms whose correctness or end-to-end verdict
 remains incomplete. [Raw dispositions and prerequisites](evidence/deferred-worker-mechanisms-6537/README.md)
 retain source attribution and the excluded attempts.
 
+## Known-explicit orientation: rejected, do not ship (#6537 / #6788)
+
+The private known-explicit helper preserved adaptive arithmetic and passed the
+predicate/workspace correctness controls. Earlier default-worker SDK results
+showed a scoped ISSUE129 benefit; the separate native comparison remained mixed.
+The fresh integrated default-worker SDK comparison retained CPU output identity
+and complete diagnostics, but every observed Holter pair was slower. Haus and
+O-S1 were mixed. The heavy-family regression blocks shipment under the project's
+no-regressions requirement; the orientation implementation is removed. Freshly
+built WASM artifacts differ between arms, so this rejects the candidate
+combination without isolating dispatch as the cause of the Holter slowdown.
+
+Lesson: a scoped CSG signal cannot justify a regression on a heavy public model.
+Instruction attribution and avoided dispatch do not establish consumer benefit.
+Stop this candidate, preserve every pair and refusal, and keep the rejected patch
+as data so the mechanism is not proposed again without genuinely new evidence.
+The [lossless rejection record](evidence/explicit-orientation-6537/README.md)
+retains immutable sources, correctness controls, historical SDK/native cohorts
+and the new integrated comparison. No universal, full-viewer, physical-memory or
+complete IFC fidelity benefit is claimed.
+
 ## Checked-magnitude products: native benefit, SDK mixed (#6537 / #6764)
 
 Bounding provably-fitting checked products by their actual magnitude widths
