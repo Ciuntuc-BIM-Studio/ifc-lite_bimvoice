@@ -19,6 +19,7 @@ import { useSourceCatalogSync } from './useSourceCatalogSync';
 import { useSourceFileSearch } from './useSourceFileSearch';
 import { useLoadedSourceModels } from './useLoadedSourceModels';
 import { usePagedList } from './usePagedList';
+import { SourceWideSearch } from './SourceWideSearch';
 import { SourceProjectsStep } from './SourceProjectsStep';
 import { SourceFileAreasStep } from './SourceFileAreasStep';
 import { SourceFolderStep } from './SourceFolderStep';
@@ -36,10 +37,12 @@ interface SourceBrowserProps {
   onCancelDownload?: () => void;
   /** Per-file state of the running Load batch, by file id (#6375). */
   downloadStates?: ReadonlyMap<string, SourceDownloadState>;
+  downloadProjectId?: string | null;
   /** A favourite to jump straight to, consumed once on mount. */
   openTarget?: SourceFavourite | null;
   /** Fires when a star is pressed here, so the panel's favourites list re-reads storage. */
   onFavouritesChanged?: () => void;
+  favouritesVersion?: number;
 }
 
 type Step = 'projects' | 'file-areas' | 'folders';
@@ -53,11 +56,14 @@ export function SourceBrowser({
   busy = false,
   onCancelDownload,
   downloadStates = NO_DOWNLOADS,
+  downloadProjectId = null,
   openTarget = null,
   onFavouritesChanged,
+  favouritesVersion = 0,
 }: SourceBrowserProps) {
   const capabilities = provider.manifest.capabilities;
   const [step, setStep] = useState<Step>('projects');
+  const [skipProjectsOnBack, setSkipProjectsOnBack] = useState(false);
   const [selectedProject, setSelectedProject] = useState<SourceProject | null>(null);
   const [selectedFileArea, setSelectedFileArea] = useState<SourceContainer | null>(null);
   const [selectedContainer, setSelectedContainer] = useState<SourceContainer | null>(null);
@@ -138,12 +144,14 @@ export function SourceBrowser({
 
   const selectContainer = useCallback((c: SourceContainer) => {
     setError(null);
+    clearSearch();
     setSelectedContainer(c);
     catalog.openContainer(c);
-  }, [catalog]);
+  }, [catalog, clearSearch]);
 
   const openProject = useCallback(
-    (p: SourceProject) => {
+    (p: SourceProject, autoEntered = false) => {
+      setSkipProjectsOnBack(autoEntered);
       setSelectedProject(p);
       setStep('file-areas');
       setSelectedFileArea(null);
@@ -178,6 +186,7 @@ export function SourceBrowser({
     selectedFileArea,
     folders: sortedFolders,
     onChanged: onFavouritesChanged,
+    externalVersion: favouritesVersion,
   });
 
   const handleLoad = useCallback(() => {
@@ -212,14 +221,15 @@ export function SourceBrowser({
       clearSearch();
       catalog.resetCatalog();
     } else if (step === 'file-areas') {
-      setStep('projects');
+      if (skipProjectsOnBack) onBack();
+      else setStep('projects');
       setSelectedProject(null);
       projectIdRef.current = null;
       fileAreasPaged.reset();
     } else {
       onBack();
     }
-  }, [catalog, clearSearch, fileAreasPaged, step, onBack]);
+  }, [catalog, clearSearch, fileAreasPaged, step, onBack, skipProjectsOnBack]);
 
   // Opening a favourite is one entry point plus the hook that drives the
   // two-phase jump. It cannot reuse `openFileArea` above: that one reads the
@@ -231,6 +241,7 @@ export function SourceBrowser({
   const startFileAreas = fileAreasPaged.start;
   const enterFileAreaDirect = useCallback(
     (project: SourceProject, fileArea: SourceContainer) => {
+      setSkipProjectsOnBack(true);
       projectIdRef.current = project.id;
       setSelectedProject(project);
       // Required even though this skips the file-areas step: Back lands there,
@@ -278,6 +289,9 @@ export function SourceBrowser({
         onSync={handleSync}
       />
 
+      {(step === 'projects' || step === 'file-areas') && <SourceWideSearch provider={provider} ctx={ctx}
+        onDownload={onDownload} busy={busy} downloadStates={downloadStates} downloadProjectId={downloadProjectId} />}
+
       {error && (
         <div className="flex items-center gap-2 border-b px-3 py-2 text-sm text-red-600 dark:text-red-400">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
@@ -319,6 +333,7 @@ export function SourceBrowser({
           selectedContainer={selectedContainer}
           onSelectContainer={selectContainer}
           sortedFolders={sortedFolders}
+          favouriteFolders={favourites.favouriteFolders}
           allFiles={allFiles}
           gateEmptyFolders={
             capabilities.containerListing === 'flat-subtree' &&
@@ -335,7 +350,7 @@ export function SourceBrowser({
           syncingFileIds={loadedModels.syncingFileIds}
           syncStatesByFileId={loadedModels.syncStatesByFileId}
           onSyncLoadedFile={(file) => void loadedModels.syncLoadedFile(file)}
-          downloadStates={downloadStates}
+          downloadStates={selectedProject?.id === downloadProjectId ? downloadStates : NO_DOWNLOADS}
           busy={busy}
           onLoad={handleLoad}
           foldersHaveMore={catalog.hasMoreFolders(selectedContainerId)}
