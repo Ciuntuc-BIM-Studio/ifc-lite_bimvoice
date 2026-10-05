@@ -41,7 +41,10 @@ export function createAutodeskService(fetcher: typeof fetch = fetch): AutodeskSe
     return { id: text(identity.id), displayName: optionalText(identity.displayName), email: optionalText(identity.email) };
   };
   const mutation = async (path: string, body?: unknown, signal?: AbortSignal) => {
-    if (!csrf) await session(signal);
+    // Discovery refreshes the cookie and CSRF after idle expiry or a gateway
+    // restart. This applies to sign-out/cancellation as well as authorization.
+    await session(signal);
+    signal?.throwIfAborted();
     return call(path, { method: 'POST', signal, headers: { 'X-IFClite-CSRF': csrf ?? '', 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   };
   return {
