@@ -838,7 +838,8 @@ the emitted rotation is proper and has unit scale.
 
 ### Scan plane segmentation
 
-`IfcAPI.segmentScanPoints(positions, optionsJson)` returns UTF-8 JSON from the
+`IfcAPI.segmentScanPoints(positions, optionsJson)` returns UTF-8 JSON (planes and
+cylinders) from the
 canonical Rust `ifc_lite_processing::scan_segmentation` (#6870). `positions` are
 xyz `Float32Array` metres (at most 100,000,000 points); `optionsJson` is a
 camelCase options object, `{}` for the defaults. Unknown fields are refused. The
@@ -877,6 +878,82 @@ normal faces the scanner (`normalSource: 'scanner'`). Without it the
 orientation is `canonical`: horizontal planes face up. `region` crops to a box,
 and `origin` is added to every output coordinate. `stats` counts points,
 voxels and the regions grown, merged and refused.
+
+Cylinders (columns, pipes) are sought among the voxels clear of every plane
+(neither in a plane nor next to one), when `detectCylinders` is true (the
+default). Keeping plane-adjacent voxels out stops the rounded crease along a
+wall/floor junction from passing for a thin pipe, or from chaining a column
+near a wall into one room-sized group. The remaining voxels form groups
+connected across neighbours whose normals turn by at most 35°. For each group,
+largest first and at most `maxCylinderGroups` (1,024), a seeded RANSAC runs
+`cylinderDraws` (256) draws. Each draw takes two voxels whose normals are at
+least 30° from parallel: the axis is `n1 × n2`, and the axis line and radius
+come from the closest approach of the two normal lines. Draws are scored on
+`cylinderScoreSample` (2,048) voxels.
+
+The best candidate is refitted by least squares: the axis is the direction all
+inlier normals are perpendicular to, and the circle across it is fitted
+algebraically, then by Gauss-Newton. It is kept only when the refit fits at
+least `minCylinderInlierFraction` (0.6) of the group, and it is refused when:
+- a sphere fits its inliers as well;
+- they cover less than `minCylinderArcDegrees` (90);
+- they are shorter than `minCylinderLengthMetres` (0.3);
+- fewer than half of its axial slices (3 voxels thick) agree with the widest
+  slice's arc (10° bins, three quarters inside it): fragments at different
+  heights, such as clutter in a wall corner. A column occluded low down
+  agrees, because its smaller lower arcs lie inside the arc seen higher up;
+- its inliers cover under 40 % of the patch its length and arc claim (a loose
+  fit through scattered voxels);
+- a scanned plane lies inside it (closer to the axis than radius minus
+  tolerance) over more than half its length: a flat surface cannot lie inside
+  a solid column or pipe, but the walls of an inside corner cut through the
+  circle a rounded crease fits;
+- its normals do not behave as a round surface's: they point more than 11°
+  (RMS over 5° bins) away from the radial direction, or they turn under 0.6
+  radians per radian of position around the axis (compared between angular
+  bins at least 5° and one voxel of arc wide). The ends of each visible arc
+  are left out of the radial test, by one normal neighbourhood plus one bin,
+  because normals estimated from a one-sided neighbourhood lean toward the
+  arc there. Flat facets meeting at an angle, such as a pier or a chamfered
+  corner, fail this; when nothing can be measured the candidate passes;
+- the radius falls outside `minCylinderRadiusMetres`..`maxCylinderRadiusMetres`.
+  The minimum defaults to two voxel edges (0.06 m at the default voxel; below
+  that a circumference cannot carry its curvature), the maximum to 1.5 m.
+  When that default minimum exceeds the maximum (a small maximum, or a voxel
+  coarsened by the budget), no radius is acceptable and every group counts
+  in `cylindersRejectedForRadius`.
+
+Near-identical cylinders (axes within 5°, axis lines within half the larger
+radius, radii within 25 %, overlapping extents) are one surface found twice,
+and the better supported one is kept. Coaxial pieces whose radii differ by at
+most one voxel and that lie up to 0.3 m (plus two voxels) apart along the axis
+are one column with a band of missing points, and are joined; a narrower
+column on a wider plinth stays two cylinders.
+
+Each cylinder reports `axisStart`, `axisEnd`, `axisDirection` (up, unless
+horizontal), `radius`, `length`, `heightRange` along `upAxis`, `arcDegrees`,
+inlier counts, `rmsMetres` and `orientation` (`vertical` for a column,
+`horizontal` for a pipe or beam, or `sloped`). `stats` counts each refusal;
+`limits.cylinderGroupLimitHit` reports a group budget that acted.
+
+Resolution limit: flat faces two to three voxels wide (a pier of 0.1 m faces
+spans about 3.3 voxels at 3 cm and 2 at 5 cm) deviate from their best-fit
+circle by under 1 cm and are
+indistinguishable from thin pipes, so such a pier is reported as a cylinder.
+Every measured property of the pier (radial deviation, normal turning,
+cross-section curvature, slice agreement, coverage) lies within the range of
+real pipes of 0.06 to 0.12 m radius. A 2 cm voxel with low noise resolves it.
+Radii at the two-voxel minimum (0.06 m at 3 cm, 0.1 m at 5 cm) are found
+less reliably, because a refit just under the minimum is refused.
+
+Every threshold above is guarded by the cylinder acceptance table
+(`rust/processing/tests/scan_cylinder_acceptance.rs`): real pipes and columns
+(thin half-visible pipes at two voxels of radius, grazing ceiling pipes,
+occluded, out-of-round and strapped columns) must be found, and flat-facet
+decoys must not be. Every `cargo test` runs a compact tier (one seed per
+noise level, small rooms); after changing a threshold, run the full matrix
+with
+`cargo test -p ifc-lite-processing --test scan_cylinder_acceptance -- --ignored --nocapture`.
 
 `requestSha256` hashes the algorithm ID `ifclite-rigid-correspondence-v1`, one
 zero byte, and compact typed request JSON in Rust field order. It binds all frame
