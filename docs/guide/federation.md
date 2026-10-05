@@ -257,12 +257,42 @@ exports include workspace placement. Export the placement manifest alongside
 source IFC or scan files when sharing this arrangement. Transformed LAS/E57
 writing is not provided.
 
-After a completed deviation run, the Deviation panel's **Export CSV** action
-reports minimum, maximum and mean signed distance in metres for each scan asset.
-The CSV identifies the scan model when several models are loaded. The renderer's
-`readDeviationAssetStats()` method provides the same per-asset values on demand;
-it reads GPU deviation buffers only when called and reports no row for a scan
-asset added after the run. Recompute before exporting after a model change.
+After a completed deviation run, the Deviation panel reads every computed
+point's signed distance back once and shows summary statistics: points
+measured, signed mean, mean and RMS of |d|, standard deviation, P50, P95, P99
+and maximum of |d|, and the share of points within an editable tolerance
+(10 mm by default). A histogram above the colour legend counts points over
+the same range as the ramp, with each bar in its ramp colour; points outside
+the range are counted below it. Points the compute pass clamped at its 1 m
+limit are counted separately, because their true distance is larger.
+Percentiles are exact nearest-rank values of |d|, not estimates, found by a
+radix select over the readback without copying it. Every figure takes at most
+two linear passes, run in short slices so the viewer stays responsive at the
+25-million-point cap. The readback holds 4 bytes per point in memory until
+the next run or until the result is invalidated. When a streamed COPC scan
+re-runs deviation for a new view, the statistics are read back again.
+
+![Deviation statistics for a synthetic scan sampled from a real Archicad IFC with 4 mm noise and 25 mm offsets on some faces](../assets/deviation-statistics-panel.png)
+
+The panel's **Export CSV** action writes the same statistics for each scan
+asset, in metres, with the tolerance used. With several scan assets, a final
+row pools all of their points. The CSV identifies the scan model when several
+models are loaded. The renderer's `readDeviationDistances()` method returns
+the signed distances grouped by scan asset, and `readDeviationAssetStats()`
+returns per-asset statistics; both read GPU deviation buffers only when called
+and report nothing for a scan asset added after the run. Recompute before
+exporting after a model change.
+
+```ts
+import { computeDeviationStatisticsAsync, type Renderer } from '@ifc-lite/renderer';
+
+declare const renderer: Renderer;
+const { values } = await renderer.readDeviationDistances();
+// Sliced so the page keeps painting; `computeDeviationStatistics` is the
+// synchronous form for a worker, the CLI or a test.
+const stats = await computeDeviationStatisticsAsync(values, { tolerance: 0.01, clipRange: 1 });
+console.log(stats.p95Abs, stats.withinTolerance?.share, stats.clippedCount);
+```
 
 World Context refreshes its Cesium model after movement pauses, using the same
 placed geometry. Its previous model stays visible until the replacement is ready;
