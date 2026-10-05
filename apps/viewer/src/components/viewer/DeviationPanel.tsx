@@ -68,6 +68,8 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
   // Recompute stays disabled (the #5832 lock), and anything that replaces or
   // drops the readback aborts it, so a CSV never describes a stale run.
   const [exporting, setExporting] = useState(false);
+  // Why the last Export CSV produced no file (#6880): no scan point was measured.
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
   const exportRef = useRef<{ distances: DeviationDistances; controller: AbortController } | null>(null);
 
   // A placement change, model removal or device loss clears `computed`; drop
@@ -78,6 +80,7 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
   useEffect(() => {
     const pending = exportRef.current;
     if (pending && pending.distances !== distances) pending.controller.abort();
+    setExportNotice(null);
   }, [distances]);
 
   // COPC LOD streaming re-runs deviation on the chunks of each settled view
@@ -93,7 +96,14 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
     setDistances(null);
     let current = true;
     renderer.readDeviationDistances().then(
-      (read) => { if (current) setDistances(read); },
+      (read) => {
+        if (!current) return;
+        // The run these statistics describe replaced the one an earlier
+        // readback failed on: that failure (the renderer refuses a read the
+        // moment a re-run starts, before the revision is announced) is stale.
+        setError(null);
+        setDistances(read);
+      },
       // A newer refresh is already queued behind the run that raced this read.
       (err: unknown) => { if (current) console.warn('[DeviationPanel] statistics refresh failed', err); },
     );
@@ -106,6 +116,7 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
     exportRef.current = { distances, controller };
     setExporting(true);
     setError(null);
+    setExportNotice(null);
     const source = useViewerStore.getState();
     const sourceModels = source.models;
     try {
@@ -138,6 +149,10 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
       if (report) {
         downloadFile(report.content, report.filename, 'text/csv;charset=utf-8');
         trackExportCompleted({ format: 'csv', surface: 'deviation_panel', row_count: report.rows });
+      } else {
+        // A COPC scan keeps only the nodes in view; with every node dropped
+        // the run measured nothing, and an empty file would explain nothing.
+        setExportNotice(t('deviationPanel.exportNoPointsNotice'));
       }
     } catch (err) {
       setError(controller.signal.aborted
@@ -161,6 +176,7 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
     setRunning(true);
     const t0 = performance.now();
     const placement = placementSnapshot(useViewerStore.getState());
+    let readingAt: number | null = null;
     try {
       noteDeviationWrite(renderer);
       const result = await renderer.computeDeviations({ maxRange: DEVIATION_CLIP_RANGE_M });
@@ -194,7 +210,7 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
       // the result immediately.
       setColorMode('deviation');
       // The heatmap is already on screen; the statistics follow the readback.
-      readRevisionRef.current = useViewerStore.getState().pointCloudDeviationRevision;
+      readingAt = readRevisionRef.current = useViewerStore.getState().pointCloudDeviationRevision;
       const read = await renderer.readDeviationDistances();
       const after = useViewerStore.getState();
       // `computed` falls whenever the run is invalidated (placement, model
@@ -204,6 +220,9 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
       }
       setDistances(read);
     } catch (err) {
+      // A COPC LOD re-run that landed during this readback superseded it
+      // (#6880): the refresh below reads the new run, so this is not an error.
+      if (readingAt !== null && useViewerStore.getState().pointCloudDeviationRevision !== readingAt) return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setRunning(false);
@@ -270,6 +289,8 @@ export function DeviationPanel({ triangleCount }: DeviationPanelProps) {
         </div>
       )}
 
+      {/* Always mounted: some screen readers only announce changes inside a live region that already exists. */}
+      <output data-testid="deviation-export-notice" className="text-2xs text-muted-foreground">{exportNotice}</output>
       {computed && distances && (
         <button type="button" onClick={handleExport}
           disabled={running || exporting}
