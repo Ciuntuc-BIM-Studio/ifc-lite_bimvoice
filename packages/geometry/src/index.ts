@@ -105,7 +105,8 @@ import type { HbjsonStats } from './hbjson-stats.js';
 import { getStreamingBatchSize, convertMeshCollectionToBatch, withBuildingRotation } from './geometry-coordinate.js';
 import { resolveRtcFrame, type RtcFrame } from './rtc-frame.js';
 import { streamNativeGeometry } from './geometry-native.js';
-import { processParallel } from './geometry-parallel.js';
+import { processParallel, type ProcessParallelOptions } from './geometry-parallel.js';
+import { acquireWasmStreamingOperation } from './wasm-streaming-guard.js';
 import type { StallPhaseHandle } from './stall-phase.js';
 import type { ByteStreamingPrePassResult } from './byte-streaming-prepass-result.js';
 import { buildPrePassWithFinishes } from './style-finishes.js';
@@ -152,23 +153,6 @@ export interface GeometryProcessorOptions {
    * exporters/drawings leave it off so their geometry stays full fidelity.
    */
   skipSmallCuts?: boolean;
-}
-
-let activeWasmStreamingOperation: string | null = null;
-
-function acquireWasmStreamingOperation(operation: string): () => void {
-  if (activeWasmStreamingOperation) {
-    throw new Error(
-      `GeometryProcessor ${operation} cannot start while ${activeWasmStreamingOperation} is still running. ` +
-      'Wait for the active stream to finish, or cancel it before starting another geometry operation.',
-    );
-  }
-  activeWasmStreamingOperation = operation;
-  return () => {
-    if (activeWasmStreamingOperation === operation) {
-      activeWasmStreamingOperation = null;
-    }
-  };
 }
 
 /**
@@ -772,7 +756,7 @@ export class GeometryProcessor {
     /** Opt in to hung-call recovery; see `ProcessParallelOptions.hungJobTimeoutMs` (#4884). */
     hungJobTimeoutMs?: number,
     /** See `ProcessParallelOptions.stallPhaseHandle` (#4902). */
-    stallPhaseHandle?: StallPhaseHandle,
+    stallPhaseHandle?: StallPhaseHandle, trace?: ProcessParallelOptions['trace'], // #6956
   ): AsyncGenerator<StreamingGeometryEvent> {
     // Initialize if needed
     if (!this.bridge?.isInitialized()) {
@@ -784,7 +768,7 @@ export class GeometryProcessor {
       sourceFingerprint,
       signal,
       hungJobTimeoutMs,
-      stallPhaseHandle,
+      stallPhaseHandle, trace,
       // Issue #540: forward the merge-layers preference snapshotted
       // at construction time. processParallel posts `set-merge-layers`
       // to every spawned worker right after `init`.
@@ -858,6 +842,7 @@ export class GeometryProcessor {
       hungJobTimeoutMs?: number;
       /** See `ProcessParallelOptions.stallPhaseHandle` (#4902); parallel path only. */
       stallPhaseHandle?: StallPhaseHandle;
+      trace?: ProcessParallelOptions['trace']; // load trace, parallel path only (#6956)
     } = {}
   ): AsyncGenerator<StreamingGeometryEvent> {
     const sizeThreshold = options.sizeThreshold ?? 2 * 1024 * 1024; // Default 2MB
@@ -931,7 +916,7 @@ export class GeometryProcessor {
           options.sourceFingerprint,
           options.signal,
           options.hungJobTimeoutMs,
-          options.stallPhaseHandle,
+          options.stallPhaseHandle, options.trace,
         );
       } else {
         yield* this.processStreaming(buffer, options.entityIndex, batchConfig, options.sharedRtcOffset);
