@@ -585,18 +585,29 @@ export interface ProjectParams {
    * source must not repeat indefinitely.
    */
   GuidSource?: () => string;
+  /** The IfcSite every new file starts with (named 'Site' by default). */
+  Site?: SiteParams;
+  /** The IfcBuilding every new file starts with (named 'Building' by default). */
+  Building?: BuildingParams;
 }
 
 /** Site-level options */
 export interface SiteParams {
   Name?: string;
   Description?: string;
+  LongName?: string;
+  /** Reference latitude / longitude, decimal degrees (written as compound angles). */
+  Latitude?: number;
+  Longitude?: number;
+  /** Reference elevation above sea level, file length units. */
+  Elevation?: number;
 }
 
 /** Building-level options */
 export interface BuildingParams {
   Name?: string;
   Description?: string;
+  LongName?: string;
 }
 
 /** Building storey (floor) options */

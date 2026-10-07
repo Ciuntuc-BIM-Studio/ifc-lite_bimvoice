@@ -11,9 +11,11 @@
  */
 
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Box, Building2, Camera, FileBox, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed } from 'lucide-react';
+import { Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { requestNewProject } from '@/project/new-project';
 import { IconButton } from '@/components/ui/icon-button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
@@ -90,6 +92,9 @@ export function ProjectNavigatorPanel() {
       <div className="h-full flex flex-col bg-white dark:bg-black">
         <Header title={t('projectNavigator.title')} />
         <EmptyState className="flex-1" icon={<LayoutTemplate className="size-8" />} title={t('projectNavigator.empty.title')} description={t('projectNavigator.empty.hint')} />
+        <div className="p-4 pt-0 flex justify-center">
+          <Button onClick={requestNewProject}><FilePlus2 className="size-4 mr-1" />{t('newProject.command')}</Button>
+        </div>
       </div>
     );
   }
@@ -200,6 +205,9 @@ export function ProjectNavigatorPanel() {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-black">
       <Header title={name} dirty={dirty}>
+        <IconButton label={t('newProject.command')} className="size-7" onClick={requestNewProject}>
+          <FilePlus2 className="size-4" />
+        </IconButton>
         <IconButton label={t('projectNavigator.action.openFile')} className="size-7" onClick={() => fileInput.current?.click()}>
           <FolderOpen className="size-4" />
         </IconButton>

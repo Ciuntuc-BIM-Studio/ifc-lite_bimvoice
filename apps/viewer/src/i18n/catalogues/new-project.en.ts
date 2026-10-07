@@ -1,0 +1,38 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+import type { TranslationValue } from '../types';
+export const newProjectEn = {
+  'newProject.command': 'New project',
+  'newProject.title': 'New project',
+  'newProject.project': 'Project',
+  'newProject.name': 'Name',
+  'newProject.description': 'Description',
+  'newProject.author': 'Author',
+  'newProject.organization': 'Organization',
+  'newProject.site': 'Site (IfcSite)',
+  'newProject.address': 'Address',
+  'newProject.latitude': 'Latitude (°)',
+  'newProject.longitude': 'Longitude (°)',
+  'newProject.siteElevation': 'Elevation above sea (m)',
+  'newProject.building': 'Building (IfcBuilding)',
+  'newProject.longName': 'Long name',
+  'newProject.levels': 'Levels (IfcBuildingStorey)',
+  'newProject.above': 'Levels above ground',
+  'newProject.below': 'Basements',
+  'newProject.floorHeight': 'Floor height (m)',
+  'newProject.generate': 'Generate',
+  'newProject.levelName': 'Level name',
+  'newProject.levelElevation': 'Elevation (m)',
+  'newProject.removeLevel': 'Remove level',
+  'newProject.addLevel': 'Add level',
+  'newProject.newLevelName': 'New level',
+  'newProject.units': 'Length unit',
+  'newProject.metres': 'Metres',
+  'newProject.millimetres': 'Millimetres',
+  'newProject.schema': 'IFC schema',
+  'newProject.incomplete': 'Fill in the project, site and building names and at least one level (latitude −90…90, longitude −180…180).',
+  'newProject.create': 'Create project',
+  'newProject.created': 'Project "{name}" created.',
+  'newProject.failed': 'Could not create the project: {detail}',
+} as const satisfies Record<string, TranslationValue>;

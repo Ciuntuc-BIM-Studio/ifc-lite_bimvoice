@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { HierarchyPanel } from '@/components/viewer/HierarchyPanel';
 import { useProjectSync } from '@/project/project-sync';
 import { ProjectNavigatorPanel } from './ProjectNavigatorPanel';
+import { NewProjectHost } from './NewProjectDialog';
 
 type LeftTab = 'model' | 'project';
 
@@ -66,6 +67,7 @@ export function LeftNavigator() {
       <div role="tabpanel" className="flex-1 min-h-0">
         {tab === 'model' ? <HierarchyPanel /> : <ProjectNavigatorPanel />}
       </div>
+      <NewProjectHost />
     </div>
   );
 }

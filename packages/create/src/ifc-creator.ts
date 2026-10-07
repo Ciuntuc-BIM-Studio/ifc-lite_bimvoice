@@ -43,6 +43,7 @@ import {
   optStr, optEnum,
   NON_ELEMENT_TYPES, assertPositiveFinite, assertFinitePoint3, completePlacementAxes,
 } from './ifc-creator-math.js';
+import { buildingArgs, siteArgs } from './ifc-creator-spatial.js';
 import { emitWorkCalendar, emitTaskTime } from './ifc-creator-scheduling.js';
 import {
   assertCostSchema, emitCostItem, emitCostSchedule, emitCostValue,
@@ -2094,16 +2095,14 @@ export class IfcCreator {
     // IfcSite
     this.siteId = this.id();
     const siteGlobalId = this.newGlobalId();
-    this.line(this.siteId, 'IFCSITE',
-      `'${siteGlobalId}',#${this.ownerHistoryId},'Site',$,$,#${this.worldPlacementId},$,$,.ELEMENT.,$,$,$,$,$`);
-    this.entities.push({ expressId: this.siteId, type: 'IfcSite', Name: 'Site' });
+    this.line(this.siteId, 'IFCSITE', siteArgs(siteGlobalId, this.ownerHistoryId, this.worldPlacementId, params.Site));
+    this.entities.push({ expressId: this.siteId, type: 'IfcSite', Name: params.Site?.Name ?? 'Site' });
 
     // IfcBuilding
     this.buildingId = this.id();
     const buildingGlobalId = this.newGlobalId();
-    this.line(this.buildingId, 'IFCBUILDING',
-      `'${buildingGlobalId}',#${this.ownerHistoryId},'Building',$,$,#${this.worldPlacementId},$,$,.ELEMENT.,$,$,$`);
-    this.entities.push({ expressId: this.buildingId, type: 'IfcBuilding', Name: 'Building' });
+    this.line(this.buildingId, 'IFCBUILDING', buildingArgs(buildingGlobalId, this.ownerHistoryId, this.worldPlacementId, params.Building));
+    this.entities.push({ expressId: this.buildingId, type: 'IfcBuilding', Name: params.Building?.Name ?? 'Building' });
   }
 
   private buildUnits(lengthUnit: string, currency?: string): number {
