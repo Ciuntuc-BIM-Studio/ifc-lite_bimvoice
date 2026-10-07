@@ -94,6 +94,7 @@ const EXPECTED_EXPANDS: Record<LineOverlayChannel, boolean> = {
     dxf: false,
     terrain: true,
     centreline: false,
+    drafting: false, // drafted view lines sit inside the model; they never reframe it
 };
 
 describe('setLineOverlay keeps each channel\'s model-bounds policy', () => {

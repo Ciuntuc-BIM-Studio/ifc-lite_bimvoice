@@ -9,6 +9,7 @@
  */
 
 import type { TranslationKey } from '@/i18n';
+import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import type { DraftEntity, DraftShape, Pt } from '../types';
 
 export type StepResult = 'continue' | 'done';
@@ -34,6 +35,10 @@ export interface DraftContext {
   closedLoops(): Pt[][];
   /** The height (m) a level mark at this drawing point reports. */
   levelAt(p: Pt): number;
+  /** The view's work plane (world units), when known. */
+  plane(): SectionPlaneConfig | null;
+  /** The kind of view being drafted on. */
+  viewKind(): 'plan' | 'section' | 'elevation' | null;
   /** +1, or −1 when the drawing is mirrored on screen (a user CCW angle is CW in drawing space). */
   orientation: 1 | -1;
   settings: DraftSettings;

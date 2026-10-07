@@ -73,6 +73,7 @@ import { useAlignmentLines3D } from '../../hooks/useAlignmentLines3D.js';
 import { useDxfUnderlays3DLines } from '../../hooks/useDxfUnderlay.js';
 import { useLandXmlRendererOverlay } from '../../hooks/useLandXmlOverlayLines.js';
 import { useCentrelineRendererOverlay } from '../../hooks/useCentrelineRendererOverlay.js';
+import { useDraftingLines3D } from '../../hooks/useDraftingLines3D.js';
 import { selectPickedGlobalId, toggleGlobalIdInSelection } from './viewport-selection.js';
 import { uploadDxfLines3DGuarded } from './dxf-lines-3d-upload.js';
 import { subscribeViewportHealth } from './device-loss-report.js';
@@ -1329,10 +1330,9 @@ export function Viewport({
     // underlay on failure instead of drawing from a half-uploaded buffer.
     uploadDxfLines3DGuarded(renderer, dxfLines3D);
   }, [dxfLines3D, isInitialized]);
-
   useLandXmlRendererOverlay(rendererRef, isInitialized);
   useCentrelineRendererOverlay(rendererRef, isInitialized, gpuRecoveryEpoch);
-
+  useDraftingLines3D(rendererRef, isInitialized, gpuRecoveryEpoch); // project drafting on its view planes
   // Upload IfcAnnotation text + fill data for the WebGPU symbolic overlay
   // pipelines. Map the hook's per-annotation records into the SymbolicFillInput
   // / SymbolicTextInput shape the renderer expects. Empty arrays clear cleanly.

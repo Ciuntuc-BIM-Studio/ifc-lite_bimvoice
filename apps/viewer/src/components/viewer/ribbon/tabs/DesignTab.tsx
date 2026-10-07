@@ -11,7 +11,7 @@
 
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
-  DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSnap, DraftTrim,
+  DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane,
 } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
@@ -52,6 +52,11 @@ export function DesignTab() {
           <RibbonCommandSmallButton commandId="design:extend" icon={DraftExtend} active={on('extend')} />
           <RibbonCommandSmallButton commandId="design:fillet" icon={DraftFillet} active={on('fillet')} />
         </RibbonSmallStack>
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('drafting.group.workplane')}>
+        <RibbonCommandLargeButton commandId="design:section-line" icon={DraftSectionLine} active={on('sectionline')} />
+        <RibbonCommandLargeButton commandId="design:workplane-face" icon={DraftWorkplane} />
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.aids')}>

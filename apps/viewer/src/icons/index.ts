@@ -113,3 +113,5 @@ export { default as AnnoLevel } from '~icons/viewer/anno-level';
 export { default as AnnoHatch } from '~icons/viewer/anno-hatch';
 export { default as AnnoLoadPattern } from '~icons/viewer/anno-load-pattern';
 export { default as NewProject } from '~icons/viewer/new-project';
+export { default as DraftSectionLine } from '~icons/viewer/draft-section-line';
+export { default as DraftWorkplane } from '~icons/viewer/draft-workplane';

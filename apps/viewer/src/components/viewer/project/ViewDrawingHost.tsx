@@ -42,7 +42,8 @@ export function ViewDrawingHost({ view }: { view: Exclude<ProjectView, { kind: '
 
   // Resolve the view's plane against the live bounds; keyed so an identical
   // plane keeps its object identity and the generator sees no change.
-  const resolved = sectionPlaneForView(view, mergedSectionBounds(models, legacyGeometry), levels);
+  const bounds = mergedSectionBounds(models, legacyGeometry);
+  const resolved = sectionPlaneForView(view, bounds, levels);
   const key = planeKey(resolved);
   const planeRef = useRef<{ key: string; plane: typeof FALLBACK_PLANE | NonNullable<typeof resolved> }>({ key: '', plane: FALLBACK_PLANE });
   if (planeRef.current.key !== key) planeRef.current = { key, plane: resolved ?? FALLBACK_PLANE };
@@ -80,9 +81,11 @@ export function ViewDrawingHost({ view }: { view: Exclude<ProjectView, { kind: '
     primary: false,
   });
 
+  // An empty model (no geometry, no bounds) is not an error: the view is a bare work plane.
+  const hasGeometry = bounds !== null;
   useEffect(() => {
-    if (!key) patchViewDrawing(viewId, { status: 'error', error: 'This view cannot resolve: its level is not in the loaded models.' });
-  }, [key, viewId]);
+    if (!key && hasGeometry) patchViewDrawing(viewId, { status: 'error', error: 'This view cannot resolve: its level is not in the loaded models.' });
+  }, [key, viewId, hasGeometry]);
   useEffect(() => () => dropViewDrawing(viewId), [viewId]);
   return null;
 }

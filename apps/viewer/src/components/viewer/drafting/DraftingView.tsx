@@ -14,6 +14,8 @@ import { isGeometry, type DraftEntity, type DraftShape, type Pt } from '@/drafti
 import { drawingToWorld, type SectionAxisName } from '@/drafting/frame';
 import { parsePat } from '@/drafting/hatch/pattern';
 import { resolvePlanLevel } from '@/project/view-defaults';
+import { viewPlaneConfig } from '@/project/view-plane-config';
+import { mergedSectionBounds } from '@/lib/section/section-distance';
 import { Maximize2, Redo2, Undo2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -29,7 +31,7 @@ import { pickModelElement, referenceSet, referencesIn } from '@/drafting/referen
 import { selectFromPlan } from '@/components/viewer/plan/PlanPointer';
 import { draftsOfView, redoDrafts, undoDrafts } from '@/drafting/draft-store';
 import {
-  attachDraftingView, currentLayerId, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelPicker, submitCommandLine,
+  attachDraftingView, currentLayerId, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelPicker, setWorkPlaneProvider, submitCommandLine,
   toggleOrtho, toggleSnap, useDraftingSession,
 } from '@/drafting/session';
 import { DraftOverlay } from './DraftOverlay';
@@ -56,13 +58,25 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
 
-  const plane = drawing?.config.plane;
+  const levels = useProjectStore((s) => s.levels);
+  const models = useViewerStore((s) => s.models);
+  const legacyGeometry = useViewerStore((s) => s.geometryResult);
+  // The drawing's own plane; without a drawing (an empty project) the view's work plane.
+  const fallbackPlane = useMemo(() => viewPlaneConfig(view, levels, mergedSectionBounds(models, legacyGeometry)), [view, levels, models, legacyGeometry]);
+  const plane = drawing?.config.plane ?? fallbackPlane ?? undefined;
   const axis: SectionAxisName = plane ? AXIS_NAME[plane.axis] : 'down';
   const sectionPlane = useMemo(() => ({ axis, position: plane?.position ?? 0, flipped: plane?.flipped ?? false }), [axis, plane]);
   const { viewTransform, setViewTransform, fitToView } = useViewControls({
     drawing, sectionPlane, containerRef, panelVisible: true, status, sheetEnabled: false, activeSheet: null,
     isPinned: false, cachedSheetTransformRef: NO_SHEET_TRANSFORM,
   });
+
+  // No drawing to fit to: start at 1 m ≈ 40 px around the origin of the work plane.
+  useEffect(() => {
+    if (drawing || !containerRef.current) return;
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    setViewTransform((t) => (t.scale === 1 && t.x === 0 && t.y === 0 ? { scale: 40, x: width / 2, y: height / 2 } : t));
+  }, [drawing, setViewTransform]);
 
   const references = useMemo(() => (drawing ? referenceSet(drawing, false) : null), [drawing]);
   const entities = useMemo(() => draftsOfView(view.id, allDrafts), [allDrafts, view.id]);
@@ -83,7 +97,6 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   }, [drawing, references]);
   // Hatch boundaries: drafted closed shapes and the drawing's cut outlines. Level marks: the
   // plan's level, or the point's height on a section / elevation.
-  const levels = useProjectStore((s) => s.levels);
   useEffect(() => {
     setAnnotationProviders(
       () => closedLoopsOf(entities, drawing),
@@ -93,6 +106,9 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
       },
     );
   }, [entities, drawing, view, levels, plane]);
+  useEffect(() => {
+    setWorkPlaneProvider(() => plane ?? null, () => view.kind);
+  }, [plane, view.kind]);
   const patternText = useProjectStore((s) => s.hatchPatterns ?? '');
   const extraPatterns = useMemo(() => parsePat(patternText).patterns, [patternText]);
   const selectedModelIds = useViewerStore((s) => s.selectedEntityIds);

@@ -98,10 +98,12 @@ export const SECTION_2D_UNIFORM_SLOT_INDEX = {
   terrain: 1 + SECTION_2D_MAX_LINE_PARTITIONS * 4,
   centreline: 1 + SECTION_2D_MAX_LINE_PARTITIONS * 5,
   clashBox: 1 + SECTION_2D_MAX_LINE_PARTITIONS * 6,
+  /** Lines drafted on project views, lifted onto their view planes. */
+  drafting: 1 + SECTION_2D_MAX_LINE_PARTITIONS * 7,
 } as const;
 
 /** One cap record plus a partition range for every line family. */
-export const SECTION_2D_UNIFORM_SLOT_COUNT = 1 + SECTION_2D_MAX_LINE_PARTITIONS * 7;
+export const SECTION_2D_UNIFORM_SLOT_COUNT = 1 + SECTION_2D_MAX_LINE_PARTITIONS * 8;
 
 /**
  * Byte stride between uniform slots for `device`.

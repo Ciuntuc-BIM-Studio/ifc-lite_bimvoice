@@ -131,6 +131,7 @@ const CHANNEL_EXPANDS_MODEL_BOUNDS: Record<LineOverlayChannel, boolean> = {
     // A LandXML source may consist entirely of authored terrain lines.
     terrain: true,
     centreline: false, // Selected source never reframes the model or camera.
+    drafting: false, // Drafted view lines sit inside the model; they never reframe it.
 };
 
 export class RendererOverlays {

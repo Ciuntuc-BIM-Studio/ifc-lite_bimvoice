@@ -22,6 +22,7 @@ import { applyOrtho, parseCoordinateInput, pointAlong } from './input';
 import { drawingToUserVec, userToDrawingVec, type SectionAxisName } from './frame';
 import { draftsOfView } from './draft-store';
 import type { DraftEntity, DraftShape, Pt } from './types';
+import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 
 export interface HistoryLine {
   key: TranslationKey;
@@ -69,11 +70,19 @@ let referenceProvider: (min: Pt, max: Pt) => DraftShape[] = () => [];
 let modelPicker: ((p: Pt, tolerance: number, additive: boolean) => void) | null = null;
 let loopProvider: () => Pt[][] = () => [];
 let levelProvider: (p: Pt) => number = () => 0;
+let planeProvider: () => SectionPlaneConfig | null = () => null;
+let viewKindProvider: () => 'plan' | 'section' | 'elevation' | null = () => null;
 
 /** The view installs where hatch boundaries and level values come from. */
 export function setAnnotationProviders(loops: () => Pt[][], levelAt: (p: Pt) => number): void {
   loopProvider = loops;
   levelProvider = levelAt;
+}
+
+/** The view installs its work plane and kind (work-plane commands need them). */
+export function setWorkPlaneProvider(plane: () => SectionPlaneConfig | null, kind: () => 'plan' | 'section' | 'elevation' | null): void {
+  planeProvider = plane;
+  viewKindProvider = kind;
 }
 
 export function setModelPicker(picker: typeof modelPicker): void {
@@ -103,6 +112,8 @@ function context(viewId: string): DraftContext {
     referenceShapes: (min, max) => referenceProvider(min, max),
     closedLoops: () => loopProvider(),
     levelAt: (p) => levelProvider(p),
+    plane: () => planeProvider(),
+    viewKind: () => viewKindProvider(),
     selection: () => get().selection,
     setSelection: (ids) => set({ selection: ids }),
     // userToDrawing is diag(kx, −ky): orientation-reversing when its determinant is negative.
