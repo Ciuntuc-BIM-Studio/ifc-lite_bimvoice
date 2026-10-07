@@ -86,7 +86,8 @@ function joinWalls(
       ? { a: first.relatingPriorities, b: first.relatedPriorities }
       : { a: first.relatedPriorities, b: first.relatingPriorities })
     : undefined);
-  const joinOptions: WallJoinApplyOptions = { ...options, priority, priorities, Name: options.Name ?? first?.name ?? undefined };
+  const style = options.style ?? first?.style;
+  const joinOptions: WallJoinApplyOptions = { ...options, priority, priorities, style, Name: options.Name ?? first?.name ?? undefined };
   // Refuse before the old relationship is touched.
   const join = computeWallJoin(a.wall, b.wall, joinOptions);
   assertWallOpeningsFit(store, editor.getMutationView(), a, join.a.wall, anchor.lengthUnitScale ?? 1);
@@ -250,6 +251,7 @@ function joinOptionsOf(rel: WallJoinRel, tolerance: number | undefined): WallJoi
     ...(tolerance === undefined ? {} : { tolerance }),
     priorities: { a: rel.relatingPriorities, b: rel.relatedPriorities },
     Name: rel.name ?? undefined,
+    style: rel.style,
   };
 }
 

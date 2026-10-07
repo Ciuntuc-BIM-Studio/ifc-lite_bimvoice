@@ -52,6 +52,8 @@ export interface WallJoinRel {
   relatingPriorities: number[];
   relatedPriorities: number[];
   name: string | null;
+  /** The cut style written in the relationship's `Description`. */
+  style: 'butt' | 'mitre';
 }
 
 const WALL_TYPES = new Set(['IFCWALL', 'IFCWALLSTANDARDCASE']);
@@ -281,6 +283,7 @@ export function readWallJoinRels(
       relatingPriorities: prioritiesOf(attributes[7]),
       relatedPriorities: prioritiesOf(attributes[8]),
       name: typeof attributes[2] === 'string' ? attributes[2] : null,
+      style: typeof attributes[3] === 'string' && attributes[3].toLowerCase() === 'mitre' ? 'mitre' : 'butt',
     });
   }
   return rels;

@@ -61,7 +61,7 @@ export function towardViewer(plane: SectionPlaneConfig): V {
 }
 
 /** Which loaded model and storey the contour belongs to. */
-function resolveTarget(view: ProjectView, worldMinY: number): { modelId: string; storeyId: number } | null {
+export function resolveTarget(view: ProjectView, worldMinY: number): { modelId: string; storeyId: number } | null {
   const state = useViewerStore.getState();
   const editable = [...state.models.values()].filter((m) => m.ifcDataStore);
   const ordered = [...editable.filter((m) => m.id === state.activeModelId), ...editable.filter((m) => m.id !== state.activeModelId)];

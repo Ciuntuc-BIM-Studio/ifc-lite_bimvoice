@@ -12,7 +12,11 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap,
+  BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
+import { useViewerStore } from '@/store';
+import { useWallJoinPrefs } from '@/lib/wall-join-prefs';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -24,6 +28,9 @@ export function DesignTab() {
   const snap = useDraftingSession((s) => s.snap);
   const ortho = useDraftingSession((s) => s.ortho);
   const on = (id: string) => commandId === id;
+  const modelCommand = useViewerStore((s) => s.session?.activeCommandId ?? null);
+  const bim = (id: string) => modelCommand === id;
+  const autoMitre = useWallJoinPrefs((s) => s.style === 'mitre');
 
   return (
     <>
@@ -52,6 +59,36 @@ export function DesignTab() {
           <RibbonCommandSmallButton commandId="design:extend" icon={DraftExtend} active={on('extend')} />
           <RibbonCommandSmallButton commandId="design:fillet" icon={DraftFillet} active={on('fillet')} />
         </RibbonSmallStack>
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('drafting.group.bim')}>
+        <RibbonCommandLargeButton commandId="design:bim-wall" icon={BimWall} active={bim('wall.place')} />
+        <RibbonCommandLargeButton commandId="design:bim-slab" icon={BimSlab} active={bim('slab.place')} />
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:bim-column" icon={BimColumn} active={bim('column.place')} />
+          <RibbonCommandSmallButton commandId="design:bim-beam" icon={BimBeam} active={bim('beam.place')} />
+          <RibbonCommandSmallButton commandId="design:bim-curtain-wall" icon={BimCurtainWall} active={bim('curtainwall.place')} />
+        </RibbonSmallStack>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:bim-door" icon={BimDoor} active={bim('door.place')} />
+          <RibbonCommandSmallButton commandId="design:bim-window" icon={BimWindow} active={bim('window.place')} />
+          <RibbonCommandSmallButton commandId="design:bim-opening" icon={BimOpening} active={bim('opening.place')} />
+        </RibbonSmallStack>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:bim-stair" icon={BimStair} active={bim('stair.place')} />
+          <RibbonCommandSmallButton commandId="design:bim-railing" icon={BimRailing} active={bim('railing.place')} />
+          <RibbonCommandSmallButton commandId="design:bim-room" icon={BimRoom} active={bim('room.place')} />
+        </RibbonSmallStack>
+        <RibbonCommandSmallButton commandId="design:bim-grid" icon={BimGrid} active={bim('grid.place')} />
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('drafting.group.joins')}>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:join-mitre" icon={JoinMitre} />
+          <RibbonCommandSmallButton commandId="design:join-butt" icon={JoinButt} />
+          <RibbonCommandSmallButton commandId="design:join-swap" icon={JoinSwap} />
+        </RibbonSmallStack>
+        <RibbonCommandSmallButton commandId="design:join-auto-mitre" icon={JoinAuto} active={autoMitre} />
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.model')}>

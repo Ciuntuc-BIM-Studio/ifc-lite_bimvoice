@@ -39,6 +39,9 @@ import { CommandLine } from './CommandLine';
 import { useDraftingPointer } from './useDraftingPointer';
 import { useDraftingKeys } from './useDraftingKeys';
 import { DraftPropertiesPanel } from './DraftPropertiesPanel';
+import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
+import { capturePointer } from '@/lib/pointer-capture';
+import { useCommandRuntime } from '@/lib/commands/modeling/runtime';
 
 const AXIS_NAME = { y: 'down', z: 'front', x: 'side' } as const;
 const NO_SHEET_TRANSFORM = { current: null };
@@ -66,9 +69,12 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const plane = drawing?.config.plane ?? fallbackPlane ?? undefined;
   const axis: SectionAxisName = plane ? AXIS_NAME[plane.axis] : 'down';
   const sectionPlane = useMemo(() => ({ axis, position: plane?.position ?? 0, flipped: plane?.flipped ?? false }), [axis, plane]);
+  // Pinned: a regenerated drawing (an element added, edited) keeps the user's framing. No
+  // automatic fit while a BIM tool is drawing — the clicks would land somewhere else.
+  const bimRunning = useCommandRuntime().command !== null;
   const { viewTransform, setViewTransform, fitToView } = useViewControls({
-    drawing, sectionPlane, containerRef, panelVisible: true, status, sheetEnabled: false, activeSheet: null,
-    isPinned: false, cachedSheetTransformRef: NO_SHEET_TRANSFORM,
+    drawing, sectionPlane, containerRef, panelVisible: !bimRunning, status, sheetEnabled: false, activeSheet: null,
+    isPinned: true, cachedSheetTransformRef: NO_SHEET_TRANSFORM,
   });
 
   // No drawing to fit to: start at 1 m ≈ 40 px around the origin of the work plane.
@@ -120,6 +126,24 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   }, [drawing, selectedModelIds, selectedModelId]);
 
   const { state, handlers } = useDraftingPointer({ containerRef, transform: viewTransform, setTransform: setViewTransform, axis, entityShapes, references });
+  const workPlane = useMemo(() => viewWorkPlane(view, plane ?? null, levels), [view, plane, levels]);
+  const bim = useModelCommandBridge({ view, plane: workPlane, transform: viewTransform, axis, containerRef });
+  // A running BIM tool takes the left button; panning, zoom and the cursor stay the drafting view's.
+  const pointer = {
+    ...handlers,
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.button === 0 && bim.feed('down', e)) capturePointer(e.currentTarget as HTMLElement, e.pointerId);
+      else handlers.onPointerDown(e);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      bim.feed('move', e);
+      handlers.onPointerMove(e);
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      if (e.button === 0) bim.feed('up', e);
+      handlers.onPointerUp(e);
+    },
+  };
   const submit = () => {
     submitCommandLine(text, state.cursor);
     setText('');
@@ -152,7 +176,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         ref={containerRef}
         data-drafting-canvas
         className="relative min-h-0 flex-1 overflow-hidden bg-white dark:bg-zinc-950 cursor-none touch-none"
-        {...handlers}
+        {...pointer}
       >
         {drawing ? (
           <Drawing2DCanvas
@@ -190,6 +214,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           transform={viewTransform}
           axis={axis}
         />
+        <ModelCommandLayer map={bim.map} />
         <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} extraPatterns={extraPatterns} />
       </div>
       <CommandLine ref={inputRef} value={text} onChange={setText} onSubmit={submit} onEscape={() => { setText(''); pressEscape(); }} />

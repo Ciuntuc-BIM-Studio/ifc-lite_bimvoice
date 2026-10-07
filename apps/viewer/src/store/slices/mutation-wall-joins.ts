@@ -32,6 +32,7 @@ import type { ViewerState } from '../index.js';
 import { mutationDenial } from '../mutation-permission.js';
 import { getModelLengthUnitScale } from '@/lib/length-unit-scale.js';
 import { storeyWallAxes } from '@/lib/snap/sources/semantic-walls.js';
+import { defaultWallJoinStyle } from '@/lib/wall-join-prefs.js';
 import { modelEditTarget, recordModellingEdit, type ModellingStore } from './mutation-modelling-records.js';
 
 /** Why a model cannot take wall joins at all, or null. */
@@ -115,7 +116,7 @@ export function joinPlacedWallIn(
       for (const partner of partners) {
         // A pair that does not meet (a fold-back, a wall in another frame) is refused before anything is written.
         try {
-          joinWallsInStore(draft, dataStore, anchor, partner, wallId);
+          joinWallsInStore(draft, dataStore, anchor, partner, wallId, { style: defaultWallJoinStyle() });
           joined.push(partner);
         } catch (error) {
           skipped.push({ wallId: partner, reason: error instanceof Error ? error.message : String(error) });

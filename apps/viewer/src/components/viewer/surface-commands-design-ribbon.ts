@@ -11,7 +11,11 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap,
+  BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
+import { startBimTool } from '@/project/model-command-bridge';
+import { changeSelectedWallJoins, defaultWallJoinStyle, setDefaultWallJoinStyle, type WallJoinChange } from '@/lib/wall-join-style';
 import { startWorkPlaneFromFace } from '@/project/workplane-from-face';
 import { resolve } from '@/i18n/registry';
 import { toast } from '@/components/ui/toast';
@@ -33,7 +37,41 @@ function draft(id: string): () => void {
   };
 }
 
+const bim = (id: string) => () => startBimTool(id);
+
+/** Restyle the selected walls' corners, and say what happened. */
+function joins(change: WallJoinChange): () => void {
+  return () => {
+    const outcome = changeSelectedWallJoins(change);
+    if (!outcome.ok) toast.error(resolve('drafting.msg.joinFailed', { detail: outcome.reason }));
+    else if (outcome.corners === 0) toast.info(resolve('drafting.msg.noJoins'));
+    else toast.success(resolve('drafting.msg.joinsChanged', { count: outcome.corners }));
+  };
+}
+
+function toggleAutoMitre(): void {
+  const style = defaultWallJoinStyle() === 'mitre' ? 'butt' : 'mitre';
+  setDefaultWallJoinStyle(style);
+  toast.info(resolve('drafting.msg.autoJoin', { style: resolve(style === 'mitre' ? 'drafting.join.mitre' : 'drafting.join.butt') }));
+}
+
 export const RIBBON_DESIGN_SURFACE_COMMANDS = [
+  { id: 'design:bim-wall', labelKey: 'drafting.bim.wall', keywords: 'wall bim parametric place joins', category: 'Tools', icon: BimWall, surfaces: ribbonOnly, enabled: always, run: bim('wall.place') },
+  { id: 'design:bim-slab', labelKey: 'drafting.bim.slab', keywords: 'slab floor bim parametric place', category: 'Tools', icon: BimSlab, surfaces: ribbonOnly, enabled: always, run: bim('slab.place') },
+  { id: 'design:bim-column', labelKey: 'drafting.bim.column', keywords: 'column pillar bim parametric place', category: 'Tools', icon: BimColumn, surfaces: ribbonOnly, enabled: always, run: bim('column.place') },
+  { id: 'design:bim-beam', labelKey: 'drafting.bim.beam', keywords: 'beam bim parametric place', category: 'Tools', icon: BimBeam, surfaces: ribbonOnly, enabled: always, run: bim('beam.place') },
+  { id: 'design:bim-door', labelKey: 'drafting.bim.door', keywords: 'door hosted void bim place', category: 'Tools', icon: BimDoor, surfaces: ribbonOnly, enabled: always, run: bim('door.place') },
+  { id: 'design:bim-window', labelKey: 'drafting.bim.window', keywords: 'window hosted void bim place', category: 'Tools', icon: BimWindow, surfaces: ribbonOnly, enabled: always, run: bim('window.place') },
+  { id: 'design:bim-opening', labelKey: 'drafting.bim.opening', keywords: 'opening void hole bim place', category: 'Tools', icon: BimOpening, surfaces: ribbonOnly, enabled: always, run: bim('opening.place') },
+  { id: 'design:bim-stair', labelKey: 'drafting.bim.stair', keywords: 'stair steps bim place', category: 'Tools', icon: BimStair, surfaces: ribbonOnly, enabled: always, run: bim('stair.place') },
+  { id: 'design:bim-railing', labelKey: 'drafting.bim.railing', keywords: 'railing guard bim place', category: 'Tools', icon: BimRailing, surfaces: ribbonOnly, enabled: always, run: bim('railing.place') },
+  { id: 'design:bim-curtain-wall', labelKey: 'drafting.bim.curtainWall', keywords: 'curtain wall facade glazing bim place', category: 'Tools', icon: BimCurtainWall, surfaces: ribbonOnly, enabled: always, run: bim('curtainwall.place') },
+  { id: 'design:bim-grid', labelKey: 'drafting.bim.grid', keywords: 'grid axis bim place', category: 'Tools', icon: BimGrid, surfaces: ribbonOnly, enabled: always, run: bim('grid.place') },
+  { id: 'design:join-mitre', labelKey: 'drafting.join.mitre', keywords: 'wall join corner mitre miter diagonal', category: 'Tools', icon: JoinMitre, surfaces: ribbonOnly, enabled: always, run: joins({ style: 'mitre' }) },
+  { id: 'design:join-butt', labelKey: 'drafting.join.butt', keywords: 'wall join corner butt square', category: 'Tools', icon: JoinButt, surfaces: ribbonOnly, enabled: always, run: joins({ style: 'butt' }) },
+  { id: 'design:join-swap', labelKey: 'drafting.join.swap', keywords: 'wall join corner swap priority through', category: 'Tools', icon: JoinSwap, surfaces: ribbonOnly, enabled: always, run: joins({ swap: true }) },
+  { id: 'design:join-auto-mitre', labelKey: 'drafting.join.autoMitre', keywords: 'wall join automatic default mitre corners', category: 'Tools', icon: JoinAuto, surfaces: ribbonOnly, enabled: always, run: toggleAutoMitre },
+  { id: 'design:bim-room', labelKey: 'drafting.bim.room', keywords: 'room space bim place', category: 'Tools', icon: BimRoom, surfaces: ribbonOnly, enabled: always, run: bim('room.place') },
   { id: 'design:line', labelKey: 'drafting.tool.line', keywords: 'draw line segment cad L', category: 'Tools', icon: DraftLine, surfaces: ribbonOnly, enabled: always, run: draft('line') },
   { id: 'design:polyline', labelKey: 'drafting.tool.polyline', keywords: 'draw polyline pline cad PL', category: 'Tools', icon: DraftPolyline, surfaces: ribbonOnly, enabled: always, run: draft('polyline') },
   { id: 'design:rectangle', labelKey: 'drafting.tool.rectangle', keywords: 'draw rectangle rect cad REC', category: 'Tools', icon: DraftRectangle, surfaces: ribbonOnly, enabled: always, run: draft('rectangle') },

@@ -58,6 +58,9 @@ export interface WallJoinApplyResult {
   b: WallJoinTarget;
 }
 
+/** The `Description` of a mitred join's `IfcRelConnectsPathElements`. */
+export const MITRE_DESCRIPTION = 'Mitre';
+
 export interface WallJoinApplyOptions extends WallJoinOptions {
   /** Layer priorities for the relationship, by wall. Default empty. */
   priorities?: { a?: readonly number[]; b?: readonly number[] };
@@ -118,6 +121,8 @@ export function applyWallJoinToStore(
     RelatingPriorities: relatingIsA ? options.priorities?.a : options.priorities?.b,
     RelatedPriorities: relatingIsA ? options.priorities?.b : options.priorities?.a,
     Name: options.Name,
+    // The join's cut style, read back by `readWallJoinRels` so a recomputed join keeps it.
+    Description: join.style === 'mitre' ? MITRE_DESCRIPTION : undefined,
   }, op);
 
   // The through wall of a T keeps its body; it only gains an Axis if it has none,

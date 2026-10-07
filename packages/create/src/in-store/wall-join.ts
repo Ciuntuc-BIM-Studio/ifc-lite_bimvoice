@@ -27,8 +27,18 @@
  * `IfcRectangleProfileDef`. At any other angle the cut runs along the other
  * wall's face, which a rectangle cannot follow: the body becomes a four-point
  * `IfcArbitraryClosedProfileDef`. It is still a butt join (one wall runs through,
- * the other stops at its face), not a mitre, and no boolean clipping is used.
+ * the other stops at its face), and no boolean clipping is used.
+ *
+ * An `L` can instead be mitred (`style: 'mitre'`): neither wall runs through,
+ * both are cut along the line from the inner corner (where the inner faces
+ * cross) to the outer corner (where the outer faces cross), so the two bodies
+ * meet on the corner's diagonal. Each body becomes a four-point profile (the
+ * left and right faces reach different lengths), the same kind of cut the
+ * butt join writes at an oblique corner. `T` and collinear joins are never
+ * mitred.
  */
+
+import { mitreJoin } from './wall-join-mitre-cut.js';
 
 /** A point in the storey plan, metres. */
 export type PlanPoint = [number, number];
@@ -69,6 +79,9 @@ export interface WallJoinWall {
 
 export type WallJoinKind = 'L' | 'T' | 'butt';
 
+/** How an `L` corner is cut: one wall through and the other to its face, or both on the diagonal. */
+export type WallJoinStyle = 'butt' | 'mitre';
+
 export interface WallJoinSide {
   /** Where this wall takes part: the end that is joined, or its path for the through wall of a T. */
   connection: WallConnectionType;
@@ -80,6 +93,8 @@ export interface WallJoinSide {
 
 export interface WallJoin {
   kind: WallJoinKind;
+  /** `mitre` only for an `L` asked to be mitred; every other join is `butt`. */
+  style: WallJoinStyle;
   /** Where the axes meet, storey plan metres. */
   point: PlanPoint;
   /** The wall written as `RelatingElement`: the one that runs through (wall `a` for a butt join). */
@@ -101,6 +116,8 @@ export interface WallJoinOptions {
    * where the path wall always runs through.
    */
   priority?: 'a' | 'b';
+  /** How an `L` corner is cut. Default `butt`. Ignored for a `T` and a collinear join. */
+  style?: WallJoinStyle;
 }
 
 /** The wall body's plan outline in the wall's own frame: origin at Start, +X along the axis, +Y to the left. */
@@ -119,14 +136,14 @@ export interface WallBodyOutline {
 /** Directions closer to parallel than this (sine of the angle) are treated as parallel. */
 const PARALLEL_SIN = 1e-6;
 /** Length slack for "the same point" / "on the line" / "non-empty face". */
-const LENGTH_EPS = 1e-9;
+export const LENGTH_EPS = 1e-9;
 const SQUARE_EPS = 1e-9;
 
-const sub = (a: PlanPoint, b: PlanPoint): PlanPoint => [a[0] - b[0], a[1] - b[1]];
-const add = (a: PlanPoint, b: PlanPoint): PlanPoint => [a[0] + b[0], a[1] + b[1]];
-const scale = (a: PlanPoint, s: number): PlanPoint => [a[0] * s, a[1] * s];
+export const sub = (a: PlanPoint, b: PlanPoint): PlanPoint => [a[0] - b[0], a[1] - b[1]];
+export const add = (a: PlanPoint, b: PlanPoint): PlanPoint => [a[0] + b[0], a[1] + b[1]];
+export const scale = (a: PlanPoint, s: number): PlanPoint => [a[0] * s, a[1] * s];
 const dot = (a: PlanPoint, b: PlanPoint): number => a[0] * b[0] + a[1] * b[1];
-const cross = (a: PlanPoint, b: PlanPoint): number => a[0] * b[1] - a[1] * b[0];
+export const cross = (a: PlanPoint, b: PlanPoint): number => a[0] * b[1] - a[1] * b[0];
 
 function assertWall(wall: WallJoinWall, label: string, op: string): void {
   const finite = [...wall.start, ...wall.end, wall.thickness, wall.offset ?? 0,
@@ -193,7 +210,7 @@ export function wallBodyOutline(wall: WallJoinWall): WallBodyOutline {
   return { corners, rectangular, length, yMin, yMax };
 }
 
-interface Frame {
+export interface Frame {
   wall: WallJoinWall;
   origin: PlanPoint;
   dir: PlanPoint;
@@ -223,7 +240,7 @@ function placeOn(s: number, length: number, tolerance: number): Place {
 }
 
 /** Outward direction of the body at a joined end. */
-function outward(f: Frame, end: 'ATSTART' | 'ATEND'): PlanPoint {
+export function outward(f: Frame, end: 'ATSTART' | 'ATEND'): PlanPoint {
   return end === 'ATEND' ? f.dir : scale(f.dir, -1);
 }
 
@@ -232,7 +249,7 @@ function outward(f: Frame, end: 'ATSTART' | 'ATEND'): PlanPoint {
  * with direction `lineDir`: distance past the axis end (the joint `p`) at each
  * face, measured outward.
  */
-function cutAlong(f: Frame, end: 'ATSTART' | 'ATEND', p: PlanPoint, linePoint: PlanPoint, lineDir: PlanPoint): WallEndCut {
+export function cutAlong(f: Frame, end: 'ATSTART' | 'ATEND', p: PlanPoint, linePoint: PlanPoint, lineDir: PlanPoint): WallEndCut {
   const u = outward(f, end);
   const denom = cross(u, lineDir);
   // p + s·u + y·n = linePoint + r·lineDir  =>  s = cross(linePoint - p - y·n, lineDir) / cross(u, lineDir)
@@ -241,7 +258,7 @@ function cutAlong(f: Frame, end: 'ATSTART' | 'ATEND', p: PlanPoint, linePoint: P
 }
 
 /** `f`'s wall with the joined end moved to `p` and cut by `cut`. */
-function joinedWall(f: Frame, end: 'ATSTART' | 'ATEND', p: PlanPoint, cut: WallEndCut): WallJoinWall {
+export function joinedWall(f: Frame, end: 'ATSTART' | 'ATEND', p: PlanPoint, cut: WallEndCut): WallJoinWall {
   const wall: WallJoinWall = end === 'ATSTART'
     ? { ...f.wall, start: [p[0], p[1]], startCut: cut }
     : { ...f.wall, end: [p[0], p[1]], endCut: cut };
@@ -250,7 +267,7 @@ function joinedWall(f: Frame, end: 'ATSTART' | 'ATEND', p: PlanPoint, cut: WallE
 }
 
 /** Which side (+1 left, -1 right) of `f`'s axis the direction `v` points to. */
-function sideOf(f: Frame, v: PlanPoint): 1 | -1 {
+export function sideOf(f: Frame, v: PlanPoint): 1 | -1 {
   return dot(v, f.normal) >= 0 ? 1 : -1;
 }
 
@@ -267,6 +284,9 @@ export function computeWallJoin(a: WallJoinWall, b: WallJoinWall, options: WallJ
   if (!Number.isFinite(tolerance) || tolerance < 0) throw new Error(`${op}: tolerance must be a finite, non-negative length`);
   if (options.priority !== undefined && options.priority !== 'a' && options.priority !== 'b') {
     throw new Error(`${op}: priority must be 'a' or 'b'`);
+  }
+  if (options.style !== undefined && options.style !== 'butt' && options.style !== 'mitre') {
+    throw new Error(`${op}: style must be 'butt' or 'mitre'`);
   }
   const fa = frameOf(a);
   const fb = frameOf(b);
@@ -297,6 +317,7 @@ export function computeWallJoin(a: WallJoinWall, b: WallJoinWall, options: WallJ
     const through: WallJoinSide = { connection: 'ATPATH', runsThrough: true, wall: { ...fr.wall } };
     return {
       kind: 'T',
+      style: 'butt',
       point,
       relating: throughIsA ? 'a' : 'b',
       a: throughIsA ? through : ending,
@@ -305,6 +326,7 @@ export function computeWallJoin(a: WallJoinWall, b: WallJoinWall, options: WallJ
   }
 
   // L: both walls end at the corner.
+  if (options.style === 'mitre') return mitreJoin(fa, fb, placeA as 'ATSTART' | 'ATEND', placeB as 'ATSTART' | 'ATEND', point, options);
   const throughIsA = (options.priority ?? (b.thickness > a.thickness ? 'b' : 'a')) === 'a';
   const [fr, fw] = throughIsA ? [fa, fb] : [fb, fa];
   const [endR, endW] = (throughIsA ? [placeA, placeB] : [placeB, placeA]) as ['ATSTART' | 'ATEND', 'ATSTART' | 'ATEND'];
@@ -317,6 +339,7 @@ export function computeWallJoin(a: WallJoinWall, b: WallJoinWall, options: WallJ
   const through: WallJoinSide = { connection: endR, runsThrough: true, wall: joinedWall(fr, endR, point, cut) };
   return {
     kind: 'L',
+    style: 'butt',
     point,
     relating: throughIsA ? 'a' : 'b',
     a: throughIsA ? through : ending,
@@ -362,6 +385,7 @@ function buttJoin(fa: Frame, fb: Frame, tolerance: number, options: WallJoinOpti
   const relating = options.priority ?? 'a';
   return {
     kind: 'butt',
+    style: 'butt',
     point,
     relating,
     a: { connection: best.endA, runsThrough: false, wall: joinedWall(fa, best.endA, point, square) },

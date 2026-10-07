@@ -16,7 +16,7 @@ export { addWallToStore, emitWallAxisRepresentation, emitWallBodyProfile, wallJo
 // Wall joins (L / T / butt) and the IfcRelConnectsPathElements they write; the read side sits in wall-join-read.
 export { computeWallJoin, reshapeWallAxis, wallBodyLateralRange, wallBodyOutline } from './wall-join.js';
 export type * from './wall-join.js';
-export { applyWallJoinToStore, wallJoinTargetFromBuild, type WallJoinApplyOptions, type WallJoinApplyResult, type WallJoinTarget } from './wall-join-apply.js';
+export { applyWallJoinToStore, MITRE_DESCRIPTION, wallJoinTargetFromBuild, type WallJoinApplyOptions, type WallJoinApplyResult, type WallJoinTarget } from './wall-join-apply.js';
 export { readWallJoinTarget, readWallJoinRels, type WallJoinRead, type WallJoinRel } from './wall-join-read.js';
 export { joinWallsInStore, reshapeWallsInStore, resolveWallJoinAnchor, type WallJoinInStoreResult, type WallReshape, type WallReshapeOptions, type WallReshapeResult } from './wall-join-edit.js';
 export { addRelConnectsPathElementsToStore, type RelConnectsAnchor, type RelConnectsPathElementsParams } from './rel-connects-path.js';

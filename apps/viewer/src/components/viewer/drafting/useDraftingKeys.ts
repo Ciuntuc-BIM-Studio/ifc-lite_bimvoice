@@ -11,6 +11,7 @@
 
 import { useEffect, useRef } from 'react';
 import { redoDrafts, undoDrafts } from '@/drafting/draft-store';
+import { getCommandRuntime } from '@/lib/commands/modeling/runtime';
 import { pressEnter, pressEscape, startDraftCommand, toggleOrtho, toggleSnap, useDraftingSession } from '@/drafting/session';
 
 interface Params {
@@ -33,6 +34,8 @@ export function useDraftingKeys({ inputRef, setText, submit }: Params): void {
     const onKey = (e: KeyboardEvent) => {
       const input = inputRef.current;
       if (inOtherField(e.target, input)) return;
+      // A running BIM tool owns the keys (Enter, Escape, typed lengths: its own bindings).
+      if (getCommandRuntime().command) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();

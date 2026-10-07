@@ -31,6 +31,7 @@ import type { FederatedModel } from '../types.js';
 import { appendGeometryBatchPatch } from './dataSlice.appendGeometryBatch.js';
 import { pruneMeshesFromGeometry } from './data-mesh-prune.js';
 import { correctPreAlignmentTail, type PreAlignmentMeshBaseline } from './data-mesh-prealign.js';
+import { growCoordinateInfo } from './data-mesh-bounds.js';
 
 /** Entities whose renderer meshes must be swapped for the store's, and the ticks around that swap. */
 export interface PendingMeshEdits {
@@ -74,7 +75,10 @@ export function replaceEntityMeshesPatch(
       baselines.push(known?.[i]);
     });
   }
-  const patch = appended.length > 0 ? appendGeometryBatchPatch(afterPrune, modelId, appended) : {};
+  // Authored meshes may lie outside the load-time bounds (or the model started empty): grow them.
+  const info = afterPrune.models.get(modelId)?.geometryResult?.coordinateInfo;
+  const grown = info && appended.length > 0 ? growCoordinateInfo(info, appended) : undefined;
+  const patch = appended.length > 0 ? appendGeometryBatchPatch(afterPrune, modelId, appended, grown !== info ? grown : undefined) : {};
   let models = patch.models ?? afterPrune.models;
   const model = models.get(modelId);
   if (model?.preAlignment && preAligned && appended.length > 0) {
