@@ -10,7 +10,7 @@
  * it silently. Both fields are optional and additive within document v12:
  * an older viewer prints and edits such a document as plain text.
  */
-import type { DocumentValidationError } from './types';
+import type { DocumentBlock, DocumentValidationError } from './types';
 
 export type AiClaimStatus = 'supported' | 'unverifiable' | 'contradicted';
 
@@ -60,6 +60,8 @@ export interface AiReportRecord {
   narrative: string;
   /** Every block slot the generator has ever produced; a missing one was deleted by a person. */
   slots: string[];
+  /** Sorted source fingerprints of the models first drafted against; set by the first refresh. */
+  originModels?: string[];
 }
 
 /** Marks generator-written text. `generated` is the exact text written, so an edit is observable. */
@@ -74,6 +76,17 @@ export type AiBlockOrigin = 'ai-generated' | 'human-edited' | 'human';
 export function aiBlockOrigin(block: { text: string; aiProvenance?: AiBlockProvenance }): AiBlockOrigin {
   if (!block.aiProvenance) return 'human';
   return block.aiProvenance.generated === block.text ? 'ai-generated' : 'human-edited';
+}
+
+/**
+ * A copy placed elsewhere is the copier's own text: a duplicated block or a
+ * template-built document must not be regenerated as if the AI wrote it there.
+ */
+export function detachAiProvenance(block: DocumentBlock): DocumentBlock {
+  if (block.kind !== 'text' || !block.aiProvenance) return block;
+  const copy = { ...block };
+  delete copy.aiProvenance;
+  return copy;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -111,4 +124,6 @@ export function validateAiReportRecord(value: unknown, errors: DocumentValidatio
   if (!Array.isArray(value.claims) || value.claims.length > 50 || !value.claims.every(validClaim)) fail('expected at most 50 valid claims');
   if (!isText(value.narrative, 32_000)) fail('expected the narrative text');
   if (!Array.isArray(value.slots) || !value.slots.every(slot => isText(slot, 200))) fail('expected generated slots');
+  if (value.originModels !== undefined && (!Array.isArray(value.originModels) || value.originModels.length > 1000
+    || !value.originModels.every(fingerprint => isText(fingerprint, 200)))) fail('expected origin model fingerprints');
 }
