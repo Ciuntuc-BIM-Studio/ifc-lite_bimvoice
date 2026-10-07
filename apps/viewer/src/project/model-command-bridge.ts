@@ -22,6 +22,7 @@ import type { CommandId, Workplane } from '@/lib/commands/modeling/types';
 import type { Vec2 } from '@/lib/snap/types';
 import { launchModelCommand } from '@/lib/commands/modeling/keys-workspace';
 import { useViewerStore } from '@/store';
+import { modelEditTarget } from '@/store/slices/mutation-modelling-records';
 import { toast } from '@/components/ui/toast';
 import { resolve } from '@/i18n/registry';
 import { drawingToScreen, worldToDrawing, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
@@ -75,6 +76,7 @@ export function aimSessionAtPlan(view: ProjectView): boolean {
   const target = resolveTarget(view, view.level.elevation);
   if (!target) return false;
   const s = useViewerStore.getState();
+  modelEditTarget(s, target.modelId);
   if (s.session?.modelId === target.modelId) {
     if (s.session.storeyId !== target.storeyId) s.setSessionStorey(target.storeyId);
     return true;
@@ -100,5 +102,8 @@ export function startBimTool(id: CommandId): void {
       return;
     }
   }
-  launchModelCommand(id);
+  // A model nobody has edited yet has no mutation view: the commands write through one.
+  const launched = launchModelCommand(id);
+  const modelId = useViewerStore.getState().session?.modelId;
+  if (launched && modelId) modelEditTarget(useViewerStore.getState(), modelId);
 }
