@@ -31,7 +31,7 @@ function arcPoints(c: Pt, r: number, start: number, end: number): Pt[] {
 export function shapePath(shape: DraftShape, t: ViewTransform, axis: SectionAxisName): string {
   const pts = (list: Pt[], close: boolean) => {
     const s = list.map((p) => drawingToScreen(p, t, axis));
-    return `M${s.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join('L')}${close ? 'Z' : ''}`;
+    return `M${s.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join('L')}${close ? 'Z' : ''}`;
   };
   switch (shape.type) {
     case 'line':

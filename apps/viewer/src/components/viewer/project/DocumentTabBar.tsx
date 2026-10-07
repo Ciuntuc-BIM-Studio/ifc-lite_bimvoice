@@ -9,7 +9,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Box, Building2, LayoutTemplate, Scissors, X } from 'lucide-react';
+import { Box, Building2, LayoutTemplate, Scissors, SquareDashed, X } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useProjectStore } from '@/project/project-store';
@@ -29,23 +29,26 @@ export function DocumentTabBar() {
   const openIds = useDocumentTabs((s) => s.openIds);
   const activeId = useDocumentTabs((s) => s.activeId);
   const views = useProjectStore((s) => s.views);
-  const tabs = openIds.flatMap((id) => {
+  const sheets = useProjectStore((s) => s.sheets);
+  const tabs = openIds.flatMap((id): { id: string; label: string; icon: ReactNode }[] => {
     const view = views.find((v) => v.id === id);
-    return view ? [view] : [];
+    if (view) return [{ id, label: view.name, icon: ICONS[view.kind] }];
+    const sheet = sheets.find((s) => s.id === id);
+    return sheet ? [{ id, label: t('projectNavigator.sheetLabel', { number: sheet.number, name: sheet.name }), icon: <SquareDashed className="size-3.5" /> }] : [];
   });
 
   return (
     <div role="tablist" aria-label={t('projectNavigator.documentTabs')} className="flex shrink-0 items-end gap-px overflow-x-auto h-8 px-1 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-950">
       <Tab active={activeId === MODEL_TAB_ID} icon={ICONS['3d']} label={t('projectNavigator.tab.model3d')} onSelect={() => activateDocumentTab(MODEL_TAB_ID)} />
-      {tabs.map((view) => (
+      {tabs.map((tab) => (
         <Tab
-          key={view.id}
-          active={activeId === view.id}
-          icon={ICONS[view.kind]}
-          label={view.name}
-          onSelect={() => activateDocumentTab(view.id)}
-          onClose={() => closeProjectTab(view.id)}
-          closeLabel={t('projectNavigator.tab.close', { name: view.name })}
+          key={tab.id}
+          active={activeId === tab.id}
+          icon={tab.icon}
+          label={tab.label}
+          onSelect={() => activateDocumentTab(tab.id)}
+          onClose={() => closeProjectTab(tab.id)}
+          closeLabel={t('projectNavigator.tab.close', { name: tab.label })}
         />
       ))}
     </div>

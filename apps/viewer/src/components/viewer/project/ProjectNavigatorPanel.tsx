@@ -25,11 +25,10 @@ import {
   projectDocument,
   removeProjectItem,
   renameProjectItem,
-  setActiveProjectItem,
   useProjectStore,
 } from '@/project/project-store';
 import { exportProjectFile, importProjectFile, PROJECT_FILE_SUFFIX } from '@/project/project-file';
-import { openProjectView, saveLiveCameraAsView, saveLiveSectionAsView } from '@/project/open-view';
+import { activateDocumentTab, openProjectView, saveLiveCameraAsView, saveLiveSectionAsView } from '@/project/open-view';
 import { resolvePlanLevel } from '@/project/view-defaults';
 import type { ProjectView, ProjectViewKind } from '@/project/types';
 import { ProjectFolderRow, ProjectItemRow } from './ProjectTreeRow';
@@ -155,6 +154,7 @@ export function ProjectNavigatorPanel() {
       onCancelRename={() => setRenamingId(null)}
       onDuplicate={() => setRenamingId(duplicateProjectView(view.id))}
       onDelete={() => removeProjectItem(view.id)}
+      dragViewId={view.kind === '3d' ? undefined : view.id}
     />
   );
 
@@ -170,10 +170,7 @@ export function ProjectNavigatorPanel() {
             icon={<SquareDashed className="size-3.5" />}
             active={activeItemId === sheet.id}
             renaming={renamingId === sheet.id}
-            onOpen={() => {
-              setActiveProjectItem(sheet.id);
-              toast.info(t('projectNavigator.sheetPending'));
-            }}
+            onOpen={() => activateDocumentTab(sheet.id)}
             onStartRename={() => setRenamingId(sheet.id)}
             onRename={(value) => rename(sheet.id, value)}
             onCancelRename={() => setRenamingId(null)}

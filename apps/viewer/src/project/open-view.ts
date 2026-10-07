@@ -74,7 +74,15 @@ export function activateDocumentTab(id: string): OpenViewResult {
     showDocumentTab(MODEL_TAB_ID);
     return 'opened';
   }
-  const view = useProjectStore.getState().views.find((v) => v.id === id);
+  const project = useProjectStore.getState();
+  if (project.sheets.some((s) => s.id === id)) {
+    // A sheet shows its viewports' own drawings; the 3D section state is set aside like for a view.
+    leaveModelTab();
+    setActiveProjectItem(id);
+    showDocumentTab(id);
+    return 'opened';
+  }
+  const view = project.views.find((v) => v.id === id);
   if (!view) return 'missing';
   if (view.kind === '3d') return openProjectView(id);
   leaveModelTab();
@@ -95,6 +103,7 @@ export function closeProjectTab(id: string): void {
   }
   const view = useProjectStore.getState().views.find((v) => v.id === next);
   if (view && view.kind !== '3d') applyDrawingView(view);
+  else setActiveProjectItem(next);
 }
 
 /** Open a project view: drawing views in their own tab, 3D views on the 3D tab. */

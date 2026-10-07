@@ -12,6 +12,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
+
+/** Drag-and-drop payload type of a project view dragged from the navigator. */
+export const VIEW_DRAG_TYPE = 'application/x-ifclite-view';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu';
 
 export interface ProjectFolderRowProps {
@@ -53,11 +56,13 @@ export interface ProjectItemRowProps {
   onCancelRename: () => void;
   onDuplicate?: () => void;
   onDelete: () => void;
+  /** A view id the row can be dragged as (onto a sheet). */
+  dragViewId?: string;
 }
 
 export function ProjectItemRow(props: ProjectItemRowProps) {
   const { t } = useTranslation();
-  const { label, icon, active, unresolvedHint, renaming, onOpen, onStartRename, onDuplicate, onDelete } = props;
+  const { label, icon, active, unresolvedHint, renaming, onOpen, onStartRename, onDuplicate, onDelete, dragViewId } = props;
   if (renaming) return <RenameField {...props} />;
   return (
     <ContextMenu>
@@ -72,6 +77,12 @@ export function ProjectItemRow(props: ProjectItemRowProps) {
             unresolvedHint && 'text-zinc-400 dark:text-zinc-600 italic',
           )}
           onDoubleClick={onOpen}
+          draggable={dragViewId !== undefined}
+          onDragStart={(e) => {
+            if (!dragViewId) return;
+            e.dataTransfer.setData(VIEW_DRAG_TYPE, dragViewId);
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onOpen();
             else if (e.key === 'F2') onStartRename();

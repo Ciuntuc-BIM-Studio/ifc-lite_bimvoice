@@ -86,12 +86,35 @@ export type ProjectViewPatch = ProjectView extends infer V
   ? V extends ProjectView ? Partial<Omit<V, 'id' | 'kind'>> : never
   : never;
 
+export type PaperSize = 'A0' | 'A1' | 'A2' | 'A3' | 'A4';
+
+/** A view placed on a sheet. Positions and sizes are paper millimetres from the sheet's top-left. */
+export interface SheetViewport {
+  id: string;
+  viewId: string;
+  /** Centre of the viewport on the paper. */
+  x: number;
+  y: number;
+  /** Drawing scale denominator: 100 means 1:100. */
+  scale: number;
+  /** Crop box on the paper; the drawing is clipped to it. 0 × 0 means "fit the drawing". */
+  width: number;
+  height: number;
+  /** Drawing point (metres) shown at the viewport centre; `null` centres the drawing. */
+  center: { x: number; y: number } | null;
+}
+
 export interface ProjectSheet {
   id: string;
   /** Sheet number as printed in the title block, e.g. "A-101". */
   number: string;
   name: string;
   createdAt: number;
+  paper?: PaperSize;
+  orientation?: 'landscape' | 'portrait';
+  viewports?: SheetViewport[];
+  /** Free title-block fields (project, drawn by, date, revision…). */
+  titleBlock?: Record<string, string>;
 }
 
 /** The identity of a model a project refers to (content hash, else its name). */

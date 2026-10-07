@@ -11,6 +11,7 @@
 
 import { downloadFile, sanitizeFilename } from '@/lib/export/download.js';
 import { readDraft, readDraftLayer } from '@/drafting/draft-file';
+import { readSheetLayout } from './sheet-file';
 import type { ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSheet, ProjectView, ProjectViewKind } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
@@ -81,7 +82,7 @@ function readView(v: unknown, path: string): ProjectView {
 
 function readSheet(v: unknown, path: string): ProjectSheet {
   if (!isObject(v) || !isString(v.id) || !isString(v.number) || !isString(v.name)) fail(path, 'must be a sheet { id, number, name }');
-  return { id: v.id, number: v.number, name: v.name, createdAt: isNumber(v.createdAt) ? v.createdAt : 0 };
+  return { id: v.id, number: v.number, name: v.name, createdAt: isNumber(v.createdAt) ? v.createdAt : 0, ...readSheetLayout(v, path) };
 }
 
 function readModel(v: unknown, path: string): ProjectModelRef {
