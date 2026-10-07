@@ -50,6 +50,8 @@ export {
 } from './grid.js';
 export { addStoreyToStore, type StoreyInStoreParams, type StoreyBuildResult } from './storey.js';
 export { addExtrusionToStore, replaceExtrusionGeometryInStore, type ExtrusionInStoreParams, type ExtrusionBuildResult } from './extrusion.js';
+export { addFacetedElementToStore, replaceFacetedGeometryInStore, type FacetedInStoreParams, type FacetedBuildResult } from './faceted.js';
+export { roofFacets, roofSolidFaces, type RoofKind, type RoofSurfaceSpec } from './roof-surface.js';
 export { addDoorToStore, type DoorInStoreParams, type DoorBuildResult } from './door.js';
 export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } from './window.js';
 export {

@@ -12,9 +12,10 @@ import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
   JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide,
-  BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
+  BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { startBimTool } from '@/project/model-command-bridge';
+import { useViewerStore } from '@/store';
 import { selectedGlobalIds } from '@/project/element-guid';
 import { toggleSymbolFlips } from '@/project/project-store';
 import { changeSelectedWallJoins, defaultWallJoinStyle, setDefaultWallJoinStyle, type WallJoinChange } from '@/lib/wall-join-style';
@@ -40,6 +41,12 @@ function draft(id: string): () => void {
 }
 
 const bim = (id: string) => () => startBimTool(id);
+
+/** Slab: the slab command draws a slab (it also draws flat roofs and plates). */
+function slab(): void {
+  useViewerStore.getState().setAuthoringDefaults({ slabClass: 'slab' });
+  startBimTool('slab.place');
+}
 
 /** Restyle the selected walls' corners, and say what happened. */
 function joins(change: WallJoinChange): () => void {
@@ -68,7 +75,8 @@ function toggleAutoMitre(): void {
 
 export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:bim-wall', labelKey: 'drafting.bim.wall', keywords: 'wall bim parametric place joins', category: 'Tools', icon: BimWall, surfaces: ribbonOnly, enabled: always, run: bim('wall.place') },
-  { id: 'design:bim-slab', labelKey: 'drafting.bim.slab', keywords: 'slab floor bim parametric place', category: 'Tools', icon: BimSlab, surfaces: ribbonOnly, enabled: always, run: bim('slab.place') },
+  { id: 'design:bim-slab', labelKey: 'drafting.bim.slab', keywords: 'slab floor bim parametric place', category: 'Tools', icon: BimSlab, surfaces: ribbonOnly, enabled: always, run: slab },
+  { id: 'design:bim-roof', labelKey: 'drafting.bim.roof', keywords: 'roof flat mono shed gable hip pitch bim', category: 'Tools', icon: BimRoof, surfaces: ribbonOnly, enabled: always, run: draft('roof') },
   { id: 'design:bim-column', labelKey: 'drafting.bim.column', keywords: 'column pillar bim parametric place', category: 'Tools', icon: BimColumn, surfaces: ribbonOnly, enabled: always, run: bim('column.place') },
   { id: 'design:bim-beam', labelKey: 'drafting.bim.beam', keywords: 'beam bim parametric place', category: 'Tools', icon: BimBeam, surfaces: ribbonOnly, enabled: always, run: bim('beam.place') },
   { id: 'design:bim-door', labelKey: 'drafting.bim.door', keywords: 'door hosted void bim place', category: 'Tools', icon: BimDoor, surfaces: ribbonOnly, enabled: always, run: bim('door.place') },

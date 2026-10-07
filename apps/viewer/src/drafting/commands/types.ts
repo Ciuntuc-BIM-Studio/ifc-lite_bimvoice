@@ -59,6 +59,10 @@ export interface DraftSettings {
   hatchAngle: number;
   extrudeClass: string;
   extrudeDepth: number;
+  roofKind: 'flat' | 'mono' | 'gable' | 'hip';
+  /** Degrees. */
+  roofSlope: number;
+  roofThickness: number;
 }
 
 export interface DraftCommand {

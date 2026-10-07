@@ -13,7 +13,7 @@ import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
   JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide,
-  BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
+  BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { useViewerStore } from '@/store';
 import { useWallJoinPrefs } from '@/lib/wall-join-prefs';
@@ -64,6 +64,7 @@ export function DesignTab() {
       <RibbonGroup label={t('drafting.group.bim')}>
         <RibbonCommandLargeButton commandId="design:bim-wall" icon={BimWall} active={bim('wall.place')} />
         <RibbonCommandLargeButton commandId="design:bim-slab" icon={BimSlab} active={bim('slab.place')} />
+        <RibbonCommandLargeButton commandId="design:bim-roof" icon={BimRoof} active={on('roof')} />
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="design:bim-column" icon={BimColumn} active={bim('column.place')} />
           <RibbonCommandSmallButton commandId="design:bim-beam" icon={BimBeam} active={bim('beam.place')} />

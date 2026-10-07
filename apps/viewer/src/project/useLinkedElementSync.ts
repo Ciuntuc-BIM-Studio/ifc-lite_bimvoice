@@ -24,9 +24,11 @@ import { useProjectStore } from './project-store';
 import { useViewDrawings } from './view-drawings';
 import { viewPlaneConfig, viewWorkPlane } from './view-plane-config';
 import { findElementByGlobalId, updateContourElement } from './contour-element';
+import { roofSpecOf, updateRoofElement } from './roof-element';
 
 /** Contour parameters that drive the link itself; every other parameter is a property of the element. */
-const RESERVED = new Set(['ifcGlobalId', 'ifcModelId', 'ifcClass', 'depth']);
+const RESERVED = new Set(['ifcGlobalId', 'ifcModelId', 'ifcClass', 'depth', 'roofKind', 'slope', 'thickness', 'offset', 'eaveEdge']);
+const ROOF_KEYS = ['roofKind', 'slope', 'thickness', 'offset', 'eaveEdge'] as const;
 const PARAMETER_PSET = 'IfcLite_Parameters';
 
 function syncParameters(modelId: string, globalId: string, before: DraftEntity['params'], after: DraftEntity['params']): void {
@@ -64,15 +66,23 @@ export function useLinkedElementSync(): void {
       const modelId = String(draft.params.ifcModelId);
       const globalId = String(draft.params.ifcGlobalId);
       const ifcClass = String(draft.params.ifcClass ?? 'IfcBuildingElementProxy');
-      if (old.params.ifcClass !== draft.params.ifcClass) retype(modelId, globalId, ifcClass);
+      const roof = roofSpecOf(draft.params);
+      if (!roof && old.params.ifcClass !== draft.params.ifcClass) retype(modelId, globalId, ifcClass);
       if (old.params !== draft.params) syncParameters(modelId, globalId, old.params, draft.params);
-      if (old.shape === draft.shape && old.params.depth === draft.params.depth) continue;
+      const roofChanged = roof !== null && ROOF_KEYS.some((k) => old.params[k] !== draft.params[k]);
+      if (old.shape === draft.shape && old.params.depth === draft.params.depth && !roofChanged) continue;
       const view = state.views.find((v) => v.id === draft.viewId);
       if (!view) continue;
       const viewer = useViewerStore.getState();
       const drawn = useViewDrawings.getState().byView[view.id]?.drawing?.config.plane
         ?? viewPlaneConfig(view, state.levels, mergedSectionBounds(viewer.models, viewer.geometryResult));
       const plane = viewWorkPlane(view, drawn, state.levels);
+      if (roof) {
+        const outline = plane ? contourLoops(draft, state.drafts)?.[0] : null;
+        const result = plane && outline ? updateRoofElement(view, plane, outline, roof, modelId, globalId) : null;
+        if (result && !result.ok) toast.error(resolve('drafting.msg.extrudeFailed', { detail: result.error }));
+        continue;
+      }
       const loops = contourLoops(draft, state.drafts);
       const depth = Number(draft.params.depth);
       if (!plane || !loops || !Number.isFinite(depth) || depth === 0) continue;

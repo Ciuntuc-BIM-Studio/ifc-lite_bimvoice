@@ -59,7 +59,7 @@ export function contourLoops(source: DraftEntity, entities: readonly DraftEntity
   return [outer, ...holes];
 }
 
-function pickSource(ctx: DraftContext, p: Pt): DraftEntity | null {
+export function pickSource(ctx: DraftContext, p: Pt): DraftEntity | null {
   const entities = ctx.entities();
   // The smallest closed drafted shape around the point.
   const around = entities

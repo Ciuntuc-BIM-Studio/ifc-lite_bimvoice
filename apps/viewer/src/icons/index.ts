@@ -134,3 +134,4 @@ export { default as JoinSwap } from '~icons/viewer/join-swap';
 export { default as JoinAuto } from '~icons/viewer/join-auto';
 export { default as DoorFlipHand } from '~icons/viewer/door-flip-hand';
 export { default as DoorFlipSide } from '~icons/viewer/door-flip-side';
+export { default as BimRoof } from '~icons/viewer/bim-roof';

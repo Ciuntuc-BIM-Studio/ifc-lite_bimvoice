@@ -10,9 +10,10 @@ import { EDIT_COMMANDS } from './edit';
 import { ANNOTATE_COMMANDS } from './annotate';
 import { sectionLineCommand } from './workplane';
 import { extrudeCommand } from './model';
+import { roofCommand } from './roof';
 import type { DraftCommandDef } from './types';
 
-export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand];
+export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand, roofCommand];
 
 const BY_ID = new Map(DRAFT_COMMANDS.map((c) => [c.id, c]));
 const BY_ALIAS = new Map(DRAFT_COMMANDS.flatMap((c) => c.aliases.map((a) => [a, c] as const)));

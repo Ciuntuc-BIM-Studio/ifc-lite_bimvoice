@@ -112,11 +112,11 @@ function extrusionParams(
   };
 }
 
-type Prepared =
+export type Prepared =
   | { ok: false; error: string }
   | { ok: true; modelId: string; storeyId: number; edit: NonNullable<ReturnType<typeof modelEditTarget>>; toLocal: (p: Vec3) => Vec3 };
 
-function prepare(view: ProjectView, plane: SectionPlaneConfig, loops: Pt[][]): Prepared {
+export function prepare(view: ProjectView, plane: SectionPlaneConfig, loops: Pt[][]): Prepared {
   if (loops.length === 0 || loops[0].length < 3) return { ok: false, error: 'The contour must be closed, with at least three points.' };
   const worldMinY = Math.min(...loops[0].map((p) => drawingToWorld(plane, p).y));
   const target = resolveTarget(view, worldMinY);
