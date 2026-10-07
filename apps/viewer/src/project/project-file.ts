@@ -12,7 +12,7 @@
 import { downloadFile, sanitizeFilename } from '@/lib/export/download.js';
 import { readDraft, readDraftLayer } from '@/drafting/draft-file';
 import { readSheetLayout } from './sheet-file';
-import type { ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSheet, ProjectView, ProjectViewKind } from './types';
+import type { CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
 export const PROJECT_FILE_FORMAT = 'ifclite-project';
@@ -59,6 +59,7 @@ function readView(v: unknown, path: string): ProjectView {
   const base = {
     id: v.id, name: v.name, auto: v.auto === true, createdAt: isNumber(v.createdAt) ? v.createdAt : 0,
     ...(isNumber(v.viewDepth) && v.viewDepth >= 0 ? { viewDepth: v.viewDepth } : {}),
+    ...(isObject(v.graphics) ? { graphics: readGraphics(v.graphics) } : {}),
   };
   switch (v.kind) {
     case 'plan':
@@ -116,6 +117,31 @@ export function parseProjectFile(text: string): ProjectDocument {
     hatchPatterns: isString(raw.hatchPatterns) ? raw.hatchPatterns : '',
     symbolFlips: readFlips(raw.symbolFlips),
   };
+}
+
+const WEIGHTS = new Set(['heavy', 'medium', 'light', 'hairline']);
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/** A view's `graphics`: unknown or malformed fields are dropped, never fatal. */
+function readGraphics(raw: Record<string, unknown>): ViewGraphics {
+  const out: ViewGraphics = {};
+  if (raw.presetId === null || isString(raw.presetId)) out.presetId = raw.presetId;
+  if (isObject(raw.categories)) {
+    const categories: Record<string, CategoryGraphics> = {};
+    for (const [id, value] of Object.entries(raw.categories)) {
+      if (!isObject(value)) continue;
+      const g: CategoryGraphics = {};
+      if (value.visible === false) g.visible = false;
+      if (isString(value.lineColor) && HEX.test(value.lineColor)) g.lineColor = value.lineColor;
+      if (isString(value.fillColor) && HEX.test(value.fillColor)) g.fillColor = value.fillColor;
+      if (isString(value.lineWeight) && WEIGHTS.has(value.lineWeight)) g.lineWeight = value.lineWeight as CategoryGraphics['lineWeight'];
+      if (isString(value.cutHatch) && value.cutHatch) g.cutHatch = value.cutHatch;
+      if (isNumber(value.hatchScale) && value.hatchScale > 0) g.hatchScale = value.hatchScale;
+      if (Object.keys(g).length > 0) categories[id] = g;
+    }
+    out.categories = categories;
+  }
+  return out;
 }
 
 /** `symbolFlips`: GlobalId → 1..3; anything else is dropped. */

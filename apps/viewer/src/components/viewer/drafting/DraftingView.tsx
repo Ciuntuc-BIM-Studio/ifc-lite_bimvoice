@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 import { IconButton } from '@/components/ui/icon-button';
 import { Drawing2DCanvas } from '@/components/viewer/Drawing2DCanvas';
+import { useDrawingRuntime } from '@/lib/drawing/drawing-runtime';
 import { useViewControls } from '@/hooks/useViewControls';
 import { useViewerStore } from '@/store';
 import { useProjectStore } from '@/project/project-store';
@@ -41,6 +42,9 @@ import { useDraftingKeys } from './useDraftingKeys';
 import { DraftPropertiesPanel } from './DraftPropertiesPanel';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
+import { CutHatchLayer } from './CutHatchLayer';
+import { partHostType } from '@/project/part-host';
+import { cutHatches, hiddenClasses, DEFAULT_VIEW_PRESET, styledDrawing, viewOverrideRules } from '@/project/view-graphics';
 import { capturePointer } from '@/lib/pointer-capture';
 import { useCommandRuntime } from '@/lib/commands/modeling/runtime';
 
@@ -88,8 +92,20 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const references = useMemo(() => (drawing ? referenceSet(drawing, false) : null), [drawing]);
   const entities = useMemo(() => draftsOfView(view.id, allDrafts), [allDrafts, view.id]);
   const entityShapes = useMemo(() => entities.flatMap((e) => (isGeometry(e.shape) ? [e.shape] : [])), [entities]);
-  const overrideEngine = useMemo(() => new GraphicOverrideEngine([]), []);
-  const noColors = useMemo(() => new Map<number, [number, number, number, number]>(), []);
+  // The view's own graphics (preset + category overrides), applied to its drawing.
+  const graphics = view.graphics;
+  const shown = useMemo(() => (drawing ? styledDrawing(drawing, graphics, partHostType) : null), [drawing, graphics]);
+  const overrideRules = useMemo(() => viewOverrideRules(graphics), [graphics]);
+  const overrideEngine = useMemo(() => new GraphicOverrideEngine(overrideRules), [overrideRules]);
+  const useIfcMaterials = (graphics?.presetId === undefined ? DEFAULT_VIEW_PRESET : graphics.presetId) === DEFAULT_VIEW_PRESET;
+  const hidden = useMemo(() => hiddenClasses(graphics), [graphics]);
+  const hatches = useMemo(() => (shown ? cutHatches(shown, graphics) : []), [shown, graphics]);
+  const runtimeGeometry = useDrawingRuntime().geometryResult;
+  const materialColors = useMemo(() => {
+    const map = new Map<number, [number, number, number, number]>();
+    for (const mesh of runtimeGeometry?.meshes ?? []) if (mesh.expressId && mesh.color) map.set(mesh.expressId, mesh.color);
+    return map;
+  }, [runtimeGeometry]);
 
   useEffect(() => {
     attachDraftingView(view.id, axis, (min, max) => (references ? referencesIn(references, min, max) : []));
@@ -179,18 +195,19 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         className="relative min-h-0 flex-1 overflow-hidden bg-white dark:bg-zinc-950 cursor-none touch-none"
         {...pointer}
       >
-        {drawing ? (
+        {shown ? (
           <Drawing2DCanvas
-            drawing={drawing}
+            drawing={shown}
             transform={viewTransform}
             showHiddenLines={showHiddenLines}
             overrideEngine={overrideEngine}
-            overridesEnabled={false}
-            entityColorMap={noColors}
-            useIfcMaterials={false}
+            overridesEnabled={overrideRules.length > 0}
+            entityColorMap={materialColors}
+            useIfcMaterials={useIfcMaterials}
             sectionAxis={axis}
           />
         ) : null}
+        <CutHatchLayer hatches={hatches} extraPatterns={extraPatterns} transform={viewTransform} axis={axis} />
         {status === 'generating' ? (
           <div className="absolute inset-x-0 top-2 flex justify-center pointer-events-none">
             <div className="flex items-center gap-2 rounded-md bg-background/90 px-3 py-1 text-xs shadow">
@@ -201,7 +218,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         {status === 'error' && entry.error ? (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-destructive pointer-events-none">{entry.error}</div>
         ) : null}
-        <OpeningSymbolsLayer plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
+        <OpeningSymbolsLayer plane={view.kind === 'plan' ? plane ?? null : null} hidden={hidden} transform={viewTransform} axis={axis} />
         <DraftOverlay
           entities={entities}
           layers={layers}

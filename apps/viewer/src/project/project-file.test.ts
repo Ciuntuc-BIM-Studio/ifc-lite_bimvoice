@@ -16,7 +16,7 @@ const doc: ProjectDocument = {
   name: 'House',
   models: [{ key: 'hash-arch', name: 'arch.ifc' }],
   views: [
-    { id: 'p1', name: 'Level 1', kind: 'plan', level: { name: 'Level 1', elevation: 3, storeyGlobalIds: ['G1'] }, cutHeight: 1.2, auto: true, createdAt: 1 },
+    { id: 'p1', name: 'Level 1', kind: 'plan', level: { name: 'Level 1', elevation: 3, storeyGlobalIds: ['G1'] }, cutHeight: 1.2, auto: true, createdAt: 1, graphics: { presetId: null, categories: { walls: { fillColor: '#ff0000', cutHatch: 'ANSI31', hatchScale: 2 }, doors: { visible: false } } } },
     { id: 's1', name: 'Section A', kind: 'section', plane: { axis: 'front', offset: -2.5, flipped: true }, auto: false, createdAt: 2 },
     { id: 'e1', name: 'North Elevation', kind: 'elevation', direction: 'north', auto: true, createdAt: 3, viewDepth: 12 },
     { id: 'd1', name: '{3D}', kind: '3d', viewpoint: null, auto: true, createdAt: 4 },

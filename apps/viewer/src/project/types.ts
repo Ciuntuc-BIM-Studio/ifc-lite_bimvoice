@@ -40,6 +40,29 @@ interface ProjectViewBase {
    * section / elevation projects with the automatic depth bands.
    */
   viewDepth?: number | null;
+  /** The view's own graphics (Visibility / Graphics): a preset and per-category overrides. */
+  graphics?: ViewGraphics;
+}
+
+export type CategoryLineWeight = 'heavy' | 'medium' | 'light' | 'hairline';
+
+/** How one element category draws in a view. Absent fields keep the preset's look. */
+export interface CategoryGraphics {
+  visible?: boolean;
+  lineColor?: string;
+  fillColor?: string;
+  lineWeight?: CategoryLineWeight;
+  /** A hatch pattern name (built-in or imported .pat) drawn over the category's cut faces. */
+  cutHatch?: string;
+  /** Hatch scale (1 = the pattern's own size in drawing millimetres). */
+  hatchScale?: number;
+}
+
+export interface ViewGraphics {
+  /** A built-in graphic override preset id; absent = the default, null = none. */
+  presetId?: string | null;
+  /** By category id (`VIEW_CATEGORIES`). */
+  categories?: Record<string, CategoryGraphics>;
 }
 
 export interface PlanProjectView extends ProjectViewBase {

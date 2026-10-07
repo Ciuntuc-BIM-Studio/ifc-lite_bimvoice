@@ -105,6 +105,7 @@ import { projectNavigatorEn } from './catalogues/project-navigator.en';
 import { draftingEn } from './catalogues/drafting.en';
 import { sheetsEn } from './catalogues/sheets.en';
 import { newProjectEn } from './catalogues/new-project.en';
+import { viewGraphicsEn } from './catalogues/view-graphics.en';
 import { section2dEn } from './catalogues/section-2d.en';
 import { sheetsPdfEn } from './catalogues/sheets-pdf.en';
 import { searchModalEn } from './catalogues/search-modal.en';
@@ -162,6 +163,7 @@ export const en = {
   ...draftingEn,
   ...sheetsEn,
   ...newProjectEn,
+  ...viewGraphicsEn,
   ...section2dEn,
   ...costPanelEn,
   ...ribbonToolbarEn,

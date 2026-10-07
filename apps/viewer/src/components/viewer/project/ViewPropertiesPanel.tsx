@@ -17,6 +17,8 @@ import { useDocumentTabs } from '@/project/document-tabs';
 import { activateDocumentTab } from '@/project/open-view';
 import { resolvePlanLevel } from '@/project/view-defaults';
 import type { ProjectView } from '@/project/types';
+import { Button } from '@/components/ui/button';
+import { ViewGraphicsDialog } from './ViewGraphicsDialog';
 
 const AXIS_KEYS = {
   down: 'projectNavigator.props.axisDown',
@@ -40,6 +42,7 @@ function edit(view: ProjectView, patch: Parameters<typeof updateProjectView>[1])
 export function ViewPropertiesPanel({ view }: { view: ProjectView }) {
   const { t } = useTranslation();
   const levels = useProjectStore((s) => s.levels);
+  const [graphicsOpen, setGraphicsOpen] = useState(false);
   if (view.kind === '3d') return null;
 
   const depthHint = view.kind === 'plan' ? t('projectNavigator.props.depthCutOnly') : t('projectNavigator.props.depthAuto');
@@ -83,6 +86,8 @@ export function ViewPropertiesPanel({ view }: { view: ProjectView }) {
       <Row label={t('projectNavigator.props.viewDepth')}>
         <MetresField value={view.viewDepth ?? null} placeholder={depthHint} label={t('projectNavigator.props.viewDepth')} allowEmpty onCommit={(v) => edit(view, { viewDepth: v })} />
       </Row>
+      <Button variant="outline" size="sm" className="w-full" onClick={() => setGraphicsOpen(true)}>{t('viewGraphics.open')}</Button>
+      <ViewGraphicsDialog view={view} open={graphicsOpen} onOpenChange={setGraphicsOpen} />
     </section>
   );
 }

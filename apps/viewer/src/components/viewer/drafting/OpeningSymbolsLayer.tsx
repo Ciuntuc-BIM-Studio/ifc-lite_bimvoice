@@ -19,11 +19,13 @@ import { shapePath } from './DraftOverlay';
 interface Props {
   /** The plan's cut plane (world units); nothing is drawn for other views. */
   plane: SectionPlaneConfig | null;
+  /** Upper-case IFC classes the view hides (`hiddenClasses`). */
+  hidden: ReadonlySet<string>;
   transform: ViewTransform;
   axis: SectionAxisName;
 }
 
-export const OpeningSymbolsLayer = memo(function OpeningSymbolsLayer({ plane, transform, axis }: Props) {
+export const OpeningSymbolsLayer = memo(function OpeningSymbolsLayer({ plane, hidden, transform, axis }: Props) {
   const { geometryResult } = useDrawingRuntime();
   const flips = useProjectStore((s) => s.symbolFlips);
   const symbols = useMemo(() => {
@@ -32,8 +34,9 @@ export const OpeningSymbolsLayer = memo(function OpeningSymbolsLayer({ plane, tr
       const guid = flips && Object.keys(flips).length > 0 ? renderIdGlobalId(id) : null;
       return guid ? flips?.[guid] ?? 0 : 0;
     };
-    return openingSymbols(geometryResult.meshes, plane, flipsOf);
-  }, [plane, geometryResult, flips]);
+    return openingSymbols(geometryResult.meshes, plane, flipsOf)
+      .filter((s) => !hidden.has(s.kind === 'door' ? 'IFCDOOR' : 'IFCWINDOW'));
+  }, [plane, geometryResult, flips, hidden]);
   if (symbols.length === 0) return null;
   const d = symbols.flatMap((s) => s.shapes).map((s) => shapePath(s, transform, axis)).join('');
   return (
