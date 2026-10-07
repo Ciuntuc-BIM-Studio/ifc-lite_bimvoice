@@ -25,7 +25,11 @@ export interface ProjectState extends ProjectDocument {
   dirty: boolean;
 }
 
-export const EMPTY_PROJECT: ProjectDocument = { name: 'Untitled project', models: [], views: [], sheets: [] };
+export const DEFAULT_DRAFT_LAYER = { id: '0', name: '0', color: '#18181b', visible: true, locked: false } as const;
+
+export const EMPTY_PROJECT: ProjectDocument = {
+  name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }],
+};
 
 export const useProjectStore = create<ProjectState>()(() => ({
   ...EMPTY_PROJECT,
@@ -36,7 +40,7 @@ export const useProjectStore = create<ProjectState>()(() => ({
 
 /** The persisted part of the store. */
 export function projectDocument(state: ProjectState = useProjectStore.getState()): ProjectDocument {
-  return { name: state.name, models: state.models, views: state.views, sheets: state.sheets };
+  return { name: state.name, models: state.models, views: state.views, sheets: state.sheets, drafts: state.drafts, draftLayers: state.draftLayers };
 }
 
 /** Replace the document (file import, autosave restore). */
@@ -44,6 +48,7 @@ export function loadProjectDocument(doc: ProjectDocument, options: { dirty?: boo
   const { levels } = useProjectStore.getState();
   useProjectStore.setState({
     ...doc,
+    draftLayers: doc.draftLayers.length > 0 ? doc.draftLayers : [{ ...DEFAULT_DRAFT_LAYER }],
     views: [...syncDefaultViews(doc.views, levels)],
     activeItemId: null,
     dirty: options.dirty ?? false,
@@ -127,6 +132,7 @@ export function removeProjectItem(id: string): void {
   useProjectStore.setState({
     views: state.views.filter((v) => v.id !== id),
     sheets: state.sheets.filter((s) => s.id !== id),
+    drafts: state.drafts.some((d) => d.viewId === id) ? state.drafts.filter((d) => d.viewId !== id) : state.drafts,
     activeItemId: state.activeItemId === id ? null : state.activeItemId,
     dirty: true,
   });

@@ -106,7 +106,8 @@ export function useProjectSync(): void {
       if (state.models !== prev.models || state.ifcDataStore !== prev.ifcDataStore) onModels();
     });
     const unsubProject = useProjectStore.subscribe((state, prev) => {
-      if (!slot || (state.views === prev.views && state.sheets === prev.sheets && state.name === prev.name)) return;
+      if (!slot || (state.views === prev.views && state.sheets === prev.sheets && state.name === prev.name
+        && state.drafts === prev.drafts && state.draftLayers === prev.draftLayers)) return;
       const key = slot;
       clearTimeout(timer);
       timer = setTimeout(() => writeAutosave(key, projectDocument()), AUTOSAVE_DEBOUNCE_MS);

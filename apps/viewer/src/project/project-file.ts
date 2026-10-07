@@ -10,6 +10,7 @@
  */
 
 import { downloadFile, sanitizeFilename } from '@/lib/export/download.js';
+import { readDraft, readDraftLayer } from '@/drafting/draft-file';
 import type { ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSheet, ProjectView, ProjectViewKind } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
@@ -109,6 +110,8 @@ export function parseProjectFile(text: string): ProjectDocument {
     models: list('models').map((m, i) => readModel(m, `/models/${i}`)),
     views: list('views').map((v, i) => readView(v, `/views/${i}`)),
     sheets: list('sheets').map((s, i) => readSheet(s, `/sheets/${i}`)),
+    drafts: list('drafts').map((d, i) => readDraft(d, `/drafts/${i}`)),
+    draftLayers: list('draftLayers').map((l, i) => readDraftLayer(l, `/draftLayers/${i}`)),
   };
 }
 

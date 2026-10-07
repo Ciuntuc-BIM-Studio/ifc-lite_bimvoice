@@ -22,6 +22,11 @@ const doc: ProjectDocument = {
     { id: 'd1', name: '{3D}', kind: '3d', viewpoint: null, auto: true, createdAt: 4 },
   ],
   sheets: [{ id: 'sh1', number: 'A-101', name: 'Plans', createdAt: 5 }],
+  drafts: [
+    { id: 'd1', viewId: 'p1', layerId: '0', shape: { type: 'line', a: { x: 0, y: 0 }, b: { x: 3, y: 4 } }, params: { ifcClass: 'IfcWall', depth: 2.7 } },
+    { id: 'd2', viewId: 'p1', layerId: '0', shape: { type: 'arc', c: { x: 1, y: 1 }, r: 2, start: 0, end: 1.5 }, params: {} },
+  ],
+  draftLayers: [{ id: '0', name: '0', color: '#18181b', visible: true, locked: false }],
 };
 
 describe('project file', () => {
@@ -41,6 +46,12 @@ describe('project file', () => {
     const bad = JSON.parse(serializeProject(doc));
     bad.views[2].direction = 'up';
     assert.throws(() => parseProjectFile(JSON.stringify(bad)), /\/views\/2\.direction/);
+  });
+
+  it('names a malformed drafted shape', () => {
+    const bad = JSON.parse(serializeProject(doc));
+    bad.drafts[1].shape.r = -1;
+    assert.throws(() => parseProjectFile(JSON.stringify(bad)), /\/drafts\/1\.shape\.r|\/drafts\/1\.shape must be an arc/);
   });
 
   it('reports invalid JSON', () => {

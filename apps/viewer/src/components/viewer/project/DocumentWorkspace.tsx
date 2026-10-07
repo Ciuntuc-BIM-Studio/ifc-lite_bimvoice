@@ -8,14 +8,13 @@
  *
  * The 3D workspace (`children`) stays mounted whatever tab is in front —
  * remounting the viewport re-creates its GPU device — and a drawing tab
- * covers it with the drawing. `data-floating-snap-bounds` stays on the
+ * covers it with its drafting view (the drawing plus drafting tools). `data-floating-snap-bounds` stays on the
  * workspace box: edge-docked floating panels (#1201) snap to THIS region,
  * not the whole window, so a dock never hides under the toolbar or over the
  * hierarchy / sidebar (#1245).
  */
 
-import { lazy, Suspense, useEffect, type ReactNode } from 'react';
-import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary';
+import { useEffect, type ReactNode } from 'react';
 import { useViewerStore } from '@/store';
 import { useProjectStore } from '@/project/project-store';
 import { MODEL_TAB_ID, pruneDocumentTabs, useDocumentTabs } from '@/project/document-tabs';
@@ -23,8 +22,8 @@ import { closeProjectTab } from '@/project/open-view';
 import { EMPTY_VIEW_DRAWING, useViewDrawings } from '@/project/view-drawings';
 import { DocumentTabBar } from './DocumentTabBar';
 import { ViewDrawingHost } from './ViewDrawingHost';
+import { DraftingView } from '../drafting/DraftingView';
 
-const DrawingPanel = lazy(() => import('@/components/viewer/drawing/DrawingPanel').then((m) => ({ default: m.DrawingPanel })));
 
 /**
  * Show the front tab's own drawing in the viewer's one `drawing2D`, which
@@ -56,7 +55,7 @@ export function DocumentWorkspace({ children }: { children: ReactNode }) {
     pruneDocumentTabs(ids);
   }, [views]);
 
-  const drawingInFront = activeId !== MODEL_TAB_ID;
+  const frontView = activeId === MODEL_TAB_ID ? undefined : views.find((v) => v.id === activeId);
   return (
     <div className="h-full w-full flex flex-col">
       <DocumentTabBar />
@@ -66,13 +65,9 @@ export function DocumentWorkspace({ children }: { children: ReactNode }) {
       })}
       <div data-floating-snap-bounds className="relative flex-1 min-h-0 w-full overflow-hidden flex">
         {children}
-        {drawingInFront ? (
+        {frontView && frontView.kind !== '3d' ? (
           <div className="absolute inset-0 z-30 flex flex-col bg-white dark:bg-black">
-            <ChunkErrorBoundary label="Drawing panel">
-              <Suspense fallback={null}>
-                <DrawingPanel />
-              </Suspense>
-            </ChunkErrorBoundary>
+            <DraftingView key={frontView.id} view={frontView} />
           </div>
         ) : null}
       </div>

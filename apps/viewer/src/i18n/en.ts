@@ -102,6 +102,7 @@ import { scheduleEn } from './catalogues/schedule.en';
 import { sectionToolEn } from './catalogues/section-tool.en';
 import { alignmentSectionEn } from './catalogues/alignment-section.en';
 import { projectNavigatorEn } from './catalogues/project-navigator.en';
+import { draftingEn } from './catalogues/drafting.en';
 import { section2dEn } from './catalogues/section-2d.en';
 import { sheetsPdfEn } from './catalogues/sheets-pdf.en';
 import { searchModalEn } from './catalogues/search-modal.en';
@@ -156,6 +157,7 @@ export const en = {
   ...sectionToolEn,
   ...alignmentSectionEn,
   ...projectNavigatorEn,
+  ...draftingEn,
   ...section2dEn,
   ...costPanelEn,
   ...ribbonToolbarEn,

@@ -12,6 +12,7 @@
 
 import type { CameraViewpoint, SectionPlaneAxis } from '@/store/types';
 import type { CustomSectionPlane } from '@/store/section-types';
+import type { DraftEntity, DraftLayer } from '@/drafting/types';
 
 export type ProjectViewKind = 'plan' | 'section' | 'elevation' | '3d';
 
@@ -104,4 +105,7 @@ export interface ProjectDocument {
   models: ProjectModelRef[];
   views: ProjectView[];
   sheets: ProjectSheet[];
+  /** Drafted geometry, each entity on one view (phase 4). */
+  drafts: DraftEntity[];
+  draftLayers: DraftLayer[];
 }

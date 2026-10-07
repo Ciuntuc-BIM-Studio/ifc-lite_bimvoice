@@ -22,7 +22,7 @@ import { ribbonToolbarEn } from '@/i18n/catalogues/ribbon-toolbar.en';
 import { useViewerStore, type RibbonTabId } from '@/store';
 import { RibbonToolbar } from './RibbonToolbar.js';
 
-const TABS: RibbonTabId[] = ['file', 'home', 'view', 'elements', 'analyze', 'author'];
+const TABS: RibbonTabId[] = ['file', 'home', 'view', 'elements', 'analyze', 'author', 'design'];
 type RibbonKey = keyof typeof ribbonToolbarEn;
 const RIBBON_KEYS = Object.keys(ribbonToolbarEn) as RibbonKey[];
 
