@@ -17,7 +17,7 @@ import type { TranslationKey } from '@/i18n';
 import { useProjectStore } from '@/project/project-store';
 import { draftCommandById, draftCommandByName } from './commands/registry';
 import type { DraftCommand, DraftCommandDef, DraftContext, DraftSettings, Prompt, StepResult } from './commands/types';
-import { nearestOnShape, shapeBounds } from './curves';
+import { entityBounds, nearestOnEntity, setAnnotationScreenUp } from './annotation';
 import { applyOrtho, parseCoordinateInput, pointAlong } from './input';
 import { drawingToUserVec, userToDrawingVec, type SectionAxisName } from './frame';
 import { draftsOfView } from './draft-store';
@@ -61,12 +61,20 @@ export const useDraftingSession = create<SessionState>()(() => ({
 }));
 
 const HISTORY_LINES = 50;
-const settings: DraftSettings = { filletRadius: 0, offsetDistance: null };
+const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHeight: 0.25, hatchPattern: 'LINES45', hatchScale: 1, hatchAngle: 0 };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
 let referenceProvider: (min: Pt, max: Pt) => DraftShape[] = () => [];
 /** Picks a model element under an idle click that hit no drafted entity (the view installs it). */
 let modelPicker: ((p: Pt, tolerance: number, additive: boolean) => void) | null = null;
+let loopProvider: () => Pt[][] = () => [];
+let levelProvider: (p: Pt) => number = () => 0;
+
+/** The view installs where hatch boundaries and level values come from. */
+export function setAnnotationProviders(loops: () => Pt[][], levelAt: (p: Pt) => number): void {
+  loopProvider = loops;
+  levelProvider = levelAt;
+}
 
 export function setModelPicker(picker: typeof modelPicker): void {
   modelPicker = picker;
@@ -93,6 +101,8 @@ function context(viewId: string): DraftContext {
     layerId: currentLayerId(),
     entities: () => visibleEntities(viewId),
     referenceShapes: (min, max) => referenceProvider(min, max),
+    closedLoops: () => loopProvider(),
+    levelAt: (p) => levelProvider(p),
     selection: () => get().selection,
     setSelection: (ids) => set({ selection: ids }),
     // userToDrawing is diag(kx, −ky): orientation-reversing when its determinant is negative.
@@ -127,6 +137,8 @@ function finish(result: StepResult): void {
 /** Point the session at the view in front (or none). A running command is cancelled on a view change. */
 export function attachDraftingView(viewId: string | null, axis: SectionAxisName, references: (min: Pt, max: Pt) => DraftShape[]): void {
   referenceProvider = references;
+  // Plans draw drawing-y downward on screen; text and marks grow up on screen.
+  setAnnotationScreenUp(axis === 'down' ? -1 : 1);
   if (get().viewId === viewId && get().axis === axis) return;
   if (get().viewId !== viewId) cancelCommand();
   set({ viewId, axis, selection: get().viewId === viewId ? get().selection : new Set() });
@@ -174,7 +186,7 @@ export function pickEntity(p: Pt, tolerance: number): DraftEntity | null {
   let best: DraftEntity | null = null;
   let bestDist = tolerance;
   for (const entity of visibleEntities(viewId)) {
-    const d = nearestOnShape(entity.shape, p).dist;
+    const d = nearestOnEntity(entity.shape, p).dist;
     if (d <= bestDist) {
       best = entity;
       bestDist = d;
@@ -227,7 +239,7 @@ export function windowSelect(a: Pt, b: Pt, crossing: boolean, additive: boolean)
   const max = { x: Math.max(a.x, b.x), y: Math.max(a.y, b.y) };
   const next = new Set(additive || get().selecting ? get().selection : []);
   for (const entity of visibleEntities(viewId)) {
-    const bb = shapeBounds(entity.shape);
+    const bb = entityBounds(entity.shape);
     const inside = bb.min.x >= min.x && bb.max.x <= max.x && bb.min.y >= min.y && bb.max.y <= max.y;
     const touches = bb.max.x >= min.x && bb.min.x <= max.x && bb.max.y >= min.y && bb.min.y <= max.y;
     if (inside || (crossing && touches)) next.add(entity.id);
@@ -278,8 +290,12 @@ export function submitCommandLine(text: string, cursor: Pt | null): void {
   }
   say({ key: 'drafting.msg.typed', typed: trimmed, params: { text: trimmed } });
   if (!command) return;
+  if (command.wantsText?.() && command.onText) {
+    finish(command.onText(text.trim()));
+    return;
+  }
   const word = trimmed.toUpperCase();
-  if (/^[A-Z]+$/.test(word) && command.onKeyword) {
+  if (/^[A-Z][A-Z0-9_-]*$/.test(word) && command.onKeyword) {
     const result = command.onKeyword(word);
     if (result) {
       finish(result);

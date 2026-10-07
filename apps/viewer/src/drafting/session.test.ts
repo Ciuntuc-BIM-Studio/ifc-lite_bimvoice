@@ -13,14 +13,14 @@ import assert from 'node:assert/strict';
 import { resetProject, useProjectStore } from '@/project/project-store';
 import { clearDraftHistory, redoDrafts, undoDrafts } from './draft-store.js';
 import {
-  attachDraftingView, cancelCommand, clickDrawing, pressEnter, pressEscape, startDraftCommand,
+  attachDraftingView, cancelCommand, clickDrawing, pressEnter, pressEscape, setAnnotationProviders, startDraftCommand,
   submitCommandLine, useDraftingSession, windowSelect,
 } from './session.js';
 import { arcThrough } from './commands/draw.js';
-import type { DraftShape } from './types.js';
+import type { EntityShape } from './types.js';
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≉ ${b}`);
-const shapes = (): DraftShape[] => useProjectStore.getState().drafts.map((d) => d.shape);
+const shapes = (): EntityShape[] => useProjectStore.getState().drafts.map((d) => d.shape);
 const TOL = 0.05;
 
 beforeEach(() => {
@@ -150,5 +150,46 @@ describe('arcThrough', () => {
     near(arc.c.x, 0); near(arc.c.y, 0); near(arc.r, 1);
     near(arc.start, 0); near(arc.end, Math.PI);
     assert.equal(arcThrough({ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }), null);
+  });
+});
+
+describe('annotation commands', () => {
+  it('TEXT places a typed note at the picked point', () => {
+    startDraftCommand('text');
+    clickDrawing({ x: 2, y: 1 }, TOL, false);
+    submitCommandLine('Living room', null);
+    const [text] = shapes();
+    assert.equal(text.type, 'text');
+    if (text.type === 'text') { assert.equal(text.text, 'Living room'); assert.deepEqual(text.p, { x: 2, y: 1 }); }
+  });
+
+  it('DIMALIGNED takes two points and the dimension line location', () => {
+    startDraftCommand('dimaligned');
+    clickDrawing({ x: 0, y: 0 }, TOL, false);
+    clickDrawing({ x: 4, y: 0 }, TOL, false);
+    clickDrawing({ x: 2, y: 1 }, TOL, false);
+    assert.equal(shapes()[0].type, 'dimension');
+  });
+
+  it('LEVEL reports the height the view gives for the point', () => {
+    setAnnotationProviders(() => [], (p) => p.y + 10);
+    startDraftCommand('level');
+    clickDrawing({ x: 0, y: 2.5 }, TOL, false);
+    pressEnter();
+    const [level] = shapes();
+    assert.ok(level.type === 'level' && level.value === 12.5);
+  });
+
+  it('HATCH fills the closed region around the picked point, with its islands', () => {
+    const outer = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }];
+    const island = [{ x: 4, y: 4 }, { x: 6, y: 4 }, { x: 6, y: 6 }, { x: 4, y: 6 }];
+    setAnnotationProviders(() => [outer, island], () => 0);
+    startDraftCommand('hatch');
+    submitCommandLine('CROSS', null);
+    clickDrawing({ x: 1, y: 1 }, TOL, false);
+    pressEnter();
+    const [hatch] = shapes();
+    assert.ok(hatch.type === 'hatch');
+    if (hatch.type === 'hatch') { assert.equal(hatch.pattern, 'CROSS'); assert.equal(hatch.loops.length, 2); }
   });
 });

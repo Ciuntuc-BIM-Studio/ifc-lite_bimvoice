@@ -10,7 +10,10 @@
 
 import { memo } from 'react';
 import { drawingToScreen, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
-import type { DraftEntity, DraftLayer, DraftShape, Pt, SnapHit } from '@/drafting/types';
+import { isGeometry, type DraftEntity, type DraftLayer, type DraftShape, type Pt, type SnapHit } from '@/drafting/types';
+import { entitySkeleton } from '@/drafting/annotation';
+import type { HatchPattern } from '@/drafting/hatch/pattern';
+import { AnnotationGraphics } from './AnnotationGraphics';
 
 const ARC_STEP = Math.PI / 48;
 
@@ -53,6 +56,8 @@ interface DraftOverlayProps {
   window: { a: Pt; b: Pt } | null;
   /** Outlines of the selected model elements. */
   highlight: readonly DraftShape[];
+  /** User-imported hatch patterns (built-ins are always available). */
+  extraPatterns: readonly HatchPattern[];
   transform: ViewTransform;
   axis: SectionAxisName;
 }
@@ -80,7 +85,7 @@ function SnapMarker({ snap, t, axis }: { snap: SnapHit; t: ViewTransform; axis: 
 }
 
 export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps) {
-  const { entities, layers, selection, hoverId, preview, snap, cursor, window, highlight, transform: t, axis } = props;
+  const { entities, layers, selection, hoverId, preview, snap, cursor, window, highlight, extraPatterns, transform: t, axis } = props;
   const layerById = new Map(layers.map((l) => [l.id, l]));
   return (
     <svg className="absolute inset-0 h-full w-full pointer-events-none" aria-hidden="true">
@@ -92,12 +97,23 @@ export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps)
         if (layer && !layer.visible) return null;
         const isSelected = selection.has(e.id);
         const isHover = hoverId === e.id && !isSelected;
+        const color = layer?.color ?? '#18181b';
+        if (!isGeometry(e.shape)) {
+          return (
+            <g key={e.id}>
+              <AnnotationGraphics shape={e.shape} color={color} selected={isSelected} transform={t} axis={axis} extraPatterns={extraPatterns} />
+              {isHover || isSelected ? (
+                <path d={entitySkeleton(e.shape).map((s) => shapePath(s, t, axis)).join('')} fill="none" stroke={isSelected ? '#2563eb' : '#60a5fa'} strokeWidth={1} strokeDasharray="4 3" />
+              ) : null}
+            </g>
+          );
+        }
         return (
           <path
             key={e.id}
             d={shapePath(e.shape, t, axis)}
             fill="none"
-            stroke={isSelected ? '#2563eb' : isHover ? '#60a5fa' : (layer?.color ?? '#18181b')}
+            stroke={isSelected ? '#2563eb' : isHover ? '#60a5fa' : color}
             strokeWidth={isSelected || isHover ? 2 : 1.25}
             strokeDasharray={isSelected ? '6 3' : undefined}
             vectorEffect="non-scaling-stroke"

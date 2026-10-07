@@ -27,6 +27,7 @@ const doc: ProjectDocument = {
     { id: 'd2', viewId: 'p1', layerId: '0', shape: { type: 'arc', c: { x: 1, y: 1 }, r: 2, start: 0, end: 1.5 }, params: {} },
   ],
   draftLayers: [{ id: '0', name: '0', color: '#18181b', visible: true, locked: false }],
+  hatchPatterns: '*MY-LINES, test\n0, 0,0, 0,2\n',
 };
 
 describe('project file', () => {

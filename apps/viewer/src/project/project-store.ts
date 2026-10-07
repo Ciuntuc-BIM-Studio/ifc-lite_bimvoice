@@ -28,7 +28,7 @@ export interface ProjectState extends ProjectDocument {
 export const DEFAULT_DRAFT_LAYER = { id: '0', name: '0', color: '#18181b', visible: true, locked: false } as const;
 
 export const EMPTY_PROJECT: ProjectDocument = {
-  name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }],
+  name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }], hatchPatterns: '',
 };
 
 export const useProjectStore = create<ProjectState>()(() => ({
@@ -40,7 +40,10 @@ export const useProjectStore = create<ProjectState>()(() => ({
 
 /** The persisted part of the store. */
 export function projectDocument(state: ProjectState = useProjectStore.getState()): ProjectDocument {
-  return { name: state.name, models: state.models, views: state.views, sheets: state.sheets, drafts: state.drafts, draftLayers: state.draftLayers };
+  return {
+    name: state.name, models: state.models, views: state.views, sheets: state.sheets,
+    drafts: state.drafts, draftLayers: state.draftLayers, hatchPatterns: state.hatchPatterns ?? '',
+  };
 }
 
 /** Replace the document (file import, autosave restore). */

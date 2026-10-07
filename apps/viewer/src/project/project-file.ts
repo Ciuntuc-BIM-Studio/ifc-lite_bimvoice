@@ -112,6 +112,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     sheets: list('sheets').map((s, i) => readSheet(s, `/sheets/${i}`)),
     drafts: list('drafts').map((d, i) => readDraft(d, `/drafts/${i}`)),
     draftLayers: list('draftLayers').map((l, i) => readDraftLayer(l, `/draftLayers/${i}`)),
+    hatchPatterns: isString(raw.hatchPatterns) ? raw.hatchPatterns : '',
   };
 }
 

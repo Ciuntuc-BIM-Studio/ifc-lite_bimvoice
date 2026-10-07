@@ -7,7 +7,7 @@
  * malformed entry fails with its path, like the rest of `project-file.ts`.
  */
 
-import type { DraftEntity, DraftLayer, DraftParamValue, DraftShape, Pt } from './types';
+import type { AnnotationShape, DraftEntity, DraftLayer, DraftParamValue, DraftShape, EntityShape, Pt } from './types';
 
 type Json = Record<string, unknown>;
 const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -23,8 +23,57 @@ function readPt(v: unknown, path: string): Pt {
   return { x: v.x, y: v.y };
 }
 
-function readShape(v: unknown, path: string): DraftShape {
+function readHeight(v: Json, path: string): number {
+  if (!isNumber(v.height) || v.height <= 0) fail(`${path}.height`, 'must be a positive text height');
+  return v.height;
+}
+
+function readAnnotation(v: Json, path: string): AnnotationShape | null {
+  const pt = (key: string) => readPt(v[key], `${path}.${key}`);
+  switch (v.type) {
+    case 'text':
+      if (!isString(v.text)) fail(`${path}.text`, 'must be a string');
+      return { type: 'text', p: pt('p'), text: v.text, height: readHeight(v, path), rotation: isNumber(v.rotation) ? v.rotation : 0 };
+    case 'leader':
+      if (!Array.isArray(v.pts) || v.pts.length < 2 || !isString(v.text)) fail(path, 'must be a leader { pts, text }');
+      return { type: 'leader', pts: v.pts.map((p, i) => readPt(p, `${path}.pts/${i}`)), text: v.text, height: readHeight(v, path) };
+    case 'dimension':
+      return {
+        type: 'dimension', variant: v.variant === 'linear' ? 'linear' : 'aligned', a: pt('a'), b: pt('b'), at: pt('at'),
+        height: readHeight(v, path), ...(isString(v.text) ? { text: v.text } : {}),
+      };
+    case 'radial':
+      if (!isNumber(v.r) || v.r <= 0) fail(`${path}.r`, 'must be a positive radius');
+      return { type: 'radial', c: pt('c'), r: v.r, at: pt('at'), diameter: v.diameter === true, height: readHeight(v, path) };
+    case 'angular':
+      return { type: 'angular', c: pt('c'), a: pt('a'), b: pt('b'), at: pt('at'), height: readHeight(v, path) };
+    case 'level':
+      if (!isNumber(v.value)) fail(`${path}.value`, 'must be a number');
+      return { type: 'level', p: pt('p'), value: v.value, height: readHeight(v, path) };
+    case 'hatch': {
+      if (!Array.isArray(v.loops) || v.loops.length === 0 || !isString(v.pattern)) fail(path, 'must be a hatch { loops, pattern }');
+      const loops = v.loops.map((loop, i) => {
+        if (!Array.isArray(loop) || loop.length < 3) fail(`${path}.loops/${i}`, 'must hold at least 3 points');
+        return loop.map((p, j) => readPt(p, `${path}.loops/${i}/${j}`));
+      });
+      return {
+        type: 'hatch', loops, pattern: v.pattern, scale: isNumber(v.scale) && v.scale > 0 ? v.scale : 1, angle: isNumber(v.angle) ? v.angle : 0,
+        ...(isString(v.color) ? { color: v.color } : {}),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function readShape(v: unknown, path: string): EntityShape {
   if (!isObject(v)) fail(path, 'must be a shape');
+  const annotation = readAnnotation(v, path);
+  if (annotation) return annotation;
+  return readGeometry(v, path);
+}
+
+function readGeometry(v: Json, path: string): DraftShape {
   switch (v.type) {
     case 'line':
       return { type: 'line', a: readPt(v.a, `${path}.a`), b: readPt(v.b, `${path}.b`) };
@@ -39,7 +88,7 @@ function readShape(v: unknown, path: string): DraftShape {
       if (!isNumber(v.r) || v.r <= 0 || !isNumber(v.start) || !isNumber(v.end)) fail(path, 'must be an arc { c, r, start, end }');
       return { type: 'arc', c: readPt(v.c, `${path}.c`), r: v.r, start: v.start, end: v.end };
     default:
-      return fail(`${path}.type`, 'must be line, polyline, circle or arc');
+      return fail(`${path}.type`, 'must be a drafting or annotation shape type');
   }
 }
 

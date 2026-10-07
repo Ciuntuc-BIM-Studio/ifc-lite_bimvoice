@@ -102,3 +102,13 @@ export { default as DraftExtend } from '~icons/viewer/draft-extend';
 export { default as DraftFillet } from '~icons/viewer/draft-fillet';
 export { default as DraftSnap } from '~icons/viewer/draft-snap';
 export { default as DraftOrtho } from '~icons/viewer/draft-ortho';
+// Annotations tab (phase 4d).
+export { default as AnnoText } from '~icons/viewer/anno-text';
+export { default as AnnoLeader } from '~icons/viewer/anno-leader';
+export { default as AnnoDimAligned } from '~icons/viewer/anno-dim-aligned';
+export { default as AnnoDimLinear } from '~icons/viewer/anno-dim-linear';
+export { default as AnnoDimRadius } from '~icons/viewer/anno-dim-radius';
+export { default as AnnoDimAngular } from '~icons/viewer/anno-dim-angular';
+export { default as AnnoLevel } from '~icons/viewer/anno-level';
+export { default as AnnoHatch } from '~icons/viewer/anno-hatch';
+export { default as AnnoLoadPattern } from '~icons/viewer/anno-load-pattern';

@@ -10,7 +10,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GraphicOverrideEngine, type Drawing2D } from '@ifc-lite/drawing-2d';
-import type { DraftShape } from '@/drafting/types';
+import { isGeometry, type DraftEntity, type DraftShape, type Pt } from '@/drafting/types';
+import { drawingToWorld, type SectionAxisName } from '@/drafting/frame';
+import { parsePat } from '@/drafting/hatch/pattern';
+import { resolvePlanLevel } from '@/project/view-defaults';
 import { Maximize2, Redo2, Undo2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -22,12 +25,11 @@ import { useViewerStore } from '@/store';
 import { useProjectStore } from '@/project/project-store';
 import { EMPTY_VIEW_DRAWING, useViewDrawings } from '@/project/view-drawings';
 import type { ProjectView } from '@/project/types';
-import type { SectionAxisName } from '@/drafting/frame';
 import { pickModelElement, referenceSet, referencesIn } from '@/drafting/references';
 import { selectFromPlan } from '@/components/viewer/plan/PlanPointer';
 import { draftsOfView, redoDrafts, undoDrafts } from '@/drafting/draft-store';
 import {
-  attachDraftingView, currentLayerId, pressEscape, runningCommand, setCurrentLayer, setModelPicker, submitCommandLine,
+  attachDraftingView, currentLayerId, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelPicker, submitCommandLine,
   toggleOrtho, toggleSnap, useDraftingSession,
 } from '@/drafting/session';
 import { DraftOverlay } from './DraftOverlay';
@@ -64,7 +66,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
 
   const references = useMemo(() => (drawing ? referenceSet(drawing, false) : null), [drawing]);
   const entities = useMemo(() => draftsOfView(view.id, allDrafts), [allDrafts, view.id]);
-  const entityShapes = useMemo(() => entities.map((e) => e.shape), [entities]);
+  const entityShapes = useMemo(() => entities.flatMap((e) => (isGeometry(e.shape) ? [e.shape] : [])), [entities]);
   const overrideEngine = useMemo(() => new GraphicOverrideEngine([]), []);
   const noColors = useMemo(() => new Map<number, [number, number, number, number]>(), []);
 
@@ -79,6 +81,20 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
     });
     return () => setModelPicker(null);
   }, [drawing, references]);
+  // Hatch boundaries: drafted closed shapes and the drawing's cut outlines. Level marks: the
+  // plan's level, or the point's height on a section / elevation.
+  const levels = useProjectStore((s) => s.levels);
+  useEffect(() => {
+    setAnnotationProviders(
+      () => closedLoopsOf(entities, drawing),
+      (p) => {
+        if (view.kind === 'plan') return (resolvePlanLevel(view, levels) ?? view.level).elevation;
+        return plane ? drawingToWorld(plane, p).y : 0;
+      },
+    );
+  }, [entities, drawing, view, levels, plane]);
+  const patternText = useProjectStore((s) => s.hatchPatterns ?? '');
+  const extraPatterns = useMemo(() => parsePat(patternText).patterns, [patternText]);
   const selectedModelIds = useViewerStore((s) => s.selectedEntityIds);
   const selectedModelId = useViewerStore((s) => s.selectedEntityId);
   const highlight = useMemo(() => {
@@ -154,10 +170,11 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           cursor={state.cursor}
           window={state.window}
           highlight={highlight}
+          extraPatterns={extraPatterns}
           transform={viewTransform}
           axis={axis}
         />
-        <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} />
+        <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} extraPatterns={extraPatterns} />
       </div>
       <CommandLine ref={inputRef} value={text} onChange={setText} onSubmit={submit} onEscape={() => { setText(''); pressEscape(); }} />
     </div>
@@ -165,6 +182,22 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
 }
 
 const HIGHLIGHT_LIMIT = 5000;
+const CIRCLE_STEPS = 64;
+
+/** Every closed loop a hatch can fill in this view. */
+function closedLoopsOf(entities: readonly DraftEntity[], drawing: Drawing2D | null): Pt[][] {
+  const loops: Pt[][] = [];
+  for (const e of entities) {
+    const s = e.shape;
+    if (s.type === 'polyline' && s.closed) loops.push(s.pts);
+    else if (s.type === 'circle') loops.push(Array.from({ length: CIRCLE_STEPS }, (_, i) => ({ x: s.c.x + s.r * Math.cos((i / CIRCLE_STEPS) * Math.PI * 2), y: s.c.y + s.r * Math.sin((i / CIRCLE_STEPS) * Math.PI * 2) })));
+  }
+  for (const polygon of drawing?.cutPolygons ?? []) {
+    loops.push(polygon.polygon.outer);
+    for (const hole of polygon.polygon.holes) loops.push(hole);
+  }
+  return loops;
+}
 
 /** The selected model elements' cut outlines and drawn lines, for the overlay. */
 function modelHighlight(drawing: Drawing2D | null, ids: ReadonlySet<number>): DraftShape[] {

@@ -30,6 +30,10 @@ export interface DraftContext {
   referenceShapes(min: Pt, max: Pt): DraftShape[];
   selection(): ReadonlySet<string>;
   setSelection(ids: ReadonlySet<string>): void;
+  /** Closed loops a hatch can fill: drafted closed shapes and the drawing's cut outlines. */
+  closedLoops(): Pt[][];
+  /** The height (m) a level mark at this drawing point reports. */
+  levelAt(p: Pt): number;
   /** +1, or −1 when the drawing is mirrored on screen (a user CCW angle is CW in drawing space). */
   orientation: 1 | -1;
   settings: DraftSettings;
@@ -40,6 +44,11 @@ export interface DraftContext {
 export interface DraftSettings {
   filletRadius: number;
   offsetDistance: number | null;
+  /** Annotation text height, model metres. */
+  textHeight: number;
+  hatchPattern: string;
+  hatchScale: number;
+  hatchAngle: number;
 }
 
 export interface DraftCommand {
@@ -52,6 +61,9 @@ export interface DraftCommand {
   /** A bare typed number when the step wants a value (radius, angle, distance) rather than a point. */
   wantsValue?(): boolean;
   onValue?(value: number): StepResult;
+  /** The step wants free text (a note, a label): the whole line goes to `onText`. */
+  wantsText?(): boolean;
+  onText?(text: string): StepResult;
   /** A typed keyword (e.g. "C" to close); `undefined` if not understood. */
   onKeyword?(word: string): StepResult | undefined;
   onEnter?(): StepResult;

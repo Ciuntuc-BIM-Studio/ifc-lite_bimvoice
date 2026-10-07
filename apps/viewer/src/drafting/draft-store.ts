@@ -11,7 +11,7 @@
 
 import { useProjectStore } from '@/project/project-store';
 import { freshProjectId } from '@/project/view-defaults';
-import type { DraftEntity, DraftParamValue, DraftShape } from './types';
+import type { DraftEntity, DraftParamValue, EntityShape } from './types';
 
 const HISTORY_LIMIT = 200;
 
@@ -55,7 +55,7 @@ export function draftsOfView(viewId: string, drafts: readonly DraftEntity[] = us
   return drafts.filter((d) => d.viewId === viewId);
 }
 
-export function newDraft(viewId: string, layerId: string, shape: DraftShape, params: Record<string, DraftParamValue> = {}): DraftEntity {
+export function newDraft(viewId: string, layerId: string, shape: EntityShape, params: Record<string, DraftParamValue> = {}): DraftEntity {
   return { id: freshProjectId('draft'), viewId, layerId, shape, params };
 }
 
@@ -65,12 +65,12 @@ export function newDraft(viewId: string, layerId: string, shape: DraftShape, par
  */
 export function editDrafts(edit: {
   add?: DraftEntity[];
-  update?: ReadonlyMap<string, DraftShape>;
+  update?: ReadonlyMap<string, EntityShape>;
   remove?: ReadonlySet<string>;
 }): string[] {
   const { drafts } = useProjectStore.getState();
   const remove = edit.remove ?? new Set<string>();
-  const update = edit.update ?? new Map<string, DraftShape>();
+  const update = edit.update ?? new Map<string, EntityShape>();
   const next = drafts
     .filter((d) => !remove.has(d.id))
     .map((d) => {

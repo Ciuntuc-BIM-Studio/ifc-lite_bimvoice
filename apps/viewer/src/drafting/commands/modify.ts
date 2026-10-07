@@ -8,7 +8,7 @@
  */
 
 import { editDrafts, newDraft } from '../draft-store';
-import { mirrorShape, rotateShape, translateShape } from '../transform';
+import { entitySkeleton, mirrorEntity, rotateEntity, translateEntity } from '../annotation';
 import { sub } from '../vec';
 import type { DraftEntity, DraftShape, Pt } from '../types';
 import type { DraftCommandDef, DraftContext } from './types';
@@ -62,14 +62,14 @@ function displaceCommand(id: 'move' | 'copy'): DraftCommandDef {
           }
           const d = sub(p, base);
           if (id === 'move') {
-            editDrafts({ update: new Map(items.map((e) => [e.id, translateShape(e.shape, d)])) });
+            editDrafts({ update: new Map(items.map((e) => [e.id, translateEntity(e.shape, d)])) });
             return 'done';
           }
-          editDrafts({ add: items.map((e) => newDraft(ctx.viewId, e.layerId, translateShape(e.shape, d), { ...e.params })) });
+          editDrafts({ add: items.map((e) => newDraft(ctx.viewId, e.layerId, translateEntity(e.shape, d), { ...e.params })) });
           return 'continue';
         },
         onEnter: () => 'done',
-        preview: (cursor) => (base ? items.map((e) => translateShape(e.shape, sub(cursor, base as Pt))) : []),
+        preview: (cursor) => (base ? items.flatMap((e) => entitySkeleton(translateEntity(e.shape, sub(cursor, base as Pt)))) : []),
       };
     },
   };
@@ -87,7 +87,7 @@ export const rotateCommand: DraftCommandDef = {
     const items = selected(ctx);
     let base: Pt | null = null;
     const apply = (angle: number) => {
-      if (base) editDrafts({ update: new Map(items.map((e) => [e.id, rotateShape(e.shape, base as Pt, angle)])) });
+      if (base) editDrafts({ update: new Map(items.map((e) => [e.id, rotateEntity(e.shape, base as Pt, angle)])) });
       return 'done' as const;
     };
     const angleTo = (p: Pt) => (base ? Math.atan2(p.y - base.y, p.x - base.x) : 0);
@@ -105,7 +105,7 @@ export const rotateCommand: DraftCommandDef = {
       wantsValue: () => base !== null,
       // Typed degrees are counter-clockwise ON SCREEN.
       onValue: (deg) => apply(((deg * Math.PI) / 180) * ctx.orientation),
-      preview: (cursor) => (base ? items.map((e) => rotateShape(e.shape, base as Pt, angleTo(cursor))) : []),
+      preview: (cursor) => (base ? items.flatMap((e) => entitySkeleton(rotateEntity(e.shape, base as Pt, angleTo(cursor)))) : []),
     };
   },
 };
@@ -128,7 +128,7 @@ export const mirrorCommand: DraftCommandDef = {
           first = p;
           return 'continue';
         }
-        const mirrored = items.map((e) => newDraft(ctx.viewId, e.layerId, mirrorShape(e.shape, first as Pt, p), { ...e.params }));
+        const mirrored = items.map((e) => newDraft(ctx.viewId, e.layerId, mirrorEntity(e.shape, first as Pt, p), { ...e.params }));
         editDrafts({ add: mirrored, remove: eraseSource ? new Set(items.map((e) => e.id)) : undefined });
         return 'done';
       },
@@ -137,7 +137,7 @@ export const mirrorCommand: DraftCommandDef = {
         eraseSource = !eraseSource;
         return 'continue';
       },
-      preview: (cursor): DraftShape[] => (first ? items.map((e) => mirrorShape(e.shape, first as Pt, cursor)) : []),
+      preview: (cursor): DraftShape[] => (first ? items.flatMap((e) => entitySkeleton(mirrorEntity(e.shape, first as Pt, cursor))) : []),
     };
   },
 };

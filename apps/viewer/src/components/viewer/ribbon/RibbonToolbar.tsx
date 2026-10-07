@@ -36,6 +36,7 @@ import { ElementsTab } from './tabs/ElementsTab';
 import { AnalyzeTab } from './tabs/AnalyzeTab';
 import { AuthorTab } from './tabs/AuthorTab';
 import { DesignTab } from './tabs/DesignTab';
+import { AnnotationsTab } from './tabs/AnnotationsTab';
 import { RibbonSwitchNotice } from './RibbonSwitchNotice';
 import { useRibbonContextualTab } from './useRibbonContextualTab';
 import { emitOpenCommandPalette } from '@/lib/tours/events';
@@ -48,6 +49,7 @@ const RIBBON_TABS: { id: RibbonTabId; labelKey: TranslationKey }[] = [
   { id: 'analyze', labelKey: 'ribbon.tab.analyze' },
   { id: 'author', labelKey: 'ribbon.tab.author' },
   { id: 'design', labelKey: 'ribbon.tab.design' },
+  { id: 'annotations', labelKey: 'ribbon.tab.annotations' },
 ];
 
 interface RibbonToolbarProps {
@@ -236,6 +238,7 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
           {activeTab === 'analyze' && <AnalyzeTab />}
           {activeTab === 'author' && <AuthorTab />}
           {activeTab === 'design' && <DesignTab />}
+          {activeTab === 'annotations' && <AnnotationsTab />}
         </TabsContent>
       )}
 

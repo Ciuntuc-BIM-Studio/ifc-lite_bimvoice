@@ -18,7 +18,7 @@ import type { FileCommands } from '../toolbar/useFileCommands.js';
 import { RibbonToolbar } from './RibbonToolbar.js';
 import { FileTab } from './tabs/FileTab.js';
 
-const TABS: RibbonTabId[] = ['file', 'home', 'view', 'elements', 'analyze', 'author', 'design'];
+const TABS: RibbonTabId[] = ['file', 'home', 'view', 'elements', 'analyze', 'author', 'design', 'annotations'];
 const initialState = useViewerStore.getState();
 
 afterEach(() => {
@@ -153,7 +153,7 @@ it('#5870/#5878 mounts every ribbon command with its registry name across all ta
   // hand-labelled command fails this mounted guard even before its tab is
   // converted to typed IDs. Drop each count to zero with that tab's migration.
   assert.deepEqual(rawByTab, {
-    file: 0, home: 0, view: 0, elements: 0, analyze: 0, author: 0, design: 0,
+    file: 0, home: 0, view: 0, elements: 0, analyze: 0, author: 0, design: 0, annotations: 0,
   });
   assert.deepEqual(renderedIds,
     new Set(SURFACE_COMMANDS.filter((command) => command.surfaces.includes('ribbon'))

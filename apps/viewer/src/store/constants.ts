@@ -213,7 +213,7 @@ export function clearRetiredToolbarStylePreference(): void {
 clearRetiredToolbarStylePreference();
 
 /** Ribbon tab strip contexts, in strip order. */
-export type RibbonTabId = 'file' | 'home' | 'view' | 'elements' | 'analyze' | 'author' | 'design';
+export type RibbonTabId = 'file' | 'home' | 'view' | 'elements' | 'analyze' | 'author' | 'design' | 'annotations';
 
 /** Home first: it holds the everyday tool and camera loop. */
 export const RIBBON_DEFAULT_TAB: RibbonTabId = 'home';

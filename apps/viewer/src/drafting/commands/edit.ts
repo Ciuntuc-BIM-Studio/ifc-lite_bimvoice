@@ -12,13 +12,15 @@ import { shapeBounds } from '../curves';
 import { offsetShape } from '../offset';
 import { extendShape, trimShape } from '../trim';
 import { filletLines } from '../fillet';
-import type { DraftEntity, DraftShape, Pt } from '../types';
+import { isGeometry, type DraftEntity, type DraftShape, type Pt } from '../types';
 import type { DraftCommandDef, DraftContext } from './types';
 
 /** Every other drafted shape of the view plus the generated drawing lines around `shape`. */
 function boundariesFor(ctx: DraftContext, entity: DraftEntity, margin: number): DraftShape[] {
+  if (!isGeometry(entity.shape)) return [];
   const b = shapeBounds(entity.shape);
-  const others = ctx.entities().filter((e) => e.id !== entity.id).map((e) => e.shape);
+  const others: DraftShape[] = [];
+  for (const e of ctx.entities()) if (e.id !== entity.id && isGeometry(e.shape)) others.push(e.shape);
   const min = { x: b.min.x - margin, y: b.min.y - margin };
   const max = { x: b.max.x + margin, y: b.max.y + margin };
   return [...others, ...ctx.referenceShapes(min, max)];
@@ -46,11 +48,11 @@ export const offsetCommand: DraftCommandDef = {
         return 'continue';
       },
       onPick(entity) {
-        source = entity;
+        if (isGeometry(entity.shape)) source = entity;
         return 'continue';
       },
       onPoint(p) {
-        if (!source || distance === null) return 'continue';
+        if (!source || distance === null || !isGeometry(source.shape)) return 'continue';
         const shape = offsetShape(source.shape, distance, p);
         if (shape) editDrafts({ add: [newDraft(ctx.viewId, source.layerId, shape, { ...source.params })] });
         source = null;
@@ -58,7 +60,7 @@ export const offsetCommand: DraftCommandDef = {
       },
       onEnter: () => 'done',
       preview: (cursor) => {
-        if (!source || distance === null) return [];
+        if (!source || distance === null || !isGeometry(source.shape)) return [];
         const shape = offsetShape(source.shape, distance, cursor);
         return shape ? [shape] : [];
       },
@@ -78,6 +80,7 @@ function cutCommand(id: 'trim' | 'extend'): DraftCommandDef {
         input: () => 'pick',
         basePoint: () => null,
         onPick(entity, at) {
+          if (!isGeometry(entity.shape)) return 'continue';
           // Extend looks far beyond the entity for its boundary; trim only needs its own extent.
           const margin = id === 'trim' ? 0.01 : 1000;
           const boundaries = boundariesFor(ctx, entity, margin);

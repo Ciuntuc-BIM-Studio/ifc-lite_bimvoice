@@ -108,4 +108,6 @@ export interface ProjectDocument {
   /** Drafted geometry, each entity on one view (phase 4). */
   drafts: DraftEntity[];
   draftLayers: DraftLayer[];
+  /** User-imported hatch patterns, as `.pat` text (built-ins are not stored). */
+  hatchPatterns?: string;
 }

@@ -27,6 +27,27 @@ export type DraftShape =
   | { type: 'circle'; c: Pt; r: number }
   | { type: 'arc'; c: Pt; r: number; start: number; end: number };
 
+/**
+ * Annotation shapes (phase 4d): drawn on a view like geometry, but read as
+ * notation. Text heights are model metres (2.5 mm on paper at 1:100 is
+ * 0.25). A dimension measures between its points; `at` places its line.
+ */
+export type AnnotationShape =
+  | { type: 'text'; p: Pt; text: string; height: number; rotation: number }
+  | { type: 'leader'; pts: Pt[]; text: string; height: number }
+  | { type: 'dimension'; variant: 'aligned' | 'linear'; a: Pt; b: Pt; at: Pt; height: number; text?: string }
+  | { type: 'radial'; c: Pt; r: number; at: Pt; diameter: boolean; height: number }
+  | { type: 'angular'; c: Pt; a: Pt; b: Pt; at: Pt; height: number }
+  | { type: 'level'; p: Pt; value: number; height: number }
+  | { type: 'hatch'; loops: Pt[][]; pattern: string; scale: number; angle: number; color?: string };
+
+/** Anything an entity can be: geometry or an annotation. */
+export type EntityShape = DraftShape | AnnotationShape;
+
+export function isGeometry(shape: EntityShape): shape is DraftShape {
+  return shape.type === 'line' || shape.type === 'polyline' || shape.type === 'circle' || shape.type === 'arc';
+}
+
 export type DraftParamValue = string | number | boolean;
 
 export interface DraftEntity {
@@ -34,7 +55,7 @@ export interface DraftEntity {
   /** The project view the entity is drawn on. */
   viewId: string;
   layerId: string;
-  shape: DraftShape;
+  shape: EntityShape;
   /** Custom parameters (free-form key → value). */
   params: Record<string, DraftParamValue>;
 }

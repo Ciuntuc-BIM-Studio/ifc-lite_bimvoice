@@ -14,18 +14,27 @@ import { useTranslation } from '@/i18n';
 import { IconButton } from '@/components/ui/icon-button';
 import { setDraftLayer, setDraftParams } from '@/drafting/draft-store';
 import { measureShape, parseParamValue } from '@/drafting/measure';
-import type { DraftEntity, DraftLayer } from '@/drafting/types';
+import { isGeometry, type DraftEntity, type DraftLayer } from '@/drafting/types';
+import type { HatchPattern } from '@/drafting/hatch/pattern';
+import { AnnotationFields } from './AnnotationFields';
 
 const TYPE_KEYS = {
   line: 'drafting.props.typeLine',
   polyline: 'drafting.props.typePolyline',
   circle: 'drafting.props.typeCircle',
   arc: 'drafting.props.typeArc',
+  text: 'drafting.props.typeText',
+  leader: 'drafting.props.typeLeader',
+  dimension: 'drafting.props.typeDimension',
+  radial: 'drafting.props.typeRadial',
+  angular: 'drafting.props.typeAngular',
+  level: 'drafting.props.typeLevel',
+  hatch: 'drafting.props.typeHatch',
 } as const;
 
 const fmt = (n: number) => n.toFixed(3);
 
-export function DraftPropertiesPanel({ entities, layers }: { entities: DraftEntity[]; layers: DraftLayer[] }) {
+export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { entities: DraftEntity[]; layers: DraftLayer[]; extraPatterns: readonly HatchPattern[] }) {
   const { t } = useTranslation();
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
@@ -35,7 +44,7 @@ export function DraftPropertiesPanel({ entities, layers }: { entities: DraftEnti
   const layerId = entities.every((e) => e.layerId === entities[0].layerId) ? entities[0].layerId : '';
   // Parameters every selected entity shares (with the first one's value).
   const keys = Object.keys(entities[0].params).filter((k) => entities.every((e) => k in e.params));
-  const measure = single ? measureShape(single.shape) : null;
+  const measure = single && isGeometry(single.shape) ? measureShape(single.shape) : null;
 
   const addParam = () => {
     const key = newKey.trim();
@@ -66,6 +75,7 @@ export function DraftPropertiesPanel({ entities, layers }: { entities: DraftEnti
           {layers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
       </Row>
+      {single && !isGeometry(single.shape) ? <AnnotationFields entity={single} shape={single.shape} extraPatterns={extraPatterns} /> : null}
       {measure ? (
         <>
           <Row label={t('drafting.props.length')}>{t('drafting.unit.metres', { value: fmt(measure.length) })}</Row>
