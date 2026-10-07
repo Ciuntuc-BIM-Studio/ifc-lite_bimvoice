@@ -86,7 +86,8 @@ export function activateDocumentTab(id: string): OpenViewResult {
   if (!view) return 'missing';
   if (view.kind === '3d') return openProjectView(id);
   leaveModelTab();
-  if (!applyDrawingView(view)) return 'unresolved';
+  // Without geometry there is no section to point at, but the view is still a work plane to draft on.
+  if (!applyDrawingView(view) && liveBounds() !== null) return 'unresolved';
   setActiveProjectItem(id);
   showDocumentTab(id);
   return 'opened';

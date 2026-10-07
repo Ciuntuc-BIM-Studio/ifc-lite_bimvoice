@@ -115,3 +115,4 @@ export { default as AnnoLoadPattern } from '~icons/viewer/anno-load-pattern';
 export { default as NewProject } from '~icons/viewer/new-project';
 export { default as DraftSectionLine } from '~icons/viewer/draft-section-line';
 export { default as DraftWorkplane } from '~icons/viewer/draft-workplane';
+export { default as DraftExtrude } from '~icons/viewer/draft-extrude';

@@ -23,6 +23,18 @@ import type { ProjectLevel, ProjectView } from './types';
 
 const AXIS = { down: 'y', front: 'z', side: 'x' } as const;
 
+/**
+ * The plane drafting and modeling happen on: a floor plan's LEVEL (its
+ * floor), not its cut plane — a slab drawn on a plan starts at the floor —
+ * and a section / elevation's own plane. Drawing coordinates are the same
+ * on both (only the plan plane's height differs).
+ */
+export function viewWorkPlane(view: ProjectView, drawingPlane: SectionPlaneConfig | null, levels: readonly ProjectLevel[]): SectionPlaneConfig | null {
+  if (view.kind !== 'plan') return drawingPlane;
+  const level = resolvePlanLevel(view, levels) ?? view.level;
+  return { axis: 'y', position: level.elevation, flipped: false };
+}
+
 export function viewPlaneConfig(view: ProjectView, levels: readonly ProjectLevel[], bounds: AxisBounds | null): SectionPlaneConfig | null {
   switch (view.kind) {
     case 'plan': {

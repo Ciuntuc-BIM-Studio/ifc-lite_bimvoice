@@ -23,6 +23,7 @@ import { drawingToUserVec, userToDrawingVec, type SectionAxisName } from './fram
 import { draftsOfView } from './draft-store';
 import type { DraftEntity, DraftShape, Pt } from './types';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
+import type { ProjectView } from '@/project/types';
 
 export interface HistoryLine {
   key: TranslationKey;
@@ -62,7 +63,7 @@ export const useDraftingSession = create<SessionState>()(() => ({
 }));
 
 const HISTORY_LINES = 50;
-const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHeight: 0.25, hatchPattern: 'LINES45', hatchScale: 1, hatchAngle: 0 };
+const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHeight: 0.25, hatchPattern: 'LINES45', hatchScale: 1, hatchAngle: 0, extrudeClass: 'IfcBuildingElementProxy', extrudeDepth: 1 };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
 let referenceProvider: (min: Pt, max: Pt) => DraftShape[] = () => [];
@@ -72,6 +73,7 @@ let loopProvider: () => Pt[][] = () => [];
 let levelProvider: (p: Pt) => number = () => 0;
 let planeProvider: () => SectionPlaneConfig | null = () => null;
 let viewKindProvider: () => 'plan' | 'section' | 'elevation' | null = () => null;
+let viewProvider: () => ProjectView | null = () => null;
 
 /** The view installs where hatch boundaries and level values come from. */
 export function setAnnotationProviders(loops: () => Pt[][], levelAt: (p: Pt) => number): void {
@@ -80,9 +82,13 @@ export function setAnnotationProviders(loops: () => Pt[][], levelAt: (p: Pt) => 
 }
 
 /** The view installs its work plane and kind (work-plane commands need them). */
-export function setWorkPlaneProvider(plane: () => SectionPlaneConfig | null, kind: () => 'plan' | 'section' | 'elevation' | null): void {
+export function setWorkPlaneProvider(plane: () => SectionPlaneConfig | null, view: () => ProjectView | null): void {
   planeProvider = plane;
-  viewKindProvider = kind;
+  viewProvider = view;
+  viewKindProvider = () => {
+    const kind = view()?.kind;
+    return kind === 'plan' || kind === 'section' || kind === 'elevation' ? kind : null;
+  };
 }
 
 export function setModelPicker(picker: typeof modelPicker): void {
@@ -114,6 +120,7 @@ function context(viewId: string): DraftContext {
     levelAt: (p) => levelProvider(p),
     plane: () => planeProvider(),
     viewKind: () => viewKindProvider(),
+    view: () => viewProvider(),
     selection: () => get().selection,
     setSelection: (ids) => set({ selection: ids }),
     // userToDrawing is diag(kx, −ky): orientation-reversing when its determinant is negative.

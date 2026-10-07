@@ -161,4 +161,12 @@ export const draftingEn = {
   'drafting.msg.sectionOnPlan': 'Draw a section line on a floor plan.',
   'drafting.msg.sectionFailed': 'The section line needs two different points.',
   'drafting.msg.sectionCreated': 'Section created — it is in the Project Navigator under Sections.',
+  'drafting.cmd.extrude': 'EXTRUDE',
+  'drafting.prompt.extrude': 'Click a closed contour or inside a region [class {ifcClass} · depth {depth} m] — type WALL / SLAB / COLUMN / BEAM / PROXY… or IfcXxx, or a depth; Enter to finish:',
+  'drafting.msg.noWorkPlane': 'This view has no work plane yet.',
+  'drafting.msg.alreadyLinked': 'That contour already has an element; edit the contour or its depth to change it.',
+  'drafting.msg.extrudeFailed': 'Could not build the element: {detail}',
+  'drafting.msg.extruded': '{ifcClass} created ({guid}). Editing the contour updates it.',
+  'drafting.tool.extrude': 'Extrude',
+  'drafting.group.model': 'Model',
 } as const satisfies Record<string, TranslationValue>;

@@ -14,7 +14,7 @@ import { isGeometry, type DraftEntity, type DraftShape, type Pt } from '@/drafti
 import { drawingToWorld, type SectionAxisName } from '@/drafting/frame';
 import { parsePat } from '@/drafting/hatch/pattern';
 import { resolvePlanLevel } from '@/project/view-defaults';
-import { viewPlaneConfig } from '@/project/view-plane-config';
+import { viewPlaneConfig, viewWorkPlane } from '@/project/view-plane-config';
 import { mergedSectionBounds } from '@/lib/section/section-distance';
 import { Maximize2, Redo2, Undo2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
@@ -107,8 +107,8 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
     );
   }, [entities, drawing, view, levels, plane]);
   useEffect(() => {
-    setWorkPlaneProvider(() => plane ?? null, () => view.kind);
-  }, [plane, view.kind]);
+    setWorkPlaneProvider(() => viewWorkPlane(view, plane ?? null, levels), () => view);
+  }, [plane, view, levels]);
   const patternText = useProjectStore((s) => s.hatchPatterns ?? '');
   const extraPatterns = useMemo(() => parsePat(patternText).patterns, [patternText]);
   const selectedModelIds = useViewerStore((s) => s.selectedEntityIds);

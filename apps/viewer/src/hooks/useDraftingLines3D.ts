@@ -16,7 +16,7 @@ import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import { useViewerStore } from '@/store';
 import { useProjectStore } from '@/project/project-store';
 import { useViewDrawings } from '@/project/view-drawings';
-import { viewPlaneConfig } from '@/project/view-plane-config';
+import { viewPlaneConfig, viewWorkPlane } from '@/project/view-plane-config';
 import { mergedSectionBounds } from '@/lib/section/section-distance';
 import { anchorWorldLineVertices } from '@/lib/renderer/line-overlay-rte';
 import { drawingToWorld } from '@/drafting/frame';
@@ -90,7 +90,9 @@ export function useDraftingLines3D(rendererRef: RefObject<Renderer | null>, isIn
       const entities = drafts.filter((d) => d.viewId === view.id && visible.has(d.layerId));
       if (entities.length === 0) continue;
       // The generated drawing's own plane when there is one (exactly what was drawn on), else the view's.
-      const plane = byView[view.id]?.drawing?.config.plane ?? viewPlaneConfig(view, levels, bounds);
+      const drawn = byView[view.id]?.drawing?.config.plane ?? viewPlaneConfig(view, levels, bounds);
+      // Floor-plan drafting sits on the level (its work plane), not at the cut height.
+      const plane = viewWorkPlane(view, drawn, levels);
       if (plane) liftedVertices(entities, plane, vertices);
     }
     try {

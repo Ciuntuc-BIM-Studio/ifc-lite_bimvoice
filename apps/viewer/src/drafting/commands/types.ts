@@ -10,6 +10,7 @@
 
 import type { TranslationKey } from '@/i18n';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
+import type { ProjectView } from '@/project/types';
 import type { DraftEntity, DraftShape, Pt } from '../types';
 
 export type StepResult = 'continue' | 'done';
@@ -39,6 +40,8 @@ export interface DraftContext {
   plane(): SectionPlaneConfig | null;
   /** The kind of view being drafted on. */
   viewKind(): 'plan' | 'section' | 'elevation' | null;
+  /** The project view being drafted on. */
+  view(): ProjectView | null;
   /** +1, or −1 when the drawing is mirrored on screen (a user CCW angle is CW in drawing space). */
   orientation: 1 | -1;
   settings: DraftSettings;
@@ -54,6 +57,8 @@ export interface DraftSettings {
   hatchPattern: string;
   hatchScale: number;
   hatchAngle: number;
+  extrudeClass: string;
+  extrudeDepth: number;
 }
 
 export interface DraftCommand {

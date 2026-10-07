@@ -49,6 +49,7 @@ export {
   type GridBuildResult, type GridIntersectionParams, type GridPlacementParams, type GridPlacementResult,
 } from './grid.js';
 export { addStoreyToStore, type StoreyInStoreParams, type StoreyBuildResult } from './storey.js';
+export { addExtrusionToStore, replaceExtrusionGeometryInStore, type ExtrusionInStoreParams, type ExtrusionBuildResult } from './extrusion.js';
 export { addDoorToStore, type DoorInStoreParams, type DoorBuildResult } from './door.js';
 export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } from './window.js';
 export {

@@ -10,7 +10,7 @@
 
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
-  DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane,
+  DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
 } from '@/icons';
 import { startWorkPlaneFromFace } from '@/project/workplane-from-face';
 import { resolve } from '@/i18n/registry';
@@ -50,6 +50,7 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:fillet', labelKey: 'drafting.tool.fillet', keywords: 'fillet round corner radius drafting F', category: 'Tools', icon: DraftFillet, surfaces: ribbonOnly, enabled: always, run: draft('fillet') },
   { id: 'design:section-line', labelKey: 'drafting.tool.sectionLine', keywords: 'section line cut work plane vertical', category: 'Tools', icon: DraftSectionLine, surfaces: ribbonOnly, enabled: always, run: draft('sectionline') },
   { id: 'design:workplane-face', labelKey: 'drafting.tool.workplaneFace', keywords: 'work plane face pick any orientation', category: 'Tools', icon: DraftWorkplane, surfaces: ribbonOnly, enabled: always, run: () => startWorkPlaneFromFace() },
+  { id: 'design:extrude', labelKey: 'drafting.tool.extrude', keywords: 'extrude contour profile ifc element solid', category: 'Tools', icon: DraftExtrude, surfaces: ribbonOnly, enabled: always, run: draft('extrude') },
   { id: 'design:snap', labelKey: 'drafting.snap', keywords: 'object snap osnap toggle F3', category: 'Tools', icon: DraftSnap, surfaces: ribbonOnly, enabled: always, run: () => toggleSnap() },
   { id: 'design:ortho', labelKey: 'drafting.ortho', keywords: 'ortho orthogonal toggle F8', category: 'Tools', icon: DraftOrtho, surfaces: ribbonOnly, enabled: always, run: () => toggleOrtho() },
 ] as const satisfies readonly SurfaceCommandDefinition[];
