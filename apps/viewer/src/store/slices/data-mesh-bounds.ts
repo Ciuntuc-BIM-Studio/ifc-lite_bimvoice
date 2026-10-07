@@ -21,7 +21,7 @@ function isEmpty(b: Box): boolean {
   return !finite || (b.max.x <= b.min.x && b.max.y <= b.min.y && b.max.z <= b.min.z);
 }
 
-/** `info` grown to hold `meshes` (render frame), or `info` itself when they already fit. */
+/** `info` grown to hold `meshes` (render frame, each at its `origin`), or `info` itself when they already fit. */
 export function growCoordinateInfo(info: CoordinateInfo, meshes: readonly MeshData[]): CoordinateInfo {
   // A frame with no bounds or shift at all (a partial record) is left as it is.
   if (!info.shiftedBounds || !info.originShift) return info;
@@ -31,8 +31,10 @@ export function growCoordinateInfo(info: CoordinateInfo, meshes: readonly MeshDa
   let grew = false;
   for (const mesh of meshes) {
     const p = mesh.positions;
+    // World = the mesh's local-frame origin + its positions.
+    const [ox, oy, oz] = mesh.origin ?? [0, 0, 0];
     for (let i = 0; i + 2 < p.length; i += 3) {
-      const x = p[i], y = p[i + 1], z = p[i + 2];
+      const x = ox + p[i], y = oy + p[i + 1], z = oz + p[i + 2];
       if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
       if (x < min.x) { min.x = x; grew = true; }
       if (y < min.y) { min.y = y; grew = true; }

@@ -40,6 +40,7 @@ import { useDraftingPointer } from './useDraftingPointer';
 import { useDraftingKeys } from './useDraftingKeys';
 import { DraftPropertiesPanel } from './DraftPropertiesPanel';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
+import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { capturePointer } from '@/lib/pointer-capture';
 import { useCommandRuntime } from '@/lib/commands/modeling/runtime';
 
@@ -200,6 +201,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         {status === 'error' && entry.error ? (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-destructive pointer-events-none">{entry.error}</div>
         ) : null}
+        <OpeningSymbolsLayer plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
         <DraftOverlay
           entities={entities}
           layers={layers}

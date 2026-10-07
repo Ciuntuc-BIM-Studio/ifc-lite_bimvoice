@@ -28,6 +28,7 @@ const doc: ProjectDocument = {
   ],
   draftLayers: [{ id: '0', name: '0', color: '#18181b', visible: true, locked: false }],
   hatchPatterns: '*MY-LINES, test\n0, 0,0, 0,2\n',
+  symbolFlips: { '2O2Fr$t4X7Zf8NOew3FLOH': 3 },
 };
 
 describe('project file', () => {

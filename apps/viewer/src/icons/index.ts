@@ -132,3 +132,5 @@ export { default as JoinMitre } from '~icons/viewer/join-mitre';
 export { default as JoinButt } from '~icons/viewer/join-butt';
 export { default as JoinSwap } from '~icons/viewer/join-swap';
 export { default as JoinAuto } from '~icons/viewer/join-auto';
+export { default as DoorFlipHand } from '~icons/viewer/door-flip-hand';
+export { default as DoorFlipSide } from '~icons/viewer/door-flip-side';

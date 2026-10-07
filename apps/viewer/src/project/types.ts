@@ -133,4 +133,6 @@ export interface ProjectDocument {
   draftLayers: DraftLayer[];
   /** User-imported hatch patterns, as `.pat` text (built-ins are not stored). */
   hatchPatterns?: string;
+  /** Plan symbol overrides by element GlobalId: bit 1 hinges a door on its other jamb, bit 2 swings it to the other side. */
+  symbolFlips?: Record<string, number>;
 }

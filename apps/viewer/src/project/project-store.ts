@@ -28,7 +28,7 @@ export interface ProjectState extends ProjectDocument {
 export const DEFAULT_DRAFT_LAYER = { id: '0', name: '0', color: '#18181b', visible: true, locked: false } as const;
 
 export const EMPTY_PROJECT: ProjectDocument = {
-  name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }], hatchPatterns: '',
+  name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }], hatchPatterns: '', symbolFlips: {},
 };
 
 export const useProjectStore = create<ProjectState>()(() => ({
@@ -43,6 +43,7 @@ export function projectDocument(state: ProjectState = useProjectStore.getState()
   return {
     name: state.name, models: state.models, views: state.views, sheets: state.sheets,
     drafts: state.drafts, draftLayers: state.draftLayers, hatchPatterns: state.hatchPatterns ?? '',
+    symbolFlips: state.symbolFlips ?? {},
   };
 }
 
@@ -51,6 +52,7 @@ export function loadProjectDocument(doc: ProjectDocument, options: { dirty?: boo
   const { levels } = useProjectStore.getState();
   useProjectStore.setState({
     ...doc,
+    symbolFlips: doc.symbolFlips ?? {},
     draftLayers: doc.draftLayers.length > 0 ? doc.draftLayers : [{ ...DEFAULT_DRAFT_LAYER }],
     views: [...syncDefaultViews(doc.views, levels)],
     activeItemId: null,
@@ -83,6 +85,18 @@ export function resetProject(): void {
 export function setProjectName(name: string): void {
   const trimmed = name.trim();
   if (trimmed) useProjectStore.setState({ name: trimmed, dirty: true });
+}
+
+/** Toggle plan symbol flips (`ProjectDocument.symbolFlips` bits) on the elements `globalIds` name. */
+export function toggleSymbolFlips(globalIds: readonly string[], bit: 1 | 2): void {
+  if (globalIds.length === 0) return;
+  const flips = { ...(useProjectStore.getState().symbolFlips ?? {}) };
+  for (const id of globalIds) {
+    const next = (flips[id] ?? 0) ^ bit;
+    if (next) flips[id] = next;
+    else delete flips[id];
+  }
+  useProjectStore.setState({ symbolFlips: flips, dirty: true });
 }
 
 export function setActiveProjectItem(id: string | null): void {

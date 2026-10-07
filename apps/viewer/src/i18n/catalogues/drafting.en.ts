@@ -193,4 +193,7 @@ export const draftingEn = {
   'drafting.msg.noJoins': 'Select walls that meet at a corner first.',
   'drafting.msg.joinFailed': 'Could not change the joins: {detail}',
   'drafting.msg.autoJoin': 'New wall corners: {style}.',
+  'drafting.door.flipHand': 'Flip hinge',
+  'drafting.door.flipSide': 'Flip swing',
+  'drafting.msg.selectDoors': 'Select the doors to flip first.',
 } as const satisfies Record<string, TranslationValue>;

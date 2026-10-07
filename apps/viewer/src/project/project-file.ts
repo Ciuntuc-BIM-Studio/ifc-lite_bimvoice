@@ -114,7 +114,18 @@ export function parseProjectFile(text: string): ProjectDocument {
     drafts: list('drafts').map((d, i) => readDraft(d, `/drafts/${i}`)),
     draftLayers: list('draftLayers').map((l, i) => readDraftLayer(l, `/draftLayers/${i}`)),
     hatchPatterns: isString(raw.hatchPatterns) ? raw.hatchPatterns : '',
+    symbolFlips: readFlips(raw.symbolFlips),
   };
+}
+
+/** `symbolFlips`: GlobalId → 1..3; anything else is dropped. */
+function readFlips(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!isObject(value)) return out;
+  for (const [id, bits] of Object.entries(value)) {
+    if (typeof bits === 'number' && Number.isInteger(bits) && bits >= 1 && bits <= 3) out[id] = bits;
+  }
+  return out;
 }
 
 export async function importProjectFile(file: File): Promise<ProjectDocument> {
