@@ -58,7 +58,7 @@ export function NewItemDialog({ open, title, submitLabel, fields, onOpenChange, 
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          {fields.map((field, i) => (
+          {fields.map((field) => (
             <label key={field.key} className="block space-y-1 text-sm">
               <span className="text-muted-foreground">{field.label}</span>
               {field.type === 'select' ? (
@@ -67,7 +67,6 @@ export function NewItemDialog({ open, title, submitLabel, fields, onOpenChange, 
                 </select>
               ) : (
                 <input
-                  autoFocus={i === 0}
                   className={INPUT}
                   type={field.type === 'number' ? 'number' : 'text'}
                   step={field.type === 'number' ? field.step ?? 0.01 : undefined}
