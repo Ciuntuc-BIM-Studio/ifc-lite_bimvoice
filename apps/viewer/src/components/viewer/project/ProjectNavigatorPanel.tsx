@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/components/ui/toast';
 import {
   addProjectSheet,
+  duplicateProjectSheet,
   duplicateProjectView,
   loadProjectDocument,
   projectDocument,
@@ -33,6 +34,8 @@ import { resolvePlanLevel } from '@/project/view-defaults';
 import type { ProjectView, ProjectViewKind } from '@/project/types';
 import { ProjectFolderRow, ProjectItemRow } from './ProjectTreeRow';
 import { ViewPropertiesPanel } from './ViewPropertiesPanel';
+import { LevelsFolder } from './LevelsFolder';
+import { useNavigatorDialogs } from './useNavigatorDialogs';
 
 type FolderId = ProjectViewKind | 'sheets' | 'models';
 
@@ -71,11 +74,14 @@ export function ProjectNavigatorPanel() {
   const [closed, setClosed] = useState<ReadonlySet<FolderId>>(new Set(['models']));
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const dialogs = useNavigatorDialogs();
 
   const q = query.trim().toLowerCase();
   const byKind = useMemo(() => {
     const groups: Record<ProjectViewKind, ProjectView[]> = { plan: [], section: [], elevation: [], '3d': [] };
     for (const view of views) if (!q || matches(view.name, q)) groups[view.kind].push(view);
+    // Floor plans read top-down by their level, like the Levels folder.
+    groups.plan.sort((a, b) => (b.kind === 'plan' ? b.level.elevation : 0) - (a.kind === 'plan' ? a.level.elevation : 0));
     return groups;
   }, [views, q]);
   const visibleSheets = useMemo(() => sheets.filter((s) => !q || matches(`${s.number} ${s.name}`, q)), [sheets, q]);
@@ -131,6 +137,8 @@ export function ProjectNavigatorPanel() {
     section: <AddButton label={t('projectNavigator.action.saveSection')} onClick={saveSection} />,
     '3d': <AddButton label={t('projectNavigator.action.save3d')} onClick={save3d} icon={<Camera className="size-3.5" />} />,
     sheets: <AddButton label={t('projectNavigator.action.newSheet')} onClick={newSheet} />,
+    plan: <AddButton label={t('projectNavigator.action.newPlan')} onClick={() => dialogs.open('plan')} />,
+    elevation: <AddButton label={t('projectNavigator.action.newElevation')} onClick={() => dialogs.open('elevation')} />,
   };
 
   const viewRow = (view: ProjectView) => (
@@ -158,6 +166,7 @@ export function ProjectNavigatorPanel() {
           <ProjectItemRow
             key={sheet.id}
             label={t('projectNavigator.sheetLabel', { number: sheet.number, name: sheet.name })}
+            renameValue={sheet.name}
             icon={<SquareDashed className="size-3.5" />}
             active={activeItemId === sheet.id}
             renaming={renamingId === sheet.id}
@@ -168,6 +177,7 @@ export function ProjectNavigatorPanel() {
             onStartRename={() => setRenamingId(sheet.id)}
             onRename={(value) => rename(sheet.id, value)}
             onCancelRename={() => setRenamingId(null)}
+            onDuplicate={() => setRenamingId(duplicateProjectSheet(sheet.id))}
             onDelete={() => removeProjectItem(sheet.id)}
           />
         )),
@@ -218,7 +228,8 @@ export function ProjectNavigatorPanel() {
         </div>
       </div>
       <nav className="flex-1 min-h-0 overflow-y-auto py-1" aria-label={t('projectNavigator.title')}>
-        {folders.length === 0 ? <p className="p-4 text-xs text-zinc-500">{t('projectNavigator.noMatches')}</p> : null}
+        <LevelsFolder query={q} onNewLevel={() => dialogs.open('level')} />
+        {folders.length === 0 && q ? <p className="p-4 text-xs text-zinc-500">{t('projectNavigator.noMatches')}</p> : null}
         {folders.map((folder) => (
           <div key={folder.id}>
             <ProjectFolderRow
@@ -234,6 +245,7 @@ export function ProjectNavigatorPanel() {
         ))}
       </nav>
       {activeView ? <ViewPropertiesPanel view={activeView} /> : null}
+      {dialogs.dialog}
     </div>
   );
 }

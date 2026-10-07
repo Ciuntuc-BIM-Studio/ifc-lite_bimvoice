@@ -48,6 +48,7 @@ export {
   addGridToStore, rectangularGridAxes, gridIntersectionPlacement, type GridInStoreParams, type GridAxisInStoreParams,
   type GridBuildResult, type GridIntersectionParams, type GridPlacementParams, type GridPlacementResult,
 } from './grid.js';
+export { addStoreyToStore, type StoreyInStoreParams, type StoreyBuildResult } from './storey.js';
 export { addDoorToStore, type DoorInStoreParams, type DoorBuildResult } from './door.js';
 export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } from './window.js';
 export {

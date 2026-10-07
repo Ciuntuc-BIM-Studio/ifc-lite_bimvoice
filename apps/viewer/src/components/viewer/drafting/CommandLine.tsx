@@ -26,7 +26,8 @@ export const CommandLine = forwardRef<HTMLInputElement, CommandLineProps>(functi
   const recent = history.slice(-3);
   return (
     <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 font-mono text-xs">
-      <div className="px-3 pt-1 text-zinc-500 dark:text-zinc-400" aria-live="polite">
+      {/* Fixed height: a growing history would resize the drawing (which re-centres) under the cursor. */}
+      <div className="h-12 overflow-hidden px-3 pt-1 text-zinc-500 dark:text-zinc-400" aria-live="polite">
         {recent.map((line, i) => (
           <div key={i} className="truncate">
             {line.typed !== undefined ? `> ${line.typed}` : t(line.key, line.params)}

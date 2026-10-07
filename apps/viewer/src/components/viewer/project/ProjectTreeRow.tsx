@@ -40,6 +40,8 @@ export function ProjectFolderRow({ label, icon, count, open, onToggle, action }:
 
 export interface ProjectItemRowProps {
   label: string;
+  /** What the rename field starts with, when the row label adds more (a number, an elevation). */
+  renameValue?: string;
   icon: ReactNode;
   active: boolean;
   /** Greyed with this hint when the item cannot open (e.g. its level is not loaded). */
@@ -91,9 +93,9 @@ export function ProjectItemRow(props: ProjectItemRowProps) {
   );
 }
 
-function RenameField({ label, onRename, onCancelRename }: ProjectItemRowProps) {
+function RenameField({ label, renameValue, onRename, onCancelRename }: ProjectItemRowProps) {
   const { t } = useTranslation();
-  const [value, setValue] = useState(label);
+  const [value, setValue] = useState(renameValue ?? label);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.select();

@@ -154,6 +154,17 @@ export function addProjectSheet(name = 'Unnamed'): string {
   return sheet.id;
 }
 
+/** Copy a sheet under the next free number, right after it. */
+export function duplicateProjectSheet(id: string): string | null {
+  const state = useProjectStore.getState();
+  const source = state.sheets.find((s) => s.id === id);
+  if (!source) return null;
+  const copy: ProjectSheet = { ...source, id: freshProjectId('sheet'), number: nextSheetNumber(state.sheets), name: `${source.name} Copy`, createdAt: Date.now() };
+  const at = state.sheets.indexOf(source) + 1;
+  useProjectStore.setState({ sheets: [...state.sheets.slice(0, at), copy, ...state.sheets.slice(at)], dirty: true });
+  return copy.id;
+}
+
 export function setSheetNumber(id: string, number: string): void {
   const trimmed = number.trim();
   if (!trimmed) return;

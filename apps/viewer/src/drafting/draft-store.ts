@@ -95,3 +95,9 @@ export function setDraftParams(ids: ReadonlySet<string>, params: Record<string, 
     return { ...d, params: merged };
   }));
 }
+
+export function setDraftLayer(ids: ReadonlySet<string>, layerId: string): void {
+  const { drafts } = useProjectStore.getState();
+  if (!drafts.some((d) => ids.has(d.id) && d.layerId !== layerId)) return;
+  commitDrafts(drafts.map((d) => (ids.has(d.id) ? { ...d, layerId } : d)));
+}

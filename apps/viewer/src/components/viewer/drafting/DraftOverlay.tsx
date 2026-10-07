@@ -51,6 +51,8 @@ interface DraftOverlayProps {
   snap: SnapHit | null;
   cursor: Pt | null;
   window: { a: Pt; b: Pt } | null;
+  /** Outlines of the selected model elements. */
+  highlight: readonly DraftShape[];
   transform: ViewTransform;
   axis: SectionAxisName;
 }
@@ -78,10 +80,13 @@ function SnapMarker({ snap, t, axis }: { snap: SnapHit; t: ViewTransform; axis: 
 }
 
 export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps) {
-  const { entities, layers, selection, hoverId, preview, snap, cursor, window, transform: t, axis } = props;
+  const { entities, layers, selection, hoverId, preview, snap, cursor, window, highlight, transform: t, axis } = props;
   const layerById = new Map(layers.map((l) => [l.id, l]));
   return (
     <svg className="absolute inset-0 h-full w-full pointer-events-none" aria-hidden="true">
+      {highlight.length > 0 ? (
+        <path d={highlight.map((s) => shapePath(s, t, axis)).join('')} fill="rgba(37,99,235,0.12)" fillRule="evenodd" stroke="#2563eb" strokeWidth={2} />
+      ) : null}
       {entities.map((e) => {
         const layer = layerById.get(e.layerId);
         if (layer && !layer.visible) return null;

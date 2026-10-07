@@ -15,6 +15,7 @@
 import { useEffect } from 'react';
 import { useViewerStore } from '@/store';
 import type { FederatedModel } from '@/store/types';
+import { modelLevels } from './model-levels';
 import { loadProjectDocument, projectDocument, resetProject, syncProjectWithModels, useProjectStore } from './project-store';
 import type { StoreyInput } from './view-defaults';
 import type { ProjectDocument, ProjectModelRef } from './types';
@@ -75,7 +76,8 @@ function loadedModels(): { refs: ProjectModelRef[]; storeys: StoreyInput[] } {
   for (const model of models.values()) {
     if (!model.ifcDataStore) continue;
     refs.push(modelRef(model));
-    storeys.push(...storeysOf(model.ifcDataStore));
+    // Effective storeys: parsed ones not deleted, plus levels added in this session.
+    storeys.push(...modelLevels(model.id));
   }
   return { refs, storeys };
 }
@@ -103,7 +105,7 @@ export function useProjectSync(): void {
 
     onModels();
     const unsubModels = useViewerStore.subscribe((state, prev) => {
-      if (state.models !== prev.models || state.ifcDataStore !== prev.ifcDataStore) onModels();
+      if (state.models !== prev.models || state.ifcDataStore !== prev.ifcDataStore || state.mutationVersion !== prev.mutationVersion) onModels();
     });
     const unsubProject = useProjectStore.subscribe((state, prev) => {
       if (!slot || (state.views === prev.views && state.sheets === prev.sheets && state.name === prev.name

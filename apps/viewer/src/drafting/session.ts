@@ -65,6 +65,12 @@ const settings: DraftSettings = { filletRadius: 0, offsetDistance: null };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
 let referenceProvider: (min: Pt, max: Pt) => DraftShape[] = () => [];
+/** Picks a model element under an idle click that hit no drafted entity (the view installs it). */
+let modelPicker: ((p: Pt, tolerance: number, additive: boolean) => void) | null = null;
+
+export function setModelPicker(picker: typeof modelPicker): void {
+  modelPicker = picker;
+}
 
 const get = () => useDraftingSession.getState();
 const set = (patch: Partial<SessionState>) => useDraftingSession.setState(patch);
@@ -189,6 +195,13 @@ export function clickDrawing(p: Pt, tolerance: number, additive: boolean): void 
   if (!viewId) return;
   if (selecting || !command) {
     const hit = pickEntity(p, tolerance);
+    // Idle, nothing drafted under the click: the click is for the model's elements.
+    if (!hit && !selecting && modelPicker) {
+      if (!additive) set({ selection: new Set() });
+      modelPicker(p, tolerance, additive);
+      refresh();
+      return;
+    }
     const next = new Set(additive || selecting ? get().selection : []);
     if (hit) {
       if (next.has(hit.id) && additive) next.delete(hit.id);

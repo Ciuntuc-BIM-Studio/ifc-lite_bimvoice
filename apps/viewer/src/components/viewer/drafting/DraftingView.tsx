@@ -9,7 +9,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GraphicOverrideEngine } from '@ifc-lite/drawing-2d';
+import { GraphicOverrideEngine, type Drawing2D } from '@ifc-lite/drawing-2d';
+import type { DraftShape } from '@/drafting/types';
 import { Maximize2, Redo2, Undo2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -22,16 +23,18 @@ import { useProjectStore } from '@/project/project-store';
 import { EMPTY_VIEW_DRAWING, useViewDrawings } from '@/project/view-drawings';
 import type { ProjectView } from '@/project/types';
 import type { SectionAxisName } from '@/drafting/frame';
-import { referenceSet, referencesIn } from '@/drafting/references';
+import { pickModelElement, referenceSet, referencesIn } from '@/drafting/references';
+import { selectFromPlan } from '@/components/viewer/plan/PlanPointer';
 import { draftsOfView, redoDrafts, undoDrafts } from '@/drafting/draft-store';
 import {
-  attachDraftingView, currentLayerId, pressEscape, runningCommand, setCurrentLayer, submitCommandLine,
+  attachDraftingView, currentLayerId, pressEscape, runningCommand, setCurrentLayer, setModelPicker, submitCommandLine,
   toggleOrtho, toggleSnap, useDraftingSession,
 } from '@/drafting/session';
 import { DraftOverlay } from './DraftOverlay';
 import { CommandLine } from './CommandLine';
 import { useDraftingPointer } from './useDraftingPointer';
 import { useDraftingKeys } from './useDraftingKeys';
+import { DraftPropertiesPanel } from './DraftPropertiesPanel';
 
 const AXIS_NAME = { y: 'down', z: 'front', x: 'side' } as const;
 const NO_SHEET_TRANSFORM = { current: null };
@@ -68,6 +71,21 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   useEffect(() => {
     attachDraftingView(view.id, axis, (min, max) => (references ? referencesIn(references, min, max) : []));
   }, [view.id, axis, references]);
+  // An idle click on the drawing selects the model element under it (both selection channels, as the plan view does).
+  useEffect(() => {
+    setModelPicker((p, tolerance, additive) => {
+      const id = drawing && references ? pickModelElement(drawing, references, p, tolerance) : null;
+      if (id !== null || !additive) selectFromPlan(id, additive);
+    });
+    return () => setModelPicker(null);
+  }, [drawing, references]);
+  const selectedModelIds = useViewerStore((s) => s.selectedEntityIds);
+  const selectedModelId = useViewerStore((s) => s.selectedEntityId);
+  const highlight = useMemo(() => {
+    const ids = new Set(selectedModelIds);
+    if (selectedModelId !== null && selectedModelId !== undefined) ids.add(selectedModelId);
+    return modelHighlight(drawing, ids);
+  }, [drawing, selectedModelIds, selectedModelId]);
 
   const { state, handlers } = useDraftingPointer({ containerRef, transform: viewTransform, setTransform: setViewTransform, axis, entityShapes, references });
   const submit = () => {
@@ -135,13 +153,31 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           snap={state.snap}
           cursor={state.cursor}
           window={state.window}
+          highlight={highlight}
           transform={viewTransform}
           axis={axis}
         />
+        <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} />
       </div>
       <CommandLine ref={inputRef} value={text} onChange={setText} onSubmit={submit} onEscape={() => { setText(''); pressEscape(); }} />
     </div>
   );
+}
+
+const HIGHLIGHT_LIMIT = 5000;
+
+/** The selected model elements' cut outlines and drawn lines, for the overlay. */
+function modelHighlight(drawing: Drawing2D | null, ids: ReadonlySet<number>): DraftShape[] {
+  if (!drawing || ids.size === 0) return [];
+  const shapes: DraftShape[] = [];
+  for (const polygon of drawing.cutPolygons) {
+    if (ids.has(polygon.entityId)) shapes.push({ type: 'polyline', pts: polygon.polygon.outer, closed: true });
+  }
+  for (const line of drawing.lines) {
+    if (shapes.length >= HIGHLIGHT_LIMIT) break;
+    if (ids.has(line.entityId) && line.visibility !== 'hidden') shapes.push({ type: 'line', a: line.line.start, b: line.line.end });
+  }
+  return shapes;
 }
 
 function Toggle({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
