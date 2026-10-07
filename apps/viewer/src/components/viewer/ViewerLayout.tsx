@@ -11,6 +11,8 @@ import { styleInterpolatedValues } from '@/i18n/richInterpolate';
 import { MobileToolbar } from './MobileToolbar';
 import { RibbonToolbar } from './ribbon/RibbonToolbar';
 import { HierarchyPanel } from './HierarchyPanel';
+import { LeftNavigator } from './project/LeftNavigator';
+import { DocumentWorkspace } from './project/DocumentWorkspace';
 import { StatusBar } from './StatusBar';
 import { ViewportContainer } from './ViewportContainer';
 import { ModelToolRail } from './model/ModelToolRail';
@@ -303,9 +305,7 @@ export function ViewerLayout() {
                     }}
                   >
                     <div className="h-full w-full overflow-hidden panel-container flex flex-col">
-                      <div className="flex-1 min-h-0 overflow-hidden">
-                        <HierarchyPanel />
-                      </div>
+                      <div className="flex-1 min-h-0 overflow-hidden"><LeftNavigator /></div>
                       {/* Extension dock.left — collapses when no extension
                           contributes. Sits beneath the hierarchy panel. */}
                       <ExtensionDockHost slot="dock.left" className="max-h-[40%] border-t" />
@@ -316,11 +316,8 @@ export function ViewerLayout() {
 
                   {/* Center - Viewport */}
                   <Panel id="viewport-panel" defaultSize={100 - LEFT_PANEL_DEFAULT_SIZE} minSize={30}>
-                    {/* data-floating-snap-bounds: edge-docked floating panels
-                        (#1201) snap to THIS region, not the whole window, so a
-                        dock never hides under the toolbar (its own close control
-                        with it) or over the hierarchy / sidebar (#1245). */}
-                    <div data-floating-snap-bounds className="h-full w-full overflow-hidden relative flex">
+                    {/* Central document tabs (3D + opened views); the snap-bounds box lives inside. */}
+                    <DocumentWorkspace>
                       {/* Model workspace (#6232): its tool rail, then the Plan ‖ 3D split. */}
                       <ModelToolRail />
                       <ModelWorkspaceSplit>
@@ -350,7 +347,7 @@ export function ViewerLayout() {
                         <ViewportContainer />
                       )}
                       </ModelWorkspaceSplit>
-                    </div>
+                    </DocumentWorkspace>
                   </Panel>
                 </PanelGroup>
               </div>

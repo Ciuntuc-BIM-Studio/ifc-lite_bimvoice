@@ -127,7 +127,7 @@ interface UseDrawingGenerationParams {
   setDrawing: (d: Drawing2D | null) => void;
   setDrawingStatus: (s: 'idle' | 'generating' | 'ready' | 'error') => void;
   setDrawingProgress: (p: number, phase: string) => void;
-  setDrawingError: (e: string | null) => void;
+  setDrawingError: (e: string | null) => void; /** false: a project view's own generator, without the shared drawing's global side effects. */ primary?: boolean;
 }
 
 interface UseDrawingGenerationResult {
@@ -152,7 +152,7 @@ export function useDrawingGeneration({
   setDrawing,
   setDrawingStatus,
   setDrawingProgress,
-  setDrawingError,
+  setDrawingError, primary = true,
 }: UseDrawingGenerationParams): UseDrawingGenerationResult {
 
   // The legacy primary path can publish only `loading: false` when it finishes
@@ -871,12 +871,12 @@ export function useDrawingGeneration({
 
         completedDrawing = hybridDrawing;
       }
-      setDrawing(completedDrawing); markActiveDrawingGenerationCompleted(completedDrawing);
+      setDrawing(completedDrawing); if (primary) markActiveDrawingGenerationCompleted(completedDrawing);
 
       // Remember the SectionConfig that produced this view so the markup
       // persistence bridge (issue #4153) can save it alongside the results —
       // `drawing2D` itself is derived output and is never persisted.
-      const generatedForModelId = useViewerStore.getState().activeModelId;
+      const generatedForModelId = primary ? useViewerStore.getState().activeModelId : null;
       if (generatedForModelId) notifyDrawing2DSectionConfig(generatedForModelId, config);
 
       // Always set status to ready (whether initial generation or regeneration)
@@ -903,7 +903,7 @@ export function useDrawingGeneration({
     setDrawing,
     setDrawingStatus,
     setDrawingProgress,
-    setDrawingError,
+    setDrawingError, primary,
   ]);
 
   // All entry points share one queue; superseded cuts cannot publish over newer inputs (#3921).
@@ -912,11 +912,11 @@ export function useDrawingGeneration({
   const queue = queueRef.current;
   const [isRegenerating, setIsRegenerating] = useState(false);
   const generateDrawing = useCallback((isRegenerate = false) => {
-    markActiveDrawingGenerationStarted(); return queue.request(async isCurrent => {
+    if (primary) markActiveDrawingGenerationStarted(); return queue.request(async isCurrent => {
       setIsRegenerating(isRegenerate);
       try { await computeDrawing(isRegenerate, isCurrent); }
       finally { setIsRegenerating(false); }
-    }); }, [computeDrawing, queue]);
+    }); }, [computeDrawing, queue, primary]);
   const doRegenerate = useCallback(() => generateDrawing(true), [generateDrawing]);
 
   // Restore the persisted section cut on reload (issue #4153 gap):
@@ -951,7 +951,7 @@ export function useDrawingGeneration({
     const bounds = geometryResult?.coordinateInfo?.shiftedBounds;
     if (!bounds) return;
     const modelId = useViewerStore.getState().activeModelId;
-    if (!modelId) return;
+    if (!modelId || !primary) return;
     const restored = consumeRestoredSectionConfig(modelId);
     if (!restored) return;
 
@@ -990,7 +990,7 @@ export function useDrawingGeneration({
           : undefined,
       },
     }));
-  }, [geometryResult, displayOptions]);
+  }, [geometryResult, displayOptions, primary]);
 
   // Match useRenderUpdates: a saved overlay preference needs the section tool.
   // Compare actual inputs, not callback identities or the drawing we publish.
