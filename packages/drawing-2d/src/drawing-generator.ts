@@ -45,11 +45,8 @@ import {
 import { isFeatureElementType } from './feature-elements.js';
 import { projectionBandMeshes, clipMeshToProjectionWindow } from './projection-clip.js';
 import { removeCoveredOverhead } from './projection-overlap.js';
-import {
-  boundsEmpty,
-  boundsExtendLine,
-  lineLength,
-} from './math.js';
+import { dropOutlierProjectionLines } from './projection-outliers.js';
+import { boundsEmpty, boundsExtendLine } from './math.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -309,16 +306,8 @@ export class Drawing2DGenerator {
         }
       }
 
-      // Drop outlier lines abnormally longer than the cut area (artifacts).
-      const cutBounds = this.computeBounds(cutLines);
-      if (cutBounds.min.x < cutBounds.max.x && cutBounds.min.y < cutBounds.max.y) {
-        const boundsWidth = cutBounds.max.x - cutBounds.min.x;
-        const boundsHeight = cutBounds.max.y - cutBounds.min.y;
-        const boundsDiagonal = Math.sqrt(boundsWidth * boundsWidth + boundsHeight * boundsHeight);
-        // Allow lines up to 1.5x the diagonal of the cut area
-        const maxLineLength = boundsDiagonal * 1.5;
-        projectionLines = projectionLines.filter((line) => lineLength(line.line) <= maxLineLength);
-      }
+      // Drop artifact lines abnormally longer than the drawing (cut area ∪ mesh footprint).
+      projectionLines = dropOutlierProjectionLines(projectionLines, this.computeBounds(cutLines), meshes, config.plane);
 
       if (config.clipProjectionBands && config.plane.axis === 'y' && !config.plane.customPlane) {
         projectionLines = removeCoveredOverhead(projectionLines);
