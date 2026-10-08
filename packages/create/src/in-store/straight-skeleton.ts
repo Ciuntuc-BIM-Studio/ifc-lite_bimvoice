@@ -25,6 +25,8 @@ const EPS = 1e-9;
 
 interface Edge {
   index: number;
+  /** How fast the edge's wavefront moves inward (0: a gable, it stays put). */
+  speed: number;
   a: Vec2;
   /** Unit direction. */
   d: Vec2;
@@ -40,7 +42,7 @@ interface Node {
 interface Vertex {
   /** Where (and when) the vertex started moving. */
   origin: Node;
-  /** Velocity: unit speed away from both edge lines. */
+  /** Velocity: away from each edge line at that edge's speed. */
   w: Vec2;
   inEdge: Edge;
   outEdge: Edge;
@@ -51,11 +53,15 @@ const dot = (a: Vec2, b: Vec2) => a[0] * b[0] + a[1] * b[1];
 const cross = (a: Vec2, b: Vec2) => a[0] * b[1] - a[1] * b[0];
 
 function velocity(inEdge: Edge, outEdge: Edge): Vec2 {
-  // dot(w, n1) = 1 and dot(w, n2) = 1.
+  // dot(w, n1) = s1 and dot(w, n2) = s2.
   const [n1, n2] = [inEdge.n, outEdge.n];
+  const [s1, s2] = [inEdge.speed, outEdge.speed];
   const det = n1[0] * n2[1] - n1[1] * n2[0];
-  if (Math.abs(det) < 1e-12) return [n1[0], n1[1]];
-  return [(n2[1] - n1[1]) / det, (n1[0] - n2[0]) / det];
+  if (Math.abs(det) < 1e-12) {
+    const s = (s1 + s2) / 2;
+    return [n1[0] * s, n1[1] * s];
+  }
+  return [(n2[1] * s1 - n1[1] * s2) / det, (n1[0] * s2 - n2[0] * s1) / det];
 }
 
 const at = (v: Vertex, t: number): Vec2 => [v.origin.p[0] + (t - v.origin.t) * v.w[0], v.origin.p[1] + (t - v.origin.t) * v.w[1]];
@@ -84,10 +90,10 @@ function edgeEvent(a: Vertex, b: Vertex, now: number): { t: number; p: Vec2 } | 
 function splitEvent(v: Vertex, a: Vertex, b: Vertex, now: number): { t: number; p: Vec2 } | null {
   const e = a.outEdge;
   const k = dot(v.w, e.n);
-  if (1 - k <= EPS) return null;
-  // Signed distance of v's path to e's line equals the time: d0 + (t - tv)·k = t.
+  if (e.speed - k <= EPS) return null;
+  // Signed distance of v's path to e's line equals how far that line has moved: d0 + (t - tv)·k = speed·t.
   const d0 = dot(sub(v.origin.p, e.a), e.n);
-  const t = (d0 - v.origin.t * k) / (1 - k);
+  const t = (d0 - v.origin.t * k) / (e.speed - k);
   if (t < now - EPS || t <= v.origin.t - EPS) return null;
   const p = at(v, t);
   const pa = at(a, t), pb = at(b, t);
@@ -95,25 +101,39 @@ function splitEvent(v: Vertex, a: Vertex, b: Vertex, now: number): { t: number; 
   return s >= -1e-7 && s <= len + 1e-7 ? { t, p } : null;
 }
 
-/** Drop repeated and collinear points; counter-clockwise. */
-function clean(outline: readonly Vec2[]): Vec2[] {
+/** Drop repeated points, and collinear ones between edges of the same speed; counter-clockwise. Speeds follow their edges. */
+function clean(outline: readonly Vec2[], speeds: readonly number[]): { pts: Vec2[]; speeds: number[]; edgeOf: number[] } {
   let pts = outline.map((p) => [p[0], p[1]] as Vec2);
+  let sp = [...speeds];
+  let edgeOf = speeds.map((_, i) => i);
   const area = pts.reduce((s, p, i) => s + cross(p, pts[(i + 1) % pts.length]), 0);
-  if (area < 0) pts.reverse();
+  if (area < 0) {
+    // Edge i (p_i → p_i+1) becomes the edge p_i+1 → p_i of the reversed loop.
+    const n = pts.length;
+    pts = pts.reverse();
+    edgeOf = pts.map((_, j) => (2 * n - 2 - j) % n);
+    sp = edgeOf.map((i) => speeds[i]);
+  }
   let changed = true;
   while (changed && pts.length > 3) {
     changed = false;
     for (let i = 0; i < pts.length; i++) {
-      const prev = pts[(i + pts.length - 1) % pts.length], p = pts[i], next = pts[(i + 1) % pts.length];
+      const k = (i + pts.length - 1) % pts.length;
+      const prev = pts[k], p = pts[i], next = pts[(i + 1) % pts.length];
       const u = sub(p, prev), w = sub(next, p);
-      if (Math.hypot(u[0], u[1]) < 1e-9 || Math.abs(cross(u, w)) < 1e-9 * Math.hypot(u[0], u[1]) * Math.hypot(w[0], w[1])) {
-        pts = pts.filter((_, k) => k !== i);
+      const repeated = Math.hypot(u[0], u[1]) < 1e-9;
+      const straight = Math.abs(cross(u, w)) < 1e-9 * Math.hypot(u[0], u[1]) * Math.hypot(w[0], w[1]) && dot(u, w) > 0 && Math.abs(sp[k] - sp[i]) < 1e-12;
+      if (repeated || straight) {
+        pts = pts.filter((_, j) => j !== i);
+        // The merged edge keeps the earlier edge's speed.
+        sp = sp.filter((_, j) => j !== i);
+        edgeOf = edgeOf.filter((_, j) => j !== i);
         changed = true;
         break;
       }
     }
   }
-  return pts;
+  return { pts, speeds: sp, edgeOf };
 }
 
 /**
@@ -122,13 +142,30 @@ function clean(outline: readonly Vec2[]): Vec2[] {
  * seen from above, eaves at z = 0.
  */
 export function hipRoofFaces(outline: readonly Vec2[], slope: number): Vec3[][] {
-  const pts = clean(outline);
+  const k = Math.tan(slope);
+  return weightedSkeletonFaces(outline, outline.map(() => 1)).map((f) => f.map(([x, y, t]) => [x, y, t * k] as Vec3));
+}
+
+/**
+ * The faces of the weighted straight skeleton of `outline`: edge i moves
+ * inward at `speeds[i]` (≥ 0), and a face point's z is the time its edge's
+ * wavefront needs to reach it. With speed = 1 / tan(pitch), z is the roof
+ * height over a pitch-per-edge roof; speed 0 keeps an edge in place, its face
+ * the vertical gable end. Faces come back in the input edge order (an edge
+ * merged away as collinear yields an empty face).
+ */
+export function weightedSkeletonFaces(outline: readonly Vec2[], speeds: readonly number[]): Vec3[][] {
+  if (speeds.length !== outline.length || speeds.some((s) => !(s >= 0) || !Number.isFinite(s))) {
+    throw new Error('roof: every outline edge needs a finite speed ≥ 0');
+  }
+  const cleaned = clean(outline, speeds);
+  const pts = cleaned.pts;
   if (pts.length < 3) throw new Error('roof: the outline needs at least 3 corners');
   const edges: Edge[] = pts.map((a, i) => {
     const b = pts[(i + 1) % pts.length];
     const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const d: Vec2 = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
-    return { index: i, a, d, n: [-d[1], d[0]] };
+    return { index: i, speed: cleaned.speeds[i], a, d, n: [-d[1], d[0]] };
   });
   // Arcs per face: each a segment between two skeleton nodes.
   const arcs: [Node, Node][][] = edges.map(() => []);
@@ -206,9 +243,10 @@ export function hipRoofFaces(outline: readonly Vec2[], slope: number): Vec3[][] 
     }
   }
 
-  const k = Math.tan(slope);
-  const lift = (p: Node): Vec3 => [p.p[0], p.p[1], p.t * k];
-  return edges.map((e, i) => faceOf(e, pts[(i + 1) % pts.length], arcs[i], lift));
+  const lift = (p: Node): Vec3 => [p.p[0], p.p[1], p.t];
+  const out: Vec3[][] = outline.map(() => []);
+  edges.forEach((e, i) => { out[cleaned.edgeOf[i]] = faceOf(e, pts[(i + 1) % pts.length], arcs[i], lift); });
+  return out;
 }
 
 /** Chain a face's arcs from its edge's end back to its start. */

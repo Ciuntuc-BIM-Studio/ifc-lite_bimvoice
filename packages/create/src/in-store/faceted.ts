@@ -104,9 +104,10 @@ export function addFacetedElementToStore(editor: StoreEditor, anchor: SpatialAnc
 }
 
 /** New placement and body for an existing element (same expressId and GlobalId); ObjectPlacement (5) and Representation (6). */
-export function replaceFacetedGeometryInStore(editor: StoreEditor, anchor: SpatialAnchor, elementId: number, params: FacetedInStoreParams): void {
+export function replaceFacetedGeometryInStore(editor: StoreEditor, anchor: SpatialAnchor, elementId: number, params: FacetedInStoreParams): { placementId: number; productShapeId: number } {
   validate(params, 'replaceFacetedGeometryInStore');
   const { placementId, productShapeId } = emitGeometry(editor, anchor, params);
   editor.setPositionalAttribute(elementId, 5, `#${placementId}`);
   editor.setPositionalAttribute(elementId, 6, `#${productShapeId}`);
+  return { placementId, productShapeId };
 }
