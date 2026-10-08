@@ -17,6 +17,12 @@ import { draftsOfView } from '@/drafting/draft-store';
 import { parsePat } from '@/drafting/hatch/pattern';
 import { capturePointer } from '@/lib/pointer-capture';
 import type { ProjectSheet, SheetViewport } from '@/project/types';
+import type { Drawing2D } from '@ifc-lite/drawing-2d';
+import type { DraftShape } from '@/drafting/types';
+import { hiddenClasses, styledDrawing } from '@/project/view-graphics';
+import { partHostType } from '@/project/part-host';
+import { viewOpeningSymbols } from '@/project/view-symbols';
+import { useDrawingRuntime } from '@/lib/drawing/drawing-runtime';
 import { VIEW_DRAG_TYPE } from '../project/ProjectTreeRow';
 import { SheetPaper, type ViewportContent } from './SheetPaper';
 import { SheetPanel } from './SheetPanel';
@@ -48,11 +54,29 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
     setPan({ k: Math.max(k, 0.05), x: (width - paper.w * k) / 2, y: (height - paper.h * k) / 2 });
   }, [paper.w, paper.h]);
 
+  // Each placed view as its own graphics style it: styled drawing and (plans) door / window symbols.
+  const flips = useProjectStore((s) => s.symbolFlips);
+  const { geometryResult } = useDrawingRuntime();
+  const styled = useMemo(() => {
+    const out = new Map<string, { drawing: Drawing2D | null; symbols: DraftShape[] }>();
+    for (const vp of sheet.viewports ?? []) {
+      if (out.has(vp.viewId)) continue;
+      const view = views.find((v) => v.id === vp.viewId);
+      const raw = (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing;
+      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType) : null;
+      const symbols = view?.kind === 'plan' && raw && geometryResult?.meshes
+        ? viewOpeningSymbols(geometryResult.meshes, raw.config.plane, flips, hiddenClasses(view.graphics)).flatMap((s) => s.shapes)
+        : [];
+      out.set(vp.viewId, { drawing, symbols });
+    }
+    return out;
+  }, [sheet.viewports, views, byView, geometryResult, flips]);
   const content = useCallback((vp: SheetViewport): ViewportContent => ({
     view: views.find((v) => v.id === vp.viewId),
-    drawing: (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing,
+    drawing: styled.get(vp.viewId)?.drawing ?? null,
     drafts: draftsOfView(vp.viewId, drafts),
-  }), [views, byView, drafts]);
+    symbols: styled.get(vp.viewId)?.symbols,
+  }), [views, styled, drafts]);
 
   const toPaper = (clientX: number, clientY: number) => {
     const rect = hostRef.current?.getBoundingClientRect();

@@ -10,10 +10,9 @@
 import { memo, useMemo } from 'react';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import { useDrawingRuntime } from '@/lib/drawing/drawing-runtime';
-import { openingSymbols } from '@/drafting/opening-symbols';
 import type { SectionAxisName, ViewTransform } from '@/drafting/frame';
 import { useProjectStore } from '@/project/project-store';
-import { renderIdGlobalId } from '@/project/element-guid';
+import { viewOpeningSymbols } from '@/project/view-symbols';
 import { shapePath } from './DraftOverlay';
 
 interface Props {
@@ -28,15 +27,10 @@ interface Props {
 export const OpeningSymbolsLayer = memo(function OpeningSymbolsLayer({ plane, hidden, transform, axis }: Props) {
   const { geometryResult } = useDrawingRuntime();
   const flips = useProjectStore((s) => s.symbolFlips);
-  const symbols = useMemo(() => {
-    if (!plane || !geometryResult?.meshes) return [];
-    const flipsOf = (id: number) => {
-      const guid = flips && Object.keys(flips).length > 0 ? renderIdGlobalId(id) : null;
-      return guid ? flips?.[guid] ?? 0 : 0;
-    };
-    return openingSymbols(geometryResult.meshes, plane, flipsOf)
-      .filter((s) => !hidden.has(s.kind === 'door' ? 'IFCDOOR' : 'IFCWINDOW'));
-  }, [plane, geometryResult, flips, hidden]);
+  const symbols = useMemo(
+    () => (plane && geometryResult?.meshes ? viewOpeningSymbols(geometryResult.meshes, plane, flips, hidden) : []),
+    [plane, geometryResult, flips, hidden],
+  );
   if (symbols.length === 0) return null;
   const d = symbols.flatMap((s) => s.shapes).map((s) => shapePath(s, transform, axis)).join('');
   return (

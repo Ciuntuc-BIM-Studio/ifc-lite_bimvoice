@@ -17,21 +17,23 @@ import { forwardRef, memo, useMemo } from 'react';
 import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import { useTranslation } from '@/i18n';
 import { drawingToScreen, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
-import { isGeometry, type DraftEntity, type DraftLayer } from '@/drafting/types';
+import { isGeometry, type DraftEntity, type DraftLayer, type DraftShape } from '@/drafting/types';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
 import { FRAME_MARGIN_MM, mmPerMetre, paperOf, TITLE_BLOCK_MM, viewportBox } from '@/project/sheets';
 import type { ProjectSheet, ProjectView, SheetViewport } from '@/project/types';
 import { shapePath } from '../drafting/DraftOverlay';
 import { AnnotationGraphics } from '../drafting/AnnotationGraphics';
+import { PEN, viewportPens } from './viewport-pens';
 
 const AXIS_NAME = { y: 'down', z: 'front', x: 'side' } as const;
-const PEN = { cut: 0.5, seen: 0.25, hidden: 0.18, draft: 0.25 };
 const LABEL_MM = 3.5;
 
 export interface ViewportContent {
   view: ProjectView | undefined;
   drawing: Drawing2D | null;
   drafts: DraftEntity[];
+  /** Plan symbols (door swings, windows), drawing units. */
+  symbols?: DraftShape[];
 }
 
 interface SheetPaperProps {
@@ -62,28 +64,10 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
   const { view, drawing, drafts } = content;
   const axis: SectionAxisName = drawing ? AXIS_NAME[drawing.config.plane.axis] : 'down';
   const t = viewportTransform(vp, drawing, axis);
-  const paths = useMemo(() => {
-    const out = { cut: '', seen: '', hidden: '', fill: '' };
-    if (!drawing) return out;
-    const t = viewportTransform(vp, drawing, axis);
-    const seg = (a: { x: number; y: number }, b: { x: number; y: number }) => {
-      const p = drawingToScreen(a, t, axis);
-      const q = drawingToScreen(b, t, axis);
-      return `M${p.x.toFixed(2)} ${p.y.toFixed(2)}L${q.x.toFixed(2)} ${q.y.toFixed(2)}`;
-    };
-    for (const line of drawing.lines) {
-      const d = seg(line.line.start, line.line.end);
-      if (line.visibility === 'hidden' || line.category === 'hidden') out.hidden += d;
-      else if (line.category === 'cut') out.cut += d;
-      else out.seen += d;
-    }
-    for (const polygon of drawing.cutPolygons) {
-      for (const loop of [polygon.polygon.outer, ...polygon.polygon.holes]) {
-        out.fill += shapePath({ type: 'polyline', pts: loop, closed: true }, t, axis);
-      }
-    }
-    return out;
-  }, [drawing, vp, axis]);
+  const pens = useMemo(
+    () => (drawing ? viewportPens(drawing, view?.graphics, viewportTransform(vp, drawing, axis), axis, extraPatterns) : []),
+    [drawing, view?.graphics, vp, axis, extraPatterns],
+  );
   const box = viewportBox(vp, drawing?.bounds ?? null);
   const left = vp.x - box.width / 2;
   const top = vp.y - box.height / 2;
@@ -93,15 +77,17 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
     <g data-viewport-id={vp.id}>
       <clipPath id={clipId}><rect x={left} y={top} width={box.width} height={box.height} /></clipPath>
       <g clipPath={`url(#${clipId})`}>
-        <path d={paths.fill} fill="#d4d4d8" fillRule="evenodd" stroke="none" />
-        <path d={paths.hidden} stroke="#000" strokeWidth={PEN.hidden} strokeDasharray="1.5 1" fill="none" />
-        <path d={paths.seen} stroke="#000" strokeWidth={PEN.seen} fill="none" />
-        <path d={paths.cut} stroke="#000" strokeWidth={PEN.cut} fill="none" strokeLinejoin="round" />
+        {pens.map((p, i) => (
+          <path key={i} d={p.d} fill={p.fill ?? 'none'} fillRule="evenodd" stroke={p.stroke ?? 'none'} strokeWidth={p.width} strokeDasharray={p.dash} strokeLinejoin="round" />
+        ))}
+        {content.symbols?.length ? (
+          <path d={content.symbols.map((s) => shapePath(s, t, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" />
+        ) : null}
         {drafts.map((e) => {
           const color = layerColor.get(e.layerId);
           if (color === null) return null;
           return isGeometry(e.shape)
-            ? <path key={e.id} d={shapePath(e.shape, t, axis)} stroke={color ?? '#000'} strokeWidth={PEN.draft} fill="none" />
+            ? <path key={e.id} d={shapePath(e.shape, t, axis)} stroke={color ?? '#000'} strokeWidth={PEN.seen} fill="none" />
             : <AnnotationGraphics key={e.id} shape={e.shape} color={color ?? '#000'} selected={false} transform={t} axis={axis} extraPatterns={extraPatterns} strokeScale={0.25} />;
         })}
       </g>
