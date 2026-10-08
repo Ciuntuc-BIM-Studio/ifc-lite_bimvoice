@@ -27,8 +27,8 @@ import { findElementByGlobalId, updateContourElement } from './contour-element';
 import { roofSpecOf, updateRoofElement } from './roof-element';
 
 /** Contour parameters that drive the link itself; every other parameter is a property of the element. */
-const RESERVED = new Set(['ifcGlobalId', 'ifcModelId', 'ifcClass', 'depth', 'roofKind', 'slope', 'thickness', 'offset', 'eaveEdge']);
-const ROOF_KEYS = ['roofKind', 'slope', 'thickness', 'offset', 'eaveEdge'] as const;
+const RESERVED = new Set(['ifcGlobalId', 'ifcModelId', 'ifcClass', 'depth', 'roofKind', 'slope', 'thickness', 'offset', 'eaveEdge', 'overhang']);
+const ROOF_KEYS = ['roofKind', 'slope', 'thickness', 'offset', 'eaveEdge', 'overhang'] as const;
 const PARAMETER_PSET = 'IfcLite_Parameters';
 
 function syncParameters(modelId: string, globalId: string, before: DraftEntity['params'], after: DraftEntity['params']): void {

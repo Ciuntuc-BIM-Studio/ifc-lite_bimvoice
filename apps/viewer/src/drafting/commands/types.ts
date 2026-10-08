@@ -63,6 +63,7 @@ export interface DraftSettings {
   /** Degrees. */
   roofSlope: number;
   roofThickness: number;
+  roofOverhang: number;
 }
 
 export interface DraftCommand {

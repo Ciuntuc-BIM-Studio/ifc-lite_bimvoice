@@ -16,7 +16,7 @@
 import { forwardRef, memo, useMemo } from 'react';
 import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import { useTranslation } from '@/i18n';
-import { drawingToScreen, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
+import type { SectionAxisName, ViewTransform } from '@/drafting/frame';
 import { isGeometry, type DraftEntity, type DraftLayer, type DraftShape } from '@/drafting/types';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
 import { FRAME_MARGIN_MM, mmPerMetre, paperOf, TITLE_BLOCK_MM, viewportBox } from '@/project/sheets';

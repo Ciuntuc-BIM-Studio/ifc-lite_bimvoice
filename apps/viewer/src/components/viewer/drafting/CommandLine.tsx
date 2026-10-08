@@ -24,8 +24,9 @@ export const CommandLine = forwardRef<HTMLInputElement, CommandLineProps>(functi
   const history = useDraftingSession((s) => s.history);
   const prompt = useDraftingSession((s) => s.prompt);
   const recent = history.slice(-3);
+  const promptText = prompt ? t(prompt.key, prompt.params) : t('drafting.prompt.idle');
   return (
-    <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 font-mono text-xs">
+    <div className="shrink-0 min-w-0 overflow-hidden border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 font-mono text-xs">
       {/* Fixed height: a growing history would resize the drawing (which re-centres) under the cursor. */}
       <div className="h-12 overflow-hidden px-3 pt-1 text-zinc-500 dark:text-zinc-400" aria-live="polite">
         {recent.map((line, i) => (
@@ -35,11 +36,12 @@ export const CommandLine = forwardRef<HTMLInputElement, CommandLineProps>(functi
         ))}
       </div>
       <label className="flex items-center gap-2 px-3 py-1.5">
-        <span className="shrink-0 text-zinc-800 dark:text-zinc-200">{prompt ? t(prompt.key, prompt.params) : t('drafting.prompt.idle')}</span>
+        {/* A long prompt truncates (whole in its tooltip): it must never widen the drawing above. */}
+        <span className="min-w-0 truncate text-zinc-800 dark:text-zinc-200" title={promptText}>{promptText}</span>
         <input
           ref={ref}
           aria-label={t('drafting.commandLine')}
-          className="min-w-0 flex-1 bg-transparent outline-none text-zinc-900 dark:text-zinc-100"
+          className="min-w-32 flex-1 bg-transparent outline-none text-zinc-900 dark:text-zinc-100"
           value={value}
           spellCheck={false}
           autoComplete="off"

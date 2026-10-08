@@ -13,8 +13,13 @@
  *  - `flat`:  one facet at z = 0.
  *  - `mono`:  one facet rising from edge `eaveEdge` across the outline (any outline).
  *  - `gable`: two facets meeting at a ridge along the long axis (a rectangle).
- *  - `hip`:   four facets, the ridge shortened by the width (a rectangle).
+ *  - `hip`:   one facet per outline edge, any simple outline — the faces of
+ *             its straight skeleton (`straight-skeleton.ts`): hips, valleys, ridges.
+ *
+ * `overhang` pushes the eaves out past the outline (a mitred offset).
  */
+
+import { hipRoofFaces } from './straight-skeleton.js';
 
 export type RoofKind = 'flat' | 'mono' | 'gable' | 'hip';
 
@@ -27,6 +32,8 @@ export interface RoofSurfaceSpec {
   slope: number;
   /** Eave edge of a `mono` roof: outline edge i runs from point i to i + 1. Default 0. */
   eaveEdge?: number;
+  /** Eaves past the outline, metres (≥ 0). Default 0. */
+  overhang?: number;
 }
 
 const EPS = 1e-9;
@@ -75,8 +82,28 @@ function dedupe(loop: Vec3[]): Vec3[] {
 }
 
 /** The roof's top surface: planar facets, each counter-clockwise seen from above. */
+/** `pts` (counter-clockwise) offset outward by `d`, corners mitred. */
+export function offsetOutline(pts: readonly Vec2[], d: number): Vec2[] {
+  if (!(d > 0)) return pts.map((p) => [p[0], p[1]]);
+  const n = pts.length;
+  const lines = pts.map((a, i) => {
+    const b = pts[(i + 1) % n];
+    const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const dir: Vec2 = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+    // Outward is right of a counter-clockwise edge.
+    return { p: [a[0] + dir[1] * d, a[1] - dir[0] * d] as Vec2, dir };
+  });
+  return pts.map((_, i) => {
+    const l1 = lines[(i + n - 1) % n], l2 = lines[i];
+    const den = l1.dir[0] * l2.dir[1] - l1.dir[1] * l2.dir[0];
+    if (Math.abs(den) < 1e-12) return l2.p;
+    const t = ((l2.p[0] - l1.p[0]) * l2.dir[1] - (l2.p[1] - l1.p[1]) * l2.dir[0]) / den;
+    return [l1.p[0] + l1.dir[0] * t, l1.p[1] + l1.dir[1] * t];
+  });
+}
+
 export function roofFacets(outline: readonly Vec2[], spec: RoofSurfaceSpec): Vec3[][] {
-  const pts = ccw(outline);
+  const pts = offsetOutline(ccw(outline), spec.overhang ?? 0);
   if (spec.kind !== 'flat' && !(spec.slope >= 0 && spec.slope < Math.PI / 2 - 1e-6)) {
     throw new Error('roof: the slope must be between 0° and 90°');
   }
@@ -92,26 +119,17 @@ export function roofFacets(outline: readonly Vec2[], spec: RoofSurfaceSpec): Vec
       const n: Vec2 = [-(b[1] - a[1]) / l, (b[0] - a[0]) / l];
       return [pts.map(([x, y]) => [x, y, k * ((x - a[0]) * n[0] + (y - a[1]) * n[1])])];
     }
-    case 'gable':
-    case 'hip': {
+    case 'hip':
+      return hipRoofFaces(pts, spec.slope).map(dedupe).filter((f) => f.length >= 3);
+    case 'gable': {
       const r = rectangle(pts);
-      if (!r) throw new Error(`roof: a ${spec.kind} roof needs a rectangular outline`);
+      if (!r) throw new Error('roof: a gable roof needs a rectangular outline');
       const h = k * r.hw;
       const E = (s: number, t: number, z: number): Vec3 => [r.c[0] + r.u[0] * s + r.v[0] * t, r.c[1] + r.u[1] * s + r.v[1] * t, z];
       const { hl, hw } = r;
-      if (spec.kind === 'gable') {
-        return [
-          [E(-hl, -hw, 0), E(hl, -hw, 0), E(hl, 0, h), E(-hl, 0, h)],
-          [E(hl, hw, 0), E(-hl, hw, 0), E(-hl, 0, h), E(hl, 0, h)],
-        ];
-      }
-      const ridge = hl - hw;
-      const r1 = E(-ridge, 0, h), r2 = E(ridge, 0, h);
       return [
-        dedupe([E(-hl, -hw, 0), E(hl, -hw, 0), r2, r1]),
-        dedupe([E(hl, hw, 0), E(-hl, hw, 0), r1, r2]),
-        [E(hl, -hw, 0), E(hl, hw, 0), r2],
-        [E(-hl, hw, 0), E(-hl, -hw, 0), r1],
+        [E(-hl, -hw, 0), E(hl, -hw, 0), E(hl, 0, h), E(-hl, 0, h)],
+        [E(hl, hw, 0), E(-hl, hw, 0), E(-hl, 0, h), E(hl, 0, h)],
       ];
     }
   }

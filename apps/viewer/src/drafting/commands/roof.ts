@@ -4,10 +4,10 @@
 
 /**
  * ROOF: a closed contour on a floor plan becomes an IfcRoof — flat,
- * mono-pitch (rising from the contour's first edge), gable or hip (over a
- * rectangle). Click a closed drafted shape or inside a closed region; type
- * FLAT / MONO / GABLE / HIP, a pitch in degrees, or T and a thickness
- * (T0.3). The contour stays linked: editing it, or its roof parameters
+ * mono-pitch (rising from the contour's first edge), gable (over a
+ * rectangle) or hip (any contour). Click a closed drafted shape or inside a closed region; type
+ * FLAT / MONO / GABLE / HIP, a pitch in degrees, T and a thickness
+ * (T0.3) or O and an overhang (O0.5). The contour stays linked: editing it, or its roof parameters
  * (roofKind, slope, thickness, offset, eaveEdge), rebuilds the roof.
  */
 
@@ -25,7 +25,7 @@ export const roofCommand: DraftCommandDef = {
   create(ctx) {
     const s = ctx.settings;
     return {
-      prompt: () => ({ key: 'drafting.prompt.roof', params: { kind: s.roofKind.toUpperCase(), slope: s.roofSlope, thickness: s.roofThickness } }),
+      prompt: () => ({ key: 'drafting.prompt.roof', params: { kind: s.roofKind.toUpperCase(), slope: s.roofSlope, thickness: s.roofThickness, overhang: s.roofOverhang } }),
       input: () => 'point',
       basePoint: () => null,
       wantsValue: () => true,
@@ -43,6 +43,11 @@ export const roofCommand: DraftCommandDef = {
         const t = /^T(\d+(?:\.\d+)?)$/.exec(upper);
         if (t && Number(t[1]) > 0) {
           s.roofThickness = Number(t[1]);
+          return 'continue';
+        }
+        const o = /^O(\d+(?:\.\d+)?)$/.exec(upper);
+        if (o) {
+          s.roofOverhang = Number(o[1]);
           return 'continue';
         }
         return undefined;
@@ -64,7 +69,7 @@ export const roofCommand: DraftCommandDef = {
           ctx.say('drafting.msg.alreadyLinked');
           return 'continue';
         }
-        const spec = { kind: s.roofKind, slope: s.roofSlope, thickness: s.roofThickness, offset: 0, eaveEdge: 0 };
+        const spec = { kind: s.roofKind, slope: s.roofSlope, thickness: s.roofThickness, offset: 0, eaveEdge: 0, overhang: s.roofOverhang };
         const result = createRoofElement(view, plane, loop, spec, source.id);
         if (!result.ok) {
           ctx.say('drafting.msg.extrudeFailed', { detail: result.error });
@@ -72,7 +77,7 @@ export const roofCommand: DraftCommandDef = {
         }
         setDraftParams(new Set([source.id]), {
           ifcGlobalId: result.globalId, ifcModelId: result.modelId, ifcClass: 'IfcRoof',
-          roofKind: spec.kind, slope: spec.slope, thickness: spec.thickness, offset: 0, eaveEdge: 0,
+          roofKind: spec.kind, slope: spec.slope, thickness: spec.thickness, offset: 0, eaveEdge: 0, overhang: spec.overhang,
         });
         ctx.say('drafting.msg.extruded', { ifcClass: 'IfcRoof', guid: result.globalId });
         return 'continue';

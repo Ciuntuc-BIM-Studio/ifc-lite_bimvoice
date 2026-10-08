@@ -197,6 +197,6 @@ export const draftingEn = {
   'drafting.door.flipSide': 'Flip swing',
   'drafting.msg.selectDoors': 'Select the doors to flip first.',
   'drafting.cmd.roof': 'ROOF',
-  'drafting.prompt.roof': 'Click a closed contour or inside a region [{kind} · pitch {slope}° · thickness {thickness} m] — type FLAT / MONO / GABLE / HIP, a pitch, or T and a thickness; Enter to finish:',
+  'drafting.prompt.roof': 'Click a closed contour or inside a region [{kind} · pitch {slope}° · thickness {thickness} m · overhang {overhang} m] — type FLAT / MONO / GABLE / HIP, a pitch, T and a thickness, or O and an overhang; Enter to finish:',
   'drafting.bim.roof': 'Roof',
 } as const satisfies Record<string, TranslationValue>;

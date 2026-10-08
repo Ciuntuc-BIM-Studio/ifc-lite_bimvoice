@@ -64,7 +64,7 @@ export const useDraftingSession = create<SessionState>()(() => ({
 
 const HISTORY_LINES = 50;
 const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHeight: 0.25, hatchPattern: 'LINES45', hatchScale: 1, hatchAngle: 0, extrudeClass: 'IfcBuildingElementProxy', extrudeDepth: 1,
-  roofKind: 'gable', roofSlope: 30, roofThickness: 0.25 };
+  roofKind: 'gable', roofSlope: 30, roofThickness: 0.25, roofOverhang: 0 };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
 let referenceProvider: (min: Pt, max: Pt) => DraftShape[] = () => [];
@@ -314,7 +314,7 @@ export function submitCommandLine(text: string, cursor: Pt | null): void {
     return;
   }
   const word = trimmed.toUpperCase();
-  if (/^[A-Z][A-Z0-9_-]*$/.test(word) && command.onKeyword) {
+  if (/^[A-Z][A-Z0-9_.-]*$/.test(word) && command.onKeyword) {
     const result = command.onKeyword(word);
     if (result) {
       finish(result);
