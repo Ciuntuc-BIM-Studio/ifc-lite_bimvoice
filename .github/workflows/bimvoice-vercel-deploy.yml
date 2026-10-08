@@ -49,10 +49,14 @@ jobs:
         with:
           node-version: 22
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
+      # Pinned Rust nightly + wasm-pack, as the project's own CI installs them
+      # (the install script's wasm-pack installer can't write on this runner).
+      - name: Setup WASM build toolchain
+        uses: ./.github/actions/setup-wasm-build
         with:
-          workspaces: . -> target
+          cache-prefix: bimvoice-deploy
+          shared-key: bimvoice
+          save-if: 'true'
 
       - name: Vercel CLI
         run: npm i -g vercel@latest
