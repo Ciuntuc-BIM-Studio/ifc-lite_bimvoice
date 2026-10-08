@@ -49,6 +49,7 @@ import { screenToDrawing } from '@/drafting/frame';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
+import { RoofPlanLayer } from '../roof/RoofPlanLayer';
 import { exportViewDxf } from './view-dxf';
 import { drawnBySymbol, viewOpeningSymbols } from '@/project/view-symbols';
 import { symbolShapes } from '@/drafting/opening-symbols';
@@ -262,6 +263,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-destructive pointer-events-none">{entry.error}</div>
         ) : null}
         <OpeningSymbolsLayer plane={view.kind === 'plan' ? plane ?? null : null} hidden={hidden} transform={viewTransform} axis={axis} />
+        <RoofPlanLayer view={view} plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
         <DraftOverlay
           entities={entities}
           layers={layers}

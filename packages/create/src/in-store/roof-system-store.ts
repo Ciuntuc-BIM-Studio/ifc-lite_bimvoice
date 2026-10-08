@@ -217,6 +217,11 @@ export function readRoofSystem(store: IfcDataStore, roofId: number, view?: Mutab
   return readRoof(store, roofId, view)?.spec ?? null;
 }
 
+/** The parts (planes and members) of roof system `roofId`. */
+export function roofSystemParts(store: IfcDataStore, roofId: number, view?: MutablePropertyView | null): number[] {
+  return readRoof(store, roofId, view)?.parts.map((p) => p.id) ?? [];
+}
+
 /** The roof system an element belongs to (the roof itself, or one of its parts), or null. */
 export function roofSystemOf(store: IfcDataStore, elementId: number, view?: MutablePropertyView | null): number | null {
   if (readRoof(store, elementId, view)) return elementId;

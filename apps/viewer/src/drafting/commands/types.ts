@@ -62,6 +62,8 @@ export interface DraftSettings {
   extrudeClass: string;
   extrudeDepth: number;
   roofKind: 'flat' | 'mono' | 'gable' | 'hip';
+  /** Build a roof system (per-edge rules, covering and structure as parts) rather than one solid. */
+  roofSystem: boolean;
   /** Degrees. */
   roofSlope: number;
   roofThickness: number;

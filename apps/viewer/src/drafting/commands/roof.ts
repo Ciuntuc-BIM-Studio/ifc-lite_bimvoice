@@ -3,15 +3,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * ROOF: a closed contour on a floor plan becomes an IfcRoof — flat,
- * mono-pitch (rising from the contour's first edge), gable (over a
- * rectangle) or hip (any contour). Click a closed drafted shape or inside a closed region; type
- * FLAT / MONO / GABLE / HIP, a pitch in degrees, T and a thickness
- * (T0.3) or O and an overhang (O0.5). The contour stays linked: editing it, or its roof parameters
- * (roofKind, slope, thickness, offset, eaveEdge), rebuilds the roof.
+ * ROOF: a closed contour on a floor plan becomes a roof. By default a roof
+ * SYSTEM (`roof-system-element.ts`): an IfcRoof of covering planes and
+ * timber structure, its rules per edge — GABLE puts gables on a rectangle's
+ * short edges, HIP makes every edge an eave, MONO only the first — to refine
+ * in the roof configurator. SIMPLE makes the older single solid instead
+ * (FLAT is always simple). Type a pitch in degrees, T and a thickness (T0.3)
+ * or O and an overhang (O0.5). The contour stays linked: editing it rebuilds
+ * the roof.
  */
 
 import { createRoofElement } from '@/project/roof-element';
+import { createRoofSystem } from '@/project/roof-system-element';
 import { setDraftParams } from '../draft-store';
 import { pickSource, shapeLoop } from './model';
 import type { DraftCommandDef } from './types';
@@ -25,7 +28,7 @@ export const roofCommand: DraftCommandDef = {
   create(ctx) {
     const s = ctx.settings;
     return {
-      prompt: () => ({ key: 'drafting.prompt.roof', params: { kind: s.roofKind.toUpperCase(), slope: s.roofSlope, thickness: s.roofThickness, overhang: s.roofOverhang } }),
+      prompt: () => ({ key: 'drafting.prompt.roof', params: { kind: `${s.roofKind.toUpperCase()}${s.roofSystem && s.roofKind !== 'flat' ? ' SYSTEM' : ''}`, slope: s.roofSlope, thickness: s.roofThickness, overhang: s.roofOverhang } }),
       input: () => 'point',
       basePoint: () => null,
       wantsValue: () => true,
@@ -38,6 +41,10 @@ export const roofCommand: DraftCommandDef = {
         const kind = KINDS[upper as keyof typeof KINDS];
         if (kind) {
           s.roofKind = kind;
+          return 'continue';
+        }
+        if (upper === 'SYSTEM' || upper === 'SIMPLE') {
+          s.roofSystem = upper === 'SYSTEM';
           return 'continue';
         }
         const t = /^T(\d+(?:\.\d+)?)$/.exec(upper);
@@ -67,6 +74,18 @@ export const roofCommand: DraftCommandDef = {
         }
         if (source.params.ifcGlobalId) {
           ctx.say('drafting.msg.alreadyLinked');
+          return 'continue';
+        }
+        if (s.roofSystem && s.roofKind !== 'flat') {
+          // The covering only: the structure is its own parts (a typed T is the covering's thickness when it is thin).
+          const covering = s.roofThickness <= 0.15 ? s.roofThickness : 0.08;
+          const made = createRoofSystem(view, plane, loop, { shape: s.roofKind, pitch: s.roofSlope, overhang: s.roofOverhang, thickness: covering, eaveHeight: 0 });
+          if (!made.ok) {
+            ctx.say('drafting.msg.extrudeFailed', { detail: made.error });
+            return 'continue';
+          }
+          setDraftParams(new Set([source.id]), { ifcGlobalId: made.globalId, ifcModelId: made.modelId, ifcClass: 'IfcRoof', roofSystem: 1 });
+          ctx.say('drafting.msg.roofSystem', { guid: made.globalId });
           return 'continue';
         }
         const spec = { kind: s.roofKind, slope: s.roofSlope, thickness: s.roofThickness, offset: 0, eaveEdge: 0, overhang: s.roofOverhang };
