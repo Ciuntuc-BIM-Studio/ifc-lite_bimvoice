@@ -9,6 +9,7 @@
 
 import { DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE } from '@/drafting/styles';
 import { describe, it } from 'node:test';
+import { defaultWindowSpec } from '@ifc-lite/create';
 import assert from 'node:assert/strict';
 import { parseProjectFile, serializeProject } from './project-file.js';
 import type { ProjectDocument } from './types.js';
@@ -33,6 +34,8 @@ const doc: ProjectDocument = {
   textStyles: [{ ...DEFAULT_TEXT_STYLE }, { ...DEFAULT_TEXT_STYLE, id: 'big', name: 'Big', height: 5, bold: true, color: '#aa0000' }],
   dimStyles: [{ ...DEFAULT_DIM_STYLE }, { ...DEFAULT_DIM_STYLE, id: 'arch', name: 'Arch', arrow: 'arrow', placement: 'below', unit: 'mm', precision: 0 }],
   layerGroups: [{ id: 'g1', name: 'Annotation', visible: false, locked: true }],
+  joineryTypes: [{ ...defaultWindowSpec('W-1'), id: 'j1', columns: [2, 1], panels: [{ col: 0, row: 0, operation: 'tilt-turn-right' }] }],
+  currentJoinery: { window: 'j1' },
 };
 
 describe('project file', () => {

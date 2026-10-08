@@ -13,6 +13,7 @@ import { downloadFile, sanitizeFilename } from '@/lib/export/download.js';
 import { readDraft, readDraftLayer } from '@/drafting/draft-file';
 import { readSheetLayout } from './sheet-file';
 import { readStandards } from './standards-file';
+import { readJoineryList } from '@/joinery/spec-file';
 import type { CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
@@ -120,6 +121,8 @@ export function parseProjectFile(text: string): ProjectDocument {
     hatchPatterns: isString(raw.hatchPatterns) ? raw.hatchPatterns : '',
     symbolFlips: readFlips(raw.symbolFlips),
     ...readStandards(raw),
+    joineryTypes: readJoineryList(raw.joineryTypes),
+    currentJoinery: readCurrentJoinery(raw.currentJoinery),
   };
 }
 
@@ -160,4 +163,12 @@ function readFlips(value: unknown): Record<string, number> {
 
 export async function importProjectFile(file: File): Promise<ProjectDocument> {
   return parseProjectFile(await file.text());
+}
+
+function readCurrentJoinery(raw: unknown): { door?: string; window?: string } {
+  if (!isObject(raw)) return {};
+  return {
+    ...(isString(raw.door) ? { door: raw.door } : {}),
+    ...(isString(raw.window) ? { window: raw.window } : {}),
+  };
 }

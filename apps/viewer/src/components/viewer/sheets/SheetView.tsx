@@ -21,7 +21,7 @@ import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import type { DraftShape } from '@/drafting/types';
 import { hiddenClasses, styledDrawing } from '@/project/view-graphics';
 import { partHostType } from '@/project/part-host';
-import { viewOpeningSymbols } from '@/project/view-symbols';
+import { drawnBySymbol, viewOpeningSymbols } from '@/project/view-symbols';
 import { symbolShapes } from '@/drafting/opening-symbols';
 import { useDrawingRuntime } from '@/lib/drawing/drawing-runtime';
 import { VIEW_DRAG_TYPE } from '../project/ProjectTreeRow';
@@ -69,7 +69,7 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
       if (out.has(vp.viewId)) continue;
       const view = views.find((v) => v.id === vp.viewId);
       const raw = (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing;
-      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType) : null;
+      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined) : null;
       const symbols = view?.kind === 'plan' && raw && geometryResult?.meshes
         ? viewOpeningSymbols(geometryResult.meshes, raw.config.plane, flips, hiddenClasses(view.graphics)).flatMap(symbolShapes)
         : [];

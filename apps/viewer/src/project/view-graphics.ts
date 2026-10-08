@@ -100,7 +100,16 @@ export function styledDrawing(
   drawing: Drawing2D,
   graphics: ViewGraphics | undefined,
   hostTypeOf: (entityId: number, ifcType: string | undefined) => string | null = () => null,
+  /** Elements a symbol draws instead (a plan's configured doors and windows): their cut and lines are left out. */
+  replaced?: (entityId: number, ifcType: string | undefined) => boolean,
 ): Drawing2D {
+  if (replaced) {
+    drawing = {
+      ...drawing,
+      cutPolygons: drawing.cutPolygons.filter((p) => !replaced(p.entityId, p.ifcType)),
+      lines: drawing.lines.filter((l) => !replaced(l.entityId, l.ifcType)),
+    };
+  }
   const hidden = hiddenClasses(graphics);
   const fills = new Map<string, [number, number, number, number]>();
   for (const category of VIEW_CATEGORIES) {

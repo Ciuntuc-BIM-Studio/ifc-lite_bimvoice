@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import type { JoinerySpec } from '@ifc-lite/create';
 import type { DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
 
 /**
@@ -170,4 +171,8 @@ export interface ProjectDocument {
   layerGroups?: LayerGroup[];
   /** Plan symbol overrides by element GlobalId: bit 1 hinges a door on its other jamb, bit 2 swings it to the other side. */
   symbolFlips?: Record<string, number>;
+  /** The project's door and window types (the configurator's catalogue); each is one IFC type per model it is placed in. */
+  joineryTypes?: JoinerySpec[];
+  /** The catalogue entry the Door / Window tools place, per kind. */
+  currentJoinery?: { door?: string; window?: string };
 }

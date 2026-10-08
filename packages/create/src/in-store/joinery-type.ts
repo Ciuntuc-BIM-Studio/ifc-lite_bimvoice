@@ -218,14 +218,34 @@ export function replaceJoineryTypeInStore(editor: StoreEditor, anchor: JoineryAn
 }
 
 /**
- * An occurrence's body: one IfcMappedItem of the type's map, through an
- * identity transformation (the occurrence's own placement puts it in the wall).
+ * An occurrence's body: one IfcMappedItem of the type's map. The
+ * occurrence's own placement puts it in the wall; `flips` turns it there —
+ * bit 1 mirrors it across its width (hinges on the other jamb), bit 2 turns
+ * it 180° about the vertical (opens to the other side). Both are written as
+ * the operator's axes (Axis3 explicit, so a mirror is a left-handed basis):
+ * IFC requires a positive Scale, so a negative scale is not an option.
  */
-export function emitMappedBody(editor: StoreEditor, bodyContextId: number, mapId: number): { shapeRepId: number; productShapeId: number } {
+export function emitMappedBody(editor: StoreEditor, bodyContextId: number, mapId: number, flips = 0): { shapeRepId: number; productShapeId: number } {
   const origin = editor.addEntity('IfcCartesianPoint', [[0, 0, 0]]).expressId;
-  const operator = editor.addEntity('IfcCartesianTransformationOperator3D', [null, null, `#${origin}`, null, null]).expressId;
+  let operator: number;
+  if (flips & 3) {
+    const turned = (flips & 2) !== 0, mirrored = ((flips & 1) !== 0) !== turned;
+    const axis1 = editor.addEntity('IfcDirection', [[mirrored ? -1 : 1, 0, 0]]).expressId;
+    const axis2 = editor.addEntity('IfcDirection', [[0, turned ? -1 : 1, 0]]).expressId;
+    const axis3 = editor.addEntity('IfcDirection', [[0, 0, 1]]).expressId;
+    operator = editor.addEntity('IfcCartesianTransformationOperator3D', [`#${axis1}`, `#${axis2}`, `#${origin}`, null, `#${axis3}`]).expressId;
+  } else {
+    operator = editor.addEntity('IfcCartesianTransformationOperator3D', [null, null, `#${origin}`, null, null]).expressId;
+  }
   const item = editor.addEntity('IfcMappedItem', [`#${mapId}`, `#${operator}`]).expressId;
   const shapeRepId = editor.addEntity('IfcShapeRepresentation', [`#${bodyContextId}`, 'Body', 'MappedRepresentation', [`#${item}`]]).expressId;
   const productShapeId = editor.addEntity('IfcProductDefinitionShape', [null, null, [`#${shapeRepId}`]]).expressId;
   return { shapeRepId, productShapeId };
+}
+
+/** Apply `flips` (as `emitMappedBody`) to a point of the type frame. */
+export function flipPoint(x: number, y: number, flips: number): [number, number] {
+  let px = flips & 1 ? -x : x, py = y;
+  if (flips & 2) { px = -px; py = -py; }
+  return [px, py];
 }

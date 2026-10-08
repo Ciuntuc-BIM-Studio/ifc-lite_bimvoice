@@ -149,7 +149,7 @@ const KIND: Record<string, 'door' | 'window'> = { IFCDOOR: 'door', IFCDOORSTANDA
  */
 export function openingSymbols(
   meshes: readonly MeshData[], plane: SectionPlaneConfig, flipsOf: (id: number) => number = () => 0,
-  typedOf: (id: number) => JoinerySpec | null = () => null,
+  typedOf: (id: number) => { spec: JoinerySpec; flips: number } | null = () => null,
 ): OpeningSymbol[] {
   if (plane.axis !== 'y' || plane.customPlane) return [];
   const cut = plane.position;
@@ -174,8 +174,8 @@ export function openingSymbols(
   const out: OpeningSymbol[] = [];
   for (const [id, entry] of byId) {
     if (cut < entry.minY || cut > entry.maxY) continue;
-    const spec = entry.l2w ? typedOf(id) : null;
-    const typed = spec && entry.l2w ? typedPlanSymbol(spec, entry.world, entry.l2w, plane, flipsOf(id)) : null;
+    const configured = entry.l2w ? typedOf(id) : null;
+    const typed = configured && entry.l2w ? typedPlanSymbol(configured.spec, entry.world, entry.l2w, plane, configured.flips) : null;
     if (typed) {
       out.push({ id, kind: entry.kind, shapes: typed.thin, heavy: typed.heavy, dashed: typed.dashed });
       continue;

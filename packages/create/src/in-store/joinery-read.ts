@@ -69,3 +69,35 @@ export function readJoineryType(store: IfcDataStore, typeId: number, view?: Muta
   }
   return null;
 }
+
+function direction(reader: AnchorEntityReader, value: unknown): number[] | null {
+  const id = refId(value);
+  const ratios = id === null ? null : reader.entity(id)?.attributes[0];
+  return Array.isArray(ratios) ? ratios.map((v) => (v && typeof v === 'object' && 'real' in v ? Number((v as { real: number }).real) : Number(v))) : null;
+}
+
+/**
+ * How an occurrence's mapped body is turned (`emitMappedBody`'s `flips`):
+ * read from its IfcMappedItem's operator axes; 0 for anything else.
+ */
+export function readJoineryFlips(store: IfcDataStore, productId: number, view?: MutablePropertyView | null): number {
+  const reader = new AnchorEntityReader(store, view);
+  const product = reader.entity(productId);
+  const shape = product ? reader.entity(refId(product.attributes[6]) ?? -1) : null;
+  const reps = shape?.attributes[2];
+  for (const repRef of Array.isArray(reps) ? reps : []) {
+    const rep = reader.entity(refId(repRef) ?? -1);
+    const items = rep?.attributes[3];
+    for (const itemRef of Array.isArray(items) ? items : []) {
+      const item = reader.entity(refId(itemRef) ?? -1);
+      if (item?.type.toUpperCase() !== 'IFCMAPPEDITEM') continue;
+      const operator = reader.entity(refId(item.attributes[1]) ?? -1);
+      if (!operator) return 0;
+      const a1 = direction(reader, operator.attributes[0]), a2 = direction(reader, operator.attributes[1]);
+      const turned = !!a2 && a2[1] < 0;
+      const mirroredX = !!a1 && a1[0] < 0;
+      return (mirroredX !== turned ? 1 : 0) | (turned ? 2 : 0);
+    }
+  }
+  return 0;
+}

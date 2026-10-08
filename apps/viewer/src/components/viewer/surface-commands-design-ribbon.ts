@@ -11,12 +11,14 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide, JoineryTypes,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { startBimTool } from '@/project/model-command-bridge';
+import { openJoinery } from '@/joinery/dialog-store';
 import { useViewerStore } from '@/store';
-import { selectedGlobalIds } from '@/project/element-guid';
+import { renderIdGlobalId, selectedGlobalIds } from '@/project/element-guid';
+import { flipSelectedJoinery } from '@/joinery/catalog';
 import { toggleSymbolFlips } from '@/project/project-store';
 import { changeSelectedWallJoins, defaultWallJoinStyle, setDefaultWallJoinStyle, type WallJoinChange } from '@/lib/wall-join-style';
 import { startWorkPlaneFromFace } from '@/project/workplane-from-face';
@@ -61,9 +63,10 @@ function joins(change: WallJoinChange): () => void {
 /** Flip the plan symbol of the selected doors (hinge jamb: bit 1, swing side: bit 2). */
 function flipDoors(bit: 1 | 2): () => void {
   return () => {
-    const ids = selectedGlobalIds();
-    if (ids.length === 0) toast.info(resolve('drafting.msg.selectDoors'));
-    else toggleSymbolFlips(ids, bit);
+    if (selectedGlobalIds().length === 0) { toast.info(resolve('drafting.msg.selectDoors')); return; }
+    // Configured doors / windows turn in the model; the others flip their plan symbol only.
+    const rest = flipSelectedJoinery(bit).map(renderIdGlobalId).filter((g): g is string => !!g);
+    toggleSymbolFlips(rest, bit);
   };
 }
 
@@ -90,6 +93,7 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:join-butt', labelKey: 'drafting.join.butt', keywords: 'wall join corner butt square', category: 'Tools', icon: JoinButt, surfaces: ribbonOnly, enabled: always, run: joins({ style: 'butt' }) },
   { id: 'design:join-swap', labelKey: 'drafting.join.swap', keywords: 'wall join corner swap priority through', category: 'Tools', icon: JoinSwap, surfaces: ribbonOnly, enabled: always, run: joins({ swap: true }) },
   { id: 'design:join-auto-mitre', labelKey: 'drafting.join.autoMitre', keywords: 'wall join automatic default mitre corners', category: 'Tools', icon: JoinAuto, surfaces: ribbonOnly, enabled: always, run: toggleAutoMitre },
+  { id: 'design:joinery', labelKey: 'joinery.open', keywords: 'door window type configurator catalogue joinery frame sash tilt turn schedule', category: 'Tools', icon: JoineryTypes, surfaces: ribbonOnly, enabled: always, run: () => openJoinery() },
   { id: 'design:door-flip-hand', labelKey: 'drafting.door.flipHand', keywords: 'door swing hinge hand flip plan symbol', category: 'Tools', icon: DoorFlipHand, surfaces: ribbonOnly, enabled: always, run: flipDoors(1) },
   { id: 'design:door-flip-side', labelKey: 'drafting.door.flipSide', keywords: 'door swing side flip plan symbol', category: 'Tools', icon: DoorFlipSide, surfaces: ribbonOnly, enabled: always, run: flipDoors(2) },
   { id: 'design:bim-room', labelKey: 'drafting.bim.room', keywords: 'room space bim place', category: 'Tools', icon: BimRoom, surfaces: ribbonOnly, enabled: always, run: bim('room.place') },

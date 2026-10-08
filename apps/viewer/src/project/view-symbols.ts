@@ -21,5 +21,10 @@ export function viewOpeningSymbols(
     const guid = flips && Object.keys(flips).length > 0 ? renderIdGlobalId(id) : null;
     return guid ? flips?.[guid] ?? 0 : 0;
   };
-  return openingSymbols(meshes, plane, flipsOf, (id) => joineryOfRenderId(id)?.spec ?? null).filter((s) => !hidden.has(s.kind === 'door' ? 'IFCDOOR' : 'IFCWINDOW'));
+  return openingSymbols(meshes, plane, flipsOf, joineryOfRenderId).filter((s) => !hidden.has(s.kind === 'door' ? 'IFCDOOR' : 'IFCWINDOW'));
+}
+
+/** Whether a plan draws element `id` from its configured type's symbol (so not from its cut). */
+export function drawnBySymbol(id: number, ifcType: string | undefined): boolean {
+  return /^IFC(DOOR|WINDOW)/i.test(ifcType ?? '') && joineryOfRenderId(id) !== null;
 }

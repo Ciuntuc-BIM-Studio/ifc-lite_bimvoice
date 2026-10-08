@@ -99,6 +99,8 @@ export interface JoineryCommonProps {
 }
 
 export interface JoinerySpec {
+  /** The project catalogue entry this type is (one type object per entry per model). */
+  id?: string;
   kind: JoineryKind;
   name: string;
   /** Schedule mark prefix: occurrences are tagged `<mark><n>`. */

@@ -12,7 +12,7 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, JoineryTypes, DoorFlipSide,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { useViewerStore } from '@/store';
@@ -85,6 +85,7 @@ export function DesignTab() {
           <RibbonCommandSmallButton commandId="design:door-flip-hand" icon={DoorFlipHand} />
           <RibbonCommandSmallButton commandId="design:door-flip-side" icon={DoorFlipSide} />
         </RibbonSmallStack>
+        <RibbonCommandLargeButton commandId="design:joinery" icon={JoineryTypes} />
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.joins')}>

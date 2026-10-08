@@ -9,13 +9,18 @@
  * until that model's overlay changes.
  */
 
-import { readJoineryType, type JoineryTypeRead } from '@ifc-lite/create';
+import { readJoineryFlips, readJoineryType, type JoineryTypeRead } from '@ifc-lite/create';
 import { useViewerStore } from '@/store';
 import { typeOf } from '@/lib/commands/modeling/authored-kinds';
 
+/** A configured element: its type, and how it is turned in its opening (`emitMappedBody`'s flips). */
+export interface JoineryElement extends JoineryTypeRead {
+  flips: number;
+}
+
 interface ModelMemo {
   stamp: string;
-  byElement: Map<number, JoineryTypeRead | null>;
+  byElement: Map<number, JoineryElement | null>;
 }
 
 const memo = new Map<string, ModelMemo>();
@@ -27,7 +32,7 @@ export function invalidateJoineryReads(modelId?: string): void {
 }
 
 /** The joinery type of element `expressId` in `modelId`, or null when it has none configured. */
-export function joineryOfElement(modelId: string, expressId: number): JoineryTypeRead | null {
+export function joineryOfElement(modelId: string, expressId: number): JoineryElement | null {
   const s = useViewerStore.getState();
   const dataStore = s.models.get(modelId)?.ifcDataStore;
   if (!dataStore) return null;
@@ -39,10 +44,11 @@ export function joineryOfElement(modelId: string, expressId: number): JoineryTyp
     memo.set(modelId, m);
   }
   if (m.byElement.has(expressId)) return m.byElement.get(expressId) ?? null;
-  let read: JoineryTypeRead | null = null;
+  let read: JoineryElement | null = null;
   try {
     const typeId = typeOf({ dataStore, view }, expressId);
-    read = typeId === null ? null : readJoineryType(dataStore, typeId, view);
+    const type = typeId === null ? null : readJoineryType(dataStore, typeId, view);
+    read = type ? { ...type, flips: readJoineryFlips(dataStore, expressId, view) } : null;
   } catch {
     read = null;
   }
@@ -51,7 +57,7 @@ export function joineryOfElement(modelId: string, expressId: number): JoineryTyp
 }
 
 /** The same, by renderer (federation-global) id. */
-export function joineryOfRenderId(id: number): JoineryTypeRead | null {
+export function joineryOfRenderId(id: number): JoineryElement | null {
   const ref = useViewerStore.getState().resolveGlobalIdFromModels(id);
   return ref ? joineryOfElement(ref.modelId, ref.expressId) : null;
 }

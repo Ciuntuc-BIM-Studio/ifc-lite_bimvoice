@@ -46,6 +46,25 @@ export interface HostedPlaceGesture {
 }
 
 const OPENING_DEFAULT: OpeningSize = { Width: 1, Height: 1, Sill: 1 };
+
+/**
+ * A configured door / window type to place (the project's joinery catalogue,
+ * registered by `joinery/placement.ts`): its size, and how to get its
+ * representation map into the target model and type the new element.
+ */
+export interface HostedJoinery {
+  readonly name: string;
+  readonly mark: string;
+  readonly width: number;
+  readonly height: number;
+  /** The type's IfcRepresentationMap in `modelId`, written in `batchId` if new. */
+  ensureMap(modelId: string, batchId: string | undefined): number;
+  /** Type the placed element, in the same undo step. */
+  assign(modelId: string, expressId: number, batchId: string | undefined): void;
+}
+
+let joineryOf: (kind: 'door' | 'window') => HostedJoinery | null = () => null;
+export function registerHostedJoinery(provider: typeof joineryOf): void { joineryOf = provider; }
 /** Tolerance on the fit checks: a typed value exactly at the wall's edge fits. */
 const FIT_EPS = 1e-6;
 
@@ -61,6 +80,8 @@ const HINT: Readonly<Record<HostedFillKind, TranslationKey>> = {
 /** The size and sill the next commit builds with, metres. */
 export function hostedSize(kind: HostedFillKind, g: HostedPlaceGesture, ctx: Ctx): OpeningSize {
   if (kind === 'opening') return g.opening;
+  const typed = joineryOf(kind);
+  if (typed) return { Width: typed.width, Height: typed.height, Sill: dimOf(ctx, kind, 'SillHeight') };
   return { Width: dimOf(ctx, kind, 'Width'), Height: dimOf(ctx, kind, 'Height'), Sill: dimOf(ctx, kind, 'SillHeight') };
 }
 
@@ -110,7 +131,17 @@ function fieldsOf(kind: HostedFillKind): readonly CommandField<HostedPlaceGestur
       openingField('Width', 'modelingCommand.field.width'), openingField('Height', 'modelingCommand.field.height')];
   }
   return [OFFSET_FIELD, sillDefaultField(kind),
-    defaultsField('width', kind, 'Width', 'modelingCommand.field.width'), defaultsField('height', kind, 'Height', 'modelingCommand.field.height')];
+    typedAware(kind, 'width', defaultsField('width', kind, 'Width', 'modelingCommand.field.width')),
+    typedAware(kind, 'height', defaultsField('height', kind, 'Height', 'modelingCommand.field.height'))];
+}
+
+/** A configured type's size is its own: the field shows it and typing does not change it (edit the type). */
+function typedAware(kind: 'door' | 'window', dim: 'width' | 'height', field: CommandField<HostedPlaceGesture>): CommandField<HostedPlaceGesture> {
+  return {
+    ...field,
+    read: (g, ctx) => joineryOf(kind)?.[dim] ?? field.read(g, ctx),
+    write: (g, v, ctx) => (joineryOf(kind) ? g : field.write(g, v, ctx)),
+  };
 }
 
 /** The builder parameters for the gesture, in the host's frame. */
@@ -147,8 +178,15 @@ function makeHostedPlace(kind: HostedFillKind): ModelingCommand<HostedPlaceGestu
     commit(g, tx) {
       if (!g.host || g.offset === null) throw new Error('Doors, windows and openings go in a wall: point at one on this storey');
       const ctx = { get: () => tx.store };
-      const placed = tx.store.addHostedFill(tx.modelId, g.host.expressId, specOf(kind, g, ctx), tx.batchId);
+      const typed = kind === 'opening' ? null : joineryOf(kind);
+      let spec = specOf(kind, g, ctx);
+      if (typed && spec.kind !== 'opening') {
+        const MappedBody = typed.ensureMap(tx.modelId, tx.batchId);
+        spec = { ...spec, params: { ...spec.params, MappedBody, Name: typed.name, ObjectType: typed.mark } } as HostedFillSpec;
+      }
+      const placed = tx.store.addHostedFill(tx.modelId, g.host.expressId, spec, tx.batchId);
       if ('error' in placed) throw new Error(placed.error);
+      if (typed) typed.assign(tx.modelId, placed.expressId, tx.batchId);
       const created = [...new Set([placed.expressId, placed.openingId])];
       return {
         created,
@@ -156,8 +194,8 @@ function makeHostedPlace(kind: HostedFillKind): ModelingCommand<HostedPlaceGestu
         remesh: [placed.expressId, g.host.expressId],
         // An opening has no mesh to show selected; a door or window is selected to edit next.
         select: kind === 'opening' ? [] : [placed.expressId],
-        // A door or window takes the kind's type default in the same step.
-        authored: kind === 'opening' ? [] : [placed.expressId],
+        // A door or window takes the kind's type default in the same step (a configured one has its own).
+        authored: kind === 'opening' || typed ? [] : [placed.expressId],
       };
     },
     // Keep the host, the offset lock and a bare opening's size for the next one.

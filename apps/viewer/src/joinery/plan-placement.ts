@@ -11,7 +11,7 @@
  * side and the cut height are the element's real ones.
  */
 
-import { joineryBoxes, type JoinerySpec } from '@ifc-lite/create';
+import { flipPoint, joineryBoxes, type JoinerySpec } from '@ifc-lite/create';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import { worldToDrawing } from '@/drafting/frame';
 import type { DraftShape, Pt } from '@/drafting/types';
@@ -30,7 +30,7 @@ function unit(v: V3): V3 | null {
   return l > 1e-9 ? [v[0] / l, v[1] / l, v[2] / l] : null;
 }
 
-/** `world`: the element's vertices (flat x, y, z, renderer frame); `flips`: bit 1 mirrors the hand, bit 2 the facing. */
+/** `world`: the element's vertices (flat x, y, z, renderer frame); `flips`: how its mapped body is turned (`emitMappedBody`). */
 export function typedPlanSymbol(
   spec: JoinerySpec, world: readonly number[], localToWorld: readonly number[], plane: SectionPlaneConfig, flips = 0,
 ): TypedPlanSymbol | null {
@@ -50,9 +50,11 @@ export function typedPlanSymbol(
   if (!Number.isFinite(minA)) return null;
   const boxes = joineryBoxes(spec);
   let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
-  for (const b of boxes) {
-    xMin = Math.min(xMin, b.min[0]); xMax = Math.max(xMax, b.max[0]);
-    yMin = Math.min(yMin, b.min[1]); yMax = Math.max(yMax, b.max[1]);
+  // The body as turned in its opening.
+  for (const b of boxes) for (const [x, y] of [[b.min[0], b.min[1]], [b.max[0], b.max[1]]]) {
+    const [fx, fy] = flipPoint(x, y, flips);
+    xMin = Math.min(xMin, fx); xMax = Math.max(xMax, fx);
+    yMin = Math.min(yMin, fy); yMax = Math.max(yMax, fy);
   }
   const tx = (minA + maxA) / 2 - (xMin + xMax) / 2;
   const ty = minB - yMin;
@@ -60,8 +62,7 @@ export function typedPlanSymbol(
   const cutZ = (level - minC) / up[1];
   if (cutZ < 0 || cutZ > spec.height) return null;
   const toDrawing = (p: { x: number; y: number }): Pt => {
-    const x = flips & 1 ? -p.x : p.x;
-    const y = flips & 2 ? yMin + yMax - p.y : p.y;
+    const [x, y] = flipPoint(p.x, p.y, flips);
     const w: V3 = [
       ex[0] * (x + tx) + ez[0] * (y + ty),
       level,

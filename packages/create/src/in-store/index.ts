@@ -60,8 +60,12 @@ export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } fr
 export * from './joinery-spec.js';
 export { doorOperation, doorPanelOperation, liningOffsets, panelPosition, panelWidthRatio, windowPanelOperation, windowPartitioning } from './joinery-ifc.js';
 export { handleSide, joineryBoxes, type JoineryBox, type JoineryRole } from './joinery-geometry.js';
-export { readJoineryType, type JoineryTypeRead } from './joinery-read.js';
-export { addJoineryTypeToStore, emitMappedBody, replaceJoineryTypeInStore, JOINERY_PSET, type JoineryAnchor, type JoineryTypeResult } from './joinery-type.js';
+export { readJoineryFlips, readJoineryType, type JoineryTypeRead } from './joinery-read.js';
+export {
+  ensureJoineryTypeInStore, findJoineryTypeInStore, joineryTypesInStore, occurrencesOfTypeInStore, resolveJoineryAnchor,
+  retypeOccurrencesInStore, setJoineryFlipsInStore, syncJoineryTypeInStore, type JoineryInModel, type JoinerySyncResult,
+} from './joinery-sync.js';
+export { addJoineryTypeToStore, emitMappedBody, flipPoint, replaceJoineryTypeInStore, JOINERY_PSET, type JoineryAnchor, type JoineryTypeResult } from './joinery-type.js';
 export {
   addOpeningToStore,
   type OpeningInStoreParams,

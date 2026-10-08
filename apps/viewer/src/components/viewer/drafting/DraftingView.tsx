@@ -50,7 +50,7 @@ import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
 import { exportViewDxf } from './view-dxf';
-import { viewOpeningSymbols } from '@/project/view-symbols';
+import { drawnBySymbol, viewOpeningSymbols } from '@/project/view-symbols';
 import { symbolShapes } from '@/drafting/opening-symbols';
 import { partHostType } from '@/project/part-host';
 import { cutHatches, hiddenClasses, DEFAULT_VIEW_PRESET, styledDrawing, viewOverrideRules } from '@/project/view-graphics';
@@ -106,7 +106,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const entityShapes = useMemo(() => entities.flatMap((e) => (isGeometry(e.shape) ? [e.shape] : [])), [entities]);
   // The view's own graphics (preset + category overrides), applied to its drawing.
   const graphics = view.graphics;
-  const shown = useMemo(() => (drawing ? styledDrawing(drawing, graphics, partHostType) : null), [drawing, graphics]);
+  const shown = useMemo(() => (drawing ? styledDrawing(drawing, graphics, partHostType, view.kind === 'plan' ? drawnBySymbol : undefined) : null), [drawing, graphics, view.kind]);
   const overrideRules = useMemo(() => viewOverrideRules(graphics), [graphics]);
   const overrideEngine = useMemo(() => new GraphicOverrideEngine(overrideRules), [overrideRules]);
   const useIfcMaterials = (graphics?.presetId === undefined ? DEFAULT_VIEW_PRESET : graphics.presetId) === DEFAULT_VIEW_PRESET;
