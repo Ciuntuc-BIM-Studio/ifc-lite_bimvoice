@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { HierarchyPanel } from '@/components/viewer/HierarchyPanel';
 import { useProjectSync } from '@/project/project-sync';
 import { useLinkedElementSync } from '@/project/useLinkedElementSync';
+import { useElementTagSync } from '@/project/useElementTagSync';
 import { ProjectNavigatorPanel } from './ProjectNavigatorPanel';
 import { NewProjectHost } from './NewProjectDialog';
 
@@ -34,6 +35,7 @@ export function LeftNavigator() {
   const { t } = useTranslation();
   useProjectSync();
   useLinkedElementSync();
+  useElementTagSync();
   const [tab, setTab] = useState<LeftTab>(readTab);
   const select = (next: LeftTab) => {
     setTab(next);

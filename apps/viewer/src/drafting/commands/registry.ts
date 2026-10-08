@@ -13,9 +13,10 @@ import { extrudeCommand } from './model';
 import { roofCommand } from './roof';
 import { revolveCommand, sweepCommand } from './solids';
 import { HOSTED_COMMANDS } from './hosted';
+import { tagCommand } from './tag';
 import type { DraftCommandDef } from './types';
 
-export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand, roofCommand, sweepCommand, revolveCommand, ...HOSTED_COMMANDS];
+export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand, roofCommand, sweepCommand, revolveCommand, ...HOSTED_COMMANDS, tagCommand];
 
 const BY_ID = new Map(DRAFT_COMMANDS.map((c) => [c.id, c]));
 const BY_ALIAS = new Map(DRAFT_COMMANDS.flatMap((c) => c.aliases.map((a) => [a, c] as const)));

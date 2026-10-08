@@ -219,4 +219,9 @@ export const draftingEn = {
   'drafting.msg.placed.window': 'Window placed.',
   'drafting.msg.placed.opening': 'Opening cut.',
   'drafting.msg.hostedFailed': 'Not placed: {detail}',
+  'drafting.cmd.tag': 'TAG',
+  'drafting.tool.tag': 'Tag',
+  'drafting.prompt.tagElement': 'Click the element to tag [{field}] — or type MARK / NAME / CLASS:',
+  'drafting.prompt.tagLabel': 'Click where the tag goes [{field}] — or type MARK / NAME / CLASS:',
+  'drafting.msg.notAnElement': 'No model element there: click on one drawn in this view.',
 } as const satisfies Record<string, TranslationValue>;

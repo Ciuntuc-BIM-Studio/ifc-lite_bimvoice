@@ -137,3 +137,4 @@ export { default as DoorFlipSide } from '~icons/viewer/door-flip-side';
 export { default as BimRoof } from '~icons/viewer/bim-roof';
 export { default as DraftSweep } from '~icons/viewer/draft-sweep';
 export { default as DraftRevolve } from '~icons/viewer/draft-revolve';
+export { default as AnnoTag } from '~icons/viewer/anno-tag';
