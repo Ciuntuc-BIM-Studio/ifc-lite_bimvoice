@@ -29,6 +29,7 @@ import { AnchorEntityReader } from './resolve-anchor.js';
 import { roofSolidFaces } from './roof-surface.js';
 import { roofGeometry, type RoofEdgeRule, type RoofGeometry } from './roof-system.js';
 import { roofStructure, type RoofMember, type RoofStructureSpec } from './roof-structure.js';
+import { coveringThickness, removeRoofMaterials, writeRoofMaterials, type RoofCovering } from './roof-system-material.js';
 
 type Vec2 = [number, number];
 type Vec3 = [number, number, number];
@@ -45,7 +46,7 @@ export interface RoofSystemSpec {
   rules: RoofEdgeRule[];
   /** Wall plate above the storey, metres. */
   eaveHeight: number;
-  covering: { thickness: number; color: string };
+  covering: RoofCovering;
   structure: RoofStructureSpec;
   timberColor: string;
 }
@@ -93,7 +94,7 @@ function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemS
   const lift = spec.eaveHeight;
   const plans: PartPlan[] = [];
   g.planes.forEach((plane) => {
-    const tv = spec.covering.thickness / Math.cos((plane.pitch * Math.PI) / 180);
+    const tv = coveringThickness(spec.covering) / Math.cos((plane.pitch * Math.PI) / 180);
     const bottom = plane.pts.map(([x, y, z]) => [x, y, z - tv] as Vec3);
     const params = {
       IfcClass: 'IfcSlab', PredefinedType: 'ROOF', Name: `${spec.name} plane ${plane.edge + 1}`, Tag: `plane:${plane.edge}`,
@@ -109,9 +110,10 @@ function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemS
       rewrite: (id) => replaceFacetedGeometryInStore(editor, anchor, id, params).productShapeId,
     });
   });
-  const kinds: Record<RoofMember['role'], { type: 'RAFTER' | 'PURLIN' | 'PLATE' | 'MEMBER'; name: string }> = {
+  const kinds: Record<RoofMember['role'], { type: 'RAFTER' | 'PURLIN' | 'PLATE' | 'MEMBER' | 'CHORD' | 'POST' | 'STRUT'; name: string }> = {
     rafter: { type: 'RAFTER', name: 'Rafter' }, hip: { type: 'RAFTER', name: 'Hip rafter' }, valley: { type: 'RAFTER', name: 'Valley rafter' },
     ridge: { type: 'MEMBER', name: 'Ridge beam' }, purlin: { type: 'PURLIN', name: 'Purlin' }, plate: { type: 'PLATE', name: 'Wall plate' },
+    chord: { type: 'CHORD', name: 'Truss top chord' }, tie: { type: 'CHORD', name: 'Truss bottom chord' }, post: { type: 'POST', name: 'King post' }, strut: { type: 'STRUT', name: 'Strut' },
   };
   for (const m of members) {
     const params = {
@@ -140,6 +142,13 @@ function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemS
   return plans;
 }
 
+/** Covering planes and members told apart by their Tag. */
+function writeMaterials(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemSpec, parts: readonly number[]): void {
+  const view = editor.getMutationView();
+  const isPlane = (id: number) => String(view.getNewEntity(id)?.attributes[7] ?? '').startsWith('plane:');
+  writeRoofMaterials(editor, anchor, spec.name, spec.covering, parts.filter(isPlane), parts.filter((id) => !isPlane(id)));
+}
+
 function specProperty(editor: StoreEditor, spec: RoofSystemSpec): number {
   return editor.addEntity('IfcPropertySingleValue', ['Spec', null, { typed: { type: 'IfcText', value: JSON.stringify(spec) } }, null]).expressId;
 }
@@ -162,6 +171,7 @@ export function addRoofSystemToStore(editor: StoreEditor, anchor: SpatialAnchor,
     return made.id;
   });
   if (parts.length) editor.addEntity('IfcRelAggregates', [generateIfcGuid(anchor.guidRandom), ownerHistoryRef(anchor.ownerHistoryId), null, null, `#${roofId}`, parts.map((id) => `#${id}`)]);
+  writeMaterials(editor, anchor, spec, parts);
   const pset = editor.addEntity('IfcPropertySet', [generateIfcGuid(anchor.guidRandom), ownerHistoryRef(anchor.ownerHistoryId), ROOF_SYSTEM_PSET, null, [`#${specProperty(editor, spec)}`]]).expressId;
   editor.addEntity('IfcRelDefinesByProperties', [generateIfcGuid(anchor.guidRandom), ownerHistoryRef(anchor.ownerHistoryId), null, null, [`#${roofId}`], `#${pset}`]);
   return { roofId, globalId, parts, removed: [] };
@@ -245,6 +255,7 @@ export function regenerateRoofSystemInStore(store: IfcDataStore, editor: StoreEd
   const schema = anchor.schema ?? 'IFC4';
   const cover = emitSurfaceStyle(editor, schema, rgb(spec.covering.color), `${spec.name} covering`).styleRefId;
   const timber = emitSurfaceStyle(editor, schema, rgb(spec.timberColor), `${spec.name} timber`).styleRefId;
+  removeRoofMaterials(store, editor, current.parts.map((p) => p.id), view);
   const existing = new Map(current.parts.map((p) => [p.tag, p.id]));
   const parts: number[] = [];
   for (const plan of partPlans(editor, anchor, spec, g, members)) {
@@ -264,9 +275,46 @@ export function regenerateRoofSystemInStore(store: IfcDataStore, editor: StoreEd
   for (const id of removed) editor.removeEntity(id);
   if (current.aggregateId !== null) editor.setPositionalAttribute(current.aggregateId, 5, parts.map((id) => `#${id}`));
   else if (parts.length) editor.addEntity('IfcRelAggregates', [generateIfcGuid(anchor.guidRandom), ownerHistoryRef(anchor.ownerHistoryId), null, null, `#${roofId}`, parts.map((id) => `#${id}`)]);
+  writeMaterials(editor, anchor, spec, parts);
   editor.setPositionalAttribute(current.propertyId, 2, { typed: { type: 'IfcText', value: JSON.stringify(spec) } });
   editor.setPositionalAttribute(roofId, 2, spec.name);
   editor.setPositionalAttribute(roofId, 8, `.${roofShape(g)}.`);
   const globalId = new AnchorEntityReader(store, view).entity(roofId)?.attributes[0];
   return { roofId, globalId: typeof globalId === 'string' ? globalId : '', parts, removed };
+}
+
+/**
+ * Delete roof system `roofId` whole: its parts, their materials, the
+ * aggregation, its property set and its containment. Returns every removed
+ * element (the roof first).
+ */
+export function removeRoofSystemFromStore(store: IfcDataStore, editor: StoreEditor, roofId: number): number[] {
+  const view = editor.getMutationView();
+  const current = readRoof(store, roofId, view);
+  if (!current) throw new Error(`#${roofId} is not a roof system`);
+  const parts = current.parts.map((p) => p.id);
+  removeRoofMaterials(store, editor, parts, view);
+  const gone = new Set([roofId, ...parts]);
+  const reader = new AnchorEntityReader(store, view);
+  // Relationships listing the roof or its parts: dropped when nothing else is left in them.
+  for (const [type, listAt, single] of [['IFCRELCONTAINEDINSPATIALSTRUCTURE', 4, null], ['IFCRELDEFINESBYPROPERTIES', 4, 5]] as const) {
+    for (const relId of [...reader.ids(type)]) {
+      const rel = reader.entity(relId);
+      const list = Array.isArray(rel?.attributes[listAt]) ? rel.attributes[listAt] : null;
+      if (!rel || !list || !list.some((r) => gone.has(refId(r) ?? -1))) continue;
+      const kept = list.filter((r) => !gone.has(refId(r) ?? -1));
+      if (kept.length) { editor.setPositionalAttribute(relId, listAt, kept as Attr[number]); continue; }
+      editor.removeEntity(relId);
+      const set = single === null ? null : refId(rel.attributes[single]);
+      const pset = set === null ? null : reader.entity(set);
+      if (set !== null && pset?.attributes[2] === ROOF_SYSTEM_PSET) {
+        for (const p of Array.isArray(pset.attributes[4]) ? pset.attributes[4] : []) if (refId(p) !== null) editor.removeEntity(refId(p)!);
+        editor.removeEntity(set);
+      }
+    }
+  }
+  if (current.aggregateId !== null) editor.removeEntity(current.aggregateId);
+  for (const id of parts) editor.removeEntity(id);
+  editor.removeEntity(roofId);
+  return [roofId, ...parts];
 }

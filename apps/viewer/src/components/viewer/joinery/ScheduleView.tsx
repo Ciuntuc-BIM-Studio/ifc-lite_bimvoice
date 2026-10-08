@@ -4,13 +4,14 @@
 
 /**
  * A joinery schedule tab: the list as it prints (paper millimetres, zoomable),
- * what it lists and at which scale its drawings are, and exports — CSV for a
- * spreadsheet, SVG, DXF (with layers). Drag it from the Project Navigator onto
- * a sheet to place it.
+ * what it lists and at which scale its drawings are, and exports — CSV and
+ * XLSX (types, and every element numbered) for a spreadsheet, SVG, DXF (with
+ * layers). "Number elements" writes each element's number into its Tag.
+ * Drag it from the Project Navigator onto a sheet to place it.
  */
 
 import { useRef, useState } from 'react';
-import { Download, Minus, Plus, SlidersHorizontal } from 'lucide-react';
+import { Download, Hash, Minus, Plus, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
@@ -19,6 +20,9 @@ import type { ProjectSchedule } from '@/project/types';
 import { updateSchedule } from '@/joinery/schedules';
 import { openJoinery } from '@/joinery/dialog-store';
 import { scheduleCsv } from '@/joinery/schedule-layout';
+import { scheduleXlsx } from '@/joinery/schedule-xlsx';
+import { writeOccurrenceNumbers } from '@/joinery/schedule-numbering';
+import { toast } from '@/components/ui/toast';
 import { svgToDxf } from '../sheets/sheet-dxf';
 import { ScheduleGraphic, useScheduleLabels, useScheduleLayout } from './ScheduleGraphic';
 
@@ -45,6 +49,18 @@ export function ScheduleView({ schedule }: { schedule: ProjectSchedule }) {
     clone.setAttribute('height', `${h}mm`);
     downloadFile(`<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(clone)}`, `${stem}.svg`, 'image/svg+xml');
   };
+  const exportXlsx = async () => {
+    const blob = await scheduleXlsx(data, {
+      ...labels, types: t('schedule.sheet.types'), elements: t('schedule.sheet.elements'),
+      number: t('schedule.col.number'), level: t('schedule.col.level'), globalId: t('schedule.col.globalId'),
+    });
+    downloadFile(blob, `${stem}.xlsx`, blob.type);
+  };
+  const number = () => {
+    const out = writeOccurrenceNumbers(data);
+    if (out.errors.length) toast.error(out.errors.join('; '));
+    else toast.success(t('schedule.numbered', { count: out.written }));
+  };
   const exportDxf = () => {
     if (svgRef.current) downloadFile(svgToDxf(svgRef.current, h, `units: millimetres (paper), schedule ${schedule.name}`), `${stem}.dxf`, 'application/dxf');
   };
@@ -66,7 +82,9 @@ export function ScheduleView({ schedule }: { schedule: ProjectSchedule }) {
         <IconButton label={t('schedule.zoomOut')} className="size-7" onClick={() => setZoom((z) => Math.max(1, z / 1.25))}><Minus className="size-3.5" /></IconButton>
         <IconButton label={t('schedule.zoomIn')} className="size-7" onClick={() => setZoom((z) => Math.min(12, z * 1.25))}><Plus className="size-3.5" /></IconButton>
         <Button size="sm" variant="ghost" onClick={() => openJoinery()}><SlidersHorizontal className="mr-1 size-3.5" />{t('joinery.open')}</Button>
+        <Button size="sm" variant="ghost" onClick={number} title={t('schedule.numberHint')}><Hash className="mr-1 size-3.5" />{t('schedule.number')}</Button>
         <Button size="sm" variant="outline" onClick={() => downloadFile(scheduleCsv(data, labels), `${stem}.csv`, 'text/csv')}><Download className="mr-1 size-3.5" />{t('schedule.export.csv')}</Button>
+        <Button size="sm" variant="outline" onClick={() => void exportXlsx()}><Download className="mr-1 size-3.5" />{t('schedule.export.xlsx')}</Button>
         <Button size="sm" variant="outline" onClick={exportSvg}><Download className="mr-1 size-3.5" />{t('schedule.export.svg')}</Button>
         <Button size="sm" variant="outline" onClick={exportDxf}><Download className="mr-1 size-3.5" />{t('schedule.export.dxf')}</Button>
       </div>

@@ -55,8 +55,9 @@ export { offsetOutline, roofFacets, roofSolidFaces, type RoofKind, type RoofSurf
 export { hipRoofFaces, weightedSkeletonFaces } from './straight-skeleton.js';
 // Roof systems: per-edge rules → planes, structure, and the IfcRoof block of slabs and members.
 export { offsetEdges, orientRoof, roofGeometry, roofProblem, type RoofEdgeKind, type RoofEdgeRule, type RoofGeometry, type RoofLine, type RoofPlane } from './roof-system.js';
-export { defaultRoofStructure, roofStructure, type MemberRole, type MemberSection, type RoofMember, type RoofStructureSpec } from './roof-structure.js';
-export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
+export { defaultRoofStructure, defaultTruss, roofStructure, type MemberRole, type MemberSection, type RoofMember, type RoofStructureSpec, type TrussSpec } from './roof-structure.js';
+export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
+export { coveringLayers, coveringThickness, type RoofCovering, type RoofLayer } from './roof-system-material.js';
 export { revolveFaces, sweepFaces } from './sweep-revolve.js';
 export { addDoorToStore, type DoorInStoreParams, type DoorBuildResult } from './door.js';
 export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } from './window.js';

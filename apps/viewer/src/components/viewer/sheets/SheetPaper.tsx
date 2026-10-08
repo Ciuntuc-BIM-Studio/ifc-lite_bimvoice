@@ -26,7 +26,9 @@ import { AnnotationGraphics } from '../drafting/AnnotationGraphics';
 import { layerTags, penTags } from './dxf-tags';
 import { layerPen, layerShows, lookOf } from '@/drafting/styles';
 import { useProjectStore } from '@/project/project-store';
-import { PEN, viewportPens } from './viewport-pens';
+import { viewportPens } from './viewport-pens';
+import { OverlayPaths } from './OverlayPaths';
+import type { PlanOverlay } from '@/project/plan-overlays';
 import type { ScheduleLayout } from '@/joinery/schedule-layout';
 import { ScheduleGraphic } from '../joinery/ScheduleGraphic';
 
@@ -37,8 +39,8 @@ export interface ViewportContent {
   view: ProjectView | undefined;
   drawing: Drawing2D | null;
   drafts: DraftEntity[];
-  /** Plan symbols (door swings, windows), drawing units. */
-  symbols?: DraftShape[];
+  /** A plan's symbols and roof lines by pen, drawing units. */
+  overlays?: PlanOverlay[];
   /** A joinery schedule placed here instead of a view (paper millimetres). */
   schedule?: ScheduleLayout;
 }
@@ -93,9 +95,7 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
         {pens.map((p, i) => (
           <path key={i} {...penTags(p.layer, p.width, !!p.dash, p.stroke ?? '#000000')} d={p.d} fill={p.fill ?? 'none'} fillRule="evenodd" stroke={p.stroke ?? 'none'} strokeWidth={p.width} strokeDasharray={p.dash} strokeLinejoin="round" />
         ))}
-        {content.symbols?.length ? (
-          <path {...penTags('SYMBOLS', PEN.hatch)} d={content.symbols.map((s) => shapePath(s, t, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" />
-        ) : null}
+        {content.overlays?.length ? <OverlayPaths overlays={content.overlays} transform={t} axis={axis} /> : null}
         {drafts.map((e) => {
           const color = layerColor.get(e.layerId);
           if (color === null) return null;

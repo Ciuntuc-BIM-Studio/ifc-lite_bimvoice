@@ -51,8 +51,8 @@ import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
 import { RoofPlanLayer } from '../roof/RoofPlanLayer';
 import { exportViewDxf } from './view-dxf';
-import { drawnBySymbol, viewOpeningSymbols } from '@/project/view-symbols';
-import { symbolShapes } from '@/drafting/opening-symbols';
+import { drawnBySymbol } from '@/project/view-symbols';
+import { planOverlays } from '@/project/plan-overlays';
 import { partHostType } from '@/project/part-host';
 import { cutHatches, hiddenClasses, DEFAULT_VIEW_PRESET, styledDrawing, viewOverrideRules } from '@/project/view-graphics';
 import { capturePointer } from '@/lib/pointer-capture';
@@ -193,9 +193,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
 
   const exportDxf = () => exportViewDxf({
     view, drawing: shown, axis, drafts: entities, layers, extraPatterns,
-    symbols: view.kind === 'plan' && plane && runtimeGeometry?.meshes
-      ? viewOpeningSymbols(runtimeGeometry.meshes, plane, useProjectStore.getState().symbolFlips, hidden).flatMap(symbolShapes)
-      : [],
+    overlays: plane ? planOverlays(view, plane, runtimeGeometry?.meshes, useProjectStore.getState().symbolFlips, hidden) : [],
   });
 
   const command = runningCommand();

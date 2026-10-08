@@ -44,6 +44,34 @@ describe('roof structure', () => {
     expect(ridge.start[2]).toBeLessThan(3 * t30);
   });
 
+  it('frames a truss roof: top chords on the surface, a bottom chord between the walls, a king post and fink struts', () => {
+    const g = roofGeometry(rect, [eave, gable, eave, gable]);
+    const spec = { ...defaultRoofStructure(), system: 'trusses' as const };
+    const members = roofStructure(g, spec);
+    expect(members.some((m) => m.role === 'rafter' || m.role === 'purlin')).toBe(false);
+    const ties = members.filter((m) => m.role === 'tie');
+    // 10 m along the ridge, outer trusses flush: 9.94 m in ≈ 1.2 m spaces → 8 spaces, 9 trusses.
+    expect(ties).toHaveLength(9);
+    for (const t of ties) expect(Math.hypot(t.end[0] - t.start[0], t.end[1] - t.start[1])).toBeCloseTo(6, 6); // wall to wall, not to the eave
+    expect(members.filter((m) => m.role === 'chord')).toHaveLength(18);
+    expect(members.filter((m) => m.role === 'post')).toHaveLength(9);
+    expect(members.filter((m) => m.role === 'strut')).toHaveLength(18);
+    expect(members.filter((m) => m.role === 'plate')).toHaveLength(2);
+    const post = members.find((m) => m.role === 'post')!;
+    expect(post.end[2]).toBeGreaterThan(post.start[2] + 1);
+    expect(post.end[2]).toBeLessThan(3 * t30);
+    // The top chords follow the slope and start at the eave (the overhang included).
+    const chord = members.find((m) => m.role === 'chord')!;
+    const run = Math.hypot(chord.end[0] - chord.start[0], chord.end[1] - chord.start[1]);
+    expect(run).toBeCloseTo(3.5, 2);
+    expect(Math.abs(chord.end[2] - chord.start[2]) / run).toBeCloseTo(t30, 6);
+    // A mono-pitch roof: trusses across the slope, no post.
+    const mono = roofStructure(roofGeometry(rect, [eave, gable, gable, gable]), { ...spec, truss: { ...spec.truss!, pattern: 'king' } });
+    expect(mono.filter((m) => m.role === 'tie').length).toBeGreaterThan(5);
+    expect(mono.filter((m) => m.role === 'post')).toHaveLength(0);
+    expect(new Set(members.map((m) => m.key)).size).toBe(members.length);
+  });
+
   it('keeps member keys unique and generates nothing for a covering-only roof', () => {
     const members = roofStructure(roofGeometry(rect, [eave, eave, eave, eave]), defaultRoofStructure());
     expect(new Set(members.map((m) => m.key)).size).toBe(members.length);

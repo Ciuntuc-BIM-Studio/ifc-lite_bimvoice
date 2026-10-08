@@ -1,0 +1,6 @@
+---
+"@ifc-lite/create": minor
+"@ifc-lite/viewer": minor
+---
+
+Roof systems carry their covering build-up as an IfcMaterialLayerSet (outermost layer first, edited in the configurator's layer table; the planes are as thick as the layers together) and their timber as an IfcMaterial, rewritten on every regeneration. A new structure system, trusses: vertical frames at a spacing across the ridge (or up a mono-pitch) with top chords cut from the roof surface, a bottom chord between the walls, a king post and, in a fink truss, a strut per top chord — as IfcMember CHORD / POST / STRUT. Delete roof (in the configurator, and the 3D context menu on any part) removes the whole block — planes, members, materials, property set — in one undo step and unlinks its contour. Floor plans export their roof lines (ROOF layer: ridges heavy, valleys dashed, slope arrows with the pitch) and their door and window symbols by pen (heavy cut parts, dashed exterior-seen parts) to sheets and DXF. The joinery schedule numbers every element within its type (W1.3), exports XLSX (a Types sheet and an Elements sheet with level and GlobalId) and can write the numbers into the elements' Tag. In the Model inspector, the width and height of a door or window with a configured type now resize the type — every occurrence follows — with a link to edit the type.

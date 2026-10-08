@@ -14,7 +14,7 @@ const labels: ScheduleLabels = {
 };
 
 const entry = (over: Partial<ScheduleEntry>): ScheduleEntry => ({
-  key: 'k', kind: 'window', spec: defaultWindowSpec('W'), mark: 'W1', name: 'W', width: 1.2, height: 1.5, counts: {}, total: 0, ...over,
+  key: 'k', kind: 'window', spec: defaultWindowSpec('W'), mark: 'W1', name: 'W', width: 1.2, height: 1.5, counts: {}, total: 0, occurrences: [], ...over,
 });
 
 const data: ScheduleData = {
@@ -54,5 +54,14 @@ describe('joinery schedule layout', () => {
     assert.equal(csv[0], 'Mark,Name,Width (mm),Height (mm),Opening,Sill,Ground,Level 1,Total,U,Fire');
     assert.equal(csv[1], 'W1,W,1200,1500,tilt-turn-left + side-right,900,3,2,5,1.1,');
     assert.equal(csv[3].split(',')[0], '—');
+  });
+});
+
+describe('occurrenceMark', () => {
+  it('numbers an element within its type, or after its name when the type has no mark', async () => {
+    const { occurrenceMark } = await import('./schedule-data');
+    const o = { modelId: 'm', expressId: 5, globalId: 'g', level: 'L1', tag: null, number: 3 };
+    assert.equal(occurrenceMark(entry({ mark: 'W1' }), o), 'W1.3');
+    assert.equal(occurrenceMark(entry({ mark: '—', name: 'Door' }), o), 'Door-3');
   });
 });

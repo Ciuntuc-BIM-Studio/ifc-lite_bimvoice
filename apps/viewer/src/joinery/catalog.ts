@@ -115,6 +115,18 @@ export function pushJoinery(spec: JoinerySpec): JoineryModelOutcome {
   return out;
 }
 
+/**
+ * A type's overall size changed from one of its occurrences (the inspector):
+ * the catalogue entry follows — added when the type came with the model —
+ * and every occurrence of the type with it.
+ */
+export function resizeJoineryType(spec: JoinerySpec, size: { width?: number; height?: number }): JoineryModelOutcome {
+  const next = { ...spec, ...size };
+  if (joineryEntry(spec.id)) updateJoinery(next);
+  else importJoinery([next]);
+  return pushJoinery(next);
+}
+
 /** Move the selected doors / windows of `spec`'s kind to it. */
 export function applyJoineryToSelection(spec: JoinerySpec): JoineryModelOutcome {
   const s = useViewerStore.getState();

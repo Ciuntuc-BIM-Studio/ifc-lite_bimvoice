@@ -117,4 +117,47 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('roof system block, real
     expect(bare.removed.length).toBeGreaterThan(10);
     for (const id of bare.removed) expect(view.isDeleted(id) || !view.getNewEntity(id)).toBe(true);
   });
+
+  it('carries the covering build-up as a material layer set, rewritten on regeneration, and deletes the whole block', async () => {
+    const source = readFileSync(new URL('../../../../apps/viewer/public/samples/hello-wall.ifc', import.meta.url));
+    const store = await parse(source);
+    const view = new MutablePropertyView(null, 'm');
+    const editor = new StoreEditor(store, view);
+    const storeyId = [...(store.spatialHierarchy?.storeyElevations.keys() ?? [])][0];
+    const anchor = resolveSpatialAnchor(store, storeyId, view);
+    const layered = (tiles: number): RoofSystemSpec => ({
+      ...spec(30), covering: { thickness: 0, color: '#a0522d', layers: [{ name: 'Clay tiles', thickness: tiles }, { name: 'Underlay', thickness: 0.002 }] },
+    });
+    const made = roofs.addRoofSystemToStore(editor, anchor, layered(0.05));
+    const exported = () => new TextDecoder().decode(new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content);
+    let text = exported();
+    expect(text).toContain("IFCMATERIAL('Clay tiles'");
+    expect(text).toContain("'Roof covering'"); // the set, named after the roof
+    const count = (re: RegExp) => text.match(re)?.length ?? 0;
+    // hello-wall has one layer set and three material associations of its own.
+    expect(count(/IFCMATERIALLAYERSET\(/g)).toBe(2);
+    expect(text).toContain("IFCMATERIAL('Timber'");
+    let bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content;
+    let reparsed = await parse(bytes);
+    const covering = meshZ(bytes, reparsed, made.parts[0]);
+    expect(covering.min).toBeCloseTo(3 - 0.5 * Math.tan(Math.PI / 6) - 0.052 / Math.cos(Math.PI / 6), 2);
+
+    roofs.regenerateRoofSystemInStore(store, editor, anchor, made.roofId, layered(0.04));
+    text = exported();
+    expect(count(/IFCMATERIALLAYERSET\(/g)).toBe(2);
+    expect(count(/IFCMATERIAL\('Clay tiles'/g)).toBe(1);
+    expect(count(/IFCRELASSOCIATESMATERIAL\(/g)).toBe(3 + 2);
+
+    const removed = roofs.removeRoofSystemFromStore(store, editor, made.roofId);
+    expect(removed[0]).toBe(made.roofId);
+    text = exported();
+    expect(text).not.toContain('IFCROOF(');
+    expect(text).not.toContain("'Pset_IfcLiteRoofSystem'");
+    expect(count(/IFCMATERIALLAYERSET\(/g)).toBe(1);
+    expect(text).not.toContain("'Clay tiles'");
+    expect(text).not.toContain('.RAFTER.');
+    bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content;
+    reparsed = await parse(bytes);
+    expect(roofs.readRoofSystem(reparsed, made.roofId)).toBeNull();
+  });
 });

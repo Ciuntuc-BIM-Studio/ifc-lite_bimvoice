@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useProjectStore } from '@/project/project-store';
+import { useViewerStore } from '@/store';
 import { addViewport, paperOf, removeViewport, updateViewport, viewportBox } from '@/project/sheets';
 import { EMPTY_VIEW_DRAWING, useViewDrawings } from '@/project/view-drawings';
 import { draftsOfView } from '@/drafting/draft-store';
@@ -21,8 +22,8 @@ import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import type { DraftShape } from '@/drafting/types';
 import { hiddenClasses, styledDrawing } from '@/project/view-graphics';
 import { partHostType } from '@/project/part-host';
-import { drawnBySymbol, viewOpeningSymbols } from '@/project/view-symbols';
-import { symbolShapes } from '@/drafting/opening-symbols';
+import { drawnBySymbol } from '@/project/view-symbols';
+import { planOverlays, type PlanOverlay } from '@/project/plan-overlays';
 import { useDrawingRuntime } from '@/lib/drawing/drawing-runtime';
 import { VIEW_DRAG_TYPE } from '../project/ProjectTreeRow';
 import { SheetPaper, type ViewportContent } from './SheetPaper';
@@ -61,30 +62,29 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
     setPan({ k: Math.max(k, 0.05), x: (width - paper.w * k) / 2, y: (height - paper.h * k) / 2 });
   }, [paper.w, paper.h]);
 
-  // Each placed view as its own graphics style it: styled drawing and (plans) door / window symbols.
+  // Each placed view as its own graphics style it: styled drawing and (plans) door / window symbols and roofs.
   const flips = useProjectStore((s) => s.symbolFlips);
+  const mutationVersion = useViewerStore((s) => s.mutationVersion);
   const { geometryResult } = useDrawingRuntime();
   const styled = useMemo(() => {
-    const out = new Map<string, { drawing: Drawing2D | null; symbols: DraftShape[] }>();
+    const out = new Map<string, { drawing: Drawing2D | null; overlays: PlanOverlay[] }>();
     for (const vp of sheet.viewports ?? []) {
       if (out.has(vp.viewId)) continue;
       const view = views.find((v) => v.id === vp.viewId);
       const raw = (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing;
       const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined) : null;
-      const symbols = view?.kind === 'plan' && raw && geometryResult?.meshes
-        ? viewOpeningSymbols(geometryResult.meshes, raw.config.plane, flips, hiddenClasses(view.graphics)).flatMap(symbolShapes)
-        : [];
-      out.set(vp.viewId, { drawing, symbols });
+      const overlays = view && raw ? planOverlays(view, raw.config.plane, geometryResult?.meshes, flips, hiddenClasses(view.graphics)) : [];
+      out.set(vp.viewId, { drawing, overlays });
     }
     return out;
-  }, [sheet.viewports, views, byView, geometryResult, flips]);
+  }, [sheet.viewports, views, byView, geometryResult, flips, mutationVersion]);
   const placedSchedules = useSheetSchedules(sheet);
   const content = useCallback((vp: SheetViewport): ViewportContent => ({
     schedule: placedSchedules.get(vp.viewId),
     view: views.find((v) => v.id === vp.viewId),
     drawing: styled.get(vp.viewId)?.drawing ?? null,
     drafts: draftsOfView(vp.viewId, drafts),
-    symbols: styled.get(vp.viewId)?.symbols,
+    overlays: styled.get(vp.viewId)?.overlays,
   }), [views, styled, drafts, placedSchedules]);
 
   const toPaper = (clientX: number, clientY: number) => {

@@ -3,11 +3,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * The timber structure under a roof system (`roof-system.ts`): rafters at a
- * spacing on every plane, hip and valley rafters along hips and valleys, a
- * ridge beam under each ridge, purlins across the planes and wall plates on
- * the eave walls. Members are centre lines with a width × depth section; a
- * rafter's top lies the covering's depth below the roof surface.
+ * The timber structure under a roof system (`roof-system.ts`). Rafters on
+ * purlins: rafters at a spacing on every plane, hip and valley rafters along
+ * hips and valleys, a ridge beam under each ridge, purlins across the planes
+ * and wall plates on the eave walls. Trusses: vertical frames at a spacing
+ * across the ridge (or up the slope of a mono-pitch) — top chords cut from
+ * the roof surface, a bottom chord between the walls, a king post under the
+ * apex and, in a fink truss, a strut from each top chord to the bottom
+ * chord — with the wall plates and hip / valley rafters. Members are centre
+ * lines with a width × depth section; a rafter's or chord's top lies the
+ * covering's depth below the roof surface.
  *
  * Coordinates as the roof's: the outline's plane, z up from the wall plate.
  */
@@ -23,8 +28,8 @@ export interface MemberSection {
 }
 
 export interface RoofStructureSpec {
-  /** 'rafters': rafters on purlins; 'none': the covering only. (Trusses come later.) */
-  system: 'rafters' | 'none';
+  /** 'rafters': rafters on purlins; 'trusses': trusses across the ridge; 'none': the covering only. */
+  system: 'rafters' | 'trusses' | 'none';
   rafter: MemberSection & { spacing: number };
   /** Purlins per plane (0 … 3), spread up the slope. */
   purlins: number;
@@ -35,9 +40,21 @@ export interface RoofStructureSpec {
   hipRafter: MemberSection | null;
   /** The build-up above the rafters (battens, covering), measured across the slope. */
   coverDepth: number;
+  /** Trusses (used by the 'trusses' system; older specs may lack it). */
+  truss?: TrussSpec;
 }
 
-export type MemberRole = 'rafter' | 'hip' | 'valley' | 'ridge' | 'purlin' | 'plate';
+export interface TrussSpec {
+  spacing: number;
+  /** Top and bottom chords. */
+  chord: MemberSection;
+  /** King post and struts. */
+  web: MemberSection;
+  /** 'king': a king post only; 'fink': the king post and a strut from each top chord. */
+  pattern: 'king' | 'fink';
+}
+
+export type MemberRole = 'rafter' | 'hip' | 'valley' | 'ridge' | 'purlin' | 'plate' | 'chord' | 'tie' | 'post' | 'strut';
 
 export interface RoofMember {
   role: MemberRole;
@@ -59,7 +76,12 @@ export function defaultRoofStructure(): RoofStructureSpec {
     wallPlate: { width: 0.14, depth: 0.14 },
     hipRafter: { width: 0.1, depth: 0.2 },
     coverDepth: 0.06,
+    truss: defaultTruss(),
   };
+}
+
+export function defaultTruss(): TrussSpec {
+  return { spacing: 1.2, chord: { width: 0.06, depth: 0.16 }, web: { width: 0.06, depth: 0.12 }, pattern: 'fink' };
 }
 
 /** Inside intervals of the line p + u·t across a polygon (plan), as [t0, t1] pairs. */
@@ -115,14 +137,87 @@ function below(f: PlaneFrame, p: Vec2, drop: number): Vec3 {
   return [p[0] - f.normal[0] * drop, p[1] - f.normal[1] * drop, heightOn(f, p) - f.normal[2] * drop];
 }
 
+/** The direction trusses are spaced along: the longest ridge, or a mono-pitch's eave. */
+function spanDirection(g: RoofGeometry): Vec2 {
+  let best: { len: number; u: Vec2 } | null = null;
+  for (const l of g.lines) {
+    if (l.kind !== 'ridge') continue;
+    const len = Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]);
+    if (len > 1e-6 && (!best || len > best.len)) best = { len, u: [(l.b[0] - l.a[0]) / len, (l.b[1] - l.a[1]) / len] };
+  }
+  if (best) return best.u;
+  const n = g.outline.length;
+  const i = Math.max(0, g.rules.findIndex((r) => r.kind === 'eave'));
+  const a = g.outline[i], b = g.outline[(i + 1) % n];
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  return [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+}
+
+function trusses(g: RoofGeometry, fs: PlaneFrame[], spec: RoofStructureSpec, tr: TrussSpec, tieZ: number, out: RoofMember[]): void {
+  const u = spanDirection(g);
+  const v: Vec2 = [-u[1], u[0]];
+  const o = g.outline[0];
+  const along = g.outline.map((p) => (p[0] - o[0]) * u[0] + (p[1] - o[1]) * u[1]);
+  const lo = Math.min(...along) + tr.chord.width / 2, hi = Math.max(...along) - tr.chord.width / 2;
+  const count = Math.max(1, Math.round((hi - lo) / tr.spacing));
+  const chordAxis = spec.coverDepth + tr.chord.depth / 2;
+  for (let k = 0; k <= count; k++) {
+    const s = hi > lo ? lo + ((hi - lo) * k) / count : (lo + hi) / 2;
+    const p: Vec2 = [o[0] + u[0] * s, o[1] + u[1] * s];
+    const at = (t: number): Vec2 => [p[0] + v[0] * t, p[1] + v[1] * t];
+    // Top chords: the roof surface along the truss line, one per plane crossed.
+    const chords: { t0: number; t1: number; f: PlaneFrame }[] = [];
+    for (const f of fs) for (const [t0, t1] of crossings(f.plan, p, v)) chords.push({ t0, t1, f });
+    chords.sort((a, b) => a.t0 - b.t0);
+    chords.forEach((c, m) => {
+      out.push({ role: 'chord', key: `truss:${k}:chord:${m}`, start: below(c.f, at(c.t0), chordAxis), end: below(c.f, at(c.t1), chordAxis), width: tr.chord.width, depth: tr.chord.depth });
+    });
+    if (chords.length === 0) continue;
+    // Bottom chord: wall to wall.
+    const ties = crossings(g.outline, p, v);
+    ties.forEach(([t0, t1], m) => {
+      out.push({ role: 'tie', key: `truss:${k}:tie:${m}`, start: [...at(t0), tieZ], end: [...at(t1), tieZ], width: tr.chord.width, depth: tr.chord.depth });
+    });
+    if (ties.length === 0) continue;
+    const tie = ties.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a));
+    // The apex: the highest point of the section (a plane's upper end).
+    let apex = { t: 0, z: -Infinity };
+    for (const c of chords) for (const t of [c.t0, c.t1]) {
+      const z = heightOn(c.f, at(t));
+      if (z > apex.z + 1e-9) apex = { t, z };
+    }
+    const tieAt = (t: number): Vec3 => [...at(t), tieZ + tr.chord.depth / 2];
+    const postTop = apex.z - chordAxis / Math.max(...chords.map((c) => c.f.normal[2]));
+    if (apex.t > tie[0] + 0.05 && apex.t < tie[1] - 0.05 && postTop - tieZ > 0.2) {
+      out.push({ role: 'post', key: `truss:${k}:post`, start: tieAt(apex.t), end: [...at(apex.t), postTop], width: tr.web.width, depth: tr.web.depth });
+    }
+    if (tr.pattern === 'fink') {
+      chords.forEach((c, m) => {
+        const mid = (c.t0 + c.t1) / 2;
+        const foot = (mid + apex.t) / 2;
+        if (foot <= tie[0] || foot >= tie[1]) return;
+        const top = below(c.f, at(mid), chordAxis + tr.chord.depth / 2);
+        out.push({ role: 'strut', key: `truss:${k}:strut:${m}`, start: tieAt(foot), end: top, width: tr.web.width, depth: tr.web.depth });
+      });
+    }
+  }
+}
+
 export function roofStructure(g: RoofGeometry, spec: RoofStructureSpec): RoofMember[] {
   if (spec.system === 'none') return [];
   const out: RoofMember[] = [];
   const fs = frames(g);
   const r = spec.rafter;
   const rafterAxis = spec.coverDepth + r.depth / 2;
+  const minNormalZ = Math.min(...fs.map((f) => f.normal[2]));
+  const tr = spec.truss ?? defaultTruss();
+  // What rests on the wall plates: the rafters' feet, or the trusses' bottom chords.
+  const feetDepth = spec.system === 'trusses' ? tr.chord.depth : r.depth;
+  const tieZ = -(spec.coverDepth + tr.chord.depth) / minNormalZ - tr.chord.depth / 2;
+  if (spec.system === 'trusses') trusses(g, fs, spec, tr, tieZ, out);
 
   fs.forEach((f) => {
+    if (spec.system !== 'rafters') return;
     // Rafters: across the plane's extent along its eave, every `spacing`, up the slope.
     const along = f.plan.map((p) => (p[0] - f.a[0]) * f.d[0] + (p[1] - f.a[1]) * f.d[1]);
     const lo = Math.min(...along) + r.width / 2, hi = Math.max(...along) - r.width / 2;
@@ -153,9 +248,8 @@ export function roofStructure(g: RoofGeometry, spec: RoofStructureSpec): RoofMem
   });
 
   // Ridge beams, hip and valley rafters: along the roof's lines, below the rafters.
-  const minNormalZ = Math.min(...fs.map((f) => f.normal[2]));
   g.lines.forEach((line, i) => {
-    if (line.kind === 'ridge' && spec.ridge) {
+    if (line.kind === 'ridge' && spec.ridge && spec.system === 'rafters') {
       const dz = (spec.coverDepth + r.depth) / minNormalZ + spec.ridge.depth / 2;
       out.push({ role: 'ridge', key: `ridge:${i}`, start: [line.a[0], line.a[1], line.a[2] - dz], end: [line.b[0], line.b[1], line.b[2] - dz], width: spec.ridge.width, depth: spec.ridge.depth });
     }
@@ -172,7 +266,7 @@ export function roofStructure(g: RoofGeometry, spec: RoofStructureSpec): RoofMem
       if (rule.kind !== 'eave') return;
       const f = fs.find((x) => x.plane.edge === i);
       const a = g.outline[i], b = g.outline[(i + 1) % n];
-      const z = -(spec.coverDepth + r.depth) / (f?.normal[2] ?? 1) - spec.wallPlate!.depth / 2;
+      const z = spec.system === 'trusses' ? tieZ - tr.chord.depth / 2 - spec.wallPlate!.depth / 2 : -(spec.coverDepth + feetDepth) / (f?.normal[2] ?? 1) - spec.wallPlate!.depth / 2;
       out.push({ role: 'plate', key: `plate:${i}`, start: [a[0], a[1], z], end: [b[0], b[1], z], width: spec.wallPlate!.width, depth: spec.wallPlate!.depth });
     });
   }

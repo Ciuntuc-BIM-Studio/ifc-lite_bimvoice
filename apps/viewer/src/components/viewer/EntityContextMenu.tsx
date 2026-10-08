@@ -31,6 +31,8 @@ import { effectiveContextType, sameEffectiveTypeIds } from './EntityContextMenu.
 import { sameEffectiveStoreyIds } from './EntityContextMenu.effective-storey';
 import { surfaceCommand, type SurfaceCommandId } from './surface-commands';
 import { runSurfaceCommand } from './surface-command-run';
+import { roofSystemOfRenderId } from '@/project/roof-system-element';
+import { deleteRoofWithConfirm } from './roof/delete-roof';
 
 export function EntityContextMenu() {
   const { t } = useTranslation();
@@ -261,6 +263,13 @@ export function EntityContextMenu() {
   const handleDeleteEntity = useCallback(() => {
     if (!contextEntityRef || !canEdit || !contextMenu.entityId) {
       closeContextMenu();
+      return;
+    }
+    // A part of a roof system goes with its whole block.
+    const roof = roofSystemOfRenderId(contextMenu.entityId);
+    if (roof) {
+      closeContextMenu();
+      void deleteRoofWithConfirm(roof);
       return;
     }
     const ok = removeEntity(contextEntityRef.modelId, contextEntityRef.expressId);

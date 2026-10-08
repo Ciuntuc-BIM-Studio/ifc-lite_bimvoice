@@ -14,7 +14,7 @@
  */
 
 import { useId, useMemo } from 'react';
-import { readHostedElementSize, readStairDimensions, type StairDimensions } from '@ifc-lite/create';
+import { occurrencesOfTypeInStore, readHostedElementSize, readStairDimensions, type JoinerySpec, type StairDimensions } from '@ifc-lite/create';
 import { useTranslation } from '@/i18n';
 import { useViewerStore } from '@/store';
 import { toast } from '@/components/ui/toast';
@@ -24,6 +24,11 @@ import { DEFAULT_DIMS, DIM_LABEL, METRE_SYMBOL, formatMetres, parseMetres, type 
 import { readElementSize } from '@/store/slices/mutation-element-size';
 import { setElementDimensions, setHostedElementDimensions, setStairDimensions } from './inspector-edits';
 import type { InspectorSelection } from './useInspectorTarget';
+import { Button } from '@/components/ui/button';
+import { typeOf } from '@/lib/commands/modeling/authored-kinds';
+import { joineryOfElement } from '@/joinery/element-spec';
+import { importJoinery, joineryEntry, resizeJoineryType } from '@/joinery/catalog';
+import { openJoinery } from '@/joinery/dialog-store';
 
 function MetreRow({ param, value, onCommit }: { param: DimParam; value: number | null; onCommit?: (metres: number) => boolean }) {
   const { t } = useTranslation();
@@ -75,7 +80,7 @@ type Measured =
   | { kind: 'wall'; length: number; thickness: number; height: number }
   | { kind: 'slab'; thickness: number }
   | { kind: 'linear'; column: boolean; length: number; width: number; cross: number; profiled: boolean }
-  | { kind: 'hosted'; width: number; height: number }
+  | { kind: 'hosted'; width: number; height: number; typed?: { spec: JoinerySpec; count: number } }
   | { kind: 'stair'; dimensions: StairDimensions }
   | { kind: 'none'; reason: 'modelInspector.dims.notRectangular' | 'modelInspector.dims.unknown' };
 
@@ -87,8 +92,14 @@ function measure(selection: InspectorSelection): Measured {
     return dimensions ? { kind: 'stair', dimensions } : { kind: 'none', reason: 'modelInspector.dims.unknown' };
   }
   if (kind === 'door' || kind === 'window') {
-    const size = readHostedElementSize(selection.live.dataStore, expressId, s.mutationViews.get(modelId));
-    return size ? { kind: 'hosted', width: size.OverallWidth, height: size.OverallHeight } : { kind: 'none', reason: 'modelInspector.dims.unknown' };
+    const view = s.mutationViews.get(modelId);
+    const size = readHostedElementSize(selection.live.dataStore, expressId, view);
+    if (!size) return { kind: 'none', reason: 'modelInspector.dims.unknown' };
+    // A configured door / window takes its size from its type: an edit goes to the type.
+    const joinery = joineryOfElement(modelId, expressId);
+    const typeId = joinery ? typeOf({ dataStore: selection.live.dataStore, view: view ?? null }, expressId) : null;
+    const typed = joinery && typeId !== null ? { spec: joinery.spec, count: occurrencesOfTypeInStore(selection.live.dataStore, typeId, view).length } : undefined;
+    return { kind: 'hosted', width: size.OverallWidth, height: size.OverallHeight, typed };
   }
   if (kind === 'wall') {
     const wall = s.readWallEndpoints(modelId, expressId);
@@ -133,12 +144,13 @@ export function SelectionDimensions({ selection }: { selection: InspectorSelecti
           {measured.profiled && <InspectorCaption>{t('profileSection.inspector.outerSize')}</InspectorCaption>}
         </>
       )}
-      {measured.kind === 'hosted' && (
+      {measured.kind === 'hosted' && !measured.typed && (
         <>
           <MetreRow param="Width" value={measured.width} onCommit={OverallWidth => setHostedElementDimensions(modelId, expressId, { OverallWidth })} />
           <MetreRow param="Height" value={measured.height} onCommit={OverallHeight => setHostedElementDimensions(modelId, expressId, { OverallHeight })} />
         </>
       )}
+      {measured.kind === 'hosted' && measured.typed && <TypedSize width={measured.width} height={measured.height} {...measured.typed} />}
       {measured.kind === 'stair' && (
         <>
           {(['Width', 'RiserHeight', 'TreadLength', 'WaistThickness'] as const)
@@ -152,6 +164,28 @@ export function SelectionDimensions({ selection }: { selection: InspectorSelecti
       )}
       {measured.kind === 'none' && <InspectorCaption>{t(measured.reason)}</InspectorCaption>}
     </InspectorSection>
+  );
+}
+
+/** A configured door's / window's size: a type parameter, so a change resizes every occurrence of the type. */
+function TypedSize({ width, height, spec, count }: { width: number; height: number; spec: JoinerySpec; count: number }) {
+  const { t } = useTranslation();
+  const resize = (size: { width?: number; height?: number }) => {
+    const out = resizeJoineryType(spec, size);
+    if (out.refused.length) toast.error(t('joinery.inspector.refused', { list: out.refused.join('; ') }));
+    else toast.success(t('joinery.inspector.resized', { mark: spec.mark, count: out.updated }));
+    return out.refused.length === 0;
+  };
+  return (
+    <>
+      <MetreRow param="Width" value={width} onCommit={(w) => resize({ width: w })} />
+      <MetreRow param="Height" value={height} onCommit={(h) => resize({ height: h })} />
+      <InspectorCaption>{t('joinery.inspector.typeSize', { mark: spec.mark || spec.name, count })}</InspectorCaption>
+      <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={() => {
+        if (!joineryEntry(spec.id)) importJoinery([spec]);
+        openJoinery(spec.id ?? null);
+      }}>{t('joinery.inspector.editType')}</Button>
+    </>
   );
 }
 

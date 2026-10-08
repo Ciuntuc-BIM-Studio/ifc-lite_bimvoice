@@ -5,7 +5,8 @@
 /**
  * A plan, section or elevation as DXF, in model millimetres (1:1): the view
  * as its Visibility / Graphics style it — cut lines, projection, hidden
- * lines, cut hatches — with the plan's door and window symbols and every
+ * lines, cut hatches — with the plan's door and window symbols, its roof
+ * lines, and every
  * line and annotation drafted on the view. It is drawn once into an
  * off-screen SVG with the same pens a sheet uses (`viewport-pens.ts`) and
  * written by the sheet's SVG → DXF walker (`svgToDxf`), so what a view
@@ -17,10 +18,12 @@ import { createRoot } from 'react-dom/client';
 import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import { downloadFile, sanitizeFilename } from '@/lib/export/download';
 import type { SectionAxisName, ViewTransform } from '@/drafting/frame';
-import { isGeometry, type DraftEntity, type DraftLayer, type DraftShape } from '@/drafting/types';
+import { isGeometry, type DraftEntity, type DraftLayer } from '@/drafting/types';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
 import type { ProjectView } from '@/project/types';
-import { viewportPens, PEN } from '../sheets/viewport-pens';
+import { viewportPens } from '../sheets/viewport-pens';
+import { OverlayPaths } from '../sheets/OverlayPaths';
+import type { PlanOverlay } from '@/project/plan-overlays';
 import { svgToDxf } from '../sheets/sheet-dxf';
 import { layerTags, penTags } from '../sheets/dxf-tags';
 import { shapePath } from './DraftOverlay';
@@ -39,10 +42,10 @@ interface ViewDxfInput {
   drafts: readonly DraftEntity[];
   layers: readonly DraftLayer[];
   extraPatterns: readonly HatchPattern[];
-  symbols: readonly DraftShape[];
+  overlays: readonly PlanOverlay[];
 }
 
-function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, symbols }: ViewDxfInput) {
+function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, overlays }: ViewDxfInput) {
   const pens = drawing ? viewportPens(drawing, view.graphics, MM, axis, extraPatterns) : [];
   const s = useProjectStore.getState();
   const book = { textStyles: s.textStyles ?? [], dimStyles: s.dimStyles ?? [] };
@@ -54,7 +57,7 @@ function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, symbols }
       {pens.map((p, i) => (
         <path key={i} {...penTags(p.layer, p.width, !!p.dash, p.stroke ?? '#000000')} d={p.d} fill="none" stroke={p.stroke ?? 'none'} strokeWidth={p.width} />
       ))}
-      {symbols.length > 0 ? <path {...penTags('SYMBOLS', PEN.hatch)} d={symbols.map((s) => shapePath(s, MM, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" /> : null}
+      <OverlayPaths overlays={overlays} transform={MM} axis={axis} />
       {drafts.map((e) => {
         const color = colour.get(e.layerId);
         if (color === null) return null;

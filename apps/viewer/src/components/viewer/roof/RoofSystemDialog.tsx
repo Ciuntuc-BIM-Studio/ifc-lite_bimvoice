@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { toast } from '@/components/ui/toast';
 import { useViewerStore } from '@/store';
 import { applyRoofSystem } from '@/project/roof-system-element';
+import { deleteRoofWithConfirm } from './delete-roof';
 import { closeRoofDialog, startRoofEdit, useRoofDialog } from '@/project/roof-dialog-store';
 import { ArchitectureFields, StructureFields } from './RoofFields';
 import { RoofIsoPreview, RoofPlanPreview } from './RoofPreview';
@@ -100,6 +101,10 @@ export function RoofSystemDialog() {
             <Button size="sm" variant="ghost" disabled={!draft || draft.structure.system === 'none'}
               onClick={() => { if (draft) { const next = { ...draft, structure: { ...draft.structure, system: 'none' as const } }; setDraft(next); apply(next); } }}>
               {t('roof.deleteStructure')}
+            </Button>
+            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" disabled={!saved || !target}
+              onClick={() => { if (target && saved) void deleteRoofWithConfirm({ ...target, spec: saved }); }}>
+              {t('roof.delete')}
             </Button>
           </div>
           <div className="flex gap-2">

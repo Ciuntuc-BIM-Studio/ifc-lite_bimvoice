@@ -4,16 +4,19 @@
 
 /**
  * The roof configurator's two zones. Architecture: name, wall-plate height,
- * covering, and a row per outline edge — eave or gable, pitch, overhang —
+ * colours, the covering's layers, and a row per outline edge — eave or gable, pitch, overhang —
  * with one row to set every eave at once. Structure: the system, then
  * rafters (section and spacing), purlins, ridge beam, wall plates, hip and
- * valley rafters (each switchable) and the build-up above the rafters.
+ * valley rafters (each switchable) and the build-up above the rafters — or
+ * trusses: spacing, chord and web sections, king post or fink pattern.
  */
 
-import { useState } from 'react';
-import type { MemberSection, RoofEdgeRule, RoofStructureSpec, RoofSystemSpec } from '@ifc-lite/create';
+import { useState, type ReactNode } from 'react';
+import { defaultTruss, type MemberSection, type RoofEdgeRule, type RoofStructureSpec, type RoofSystemSpec, type TrussSpec } from '@ifc-lite/create';
 import { useTranslation, type TranslationKey } from '@/i18n';
 import { INPUT, NumberField, Section } from '../joinery/JoineryFields';
+import { CoveringLayers } from './RoofLayers';
+import { CELL, Num } from './RoofNum';
 
 interface Props {
   spec: RoofSystemSpec;
@@ -21,22 +24,6 @@ interface Props {
   /** The edge highlighted in the preview. */
   edge: number | null;
   onEdge: (edge: number | null) => void;
-}
-
-const CELL = 'h-7 w-full rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1 text-xs tabular-nums';
-
-function Num({ value, onCommit, label, disabled, scale = 1 }: { value: number; onCommit: (v: number) => void; label: string; disabled?: boolean; scale?: number }) {
-  const [text, setText] = useState<string | null>(null);
-  const commit = () => {
-    if (text === null) return;
-    const n = Number(text.replace(',', '.'));
-    setText(null);
-    if (Number.isFinite(n) && n >= 0) onCommit(n / scale);
-  };
-  return (
-    <input aria-label={label} className={CELL} disabled={disabled} inputMode="decimal" value={text ?? String(Math.round(value * scale * 100) / 100)}
-      onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setText(null); }} />
-  );
 }
 
 export function ArchitectureFields({ spec, onChange, edge, onEdge }: Props) {
@@ -53,7 +40,6 @@ export function ArchitectureFields({ spec, onChange, edge, onEdge }: Props) {
           <input className={INPUT} defaultValue={spec.name} key={spec.name} onBlur={(e) => e.target.value.trim() && onChange({ ...spec, name: e.target.value.trim() })} />
         </label>
         <NumberField label={t('roof.field.eaveHeight')} value={spec.eaveHeight} min={-1000} onChange={(v) => v !== undefined && onChange({ ...spec, eaveHeight: v })} />
-        <NumberField label={t('roof.field.covering')} value={spec.covering.thickness} min={1} onChange={(v) => v && onChange({ ...spec, covering: { ...spec.covering, thickness: v } })} />
         <div className="flex gap-4 pt-1 text-xs">
           <label className="flex items-center gap-1.5">
             <input type="color" className="h-6 w-8 rounded-sm border border-zinc-300 dark:border-zinc-700" value={spec.covering.color} onChange={(e) => onChange({ ...spec, covering: { ...spec.covering, color: e.target.value } })} />
@@ -64,6 +50,9 @@ export function ArchitectureFields({ spec, onChange, edge, onEdge }: Props) {
             {t('roof.field.timberColor')}
           </label>
         </div>
+      </Section>
+      <Section title={t('roof.field.covering')}>
+        <CoveringLayers spec={spec} onChange={onChange} />
       </Section>
       <Section title={t('roof.edges')}>
         <table className="w-full text-xs">
@@ -144,6 +133,7 @@ export function StructureFields({ spec, onChange }: Pick<Props, 'spec' | 'onChan
         <span className="text-zinc-600 dark:text-zinc-400">{t('roof.structure.system')}</span>
         <select className={INPUT} value={st.system} onChange={(e) => set({ system: e.target.value as RoofStructureSpec['system'] })}>
           <option value="rafters">{t('roof.structure.rafters')}</option>
+          <option value="trusses">{t('roof.structure.trusses')}</option>
           <option value="none">{t('roof.structure.none')}</option>
         </select>
       </label>
@@ -159,6 +149,31 @@ export function StructureFields({ spec, onChange }: Pick<Props, 'spec' | 'onChan
           <NumberField label={t('roof.structure.cover')} value={st.coverDepth} onChange={(v) => v !== undefined && set({ coverDepth: v })} />
         </>
       ) : null}
+      {st.system === 'trusses' ? <TrussFields truss={st.truss ?? defaultTruss()} onChange={(truss) => set({ truss })} optional={optional} cover={st.coverDepth} onCover={(v) => set({ coverDepth: v })} /> : null}
     </Section>
+  );
+}
+
+function TrussFields({ truss, onChange, optional, cover, onCover }: {
+  truss: TrussSpec; onChange: (t: TrussSpec) => void; cover: number; onCover: (v: number) => void;
+  optional: (key: 'wallPlate' | 'hipRafter', label: TranslationKey, fallback: MemberSection) => ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <NumberField label={t('roof.structure.spacing')} value={truss.spacing} min={100} onChange={(v) => v && onChange({ ...truss, spacing: v })} />
+      <label className="grid grid-cols-[1fr_12rem] items-center gap-2 text-xs">
+        <span className="text-zinc-600 dark:text-zinc-400">{t('roof.truss.pattern')}</span>
+        <select className={INPUT} value={truss.pattern} onChange={(e) => onChange({ ...truss, pattern: e.target.value as TrussSpec['pattern'] })}>
+          <option value="fink">{t('roof.truss.fink')}</option>
+          <option value="king">{t('roof.truss.king')}</option>
+        </select>
+      </label>
+      <SectionFields title={t('roof.truss.chord')} value={truss.chord} onChange={(v) => onChange({ ...truss, chord: v })} />
+      <SectionFields title={t('roof.truss.web')} value={truss.web} onChange={(v) => onChange({ ...truss, web: v })} />
+      {optional('wallPlate', 'roof.structure.wallPlate', { width: 0.14, depth: 0.14 })}
+      {optional('hipRafter', 'roof.structure.hip', { width: 0.1, depth: 0.2 })}
+      <NumberField label={t('roof.structure.cover')} value={cover} onChange={(v) => v !== undefined && onCover(v)} />
+    </>
   );
 }

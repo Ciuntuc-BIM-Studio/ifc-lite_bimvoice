@@ -7,7 +7,9 @@
  * configured type (one row per catalogue entry, merged across models) with
  * its occurrences counted per level, and the doors / windows without a
  * configured type grouped by class and size. Levels are merged by name and
- * ordered by elevation, top floor last.
+ * ordered by elevation, top floor last. Every occurrence is numbered within
+ * its type, level by level (`occurrenceMark`: W1.3), the numbering a plan
+ * tag, the Elements sheet and `schedule-numbering.ts` share.
  */
 
 import { joineryTypesInStore, occurrencesOfTypeInStore, type JoinerySpec } from '@ifc-lite/create';
@@ -19,6 +21,17 @@ import { getModelLengthUnitScale } from '@/lib/length-unit-scale';
 import { catalogue } from './catalog';
 
 export type ScheduleKind = 'door' | 'window' | 'all';
+
+export interface ScheduleOccurrence {
+  modelId: string;
+  expressId: number;
+  globalId: string;
+  level: string;
+  /** The element's Tag as it is in the model. */
+  tag: string | null;
+  /** 1-based, within the type, lowest level first. */
+  number: number;
+}
 
 export interface ScheduleEntry {
   key: string;
@@ -33,6 +46,12 @@ export interface ScheduleEntry {
   /** Count per level name. */
   counts: Record<string, number>;
   total: number;
+  occurrences: ScheduleOccurrence[];
+}
+
+/** An occurrence's mark: its type's mark and its number (`W1.3`); a number alone for an untyped element. */
+export function occurrenceMark(entry: ScheduleEntry, o: ScheduleOccurrence): string {
+  return entry.mark && entry.mark !== '—' ? `${entry.mark}.${o.number}` : `${entry.name}-${o.number}`;
 }
 
 export interface ScheduleData {
@@ -77,6 +96,9 @@ export function scheduleData(kind: ScheduleKind): ScheduleData {
       const level = levelOf(id);
       entry.counts[level] = (entry.counts[level] ?? 0) + 1;
       entry.total++;
+      const attrs = attributes(live, id);
+      const tag = attrs?.[7];
+      entry.occurrences.push({ modelId, expressId: id, globalId: String(attrs?.[0] ?? ''), level, tag: typeof tag === 'string' ? tag : null, number: 0 });
     };
     const typed = new Set<number>();
     let types: ReturnType<typeof joineryTypesInStore> = [];
@@ -86,7 +108,7 @@ export function scheduleData(kind: ScheduleKind): ScheduleData {
       // The catalogue's current entry wins over the copy stored in the model.
       const spec = (type.spec.id && fromCatalogue.get(type.spec.id)) || type.spec;
       const key = spec.id ?? `${modelId}:${type.typeId}`;
-      const entry = byKey.get(key) ?? { key, kind: spec.kind, spec, mark: spec.mark, name: spec.name, width: spec.width, height: spec.height, counts: {}, total: 0 };
+      const entry = byKey.get(key) ?? { key, kind: spec.kind, spec, mark: spec.mark, name: spec.name, width: spec.width, height: spec.height, counts: {}, total: 0, occurrences: [] };
       byKey.set(key, entry);
       for (const id of occurrencesOfTypeInStore(dataStore, type.typeId, live.view)) {
         if (live.view?.isDeleted(id)) continue;
@@ -107,7 +129,7 @@ export function scheduleData(kind: ScheduleKind): ScheduleData {
       const key = `untyped:${k}:${size}`;
       const entry = byKey.get(key) ?? {
         key, kind: k, spec: null, mark: '—', name: k === 'door' ? 'Door' : 'Window',
-        width: Number.isFinite(width) ? width : 0, height: Number.isFinite(height) ? height : 0, counts: {}, total: 0,
+        width: Number.isFinite(width) ? width : 0, height: Number.isFinite(height) ? height : 0, counts: {}, total: 0, occurrences: [],
       };
       byKey.set(key, entry);
       count(entry, id);
@@ -116,7 +138,7 @@ export function scheduleData(kind: ScheduleKind): ScheduleData {
   // Catalogue types not placed yet still belong in the schedule (with no count).
   for (const spec of fromCatalogue.values()) {
     if (!spec.id || byKey.has(spec.id) || !wanted(spec.kind)) continue;
-    byKey.set(spec.id, { key: spec.id, kind: spec.kind, spec, mark: spec.mark, name: spec.name, width: spec.width, height: spec.height, counts: {}, total: 0 });
+    byKey.set(spec.id, { key: spec.id, kind: spec.kind, spec, mark: spec.mark, name: spec.name, width: spec.width, height: spec.height, counts: {}, total: 0, occurrences: [] });
   }
   const entries = [...byKey.values()]
     .filter((e) => e.total > 0 || e.spec)
@@ -124,5 +146,11 @@ export function scheduleData(kind: ScheduleKind): ScheduleData {
       || a.mark.localeCompare(b.mark, undefined, { numeric: true }) || a.width - b.width);
   const levels = [...levelElevation.entries()].sort((a, b) => a[1] - b[1]).map(([name]) => name);
   if (entries.some((e) => e.counts['—'])) levels.push('—');
+  // Number each type's occurrences: lowest level first, then by model and id, so the numbering is stable.
+  const order = new Map(levels.map((l, i) => [l, i]));
+  for (const e of entries) {
+    e.occurrences.sort((a, b) => (order.get(a.level) ?? 99) - (order.get(b.level) ?? 99) || a.modelId.localeCompare(b.modelId) || a.expressId - b.expressId);
+    e.occurrences.forEach((o, i) => { o.number = i + 1; });
+  }
   return { entries, levels };
 }

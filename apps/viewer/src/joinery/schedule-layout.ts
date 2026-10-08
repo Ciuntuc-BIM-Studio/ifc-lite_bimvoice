@@ -54,7 +54,7 @@ const MARK_ROW = 10;
 const PEN = { frame: 0.35, grid: 0.18, drawing: { cut: 0.35, outline: 0.25, thin: 0.13 } } as const;
 const TEXT = 2.5;
 
-function operationText(entry: ScheduleEntry, labels: ScheduleLabels): string {
+export function operationText(entry: ScheduleEntry, labels: ScheduleLabels): string {
   if (!entry.spec) return '—';
   const ops = [...new Set(normalisedPanels(entry.spec).map((p) => p.operation))];
   return ops.map(labels.op).join(' + ');

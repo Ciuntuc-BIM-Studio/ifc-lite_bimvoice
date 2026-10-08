@@ -13,8 +13,8 @@
 
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import {
-  addRoofSystemToStore, defaultRoofStructure, orientRoof, readRoofSystem, regenerateRoofSystemInStore, resolveSpatialAnchor, roofSystemOf,
-  type RoofEdgeRule, type RoofSystemSpec,
+  addRoofSystemToStore, defaultRoofStructure, orientRoof, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, resolveSpatialAnchor,
+  roofSystemOf, type RoofEdgeRule, type RoofLayer, type RoofSystemSpec,
 } from '@ifc-lite/create';
 import { useViewerStore } from '@/store';
 import { recordModellingCommit } from '@/store/slices/mutation-modelling-records';
@@ -24,6 +24,8 @@ import { requestRemesh } from '@/lib/remesh/remesh-service';
 import { registerAuthoredElement } from '@/utils/spatialHierarchy';
 import { drawingToWorld } from '@/drafting/frame';
 import type { Pt } from '@/drafting/types';
+import { setDraftParams } from '@/drafting/draft-store';
+import { useProjectStore } from './project-store';
 import { findElementByGlobalId, prepare, type ContourElementResult } from './contour-element';
 import type { ProjectView } from './types';
 
@@ -37,6 +39,12 @@ export interface RoofDefaults {
   thickness: number;
   /** Wall plate above the plan's level. */
   eaveHeight: number;
+}
+
+/** A new roof's covering build-up, outermost first: the tiles over their underlay. */
+export function defaultCoveringLayers(thickness: number): RoofLayer[] {
+  const underlay = Math.min(0.002, thickness / 10);
+  return [{ name: 'Roof tiles', thickness: Math.max(thickness - underlay, 0.001) }, { name: 'Underlay membrane', thickness: underlay }];
 }
 
 /** Default rules for an outline: the shape's eaves and gables, all at one pitch and overhang. */
@@ -78,7 +86,7 @@ export function createRoofSystem(view: ProjectView, plane: SectionPlaneConfig, o
     const pts = orientRoof(local.map((p) => [p.x, p.y] as Vec2), local.map(() => ({ kind: 'eave' as const, pitch: defaults.pitch, overhang: defaults.overhang }))).outline;
     const spec: RoofSystemSpec = {
       name, outline: pts, rules: defaultRules(pts, defaults), eaveHeight: local[0].z + defaults.eaveHeight,
-      covering: { thickness: defaults.thickness, color: '#8b4a3a' }, structure: defaultRoofStructure(), timberColor: '#c8a070',
+      covering: { thickness: defaults.thickness, color: '#8b4a3a', layers: defaultCoveringLayers(defaults.thickness) }, structure: defaultRoofStructure(), timberColor: '#c8a070',
     };
     const made = recordModellingCommit(useViewerStore, ready.modelId, (editor, ds) => {
       ensureStoreyPlacement(ds, editor, ready.storeyId);
@@ -147,4 +155,34 @@ export function updateRoofSystemOutline(view: ProjectView, plane: SectionPlaneCo
   const oriented = orientRoof(pts, pts.map((_, i) => ref.spec.rules[i] ?? ref.spec.rules[ref.spec.rules.length - 1]));
   const result = applyRoofSystem(ref, { ...ref.spec, outline: oriented.outline, rules: oriented.rules });
   return result.ok ? { ok: true, modelId, elementId: ref.roofId, globalId, ifcClass: 'IfcRoof' } : result;
+}
+
+/**
+ * Delete a roof system whole — the roof, its planes and members, their
+ * materials — in one undo step. A contour it was drawn from stays on the
+ * plan, unlinked.
+ */
+export function deleteRoofSystem(ref: Pick<RoofSystemRef, 'modelId' | 'roofId'>): { ok: true } | { ok: false; error: string } {
+  const get = useViewerStore.getState;
+  const globalId = roofGuid(ref);
+  try {
+    const removed = recordModellingCommit(useViewerStore, ref.modelId, (editor, ds) => removeRoofSystemFromStore(ds, editor, ref.roofId));
+    for (const id of removed) stashAndPruneEntityMesh(get, useViewerStore.setState, ref.modelId, id);
+    const hierarchy = get().models.get(ref.modelId)?.ifcDataStore?.spatialHierarchy;
+    if (hierarchy) for (const id of removed) hierarchy.elementToStorey.delete(id);
+    get().setSelectedEntityId(null);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+  const drafts = useProjectStore.getState().drafts.filter((d) => d.params.ifcModelId === ref.modelId && d.params.ifcGlobalId === globalId);
+  if (globalId && drafts.length) setDraftParams(new Set(drafts.map((d) => d.id)), { ifcGlobalId: null, ifcModelId: null, ifcClass: null, roofSystem: null });
+  return { ok: true };
+}
+
+function roofGuid(ref: Pick<RoofSystemRef, 'modelId' | 'roofId'>): string | null {
+  const s = useViewerStore.getState();
+  const view = s.mutationViews.get(ref.modelId);
+  const fresh = view?.getNewEntity(ref.roofId)?.attributes[0];
+  if (typeof fresh === 'string') return fresh;
+  return s.models.get(ref.modelId)?.ifcDataStore?.entities.getGlobalId(ref.roofId) || null;
 }
