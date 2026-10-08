@@ -15,14 +15,27 @@ import { generateIfcGuid } from '@ifc-lite/encoding';
 import type { MutablePropertyView, StoreEditor } from '@ifc-lite/mutations';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import type { SpatialAnchor } from './anchor.js';
-import { ownerHistoryRef } from './_emit-helpers.js';
-import { addMaterialLayerSetToStore, addMaterialToStore } from './material.js';
+import { emitSurfaceStyle, ownerHistoryRef } from './_emit-helpers.js';
+import { addMaterialLayerSetToStore, addMaterialLayerSetUsageToStore, addMaterialToStore } from './material.js';
+import { pruneOrphanOverlay } from './overlay-prune.js';
 import { AnchorEntityReader } from './resolve-anchor.js';
 
 /** One layer of a roof covering, metres; outermost first. */
 export interface RoofLayer {
   name: string;
   thickness: number;
+  /** Its material's colour (#rrggbb): sections and 3D tell the layers apart by it. Default: the covering's for the first, a neutral one after. */
+  color?: string;
+}
+
+/** Default colours of the layers under the outermost one. */
+const LAYER_COLOURS = ['#4a4a4a', '#e3cf6e', '#b98d5a', '#9aa3ab', '#d9d9d9'];
+
+/** The colour a covering layer's material shows. */
+export function layerColour(covering: RoofCovering, index: number): string {
+  const own = coveringLayers(covering)[index]?.color;
+  if (own) return own;
+  return index === 0 ? covering.color : LAYER_COLOURS[(index - 1) % LAYER_COLOURS.length];
 }
 
 export interface RoofCovering {
@@ -47,6 +60,19 @@ const refId = (v: unknown): number | null => {
   return typeof v === 'string' && /^#\d+$/.test(v) ? Number(v.slice(1)) : null;
 };
 
+const rgb = (hex: string) => {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  return m ? { red: parseInt(m[1], 16) / 255, green: parseInt(m[2], 16) / 255, blue: parseInt(m[3], 16) / 255 } : { red: 0.6, green: 0.6, blue: 0.6 };
+};
+
+/** A material's appearance: IfcMaterialDefinitionRepresentation → IfcStyledRepresentation → a styled item with no geometry. */
+export function colourMaterial(editor: StoreEditor, anchor: Pick<SpatialAnchor, 'schema' | 'bodyContextId'>, materialId: number, colour: string, name: string): void {
+  const style = emitSurfaceStyle(editor, anchor.schema ?? 'IFC4', rgb(colour), name).styleRefId;
+  const item = editor.addEntity('IfcStyledItem', [null, [`#${style}`], null]).expressId;
+  const rep = editor.addEntity('IfcStyledRepresentation', [`#${anchor.bodyContextId}`, 'Style', 'Material', [`#${item}`]]).expressId;
+  editor.addEntity('IfcMaterialDefinitionRepresentation', [null, null, [`#${rep}`], `#${materialId}`]);
+}
+
 function associate(editor: StoreEditor, anchor: SpatialAnchor, materialId: number, ids: readonly number[]): void {
   if (ids.length === 0) return;
   editor.addEntity('IfcRelAssociatesMaterial', [
@@ -64,11 +90,19 @@ export function writeRoofMaterials(
     return id;
   };
   if (planes.length) {
+    const layers = coveringLayers(covering);
+    layers.forEach((l, i) => {
+      if (!materials.has(l.name)) colourMaterial(editor, anchor, material(l.name), layerColour(covering, i), l.name);
+    });
     const set = addMaterialLayerSetToStore(editor, anchor, {
       LayerSetName: `${name} covering`,
-      MaterialLayers: coveringLayers(covering).map((l) => ({ Material: material(l.name), LayerThickness: l.thickness, Name: l.name })),
+      MaterialLayers: layers.map((l) => ({ Material: material(l.name), LayerThickness: l.thickness, Name: l.name })),
     });
-    associate(editor, anchor, set.layerSetId, planes);
+    // Every plane's Z is square to its slope and its top face is at Z = 0: the layers run down from it.
+    const usage = addMaterialLayerSetUsageToStore(editor, anchor, {
+      ForLayerSet: set.layerSetId, LayerSetDirection: 'AXIS3', DirectionSense: 'NEGATIVE', OffsetFromReferenceLine: 0,
+    });
+    associate(editor, anchor, usage.usageId, planes);
   }
   if (members.length) associate(editor, anchor, material('Timber', 'wood'), members);
 }
@@ -87,8 +121,13 @@ export function removeRoofMaterials(store: IfcDataStore, editor: StoreEditor, pa
     const set = relating === null ? null : reader.entity(relating);
     if (relating === null || !set) continue;
     drop.add(relating);
-    if (!Array.isArray(set.attributes[0])) continue; // an IfcMaterial
-    for (const l of set.attributes[0]) {
+    // A layer-set usage: its set goes with it.
+    const layerSetId = set.type.toUpperCase() === 'IFCMATERIALLAYERSETUSAGE' ? refId(set.attributes[0]) : relating;
+    const layerSet = layerSetId === null ? null : reader.entity(layerSetId);
+    if (layerSetId === null || !layerSet) continue;
+    drop.add(layerSetId);
+    if (!Array.isArray(layerSet.attributes[0])) continue; // an IfcMaterial
+    for (const l of layerSet.attributes[0]) {
       const layerId = refId(l);
       if (layerId === null) continue;
       drop.add(layerId);
@@ -96,5 +135,12 @@ export function removeRoofMaterials(store: IfcDataStore, editor: StoreEditor, pa
       if (mat !== null) drop.add(mat);
     }
   }
+  // The dropped materials' appearances (they point at the material, nothing points at them).
+  const appearances: number[] = [];
+  for (const id of [...reader.ids('IFCMATERIALDEFINITIONREPRESENTATION')]) {
+    const material = refId(reader.entity(id)?.attributes[3]);
+    if (material !== null && drop.has(material)) appearances.push(id);
+  }
   for (const id of drop) editor.removeEntity(id);
+  pruneOrphanOverlay(editor, appearances);
 }

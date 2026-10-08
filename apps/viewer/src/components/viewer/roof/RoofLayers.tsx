@@ -4,13 +4,14 @@
 
 /**
  * The covering's build-up, outermost layer first: a row per layer — its
- * material name and thickness — to reorder, remove or add. Written to the
- * model as the covering planes' IfcMaterialLayerSet; the planes are as thick
- * as the layers together.
+ * material colour, name and thickness — to reorder, remove or add. Written
+ * to the model as the covering planes' IfcMaterialLayerSet (used square to
+ * each slope, so sections cut every layer in its colour); the planes are as
+ * thick as the layers together.
  */
 
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
-import { coveringLayers, coveringThickness, type RoofLayer, type RoofSystemSpec } from '@ifc-lite/create';
+import { coveringLayers, coveringThickness, layerColour, type RoofLayer, type RoofSystemSpec } from '@ifc-lite/create';
 import { useTranslation } from '@/i18n';
 import { IconButton } from '@/components/ui/icon-button';
 import { Num, CELL } from './RoofNum';
@@ -33,6 +34,7 @@ export function CoveringLayers({ spec, onChange }: { spec: RoofSystemSpec; onCha
       <table className="w-full text-xs">
         <thead>
           <tr className="text-left text-zinc-500">
+            <th className="w-6" aria-label={t('roof.layer.colour')} />
             <th className="font-medium">{t('roof.layer.material')}</th>
             <th className="w-20 font-medium">{t('roof.layer.thickness')}</th>
             <th className="w-20" aria-label={t('roof.layer.actions')} />
@@ -41,6 +43,10 @@ export function CoveringLayers({ spec, onChange }: { spec: RoofSystemSpec; onCha
         <tbody>
           {layers.map((l, i) => (
             <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
+              <td>
+                <input type="color" aria-label={`${t('roof.layer.colour')} ${i + 1}`} className="h-5 w-5 cursor-pointer border-0 bg-transparent p-0"
+                  value={layerColour(spec.covering, i)} onChange={(e) => patch(i, { color: e.target.value })} />
+              </td>
               <td>
                 <input aria-label={`${t('roof.layer.material')} ${i + 1}`} className={CELL} defaultValue={l.name} key={`${i}:${l.name}`}
                   onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== l.name && patch(i, { name: e.target.value.trim() })} />

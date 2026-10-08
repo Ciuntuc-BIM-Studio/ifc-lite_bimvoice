@@ -29,6 +29,7 @@ import {
   doorOperation, doorPanelOperation, liningOffsets, panelPosition, panelWidthRatio, windowPanelOperation, windowPartitioning,
 } from './joinery-ifc.js';
 import { isDoorLeaf, joineryProblem, normalisedPanels, type JoinerySpec } from './joinery-spec.js';
+import { attributeRefs, pruneOrphanOverlay } from './overlay-prune.js';
 
 export type JoineryAnchor = Pick<SpatialAnchor, 'ownerHistoryId' | 'schema' | 'guidRandom' | 'lengthUnitScale' | 'bodyContextId'>;
 
@@ -209,11 +210,14 @@ export function addJoineryTypeToStore(editor: StoreEditor, anchor: JoineryAnchor
 export function replaceJoineryTypeInStore(editor: StoreEditor, anchor: JoineryAnchor, typeId: number, mapId: number, globalId: string, spec: JoinerySpec): JoineryTypeResult {
   const problem = joineryProblem(spec);
   if (problem) throw new Error(`replaceJoineryTypeInStore: ${problem}`);
+  // The old body and property sets (HasPropertySets, 5) go once the new ones are in.
+  const old = [...attributeRefs(editor, mapId, [1]), ...attributeRefs(editor, typeId, [5])];
   const sets = emitPropertySets(editor, anchor, spec);
   editor.setPositionalAttribute(mapId, 1, `#${emitBodyShape(editor, anchor, spec)}`);
   const { attrs } = typeAttributes(anchor, spec, globalId, sets, mapId);
   // GlobalId (0) and OwnerHistory (1) stay; everything after is the spec's.
   attrs.forEach((value, index) => { if (index >= 2) editor.setPositionalAttribute(typeId, index, value as Attr[number]); });
+  pruneOrphanOverlay(editor, old);
   return { typeId, mapId, globalId };
 }
 

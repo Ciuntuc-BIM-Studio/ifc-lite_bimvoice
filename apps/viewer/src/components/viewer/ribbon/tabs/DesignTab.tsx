@@ -12,13 +12,14 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, JoineryTypes, RoofSystem, DoorFlipSide,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { useViewerStore } from '@/store';
 import { useWallJoinPrefs } from '@/lib/wall-join-prefs';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
+import { useDrafting3dPref } from '@/lib/drafting-3d-prefs';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
 import { RibbonCommandLargeButton, RibbonCommandSmallButton } from '../command-button';
 
@@ -31,6 +32,7 @@ export function DesignTab() {
   const modelCommand = useViewerStore((s) => s.session?.activeCommandId ?? null);
   const bim = (id: string) => modelCommand === id;
   const autoMitre = useWallJoinPrefs((s) => s.style === 'mitre');
+  const drafting3d = useDrafting3dPref((s) => s.show);
 
   return (
     <>
@@ -82,9 +84,10 @@ export function DesignTab() {
         </RibbonSmallStack>
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="design:bim-grid" icon={BimGrid} active={bim('grid.place')} />
-          <RibbonCommandSmallButton commandId="design:door-flip-hand" icon={DoorFlipHand} />
-          <RibbonCommandSmallButton commandId="design:door-flip-side" icon={DoorFlipSide} />
+          <RibbonCommandSmallButton commandId="design:flip-x" icon={DoorFlipHand} />
+          <RibbonCommandSmallButton commandId="design:flip-y" icon={DoorFlipSide} />
         </RibbonSmallStack>
+        <RibbonCommandLargeButton commandId="design:element-types" icon={ElementTypes} />
         <RibbonCommandLargeButton commandId="design:joinery" icon={JoineryTypes} />
         <RibbonCommandLargeButton commandId="design:roof-system" icon={RoofSystem} />
       </RibbonGroup>
@@ -115,6 +118,7 @@ export function DesignTab() {
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="design:snap" icon={DraftSnap} active={snap} />
           <RibbonCommandSmallButton commandId="design:ortho" icon={DraftOrtho} active={ortho} />
+          <RibbonCommandSmallButton commandId="design:drafting-3d" icon={DraftLine} active={drafting3d} />
         </RibbonSmallStack>
       </RibbonGroup>
     </>

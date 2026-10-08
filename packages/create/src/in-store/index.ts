@@ -51,13 +51,19 @@ export {
 export { addStoreyToStore, type StoreyInStoreParams, type StoreyBuildResult } from './storey.js';
 export { addExtrusionToStore, replaceExtrusionGeometryInStore, type ExtrusionInStoreParams, type ExtrusionBuildResult } from './extrusion.js';
 export { addFacetedElementToStore, replaceFacetedGeometryInStore, type FacetedInStoreParams, type FacetedBuildResult } from './faceted.js';
+export { elementGeometryRefs, pruneOrphanOverlay } from './overlay-prune.js';
+export { flipElementInStore, type FlipAxis, type FlipOutcome } from './element-flip.js';
+export {
+  CATALOG_TYPE_PSET, catalogLayerColour, catalogTypeOfElement, ensureCatalogTypeInStore, findCatalogTypeInStore, readCatalogType, rewriteCatalogTypeInStore, setLayerUsageOffset,
+  type CatalogAnchor, type CatalogTypeInModel, type CatalogTypeInput, type CatalogTypeLayer,
+} from './catalog-type.js';
 export { offsetOutline, roofFacets, roofSolidFaces, type RoofKind, type RoofSurfaceSpec } from './roof-surface.js';
 export { hipRoofFaces, weightedSkeletonFaces } from './straight-skeleton.js';
 // Roof systems: per-edge rules → planes, structure, and the IfcRoof block of slabs and members.
 export { offsetEdges, orientRoof, roofGeometry, roofProblem, type RoofEdgeKind, type RoofEdgeRule, type RoofGeometry, type RoofLine, type RoofPlane } from './roof-system.js';
 export { defaultRoofStructure, defaultTruss, roofStructure, type MemberRole, type MemberSection, type RoofMember, type RoofStructureSpec, type TrussSpec } from './roof-structure.js';
 export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
-export { coveringLayers, coveringThickness, type RoofCovering, type RoofLayer } from './roof-system-material.js';
+export { coveringLayers, coveringThickness, layerColour, type RoofCovering, type RoofLayer } from './roof-system-material.js';
 export { revolveFaces, sweepFaces } from './sweep-revolve.js';
 export { addDoorToStore, type DoorInStoreParams, type DoorBuildResult } from './door.js';
 export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } from './window.js';

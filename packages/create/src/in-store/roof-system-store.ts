@@ -23,7 +23,8 @@ import type { MutablePropertyView, StoreEditor } from '@ifc-lite/mutations';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import type { SpatialAnchor } from './anchor.js';
 import { emitLocalPlacement, emitSurfaceStyle, ownerHistoryRef, productGuid } from './_emit-helpers.js';
-import { addFacetedElementToStore, replaceFacetedGeometryInStore } from './faceted.js';
+import { addFacetedElementToStore, rewriteFacetedGeometry } from './faceted.js';
+import { elementGeometryRefs, pruneOrphanOverlay } from './overlay-prune.js';
 import { addMemberToStore } from './member.js';
 import { AnchorEntityReader } from './resolve-anchor.js';
 import { roofSolidFaces } from './roof-surface.js';
@@ -40,6 +41,8 @@ export const ROOF_SYSTEM_PSET = 'Pset_IfcLiteRoofSystem';
 export interface RoofSystemSpec {
   /** The drafting contour (or project item) the system was made from. */
   id?: string;
+  /** The project roof type it was made from (its covering and structure follow that type). */
+  typeId?: string;
   name: string;
   /** Wall-plate line, storey-local metres. */
   outline: Vec2[];
@@ -83,10 +86,39 @@ function stylePart(editor: StoreEditor, productShapeId: number, styleRef: number
   }
 }
 
+/**
+ * A roof plane's own frame: origin on its top surface, Z its upward normal,
+ * X along its contour lines (level, as an eave runs), Y up the slope.
+ */
+function planeFrame(top: readonly Vec3[]): { origin: Vec3; x: Vec3; z: Vec3; toLocal: (p: Vec3) => Vec3 } {
+  // Newell's normal: robust for any planar loop.
+  const n: Vec3 = [0, 0, 0];
+  top.forEach((p, i) => {
+    const q = top[(i + 1) % top.length];
+    n[0] += (p[1] - q[1]) * (p[2] + q[2]);
+    n[1] += (p[2] - q[2]) * (p[0] + q[0]);
+    n[2] += (p[0] - q[0]) * (p[1] + q[1]);
+  });
+  const unit = (v: Vec3): Vec3 => { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; };
+  let z = unit(n);
+  if (z[2] < 0) z = [-z[0], -z[1], -z[2]];
+  const level = Math.hypot(z[0], z[1]) < 1e-9 ? [1, 0, 0] as Vec3 : unit([-z[1], z[0], 0]);
+  const y: Vec3 = [z[1] * level[2] - z[2] * level[1], z[2] * level[0] - z[0] * level[2], z[0] * level[1] - z[1] * level[0]];
+  const origin = top[0];
+  const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  return {
+    origin, x: level, z,
+    toLocal: (p) => {
+      const d: Vec3 = [p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]];
+      return [dot(d, level), dot(d, y), dot(d, z)];
+    },
+  };
+}
+
 interface PartPlan {
   key: string;
   build: (globalId: string | undefined) => { id: number; shape: number };
-  /** New geometry for an existing part: placement and representation written onto it. */
+  /** New geometry for an existing part: placement and representation written onto it (the old ones are left to prune). */
   rewrite: (id: number) => number;
 }
 
@@ -96,9 +128,12 @@ function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemS
   g.planes.forEach((plane) => {
     const tv = coveringThickness(spec.covering) / Math.cos((plane.pitch * Math.PI) / 180);
     const bottom = plane.pts.map(([x, y, z]) => [x, y, z - tv] as Vec3);
+    // Each plane in its own frame, Z square to the slope: its layer-set usage (AXIS3) stacks the layers across it.
+    const frame = planeFrame(plane.pts.map(([x, y, z]) => [x, y, z + lift] as Vec3));
     const params = {
       IfcClass: 'IfcSlab', PredefinedType: 'ROOF', Name: `${spec.name} plane ${plane.edge + 1}`, Tag: `plane:${plane.edge}`,
-      Faces: roofSolidFaces([bottom], tv), Location: [0, 0, lift] as Vec3,
+      Faces: roofSolidFaces([bottom], tv).map((face) => face.map(([x, y, z]) => frame.toLocal([x, y, z + lift]))),
+      Location: frame.origin, Axis: frame.z, RefDirection: frame.x,
     };
     plans.push({
       key: params.Tag,
@@ -107,7 +142,7 @@ function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemS
         editor.removeEntity(made.relContainedId);
         return { id: made.elementId, shape: made.productShapeId };
       },
-      rewrite: (id) => replaceFacetedGeometryInStore(editor, anchor, id, params).productShapeId,
+      rewrite: (id) => rewriteFacetedGeometry(editor, anchor, id, params).productShapeId,
     });
   });
   const kinds: Record<RoofMember['role'], { type: 'RAFTER' | 'PURLIN' | 'PLATE' | 'MEMBER' | 'CHORD' | 'POST' | 'STRUT'; name: string }> = {
@@ -257,6 +292,8 @@ export function regenerateRoofSystemInStore(store: IfcDataStore, editor: StoreEd
   const timber = emitSurfaceStyle(editor, schema, rgb(spec.timberColor), `${spec.name} timber`).styleRefId;
   removeRoofMaterials(store, editor, current.parts.map((p) => p.id), view);
   const existing = new Map(current.parts.map((p) => [p.tag, p.id]));
+  // Every part's current placement and body: rewritten or removed below, then pruned once.
+  const stale = current.parts.flatMap((p) => elementGeometryRefs(editor, p.id));
   const parts: number[] = [];
   for (const plan of partPlans(editor, anchor, spec, g, members)) {
     const id = existing.get(plan.key);
@@ -273,6 +310,7 @@ export function regenerateRoofSystemInStore(store: IfcDataStore, editor: StoreEd
   }
   const removed = [...existing.values()];
   for (const id of removed) editor.removeEntity(id);
+  pruneOrphanOverlay(editor, stale);
   if (current.aggregateId !== null) editor.setPositionalAttribute(current.aggregateId, 5, parts.map((id) => `#${id}`));
   else if (parts.length) editor.addEntity('IfcRelAggregates', [generateIfcGuid(anchor.guidRandom), ownerHistoryRef(anchor.ownerHistoryId), null, null, `#${roofId}`, parts.map((id) => `#${id}`)]);
   writeMaterials(editor, anchor, spec, parts);
@@ -293,6 +331,7 @@ export function removeRoofSystemFromStore(store: IfcDataStore, editor: StoreEdit
   const current = readRoof(store, roofId, view);
   if (!current) throw new Error(`#${roofId} is not a roof system`);
   const parts = current.parts.map((p) => p.id);
+  const stale = [roofId, ...parts].flatMap((id) => elementGeometryRefs(editor, id));
   removeRoofMaterials(store, editor, parts, view);
   const gone = new Set([roofId, ...parts]);
   const reader = new AnchorEntityReader(store, view);
@@ -316,5 +355,6 @@ export function removeRoofSystemFromStore(store: IfcDataStore, editor: StoreEdit
   if (current.aggregateId !== null) editor.removeEntity(current.aggregateId);
   for (const id of parts) editor.removeEntity(id);
   editor.removeEntity(roofId);
+  pruneOrphanOverlay(editor, stale);
   return [roofId, ...parts];
 }

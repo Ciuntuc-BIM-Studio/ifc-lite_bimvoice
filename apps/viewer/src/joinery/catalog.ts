@@ -12,7 +12,7 @@
  */
 
 import {
-  defaultDoorSpec, defaultWindowSpec, retypeOccurrencesInStore, setJoineryFlipsInStore, syncJoineryTypeInStore,
+  defaultDoorSpec, defaultWindowSpec, retypeOccurrencesInStore, syncJoineryTypeInStore,
   type JoineryKind, type JoinerySpec,
 } from '@ifc-lite/create';
 import { useViewerStore } from '@/store';
@@ -20,7 +20,7 @@ import { recordModellingCommit } from '@/store/slices/mutation-modelling-records
 import { requestRemesh } from '@/lib/remesh/remesh-service';
 import { useProjectStore } from '@/project/project-store';
 import { freshProjectId } from '@/project/view-defaults';
-import { invalidateJoineryReads, joineryOfElement } from './element-spec';
+import { invalidateJoineryReads } from './element-spec';
 
 type State = ReturnType<typeof useProjectStore.getState>;
 
@@ -150,32 +150,4 @@ export function applyJoineryToSelection(spec: JoinerySpec): JoineryModelOutcome 
     }
   }
   return out;
-}
-
-/**
- * Turn the selected configured doors / windows in their openings (bit 1:
- * hinges to the other jamb, bit 2: open to the other side) — in the model,
- * so 3D, plans and exports agree. Returns the renderer ids it did not handle
- * (elements without a configured type), whose plan symbol alone flips.
- */
-export function flipSelectedJoinery(bit: 1 | 2): number[] {
-  const s = useViewerStore.getState();
-  const ids = new Set<number>(s.selectedEntityIds ?? []);
-  if (s.selectedEntityId !== null && s.selectedEntityId !== undefined) ids.add(s.selectedEntityId);
-  const rest: number[] = [];
-  const byModel = new Map<string, { expressId: number; flips: number }[]>();
-  for (const id of ids) {
-    const ref = s.resolveGlobalIdFromModels(id);
-    const typed = ref ? joineryOfElement(ref.modelId, ref.expressId) : null;
-    if (!ref || !typed) { rest.push(id); continue; }
-    byModel.set(ref.modelId, [...(byModel.get(ref.modelId) ?? []), { expressId: ref.expressId, flips: typed.flips ^ bit }]);
-  }
-  for (const [modelId, elements] of byModel) {
-    recordModellingCommit(useViewerStore, modelId, (editor, ds) => {
-      for (const e of elements) setJoineryFlipsInStore(ds, editor, e.expressId, e.flips);
-    });
-    invalidateJoineryReads(modelId);
-    void requestRemesh(useViewerStore.getState, modelId, elements.map((e) => e.expressId), 'shape');
-  }
-  return rest;
 }

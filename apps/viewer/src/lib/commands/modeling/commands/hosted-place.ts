@@ -46,6 +46,9 @@ export interface HostedPlaceGesture {
 }
 
 const OPENING_DEFAULT: OpeningSize = { Width: 1, Height: 1, Sill: 1 };
+/** A bare opening's starting size: the project's current opening type when it has one (`element-types/`). */
+let openingDefault: () => OpeningSize | null = () => null;
+export function registerOpeningDefault(provider: typeof openingDefault): void { openingDefault = provider; }
 
 /**
  * A configured door / window type to place (the project's joinery catalogue,
@@ -154,7 +157,7 @@ function specOf(kind: HostedFillKind, g: HostedPlaceGesture, ctx: Ctx): HostedFi
 }
 
 function makeHostedPlace(kind: HostedFillKind): ModelingCommand<HostedPlaceGesture> {
-  const init = (): HostedPlaceGesture => ({ host: null, offset: null, offsetLock: null, opening: OPENING_DEFAULT });
+  const init = (): HostedPlaceGesture => ({ host: null, offset: null, offsetLock: null, opening: openingDefault() ?? OPENING_DEFAULT });
   return {
     id: `${kind}.place`,
     labelKey: LABEL[kind],

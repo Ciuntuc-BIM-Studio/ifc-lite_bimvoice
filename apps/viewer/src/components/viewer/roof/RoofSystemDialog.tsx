@@ -23,6 +23,7 @@ import { deleteRoofWithConfirm } from './delete-roof';
 import { closeRoofDialog, startRoofEdit, useRoofDialog } from '@/project/roof-dialog-store';
 import { ArchitectureFields, StructureFields } from './RoofFields';
 import { RoofIsoPreview, RoofPlanPreview } from './RoofPreview';
+import { RoofTypeControls } from './RoofTypeControls';
 
 function readSpec(modelId: string, roofId: number): RoofSystemSpec | null {
   const s = useViewerStore.getState();
@@ -95,7 +96,8 @@ export function RoofSystemDialog() {
           </div>
         ) : null}
         <DialogFooter className="items-center gap-2 sm:justify-between">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {draft ? <RoofTypeControls spec={draft} onChange={setDraft} /> : null}
             <Button size="sm" variant="outline" disabled={!saved} onClick={editInPlace}>{t('roof.editInPlace')}</Button>
             <Button size="sm" variant="ghost" disabled={!saved} onClick={() => apply(saved)}>{t('roof.regenerateStructure')}</Button>
             <Button size="sm" variant="ghost" disabled={!draft || draft.structure.system === 'none'}

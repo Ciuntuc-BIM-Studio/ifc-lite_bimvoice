@@ -21,6 +21,8 @@ import { DraftingStandardsDialog } from '../drafting/standards/DraftingStandards
 import { JoineryDialog } from '../joinery/JoineryDialog';
 import { RoofSystemDialog } from '../roof/RoofSystemDialog';
 import '@/joinery/placement';
+import '@/element-types/model-sync';
+import { ElementTypesDialog } from '../element-types/ElementTypesDialog';
 
 type LeftTab = 'model' | 'project';
 
@@ -78,6 +80,7 @@ export function LeftNavigator() {
       <NewProjectHost />
       <DraftingStandardsDialog />
       <JoineryDialog />
+      <ElementTypesDialog />
       <RoofSystemDialog />
     </div>
   );

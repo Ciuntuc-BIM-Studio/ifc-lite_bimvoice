@@ -10,7 +10,8 @@
  * moment it exists, and one Ctrl+Z removes wall and assignment together.
  *
  * A pick from another model, or one that no longer exists (its creation was
- * undone), is skipped. A layer set is attached through an
+ * undone), is skipped. A registered catalogue (`registerCatalogDefaults`)
+ * names the type for the kinds it covers, writing it into the model first. A layer set is attached through an
  * IfcMaterialLayerSetUsage per element: across a wall, centred on its axis;
  * up from a slab's underside.
  */
@@ -20,10 +21,19 @@ import type { AuthoredElementKind } from '@/store/slices/authoringDefaultsSlice'
 import { modelEditTarget, recordModellingEdit, type ModellingStore } from '@/store/slices/mutation-modelling-records';
 import { AUTHORED_KINDS, authoredKindOf, readLayerSet } from './authored-kinds.js';
 
+/** A type (and its layer set) for a kind from outside the inspector's picks: the project's type catalogue. */
+export type CatalogDefaults = (kind: AuthoredElementKind, modelId: string) => { typeId: number; layerSetId: number | null } | null;
+let catalogDefaults: CatalogDefaults | null = null;
+
+/** Install the project catalogue's defaults (they win over the inspector's picks for the kinds they cover). */
+export function registerCatalogDefaults(provider: CatalogDefaults | null): void {
+  catalogDefaults = provider;
+}
+
 export function applyAuthoredDefaults(store: ModellingStore, modelId: string, ids: readonly number[]): void {
   const state = store.getState();
   const { typeIds, layerSetIds } = state.authoringDefaults;
-  if (ids.length === 0 || (Object.keys(typeIds).length === 0 && Object.keys(layerSetIds).length === 0)) return;
+  if (ids.length === 0 || (!catalogDefaults && Object.keys(typeIds).length === 0 && Object.keys(layerSetIds).length === 0)) return;
   const target = modelEditTarget(state, modelId);
   if (!target) return;
   const model = { dataStore: target.dataStore, view: target.view };
@@ -38,8 +48,9 @@ export function applyAuthoredDefaults(store: ModellingStore, modelId: string, id
 
   const plan = [...byKind].map(([kind, elements]) => {
     const info = AUTHORED_KINDS[kind];
-    const typeId = live(typeIds[kind], info.type);
-    const layerSetId = info.layers ? live(layerSetIds[kind], 'IfcMaterialLayerSet') : null;
+    const catalog = catalogDefaults?.(kind, modelId) ?? null;
+    const typeId = catalog ? catalog.typeId : live(typeIds[kind], info.type);
+    const layerSetId = !info.layers ? null : catalog ? catalog.layerSetId : live(layerSetIds[kind], 'IfcMaterialLayerSet');
     const total = layerSetId === null ? 0 : (readLayerSet(model, layerSetId) ?? []).reduce((sum, layer) => sum + layer.thickness, 0);
     return { elements, typeId, layerSetId, direction: info.layers, offset: info.layers === 'AXIS2' ? -total / 2 : 0 };
   }).filter((step) => step.typeId !== null || step.layerSetId !== null);

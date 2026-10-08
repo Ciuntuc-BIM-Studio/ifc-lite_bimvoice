@@ -36,6 +36,12 @@ const doc: ProjectDocument = {
   layerGroups: [{ id: 'g1', name: 'Annotation', visible: false, locked: true }],
   joineryTypes: [{ ...defaultWindowSpec('W-1'), id: 'j1', columns: [2, 1], panels: [{ col: 0, row: 0, operation: 'tilt-turn-right' }] }],
   currentJoinery: { window: 'j1' },
+  elementTypes: [
+    { id: 't1', kind: 'wall', name: 'Brick 30', mark: 'WT1', height: 3, layers: [{ name: 'Brick', thickness: 0.25, color: '#b5651d' }, { name: 'Plaster', thickness: 0.015 }] },
+    { id: 't2', kind: 'column', name: 'HEA 200', mark: 'C1', height: 3.2, section: { Type: 'I', OverallWidth: 0.2, OverallDepth: 0.19, WebThickness: 0.0065, FlangeThickness: 0.01 } },
+    { id: 't3', kind: 'opening', name: 'Shaft', mark: 'O1', width: 0.6, height: 0.6, sill: 0 },
+  ],
+  currentTypes: { wall: 't1', column: 't2' },
   schedules: [{ id: 's1', name: 'Window schedule', kind: 'window', createdAt: 5, scale: 25 }],
 };
 

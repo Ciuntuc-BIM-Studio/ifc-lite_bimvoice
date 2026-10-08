@@ -9,13 +9,15 @@
  * is written as. IfcFacetedBrep exists in IFC2X3, IFC4 and IFC4X3 alike.
  *
  * `replaceFacetedGeometryInStore` points the SAME element at a new placement
- * and body, keeping its expressId, GlobalId, relationships and properties.
+ * and body, keeping its expressId, GlobalId, relationships and properties;
+ * the old placement and body, when nothing else uses them, are dropped.
  */
 
 import type { StoreEditor } from '@ifc-lite/mutations';
 import { emitLocalPlacement, emitRelContainedInSpatialStructure, ownerHistoryRef, productGuid } from './_emit-helpers.js';
 import { toNativePoint3, type SpatialAnchor } from './anchor.js';
 import { canonicalEntity, conformsTo, schemaAttributes, schemaRegistry } from './schema-attributes.js';
+import { elementGeometryRefs, pruneOrphanOverlay } from './overlay-prune.js';
 
 type Vec3 = [number, number, number];
 
@@ -30,8 +32,11 @@ export interface FacetedInStoreParams {
   GlobalId?: string;
   /** The closed shell's faces: planar loops, counter-clockwise seen from outside, metres in the placement's frame. */
   Faces: Vec3[][];
-  /** Placement origin, storey-local metres (axes are the storey's). */
+  /** Placement origin, storey-local metres. */
   Location: Vec3;
+  /** Placement Z and X, storey-local unit vectors (default: the storey's). `Faces` are in this frame. */
+  Axis?: Vec3;
+  RefDirection?: Vec3;
 }
 
 export interface FacetedBuildResult {
@@ -52,7 +57,7 @@ function validate(params: FacetedInStoreParams, op: string): void {
 }
 
 function emitGeometry(editor: StoreEditor, anchor: SpatialAnchor, params: FacetedInStoreParams): { placementId: number; productShapeId: number } {
-  const placementId = emitLocalPlacement(editor, anchor.storeyPlacementId, toNativePoint3(anchor, params.Location));
+  const placementId = emitLocalPlacement(editor, anchor.storeyPlacementId, toNativePoint3(anchor, params.Location), params.Axis, params.RefDirection);
   // One point per distinct vertex, shared by the faces that meet there.
   const points = new Map<string, string>();
   const point = (p: Vec3): string => {
@@ -105,6 +110,14 @@ export function addFacetedElementToStore(editor: StoreEditor, anchor: SpatialAnc
 
 /** New placement and body for an existing element (same expressId and GlobalId); ObjectPlacement (5) and Representation (6). */
 export function replaceFacetedGeometryInStore(editor: StoreEditor, anchor: SpatialAnchor, elementId: number, params: FacetedInStoreParams): { placementId: number; productShapeId: number } {
+  const old = elementGeometryRefs(editor, elementId);
+  const made = rewriteFacetedGeometry(editor, anchor, elementId, params);
+  pruneOrphanOverlay(editor, old);
+  return made;
+}
+
+/** As `replaceFacetedGeometryInStore`, leaving the old records for the caller to prune (once, after many rewrites). */
+export function rewriteFacetedGeometry(editor: StoreEditor, anchor: SpatialAnchor, elementId: number, params: FacetedInStoreParams): { placementId: number; productShapeId: number } {
   validate(params, 'replaceFacetedGeometryInStore');
   const { placementId, productShapeId } = emitGeometry(editor, anchor, params);
   editor.setPositionalAttribute(elementId, 5, `#${placementId}`);

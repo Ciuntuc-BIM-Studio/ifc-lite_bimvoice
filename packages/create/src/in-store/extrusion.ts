@@ -26,6 +26,7 @@ import {
 } from './_emit-helpers.js';
 import { toNativeLength, toNativePoint2, toNativePoint3, type SpatialAnchor } from './anchor.js';
 import { canonicalEntity, conformsTo, schemaAttributes, schemaRegistry } from './schema-attributes.js';
+import { elementGeometryRefs, pruneOrphanOverlay } from './overlay-prune.js';
 
 type Vec2 = [number, number];
 type Vec3 = [number, number, number];
@@ -125,7 +126,9 @@ export function addExtrusionToStore(editor: StoreEditor, anchor: SpatialAnchor, 
  */
 export function replaceExtrusionGeometryInStore(editor: StoreEditor, anchor: SpatialAnchor, elementId: number, params: ExtrusionInStoreParams): void {
   validate(params, 'replaceExtrusionGeometryInStore');
+  const old = elementGeometryRefs(editor, elementId);
   const { placementId, productShapeId } = emitGeometry(editor, anchor, params);
   editor.setPositionalAttribute(elementId, 5, `#${placementId}`);
   editor.setPositionalAttribute(elementId, 6, `#${productShapeId}`);
+  pruneOrphanOverlay(editor, old);
 }

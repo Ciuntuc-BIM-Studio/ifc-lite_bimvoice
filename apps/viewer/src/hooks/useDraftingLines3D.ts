@@ -4,7 +4,8 @@
 
 /**
  * Lines drafted on project views, shown in 3D on their view planes (the
- * `drafting` line-overlay channel): a line drawn on a floor plan lies on
+ * `drafting` line-overlay channel) when asked to (`drafting-3d-prefs.ts`;
+ * drafting is not part of the model, so the 3D view hides it by default): a line drawn on a floor plan lies on
  * that level's work plane, one drawn on a section stands in the section's
  * plane. The lifting is `drafting/frame.ts`'s `drawingToWorld`, the exact
  * inverse of the drawing's projection, so 2D and 3D always agree.
@@ -22,6 +23,7 @@ import { anchorWorldLineVertices } from '@/lib/renderer/line-overlay-rte';
 import { drawingToWorld } from '@/drafting/frame';
 import { entitySkeleton } from '@/drafting/annotation';
 import { layerShows } from '@/drafting/styles';
+import { useDrafting3dPref } from '@/lib/drafting-3d-prefs';
 import type { DraftEntity, DraftShape, Pt } from '@/drafting/types';
 
 const ARC_STEP = Math.PI / 32;
@@ -80,10 +82,15 @@ export function useDraftingLines3D(rendererRef: RefObject<Renderer | null>, isIn
   const byView = useViewDrawings((s) => s.byView);
   const models = useViewerStore((s) => s.models);
   const legacyGeometry = useViewerStore((s) => s.geometryResult);
+  const show = useDrafting3dPref((s) => s.show);
 
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer || !isInitialized) return;
+    if (!show) {
+      renderer.setLineOverlay('drafting', null);
+      return;
+    }
     const groups = useProjectStore.getState().layerGroups ?? [];
     const bounds = mergedSectionBounds(models, legacyGeometry);
     const vertices: number[] = [];
@@ -102,5 +109,5 @@ export function useDraftingLines3D(rendererRef: RefObject<Renderer | null>, isIn
     } catch (err) {
       console.warn('[drafting] could not show drafted lines in 3D', err);
     }
-  }, [rendererRef, isInitialized, recoveryEpoch, drafts, layers, views, levels, byView, models, legacyGeometry]);
+  }, [rendererRef, isInitialized, recoveryEpoch, show, drafts, layers, views, levels, byView, models, legacyGeometry]);
 }

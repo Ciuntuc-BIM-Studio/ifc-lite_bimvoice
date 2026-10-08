@@ -14,6 +14,7 @@ import { readDraft, readDraftLayer } from '@/drafting/draft-file';
 import { readSheetLayout } from './sheet-file';
 import { readStandards } from './standards-file';
 import { readJoineryList } from '@/joinery/spec-file';
+import { readCurrentTypes, readElementTypeList } from '@/element-types/spec';
 import type { CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
@@ -123,6 +124,8 @@ export function parseProjectFile(text: string): ProjectDocument {
     ...readStandards(raw),
     joineryTypes: readJoineryList(raw.joineryTypes),
     currentJoinery: readCurrentJoinery(raw.currentJoinery),
+    elementTypes: readElementTypeList(raw.elementTypes),
+    currentTypes: readCurrentTypes(raw.currentTypes),
     schedules: list('schedules').flatMap((v) => readSchedule(v)),
   };
 }

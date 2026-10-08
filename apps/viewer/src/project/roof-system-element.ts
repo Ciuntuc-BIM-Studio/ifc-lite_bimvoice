@@ -75,8 +75,11 @@ function afterCommit(modelId: string, storeyId: number, parts: readonly number[]
   if (parts.length) void requestRemesh(get, modelId, parts, created ? 'created' : 'shape');
 }
 
+/** A roof type's build-up for a new roof system: covering, structure, timber colour, and the type it came from. */
+export type RoofPreset = Pick<RoofSystemSpec, 'covering' | 'structure' | 'timberColor' | 'typeId'>;
+
 /** Build a roof system over a drafted outline (drawing coordinates on a floor plan). */
-export function createRoofSystem(view: ProjectView, plane: SectionPlaneConfig, outline: Pt[], defaults: RoofDefaults, name = 'Roof'): ContourElementResult {
+export function createRoofSystem(view: ProjectView, plane: SectionPlaneConfig, outline: Pt[], defaults: RoofDefaults, name = 'Roof', preset?: RoofPreset): ContourElementResult {
   if (view.kind !== 'plan') return { ok: false, error: 'Roofs are drawn on a floor plan.' };
   const ready = prepare(view, plane, [outline]);
   if (!ready.ok) return { ok: false, error: ready.error };
@@ -87,6 +90,7 @@ export function createRoofSystem(view: ProjectView, plane: SectionPlaneConfig, o
     const spec: RoofSystemSpec = {
       name, outline: pts, rules: defaultRules(pts, defaults), eaveHeight: local[0].z + defaults.eaveHeight,
       covering: { thickness: defaults.thickness, color: '#8b4a3a', layers: defaultCoveringLayers(defaults.thickness) }, structure: defaultRoofStructure(), timberColor: '#c8a070',
+      ...preset,
     };
     const made = recordModellingCommit(useViewerStore, ready.modelId, (editor, ds) => {
       ensureStoreyPlacement(ds, editor, ready.storeyId);

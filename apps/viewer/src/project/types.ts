@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import type { JoinerySpec } from '@ifc-lite/create';
+import type { ElementTypeKind, ElementTypeSpec } from '@/element-types/spec';
 import type { DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
 
 /**
@@ -186,5 +187,9 @@ export interface ProjectDocument {
   joineryTypes?: JoinerySpec[];
   /** The catalogue entry the Door / Window tools place, per kind. */
   currentJoinery?: { door?: string; window?: string };
+  /** The project's wall, slab, column, beam, roof and opening types; each is one IFC type per model it is used in. */
+  elementTypes?: ElementTypeSpec[];
+  /** The entry each Design tool builds with, per kind. */
+  currentTypes?: Partial<Record<ElementTypeKind, string>>;
   schedules?: ProjectSchedule[];
 }

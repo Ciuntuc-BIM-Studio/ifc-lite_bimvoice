@@ -13,7 +13,7 @@
  *   - Duplicate — clone the entity along a picked axis (reuses
  *     `MutationSlice.duplicateEntity` so the new geometry shares the
  *     existing representation reference).
- *   - Delete — tombstone the entity (`MutationSlice.removeEntity`),
+ *   - Delete — tombstone the entity (`removeElementWithOrphans`),
  *     undoable from the same model's history stack.
  *
  * Move reads the entity's existing IfcCartesianPoint coordinates via
@@ -39,6 +39,7 @@ import { GeometryAxisRow } from './GeometryAxisRow';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/components/ui/toast';
 import { useViewerStore } from '@/store';
+import { removeElementWithOrphans } from '@/project/element-removal';
 import { useTranslation } from '@/i18n';
 
 interface GeometryEditCardProps {
@@ -91,7 +92,6 @@ export function GeometryEditCard({ modelId, entityId, entityLabel }: GeometryEdi
   const rotateEntity = useViewerStore((s) => s.rotateEntity);
   const readEntityRotation = useViewerStore((s) => s.readEntityRotation);
   const duplicateEntity = useViewerStore((s) => s.duplicateEntity);
-  const removeEntity = useViewerStore((s) => s.removeEntity);
   const setSelectedEntityId = useViewerStore((s) => s.setSelectedEntityId);
 
   const coordinates = useEntityCoordinates(modelId, entityId);
@@ -198,14 +198,14 @@ export function GeometryEditCard({ modelId, entityId, entityLabel }: GeometryEdi
   }, [modelId, entityId, duplicateEntity, setSelectedEntityId, t]);
 
   const onDelete = useCallback(() => {
-    const ok = removeEntity(modelId, entityId);
+    const ok = removeElementWithOrphans(modelId, entityId);
     if (!ok) {
       toast.error(t('geometryExport.editCard.deleteFailedError'));
       return;
     }
     toast.success(t('geometryExport.editCard.deletedSuccess', { entityLabel: entityLabel ?? `#${entityId}` }));
     setSelectedEntityId(null);
-  }, [modelId, entityId, entityLabel, removeEntity, setSelectedEntityId, t]);
+  }, [modelId, entityId, entityLabel, setSelectedEntityId, t]);
 
   return (
     <div className="border border-overlay-accent/40 bg-overlay-accent/5">

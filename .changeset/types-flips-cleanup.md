@@ -1,0 +1,6 @@
+---
+"@ifc-lite/create": minor
+"@ifc-lite/viewer": minor
+---
+
+Element types for the project: walls and slabs (coloured layer build-ups written as an IfcMaterialLayerSet on an IfcWallType / IfcSlabType), columns and beams (sections), roof system presets and opening sizes, in an Element types dialog on the Design tab. The current type of a kind is what its tool builds with (dimensions, type and layers in the same undo step); saving a type refits every element of it; the Model inspector's "Project type" retypes an element and fits it. Flip X / Flip Y for any element (Design tab and the 3D context menu): doors and windows turn their hinge or swing, walls swap faces (profile and layer-set usage), anything else mirrors in place about its centre through a mapped item. Roof covering planes are written in a frame square to their slope with a layer-set usage, so sections and 3D cut them into their coloured layers. Edits that rewrite geometry (contour elements, roofs, joinery, element delete) prune the records nothing uses any more. Drafted lines stay out of the 3D view unless "Drafting in 3D" is on, and a drafted line or contour can be converted into walls, beams, railings, slabs, roofs or extrusions from its properties panel.

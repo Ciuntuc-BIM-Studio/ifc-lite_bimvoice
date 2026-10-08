@@ -18,6 +18,7 @@ import { isGeometry, type DraftEntity, type DraftLayer } from '@/drafting/types'
 import type { HatchPattern } from '@/drafting/hatch/pattern';
 import { AnnotationFields } from './AnnotationFields';
 import { AnnotationStyleFields } from './AnnotationStyleFields';
+import { DraftBimFields } from './DraftBimFields';
 
 const TYPE_KEYS = {
   line: 'drafting.props.typeLine',
@@ -92,6 +93,7 @@ export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { enti
           {measure.angleDeg !== undefined ? <Row label={t('drafting.props.angle')}>{t('drafting.unit.degrees', { value: measure.angleDeg.toFixed(2) })}</Row> : null}
         </>
       ) : null}
+      {single && isGeometry(single.shape) ? <DraftBimFields key={single.id} entity={single} /> : null}
       <h4 className="pt-1 font-semibold text-zinc-700 dark:text-zinc-300">{t('drafting.props.params')}</h4>
       {keys.length === 0 ? <p className="text-zinc-500">{t('drafting.props.noParams')}</p> : null}
       {keys.map((key) => (

@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /** Entity-menu-only command metadata. The mounted menu supplies its active target action. */
-import { Building2, Copy, CopyPlus, Layers, ShieldQuestion, Trash2 } from 'lucide-react';
+import { Building2, Copy, CopyPlus, FlipHorizontal2, FlipVertical2, Layers, ShieldQuestion, Trash2 } from 'lucide-react';
 import { ACTION_NAME_KEYS } from '@/lib/commands/action-names';
 import type { DuplicateDirection } from '@/store/slices/mutationSlice';
 import type { SurfaceCommandDefinition, SurfaceCommandContext, SurfaceCommandState } from './surface-commands';
@@ -84,6 +84,16 @@ export const CONTEXT_SURFACE_COMMANDS = [
     id: 'context:duplicate-z-minus', labelKey: 'entityContextMenu.duplicateZMinus',
     direction: '-Z',
     keywords: 'duplicate down', category: 'Tools', icon: CopyPlus,
+    surfaces: contextOnly, enabled: canEdit, run: runContextAction,
+  },
+  {
+    id: 'context:flip-x', labelKey: 'drafting.flip.x',
+    keywords: 'flip mirror x element door hinge', category: 'Tools', icon: FlipHorizontal2,
+    surfaces: contextOnly, enabled: canEdit, run: runContextAction,
+  },
+  {
+    id: 'context:flip-y', labelKey: 'drafting.flip.y',
+    keywords: 'flip mirror y element door swing wall layers', category: 'Tools', icon: FlipVertical2,
     surfaces: contextOnly, enabled: canEdit, run: runContextAction,
   },
   {

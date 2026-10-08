@@ -33,6 +33,8 @@ import { surfaceCommand, type SurfaceCommandId } from './surface-commands';
 import { runSurfaceCommand } from './surface-command-run';
 import { roofSystemOfRenderId } from '@/project/roof-system-element';
 import { deleteRoofWithConfirm } from './roof/delete-roof';
+import { removeElementWithOrphans } from '@/project/element-removal';
+import { flipElements } from '@/project/element-flip';
 
 export function EntityContextMenu() {
   const { t } = useTranslation();
@@ -44,7 +46,6 @@ export function EntityContextMenu() {
   const setAnonymizedExportRequested = useViewerStore((s) => s.setAnonymizedExportRequested);
   const cameraCallbacks = useViewerStore((s) => s.cameraCallbacks);
   // Store-level mutations
-  const removeEntity = useViewerStore((s) => s.removeEntity);
   const duplicateEntity = useViewerStore((s) => s.duplicateEntity);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const focusReturnRef = useRef<HTMLElement | null>(null);
@@ -272,7 +273,7 @@ export function EntityContextMenu() {
       void deleteRoofWithConfirm(roof);
       return;
     }
-    const ok = removeEntity(contextEntityRef.modelId, contextEntityRef.expressId);
+    const ok = removeElementWithOrphans(contextEntityRef.modelId, contextEntityRef.expressId);
     if (ok) {
       // Tombstoning only affects export — the mesh is still in the GPU buffers.
       // Hide it via the existing visibility system so it disappears from the scene
@@ -285,7 +286,15 @@ export function EntityContextMenu() {
       toast.error('Delete failed — entity not found in store overlay');
     }
     closeContextMenu();
-  }, [contextEntityRef, canEdit, entityType, contextMenu.entityId, removeEntity, hideEntity, setSelectedEntityId, closeContextMenu]);
+  }, [contextEntityRef, canEdit, entityType, contextMenu.entityId, hideEntity, setSelectedEntityId, closeContextMenu]);
+
+  const handleFlip = useCallback((axis: 'x' | 'y') => {
+    const id = contextMenu.entityId;
+    closeContextMenu();
+    if (!id || !canEdit) return;
+    const report = flipElements(axis, [id]);
+    if (report.refused.length) toast.info(t('drafting.msg.flipRefused', { count: report.refused.length, reason: report.refused[0] }));
+  }, [contextMenu.entityId, canEdit, closeContextMenu, t]);
 
   const contextItem = (id: SurfaceCommandId, action: () => void, options: {
     title?: string; tone?: 'default' | 'destructive';
@@ -356,6 +365,8 @@ export function EntityContextMenu() {
             <>
               <ContextMenuSeparator />
               <DuplicateItems onDuplicate={handleDuplicate} canEdit={canEdit} reason={editReason} />
+              {contextItem('context:flip-x', () => handleFlip('x'), { title: editReason })}
+              {contextItem('context:flip-y', () => handleFlip('y'), { title: editReason })}
               {contextItem('context:delete', handleDeleteEntity, {
                 tone: 'destructive', title: editReason,
               })}

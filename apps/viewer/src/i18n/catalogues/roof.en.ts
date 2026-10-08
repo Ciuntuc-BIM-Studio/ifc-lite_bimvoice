@@ -12,6 +12,7 @@ export const roofEn = {
   'roof.field.eaveHeight': 'Wall plate height',
   'roof.field.covering': 'Covering build-up (outermost first)',
   'roof.layer.material': 'Material',
+  'roof.layer.colour': 'Colour',
   'roof.layer.thickness': 'mm',
   'roof.layer.actions': 'Layer actions',
   'roof.layer.up': 'Move layer up',

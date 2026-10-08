@@ -108,6 +108,7 @@ import { newProjectEn } from './catalogues/new-project.en';
 import { viewGraphicsEn } from './catalogues/view-graphics.en';
 import { draftingStandardsEn } from './catalogues/drafting-standards.en';
 import { joineryEn } from './catalogues/joinery.en';
+import { elementTypesEn } from './catalogues/element-types.en';
 import { roofEn } from './catalogues/roof.en';
 import { section2dEn } from './catalogues/section-2d.en';
 import { sheetsPdfEn } from './catalogues/sheets-pdf.en';
@@ -169,6 +170,7 @@ export const en = {
   ...viewGraphicsEn,
   ...draftingStandardsEn,
   ...joineryEn,
+  ...elementTypesEn,
   ...roofEn,
   ...section2dEn,
   ...costPanelEn,

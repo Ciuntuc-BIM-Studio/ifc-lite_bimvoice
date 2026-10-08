@@ -15,6 +15,7 @@
 
 import { createRoofElement } from '@/project/roof-element';
 import { createRoofSystem } from '@/project/roof-system-element';
+import { currentRoofPreset } from '@/element-types/roof-preset';
 import { setDraftParams } from '../draft-store';
 import { pickSource, shapeLoop } from './model';
 import type { DraftCommandDef } from './types';
@@ -77,9 +78,11 @@ export const roofCommand: DraftCommandDef = {
           return 'continue';
         }
         if (s.roofSystem && s.roofKind !== 'flat') {
+          // The current roof type's build-up, when there is one; the typed shape and pitch still decide the form.
+          const typed = currentRoofPreset();
           // The covering only: the structure is its own parts (a typed T is the covering's thickness when it is thin).
-          const covering = s.roofThickness <= 0.15 ? s.roofThickness : 0.08;
-          const made = createRoofSystem(view, plane, loop, { shape: s.roofKind, pitch: s.roofSlope, overhang: s.roofOverhang, thickness: covering, eaveHeight: 0 });
+          const covering = typed?.defaults.thickness ?? (s.roofThickness <= 0.15 ? s.roofThickness : 0.08);
+          const made = createRoofSystem(view, plane, loop, { shape: s.roofKind, pitch: s.roofSlope, overhang: s.roofOverhang, thickness: covering, eaveHeight: 0 }, typed?.name, typed?.preset);
           if (!made.ok) {
             ctx.say('drafting.msg.extrudeFailed', { detail: made.error });
             return 'continue';

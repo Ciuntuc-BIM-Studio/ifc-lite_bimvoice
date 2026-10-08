@@ -28,7 +28,7 @@ const parse = (bytes: Uint8Array) => new IfcParser().parseColumnar(
   { disableWorkerScan: true },
 );
 
-function meshZ(bytes: Uint8Array, store: IfcDataStore, id: number): { min: number; max: number; meshes: number } {
+function meshZ(bytes: Uint8Array, store: IfcDataStore, id: number): { min: number; max: number; meshes: number; colours: Set<string> } {
   const api = new RuntimeIfcAPI();
   try {
     const ref = store.entityIndex.byId.get(id)!;
@@ -36,17 +36,19 @@ function meshZ(bytes: Uint8Array, store: IfcDataStore, id: number): { min: numbe
     const c = api.processGeometryBatch(bytes, new Uint32Array([id, ref.byteOffset, ref.byteOffset + ref.byteLength]), pre.unitScale, 0, 0, 0, false,
       pre.voidKeys, pre.voidCounts, pre.voidValues, pre.styleIds, pre.styleColors);
     let min = Infinity, max = -Infinity, meshes = 0;
+    const colours = new Set<string>();
     try {
       for (let i = 0; i < c.length; i++) {
         const m = c.takeMesh(i);
         if (!m) continue;
         try {
           meshes++;
+          colours.add(Array.from(m.color).map((c) => c.toFixed(3)).join(','));
           for (let j = 1; j < m.positions.length; j += 3) { const z = m.origin[1] + m.positions[j]; min = Math.min(min, z); max = Math.max(max, z); }
         } finally { m.free(); }
       }
     } finally { c.free(); }
-    return { min, max, meshes };
+    return { min, max, meshes, colours };
   } finally {
     try { api.clearPrePassCache(); } finally { api.free(); }
   }
@@ -159,5 +161,27 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('roof system block, real
     bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content;
     reparsed = await parse(bytes);
     expect(roofs.readRoofSystem(reparsed, made.roofId)).toBeNull();
+  });
+  it('slices each covering plane into its layers, square to the slope, each in its material colour', async () => {
+    const source = readFileSync(new URL('../../../../apps/viewer/public/samples/hello-wall.ifc', import.meta.url));
+    const store = await parse(source);
+    const view = new MutablePropertyView(null, 'm');
+    const editor = new StoreEditor(store, view);
+    const storeyId = [...(store.spatialHierarchy?.storeyElevations.keys() ?? [])][0];
+    const anchor = resolveSpatialAnchor(store, storeyId, view);
+    const made = roofs.addRoofSystemToStore(editor, anchor, {
+      ...spec(30), covering: { thickness: 0, color: '#a0522d', layers: [{ name: 'Clay tiles', thickness: 0.05 }, { name: 'Insulation', thickness: 0.15 }] },
+    });
+    const bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content;
+    const text = new TextDecoder().decode(bytes);
+    expect(text).toContain('IFCMATERIALLAYERSETUSAGE(');
+    expect(text).toContain('.AXIS3.,.NEGATIVE.');
+    expect(text).toContain('IFCMATERIALDEFINITIONREPRESENTATION(');
+    const plane = meshZ(bytes, await parse(bytes), made.parts[0]);
+    // Two layers: two sub-meshes, two colours; the plane as a whole is where it was.
+    expect(plane.meshes).toBe(2);
+    expect(plane.colours.size).toBe(2);
+    const ridgeTop = 3 + 3 * Math.tan(Math.PI / 6);
+    expect(plane.max).toBeCloseTo(ridgeTop, 2);
   });
 });

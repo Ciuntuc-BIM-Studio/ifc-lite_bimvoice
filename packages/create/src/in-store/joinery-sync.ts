@@ -27,6 +27,7 @@ import { readHostedFill } from './hosted-fill-read.js';
 import { readJoineryFlips, readJoineryType } from './joinery-read.js';
 import { addJoineryTypeToStore, emitMappedBody, replaceJoineryTypeInStore, type JoineryAnchor } from './joinery-type.js';
 import type { JoinerySpec } from './joinery-spec.js';
+import { attributeRefs, pruneOrphanOverlay } from './overlay-prune.js';
 
 export interface JoineryInModel {
   typeId: number;
@@ -87,8 +88,10 @@ function fitOccurrence(store: IfcDataStore, editor: StoreEditor, id: number, spe
     editHostedElementInStore(store, editor, id, { OverallWidth: spec.width, OverallHeight: spec.height });
   }
   const flips = readJoineryFlips(store, id, view);
+  const old = attributeRefs(editor, id, [6]);
   const { productShapeId } = emitMappedBody(editor, bodyContextId, mapId, flips);
   editor.setPositionalAttribute(id, 6, `#${productShapeId}`);
+  pruneOrphanOverlay(editor, old);
   return [id, read.openingId, read.hostId];
 }
 
@@ -103,8 +106,10 @@ export function setJoineryFlipsInStore(store: IfcDataStore, editor: StoreEditor,
   const type = rel?.relatingId != null ? readJoineryType(store, rel.relatingId, view) : null;
   if (!type?.mapId) return false;
   const { bodyContextId } = resolveJoineryAnchor(store, view);
+  const old = attributeRefs(editor, id, [6]);
   const { productShapeId } = emitMappedBody(editor, bodyContextId, type.mapId, flips & 3);
   editor.setPositionalAttribute(id, 6, `#${productShapeId}`);
+  pruneOrphanOverlay(editor, old);
   return true;
 }
 

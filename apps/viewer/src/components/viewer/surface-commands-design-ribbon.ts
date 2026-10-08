@@ -11,23 +11,24 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide, JoineryTypes, RoofSystem,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { startBimTool } from '@/project/model-command-bridge';
 import { openJoinery } from '@/joinery/dialog-store';
+import { openElementTypes } from '@/element-types/dialog-store';
 import { openRoofForSelection } from '@/project/roof-dialog-store';
 import { roofSystemOfRenderId } from '@/project/roof-system-element';
 import { useViewerStore } from '@/store';
-import { renderIdGlobalId, selectedGlobalIds } from '@/project/element-guid';
-import { flipSelectedJoinery } from '@/joinery/catalog';
-import { toggleSymbolFlips } from '@/project/project-store';
+import { selectedGlobalIds } from '@/project/element-guid';
+import { flipElements } from '@/project/element-flip';
 import { changeSelectedWallJoins, defaultWallJoinStyle, setDefaultWallJoinStyle, type WallJoinChange } from '@/lib/wall-join-style';
 import { startWorkPlaneFromFace } from '@/project/workplane-from-face';
 import { resolve } from '@/i18n/registry';
 import { toast } from '@/components/ui/toast';
 import { isDrawingTabActive } from '@/project/document-tabs';
 import { startDraftCommand, toggleOrtho, toggleSnap } from '@/drafting/session';
+import { toggleDraftingIn3d } from '@/lib/drafting-3d-prefs';
 import type { SurfaceCommandDefinition } from './surface-command-types';
 
 const ribbonOnly = ['ribbon'] as const;
@@ -63,12 +64,12 @@ function joins(change: WallJoinChange): () => void {
 }
 
 /** Flip the plan symbol of the selected doors (hinge jamb: bit 1, swing side: bit 2). */
-function flipDoors(bit: 1 | 2): () => void {
+/** Flip the selected elements along their own X or Y (doors and windows: hand / swing side). */
+function flip(axis: 'x' | 'y'): () => void {
   return () => {
-    if (selectedGlobalIds().length === 0) { toast.info(resolve('drafting.msg.selectDoors')); return; }
-    // Configured doors / windows turn in the model; the others flip their plan symbol only.
-    const rest = flipSelectedJoinery(bit).map(renderIdGlobalId).filter((g): g is string => !!g);
-    toggleSymbolFlips(rest, bit);
+    if (selectedGlobalIds().length === 0) { toast.info(resolve('drafting.msg.selectToFlip')); return; }
+    const report = flipElements(axis);
+    if (report.refused.length) toast.info(resolve('drafting.msg.flipRefused', { count: report.refused.length, reason: report.refused[0] }));
   };
 }
 
@@ -101,9 +102,10 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:join-swap', labelKey: 'drafting.join.swap', keywords: 'wall join corner swap priority through', category: 'Tools', icon: JoinSwap, surfaces: ribbonOnly, enabled: always, run: joins({ swap: true }) },
   { id: 'design:join-auto-mitre', labelKey: 'drafting.join.autoMitre', keywords: 'wall join automatic default mitre corners', category: 'Tools', icon: JoinAuto, surfaces: ribbonOnly, enabled: always, run: toggleAutoMitre },
   { id: 'design:roof-system', labelKey: 'roof.open', keywords: 'roof system configurator rafters purlins ridge gable hip eave pitch structure edit in place', category: 'Tools', icon: RoofSystem, surfaces: ribbonOnly, enabled: always, run: openRoofSystem },
+  { id: 'design:element-types', labelKey: 'elementTypes.open', keywords: 'type types catalogue wall slab column beam roof opening layers build-up section configurator', category: 'Tools', icon: ElementTypes, surfaces: ribbonOnly, enabled: always, run: () => openElementTypes() },
   { id: 'design:joinery', labelKey: 'joinery.open', keywords: 'door window type configurator catalogue joinery frame sash tilt turn schedule', category: 'Tools', icon: JoineryTypes, surfaces: ribbonOnly, enabled: always, run: () => openJoinery() },
-  { id: 'design:door-flip-hand', labelKey: 'drafting.door.flipHand', keywords: 'door swing hinge hand flip plan symbol', category: 'Tools', icon: DoorFlipHand, surfaces: ribbonOnly, enabled: always, run: flipDoors(1) },
-  { id: 'design:door-flip-side', labelKey: 'drafting.door.flipSide', keywords: 'door swing side flip plan symbol', category: 'Tools', icon: DoorFlipSide, surfaces: ribbonOnly, enabled: always, run: flipDoors(2) },
+  { id: 'design:flip-x', labelKey: 'drafting.flip.x', keywords: 'flip mirror x left right door hinge hand column beam element', category: 'Tools', icon: DoorFlipHand, surfaces: ribbonOnly, enabled: always, run: flip('x') },
+  { id: 'design:flip-y', labelKey: 'drafting.flip.y', keywords: 'flip mirror y front back door swing side wall layers element', category: 'Tools', icon: DoorFlipSide, surfaces: ribbonOnly, enabled: always, run: flip('y') },
   { id: 'design:bim-room', labelKey: 'drafting.bim.room', keywords: 'room space bim place', category: 'Tools', icon: BimRoom, surfaces: ribbonOnly, enabled: always, run: bim('room.place') },
   { id: 'design:line', labelKey: 'drafting.tool.line', keywords: 'draw line segment cad L', category: 'Tools', icon: DraftLine, surfaces: ribbonOnly, enabled: always, run: draft('line') },
   { id: 'design:polyline', labelKey: 'drafting.tool.polyline', keywords: 'draw polyline pline cad PL', category: 'Tools', icon: DraftPolyline, surfaces: ribbonOnly, enabled: always, run: draft('polyline') },
@@ -126,4 +128,5 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:revolve', labelKey: 'drafting.tool.revolve', keywords: 'revolve rotate lathe profile axis solid', category: 'Tools', icon: DraftRevolve, surfaces: ribbonOnly, enabled: always, run: draft('revolve') },
   { id: 'design:snap', labelKey: 'drafting.snap', keywords: 'object snap osnap toggle F3', category: 'Tools', icon: DraftSnap, surfaces: ribbonOnly, enabled: always, run: () => toggleSnap() },
   { id: 'design:ortho', labelKey: 'drafting.ortho', keywords: 'ortho orthogonal toggle F8', category: 'Tools', icon: DraftOrtho, surfaces: ribbonOnly, enabled: always, run: () => toggleOrtho() },
+  { id: 'design:drafting-3d', labelKey: 'drafting.in3d', keywords: 'drafting lines 3d show hide model overlay', category: 'Tools', icon: DraftLine, surfaces: ribbonOnly, enabled: always, run: () => toggleDraftingIn3d() },
 ] as const satisfies readonly SurfaceCommandDefinition[];
