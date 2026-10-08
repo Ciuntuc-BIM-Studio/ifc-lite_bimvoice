@@ -51,6 +51,7 @@ import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
 import { exportViewDxf } from './view-dxf';
 import { viewOpeningSymbols } from '@/project/view-symbols';
+import { symbolShapes } from '@/drafting/opening-symbols';
 import { partHostType } from '@/project/part-host';
 import { cutHatches, hiddenClasses, DEFAULT_VIEW_PRESET, styledDrawing, viewOverrideRules } from '@/project/view-graphics';
 import { capturePointer } from '@/lib/pointer-capture';
@@ -192,7 +193,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const exportDxf = () => exportViewDxf({
     view, drawing: shown, axis, drafts: entities, layers, extraPatterns,
     symbols: view.kind === 'plan' && plane && runtimeGeometry?.meshes
-      ? viewOpeningSymbols(runtimeGeometry.meshes, plane, useProjectStore.getState().symbolFlips, hidden).flatMap((s) => s.shapes)
+      ? viewOpeningSymbols(runtimeGeometry.meshes, plane, useProjectStore.getState().symbolFlips, hidden).flatMap(symbolShapes)
       : [],
   });
 

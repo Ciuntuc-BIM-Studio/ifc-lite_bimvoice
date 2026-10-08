@@ -18,6 +18,8 @@
 
 import type { MeshData } from '@ifc-lite/geometry';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
+import type { JoinerySpec } from '@ifc-lite/create';
+import { typedPlanSymbol } from '@/joinery/plan-placement';
 import { worldToDrawing } from './frame';
 import type { DraftShape, Pt } from './types';
 
@@ -128,8 +130,15 @@ export interface OpeningSymbol {
   /** The element's mesh id (the renderer's global id). */
   id: number;
   kind: 'door' | 'window';
+  /** Thin lines (all of a symbol read from the mesh). */
   shapes: DraftShape[];
+  /** A configured type's cut parts (frame, sashes), drawn heavy. */
+  heavy?: DraftShape[];
+  dashed?: DraftShape[];
 }
+
+/** Every shape of a symbol, whatever its weight. */
+export const symbolShapes = (s: OpeningSymbol): DraftShape[] => [...s.shapes, ...(s.heavy ?? []), ...(s.dashed ?? [])];
 
 const KIND: Record<string, 'door' | 'window'> = { IFCDOOR: 'door', IFCDOORSTANDARDCASE: 'door', IFCWINDOW: 'window', IFCWINDOWSTANDARDCASE: 'window' };
 
@@ -138,28 +147,39 @@ const KIND: Record<string, 'door' | 'window'> = { IFCDOOR: 'door', IFCDOORSTANDA
  * world units): every door / window whose meshes the cut height passes
  * through. Meshes of one element are taken together.
  */
-export function openingSymbols(meshes: readonly MeshData[], plane: SectionPlaneConfig, flipsOf: (id: number) => number = () => 0): OpeningSymbol[] {
+export function openingSymbols(
+  meshes: readonly MeshData[], plane: SectionPlaneConfig, flipsOf: (id: number) => number = () => 0,
+  typedOf: (id: number) => JoinerySpec | null = () => null,
+): OpeningSymbol[] {
   if (plane.axis !== 'y' || plane.customPlane) return [];
   const cut = plane.position;
-  const byId = new Map<number, { kind: 'door' | 'window'; pts: Pt[]; minY: number; maxY: number }>();
+  const byId = new Map<number, { kind: 'door' | 'window'; pts: Pt[]; minY: number; maxY: number; world: number[]; l2w?: number[] }>();
   for (const mesh of meshes) {
     const kind = KIND[(mesh.ifcType ?? '').toUpperCase()];
     if (!kind || (mesh.geometryClass ?? 0) === 2) continue;
     // World = the mesh's local-frame origin + its positions.
     const [ox, oy, oz] = mesh.origin ?? [0, 0, 0];
-    const entry = byId.get(mesh.expressId) ?? { kind, pts: [], minY: Infinity, maxY: -Infinity };
+    const entry = byId.get(mesh.expressId) ?? { kind, pts: [], minY: Infinity, maxY: -Infinity, world: [] };
+    entry.l2w ??= mesh.localToWorld;
     const p = mesh.positions;
     for (let i = 0; i + 2 < p.length; i += 3) {
       const y = oy + p[i + 1];
       entry.minY = Math.min(entry.minY, y);
       entry.maxY = Math.max(entry.maxY, y);
       entry.pts.push(worldToDrawing(plane, { x: ox + p[i], y, z: oz + p[i + 2] }));
+      entry.world.push(ox + p[i], y, oz + p[i + 2]);
     }
     byId.set(mesh.expressId, entry);
   }
   const out: OpeningSymbol[] = [];
   for (const [id, entry] of byId) {
     if (cut < entry.minY || cut > entry.maxY) continue;
+    const spec = entry.l2w ? typedOf(id) : null;
+    const typed = spec && entry.l2w ? typedPlanSymbol(spec, entry.world, entry.l2w, plane, flipsOf(id)) : null;
+    if (typed) {
+      out.push({ id, kind: entry.kind, shapes: typed.thin, heavy: typed.heavy, dashed: typed.dashed });
+      continue;
+    }
     const rect = minAreaRect(entry.pts);
     if (!rect) continue;
     out.push({ id, kind: entry.kind, shapes: entry.kind === 'door' ? doorSymbol(rect, flipsOf(id)) : windowSymbol(rect) });

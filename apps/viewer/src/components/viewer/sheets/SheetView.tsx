@@ -22,6 +22,7 @@ import type { DraftShape } from '@/drafting/types';
 import { hiddenClasses, styledDrawing } from '@/project/view-graphics';
 import { partHostType } from '@/project/part-host';
 import { viewOpeningSymbols } from '@/project/view-symbols';
+import { symbolShapes } from '@/drafting/opening-symbols';
 import { useDrawingRuntime } from '@/lib/drawing/drawing-runtime';
 import { VIEW_DRAG_TYPE } from '../project/ProjectTreeRow';
 import { SheetPaper, type ViewportContent } from './SheetPaper';
@@ -70,7 +71,7 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
       const raw = (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing;
       const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType) : null;
       const symbols = view?.kind === 'plan' && raw && geometryResult?.meshes
-        ? viewOpeningSymbols(geometryResult.meshes, raw.config.plane, flips, hiddenClasses(view.graphics)).flatMap((s) => s.shapes)
+        ? viewOpeningSymbols(geometryResult.meshes, raw.config.plane, flips, hiddenClasses(view.graphics)).flatMap(symbolShapes)
         : [];
       out.set(vp.viewId, { drawing, symbols });
     }

@@ -13,6 +13,7 @@ import { useDrawingRuntime } from '@/lib/drawing/drawing-runtime';
 import type { SectionAxisName, ViewTransform } from '@/drafting/frame';
 import { useProjectStore } from '@/project/project-store';
 import { viewOpeningSymbols } from '@/project/view-symbols';
+import type { DraftShape } from '@/drafting/types';
 import { shapePath } from './DraftOverlay';
 
 interface Props {
@@ -32,10 +33,15 @@ export const OpeningSymbolsLayer = memo(function OpeningSymbolsLayer({ plane, hi
     [plane, geometryResult, flips, hidden],
   );
   if (symbols.length === 0) return null;
-  const d = symbols.flatMap((s) => s.shapes).map((s) => shapePath(s, transform, axis)).join('');
+  const path = (shapes: DraftShape[]) => shapes.map((s) => shapePath(s, transform, axis)).join('');
+  const thin = path(symbols.flatMap((s) => s.shapes));
+  const heavy = path(symbols.flatMap((s) => s.heavy ?? []));
+  const dashed = path(symbols.flatMap((s) => s.dashed ?? []));
   return (
-    <svg data-opening-symbols className="absolute inset-0 h-full w-full pointer-events-none" aria-hidden="true">
-      <path d={d} fill="none" stroke="currentColor" strokeWidth={0.75} className="text-zinc-800 dark:text-zinc-200" />
+    <svg data-opening-symbols className="absolute inset-0 h-full w-full pointer-events-none text-zinc-800 dark:text-zinc-200" aria-hidden="true">
+      <path d={thin} fill="none" stroke="currentColor" strokeWidth={0.75} />
+      {heavy ? <path d={heavy} fill="none" stroke="currentColor" strokeWidth={1.4} /> : null}
+      {dashed ? <path d={dashed} fill="none" stroke="currentColor" strokeWidth={0.75} strokeDasharray="4 3" /> : null}
     </svg>
   );
 });

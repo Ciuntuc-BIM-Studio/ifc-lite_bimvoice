@@ -32,12 +32,18 @@ import {
 import { addOpeningToStore, type OpeningBuildResult } from './opening.js';
 import { doorAttributeTail, type DoorInStoreParams } from './door.js';
 import { windowAttributeTail, type WindowInStoreParams } from './window.js';
+import { emitMappedBody } from './joinery-type.js';
 
 interface HostedPlacementParams {
   /** Distance along the host wall's local X from its placement origin to the filling's centre (metres). */
   Offset: number;
   /** Length of the opening cut through the wall (metres). Defaults to the wall's body thickness + 2 × 50 mm. */
   CutDepth?: number;
+  /**
+   * The IfcRepresentationMap of the filling's type (`addJoineryTypeToStore`):
+   * the body is then that map through an IfcMappedItem instead of a plain leaf.
+   */
+  MappedBody?: number;
 }
 
 export interface HostedDoorInStoreParams extends Omit<DoorInStoreParams, 'Position'>, HostedPlacementParams {
@@ -111,9 +117,16 @@ function addHostedFill(
   const placementId = emitLocalPlacement(editor, opening.placementId, [0, 0, opening.cutDepth / 2], [0, 1, 0], [1, 0, 0]);
   const width = toNativeLength(host, params.Width);
   const height = toNativeLength(host, params.Height);
-  const profileId = emitRectangleProfile(editor, width, toNativeLength(host, frameThickness));
-  const solidId = emitExtrudedSolid(editor, profileId, height);
-  const { shapeRepId, productShapeId } = emitBodyRepresentation(editor, host.bodyContextId, solidId);
+  let profileId = 0, solidId = 0;
+  let body: { shapeRepId: number; productShapeId: number };
+  if (params.MappedBody !== undefined) {
+    body = emitMappedBody(editor, host.bodyContextId, params.MappedBody);
+  } else {
+    profileId = emitRectangleProfile(editor, width, toNativeLength(host, frameThickness));
+    solidId = emitExtrudedSolid(editor, profileId, height);
+    body = emitBodyRepresentation(editor, host.bodyContextId, solidId);
+  }
+  const { shapeRepId, productShapeId } = body;
 
   const attrs = ifcElementHeader(host.ownerHistoryId, placementId, productShapeId, params, label, host.guidRandom);
   attrs.push(...tail({ Width: width, Height: height }));

@@ -56,6 +56,12 @@ export { hipRoofFaces } from './straight-skeleton.js';
 export { revolveFaces, sweepFaces } from './sweep-revolve.js';
 export { addDoorToStore, type DoorInStoreParams, type DoorBuildResult } from './door.js';
 export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } from './window.js';
+// Joinery types (door / window configurator): spec, IFC terms, body boxes, the type and its mapped body.
+export * from './joinery-spec.js';
+export { doorOperation, doorPanelOperation, liningOffsets, panelPosition, panelWidthRatio, windowPanelOperation, windowPartitioning } from './joinery-ifc.js';
+export { handleSide, joineryBoxes, type JoineryBox, type JoineryRole } from './joinery-geometry.js';
+export { readJoineryType, type JoineryTypeRead } from './joinery-read.js';
+export { addJoineryTypeToStore, emitMappedBody, replaceJoineryTypeInStore, JOINERY_PSET, type JoineryAnchor, type JoineryTypeResult } from './joinery-type.js';
 export {
   addOpeningToStore,
   type OpeningInStoreParams,

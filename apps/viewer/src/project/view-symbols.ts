@@ -4,13 +4,14 @@
 
 /**
  * A plan view's door and window symbols (`drafting/opening-symbols.ts`),
- * with the project's per-door flips (by GlobalId) and the view's hidden
- * categories — shared by the drawing tab and the sheet viewports.
+ * drawn from their configured joinery type where they have one, with the
+ * project's per-door flips (by GlobalId) and the view's hidden categories — shared by the drawing tab and the sheet viewports.
  */
 
 import type { MeshData } from '@ifc-lite/geometry';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import { openingSymbols, type OpeningSymbol } from '@/drafting/opening-symbols';
+import { joineryOfRenderId } from '@/joinery/element-spec';
 import { renderIdGlobalId } from './element-guid';
 
 export function viewOpeningSymbols(
@@ -20,5 +21,5 @@ export function viewOpeningSymbols(
     const guid = flips && Object.keys(flips).length > 0 ? renderIdGlobalId(id) : null;
     return guid ? flips?.[guid] ?? 0 : 0;
   };
-  return openingSymbols(meshes, plane, flipsOf).filter((s) => !hidden.has(s.kind === 'door' ? 'IFCDOOR' : 'IFCWINDOW'));
+  return openingSymbols(meshes, plane, flipsOf, (id) => joineryOfRenderId(id)?.spec ?? null).filter((s) => !hidden.has(s.kind === 'door' ? 'IFCDOOR' : 'IFCWINDOW'));
 }
