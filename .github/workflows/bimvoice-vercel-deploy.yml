@@ -65,7 +65,17 @@ jobs:
       - name: Build
         env:
           VERCEL_NODE_MAX_OLD_SPACE_MB: '8192'
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -o pipefail
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tee build.log
+      # The job log needs a login; annotations are readable by anyone with the run.
+      - name: Report build errors
+        if: failure()
+        run: |
+          grep -n -i -E "error|failed|cannot|not found|exited" build.log | grep -v -i "errorboundary" | tail -40 > errors.txt || true
+          tail -60 build.log >> errors.txt
+          body=$(sed 's/%/%25/g' errors.txt | awk '{printf "%s%%0A", $0}')
+          echo "::error title=vercel build output::${body}"
 
       - name: Deploy
         id: deploy
