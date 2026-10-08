@@ -24,6 +24,8 @@ interface UseViewControlsParams {
   activeSheet: DrawingSheet | null;
   isPinned: boolean;
   cachedSheetTransformRef: React.MutableRefObject<CachedSheetTransform | null>;
+  /** Fit the first drawing that arrives (default). False keeps the caller's framing. */
+  initialFit?: boolean;
 }
 
 interface UseViewControlsResult {
@@ -68,9 +70,10 @@ function useViewControls({
   activeSheet,
   isPinned,
   cachedSheetTransformRef,
+  initialFit = true,
 }: UseViewControlsParams): UseViewControlsResult {
   const [viewTransform, setViewTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [needsFit, setNeedsFit] = useState(true); // Force fit on first open and on a new plane
+  const [needsFit, setNeedsFit] = useState(initialFit); // Force fit on first open and on a new plane
   const planeKey = sectionPlaneKey(sectionPlane);
   const prevPlaneKeyRef = useRef(planeKey);
   // Latest transform for the off-view check, read without re-running the

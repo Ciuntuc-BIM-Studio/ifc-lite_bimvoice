@@ -13,17 +13,11 @@
  */
 
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
-import {
-  addFacetedElementToStore, replaceFacetedGeometryInStore, resolveSpatialAnchor, roofFacets, roofSolidFaces, type RoofKind,
-} from '@ifc-lite/create';
-import { useViewerStore } from '@/store';
-import { recordModellingCommit } from '@/store/slices/mutation-modelling-records';
-import { ensureStoreyPlacement } from '@/store/slices/storeyPlacement';
-import { requestRemesh } from '@/lib/remesh/remesh-service';
-import { registerAuthoredElement } from '@/utils/spatialHierarchy';
+import { roofFacets, roofSolidFaces, type RoofKind } from '@ifc-lite/create';
 import { drawingToWorld } from '@/drafting/frame';
 import type { Pt } from '@/drafting/types';
-import { findElementByGlobalId, prepare, type ContourElementResult } from './contour-element';
+import type { ContourElementResult } from './contour-element';
+import { createFacetedElement, updateFacetedElement } from './faceted-element';
 import type { ProjectView } from './types';
 
 export interface RoofSpec {
@@ -57,48 +51,14 @@ function horizontal(view: ProjectView): string | null {
 export function createRoofElement(view: ProjectView, plane: SectionPlaneConfig, outline: Pt[], spec: RoofSpec, sourceId: string): ContourElementResult {
   const refusal = horizontal(view);
   if (refusal) return { ok: false, error: refusal };
-  const ready = prepare(view, plane, [outline]);
-  if (!ready.ok) return { ok: false, error: ready.error };
-  try {
-    const geometry = roofGeometry(outline, plane, ready.toLocal, spec);
-    const made = recordModellingCommit(useViewerStore, ready.modelId, (editor, ds) => {
-      ensureStoreyPlacement(ds, editor, ready.storeyId);
-      const anchor = resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView());
-      const result = addFacetedElementToStore(editor, anchor, { IfcClass: 'IfcRoof', PredefinedType: PREDEFINED[spec.kind], Faces: geometry.faces, Location: geometry.location });
-      editor.addPropertySet(result.elementId, 'Pset_IfcLiteAuthoring', [
-        { name: 'SourceContour', value: sourceId, type: 'LABEL' },
-        { name: 'SourceView', value: view.name, type: 'LABEL' },
-        { name: 'RoofKind', value: spec.kind, type: 'LABEL' },
-        { name: 'Pitch', value: spec.slope, type: 'REAL' },
-      ]);
-      return result;
-    });
-    const hierarchy = ready.edit.dataStore.spatialHierarchy;
-    if (hierarchy) registerAuthoredElement(hierarchy, ready.storeyId, made.elementId, 'IFCROOF', 'Roof');
-    void requestRemesh(useViewerStore.getState, ready.modelId, [made.elementId], 'created');
-    return { ok: true, modelId: ready.modelId, elementId: made.elementId, globalId: made.globalId, ifcClass: made.ifcClass };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
+  return createFacetedElement(view, plane, outline, (toLocal) => roofGeometry(outline, plane, toLocal, spec), {
+    ifcClass: 'IfcRoof', predefinedType: PREDEFINED[spec.kind], name: 'Roof',
+    authoring: [{ name: 'RoofKind', value: spec.kind, type: 'LABEL' }, { name: 'Pitch', value: spec.slope, type: 'REAL' }],
+  }, sourceId);
 }
 
 export function updateRoofElement(view: ProjectView, plane: SectionPlaneConfig, outline: Pt[], spec: RoofSpec, modelId: string, globalId: string): ContourElementResult {
-  const elementId = findElementByGlobalId(modelId, globalId);
-  if (elementId === null) return { ok: false, error: 'The linked roof is no longer in the model.' };
-  const ready = prepare(view, plane, [outline]);
-  if (!ready.ok) return { ok: false, error: ready.error };
-  try {
-    const geometry = roofGeometry(outline, plane, ready.toLocal, spec);
-    recordModellingCommit(useViewerStore, modelId, (editor, ds) => {
-      ensureStoreyPlacement(ds, editor, ready.storeyId);
-      const anchor = resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView());
-      replaceFacetedGeometryInStore(editor, anchor, elementId, { IfcClass: 'IfcRoof', Faces: geometry.faces, Location: geometry.location });
-    });
-    void requestRemesh(useViewerStore.getState, modelId, [elementId], 'shape');
-    return { ok: true, modelId, elementId, globalId, ifcClass: 'IfcRoof' };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
+  return updateFacetedElement(view, plane, outline, (toLocal) => roofGeometry(outline, plane, toLocal, spec), 'IfcRoof', modelId, globalId);
 }
 
 /** A linked contour's roof parameters, or null when it is not a roof. */

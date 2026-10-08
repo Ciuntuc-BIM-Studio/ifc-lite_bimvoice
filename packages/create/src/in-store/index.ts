@@ -53,6 +53,7 @@ export { addExtrusionToStore, replaceExtrusionGeometryInStore, type ExtrusionInS
 export { addFacetedElementToStore, replaceFacetedGeometryInStore, type FacetedInStoreParams, type FacetedBuildResult } from './faceted.js';
 export { offsetOutline, roofFacets, roofSolidFaces, type RoofKind, type RoofSurfaceSpec } from './roof-surface.js';
 export { hipRoofFaces } from './straight-skeleton.js';
+export { revolveFaces, sweepFaces } from './sweep-revolve.js';
 export { addDoorToStore, type DoorInStoreParams, type DoorBuildResult } from './door.js';
 export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } from './window.js';
 export {

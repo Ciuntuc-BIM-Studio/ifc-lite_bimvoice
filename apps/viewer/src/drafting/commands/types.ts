@@ -42,6 +42,8 @@ export interface DraftContext {
   viewKind(): 'plan' | 'section' | 'elevation' | null;
   /** The project view being drafted on. */
   view(): ProjectView | null;
+  /** The model element (renderer id) drawn under a drawing point, or null. */
+  elementAt(p: Pt): number | null;
   /** +1, or −1 when the drawing is mirrored on screen (a user CCW angle is CW in drawing space). */
   orientation: 1 | -1;
   settings: DraftSettings;

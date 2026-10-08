@@ -25,9 +25,10 @@ import { useViewDrawings } from './view-drawings';
 import { viewPlaneConfig, viewWorkPlane } from './view-plane-config';
 import { findElementByGlobalId, updateContourElement } from './contour-element';
 import { roofSpecOf, updateRoofElement } from './roof-element';
+import { sweptBuildOf, updateSweptElement } from './swept-element';
 
 /** Contour parameters that drive the link itself; every other parameter is a property of the element. */
-const RESERVED = new Set(['ifcGlobalId', 'ifcModelId', 'ifcClass', 'depth', 'roofKind', 'slope', 'thickness', 'offset', 'eaveEdge', 'overhang']);
+const RESERVED = new Set(['ifcGlobalId', 'ifcModelId', 'ifcClass', 'depth', 'roofKind', 'slope', 'thickness', 'offset', 'eaveEdge', 'overhang', 'solid', 'path', 'axis', 'angle']);
 const ROOF_KEYS = ['roofKind', 'slope', 'thickness', 'offset', 'eaveEdge', 'overhang'] as const;
 const PARAMETER_PSET = 'IfcLite_Parameters';
 
@@ -70,13 +71,24 @@ export function useLinkedElementSync(): void {
       if (!roof && old.params.ifcClass !== draft.params.ifcClass) retype(modelId, globalId, ifcClass);
       if (old.params !== draft.params) syncParameters(modelId, globalId, old.params, draft.params);
       const roofChanged = roof !== null && ROOF_KEYS.some((k) => old.params[k] !== draft.params[k]);
-      if (old.shape === draft.shape && old.params.depth === draft.params.depth && !roofChanged) continue;
+      // A sweep / revolve also follows its path or axis, and its angle.
+      const ref = typeof draft.params.path === 'string' ? draft.params.path : typeof draft.params.axis === 'string' ? draft.params.axis : null;
+      const sweptChanged = typeof draft.params.solid === 'string'
+        && (old.params.angle !== draft.params.angle || (ref !== null && before.get(ref)?.shape !== state.drafts.find((d) => d.id === ref)?.shape));
+      if (old.shape === draft.shape && old.params.depth === draft.params.depth && !roofChanged && !sweptChanged) continue;
       const view = state.views.find((v) => v.id === draft.viewId);
       if (!view) continue;
       const viewer = useViewerStore.getState();
       const drawn = useViewDrawings.getState().byView[view.id]?.drawing?.config.plane
         ?? viewPlaneConfig(view, state.levels, mergedSectionBounds(viewer.models, viewer.geometryResult));
       const plane = viewWorkPlane(view, drawn, state.levels);
+      if (typeof draft.params.solid === 'string') {
+        const profile = contourLoops(draft, state.drafts)?.[0];
+        const build = plane && profile ? sweptBuildOf(draft, profile, state.drafts, plane) : null;
+        const result = plane && profile && build ? updateSweptElement(view, plane, profile, build, ifcClass, modelId, globalId) : null;
+        if (result && !result.ok) toast.error(resolve('drafting.msg.extrudeFailed', { detail: result.error }));
+        continue;
+      }
       if (roof) {
         const outline = plane ? contourLoops(draft, state.drafts)?.[0] : null;
         const result = plane && outline ? updateRoofElement(view, plane, outline, roof, modelId, globalId) : null;

@@ -26,7 +26,9 @@ import { modelEditTarget } from '@/store/slices/mutation-modelling-records';
 import { toast } from '@/components/ui/toast';
 import { resolve } from '@/i18n/registry';
 import { drawingToScreen, worldToDrawing, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
-import { cancelCommand as cancelDraftCommand } from '@/drafting/session';
+import { cancelCommand as cancelDraftCommand, startDraftCommand } from '@/drafting/session';
+
+const HOSTED_ON_FACE: Record<string, string> = { 'door.place': 'placedoor', 'window.place': 'placewindow', 'opening.place': 'placeopening' };
 import { isDrawingTabActive, useDocumentTabs } from './document-tabs';
 import { resolveTarget } from './contour-element';
 import { useProjectStore } from './project-store';
@@ -93,7 +95,10 @@ export function startBimTool(id: CommandId): void {
   const view = frontView();
   if (view) {
     if (view.kind !== 'plan') {
-      toast.info(resolve('drafting.msg.bimNeedsPlan'));
+      // On a section or elevation, doors, windows and openings go on a wall's face.
+      const hosted = HOSTED_ON_FACE[id];
+      if (hosted) startDraftCommand(hosted);
+      else toast.info(resolve('drafting.msg.bimNeedsPlan'));
       return;
     }
     cancelDraftCommand();

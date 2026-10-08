@@ -96,6 +96,13 @@ export function setModelPicker(picker: typeof modelPicker): void {
   modelPicker = picker;
 }
 
+/** The model element (renderer id) drawn under a drawing point, from the view in front. */
+let elementPicker: (p: Pt) => number | null = () => null;
+
+export function setElementPicker(picker: ((p: Pt) => number | null) | null): void {
+  elementPicker = picker ?? (() => null);
+}
+
 const get = () => useDraftingSession.getState();
 const set = (patch: Partial<SessionState>) => useDraftingSession.setState(patch);
 
@@ -122,6 +129,7 @@ function context(viewId: string): DraftContext {
     plane: () => planeProvider(),
     viewKind: () => viewKindProvider(),
     view: () => viewProvider(),
+    elementAt: (p) => elementPicker(p),
     selection: () => get().selection,
     setSelection: (ids) => set({ selection: ids }),
     // userToDrawing is diag(kx, −ky): orientation-reversing when its determinant is negative.

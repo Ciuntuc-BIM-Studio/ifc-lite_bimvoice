@@ -13,7 +13,7 @@ import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
   JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide,
-  BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
+  DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { useViewerStore } from '@/store';
 import { useWallJoinPrefs } from '@/lib/wall-join-prefs';
@@ -98,6 +98,10 @@ export function DesignTab() {
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.model')}>
         <RibbonCommandLargeButton commandId="design:extrude" icon={DraftExtrude} active={on('extrude')} />
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:sweep" icon={DraftSweep} active={on('sweep')} />
+          <RibbonCommandSmallButton commandId="design:revolve" icon={DraftRevolve} active={on('revolve')} />
+        </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.workplane')}>

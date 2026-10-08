@@ -135,3 +135,5 @@ export { default as JoinAuto } from '~icons/viewer/join-auto';
 export { default as DoorFlipHand } from '~icons/viewer/door-flip-hand';
 export { default as DoorFlipSide } from '~icons/viewer/door-flip-side';
 export { default as BimRoof } from '~icons/viewer/bim-roof';
+export { default as DraftSweep } from '~icons/viewer/draft-sweep';
+export { default as DraftRevolve } from '~icons/viewer/draft-revolve';

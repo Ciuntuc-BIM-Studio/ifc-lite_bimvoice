@@ -32,7 +32,7 @@ import { pickModelElement, referenceSet, referencesIn } from '@/drafting/referen
 import { selectFromPlan } from '@/components/viewer/plan/PlanPointer';
 import { draftsOfView, redoDrafts, undoDrafts } from '@/drafting/draft-store';
 import {
-  attachDraftingView, currentLayerId, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelPicker, setWorkPlaneProvider, submitCommandLine,
+  attachDraftingView, currentLayerId, setElementPicker, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelPicker, setWorkPlaneProvider, submitCommandLine,
   toggleOrtho, toggleSnap, useDraftingSession,
 } from '@/drafting/session';
 import { DraftOverlay } from './DraftOverlay';
@@ -77,9 +77,12 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   // Pinned: a regenerated drawing (an element added, edited) keeps the user's framing. No
   // automatic fit while a BIM tool is drawing — the clicks would land somewhere else.
   const bimRunning = useCommandRuntime().command !== null;
+  const openedEmpty = useRef(mergedSectionBounds(models, legacyGeometry) === null).current;
   const { viewTransform, setViewTransform, fitToView } = useViewControls({
     drawing, sectionPlane, containerRef, panelVisible: !bimRunning, status, sheetEnabled: false, activeSheet: null,
     isPinned: true, cachedSheetTransformRef: NO_SHEET_TRANSFORM,
+    // Opened on a model with no geometry yet: the first element drawn must not move the view under the cursor.
+    initialFit: !openedEmpty,
   });
 
   // No drawing to fit to: start at 1 m ≈ 40 px around the origin of the work plane.
@@ -118,6 +121,11 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
     });
     return () => setModelPicker(null);
   }, [drawing, references]);
+  // Commands that work on a model element (a door into a wall in elevation) ask what is under a point.
+  useEffect(() => {
+    setElementPicker((p) => (drawing && references ? pickModelElement(drawing, references, p, 6 / viewTransform.scale) : null));
+    return () => setElementPicker(null);
+  }, [drawing, references, viewTransform.scale]);
   // Hatch boundaries: drafted closed shapes and the drawing's cut outlines. Level marks: the
   // plan's level, or the point's height on a section / elevation.
   useEffect(() => {
