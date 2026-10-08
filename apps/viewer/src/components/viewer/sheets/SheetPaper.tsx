@@ -45,6 +45,8 @@ interface SheetPaperProps {
   selectedViewportId: string | null;
   /** On-screen pixels per millimetre; the export sets real `mm` units instead. */
   pxPerMm: number;
+  /** Lines and annotations drawn on the sheet itself, paper millimetres. */
+  sheetDrafts?: readonly DraftEntity[];
 }
 
 /** The viewport's drawing → paper transform: the chosen (or drawing's) centre at the viewport centre. */
@@ -73,22 +75,23 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
   const top = vp.y - box.height / 2;
   const clipId = `vp-${vp.id}`;
   const layerColor = new Map(layers.map((l) => [l.id, l.visible ? l.color : null]));
+  const layerNames = new Map(layers.map((l) => [l.id, l.name]));
   return (
     <g data-viewport-id={vp.id}>
       <clipPath id={clipId}><rect x={left} y={top} width={box.width} height={box.height} /></clipPath>
       <g clipPath={`url(#${clipId})`}>
         {pens.map((p, i) => (
-          <path key={i} d={p.d} fill={p.fill ?? 'none'} fillRule="evenodd" stroke={p.stroke ?? 'none'} strokeWidth={p.width} strokeDasharray={p.dash} strokeLinejoin="round" />
+          <path key={i} data-dxf-layer={p.layer} d={p.d} fill={p.fill ?? 'none'} fillRule="evenodd" stroke={p.stroke ?? 'none'} strokeWidth={p.width} strokeDasharray={p.dash} strokeLinejoin="round" />
         ))}
         {content.symbols?.length ? (
-          <path d={content.symbols.map((s) => shapePath(s, t, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" />
+          <path data-dxf-layer="SYMBOLS" d={content.symbols.map((s) => shapePath(s, t, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" />
         ) : null}
         {drafts.map((e) => {
           const color = layerColor.get(e.layerId);
           if (color === null) return null;
           return isGeometry(e.shape)
-            ? <path key={e.id} d={shapePath(e.shape, t, axis)} stroke={color ?? '#000'} strokeWidth={PEN.seen} fill="none" />
-            : <AnnotationGraphics key={e.id} shape={e.shape} color={color ?? '#000'} selected={false} transform={t} axis={axis} extraPatterns={extraPatterns} strokeScale={0.25} />;
+            ? <path key={e.id} data-dxf-layer={`DRAFT-${layerNames.get(e.layerId) ?? '0'}`} d={shapePath(e.shape, t, axis)} stroke={color ?? '#000'} strokeWidth={PEN.seen} fill="none" />
+            : <g key={e.id} data-dxf-layer="ANNOTATION"><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={t} axis={axis} extraPatterns={extraPatterns} strokeScale={0.25} /></g>;
         })}
       </g>
       <rect
@@ -96,12 +99,30 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
         stroke={selected ? '#2563eb' : 'transparent'} strokeWidth={0.4} strokeDasharray={selected ? '3 2' : undefined}
         data-export-ignore={selected ? 'true' : undefined}
       />
-      <text x={left} y={top + box.height + LABEL_MM + 1.5} fontSize={LABEL_MM} fontFamily="ui-sans-serif, system-ui, sans-serif" fill="#000">
+      <text data-dxf-layer="VIEWPORT-LABELS" x={left} y={top + box.height + LABEL_MM + 1.5} fontSize={LABEL_MM} fontFamily="ui-sans-serif, system-ui, sans-serif" fill="#000">
         {tr('sheets.viewportLabel', { name: view?.name ?? '?', scale: vp.scale })}
       </text>
     </g>
   );
 });
+
+const PAPER: ViewTransform = { scale: 1, x: 0, y: 0 };
+
+/** The sheet's own lines and annotations, on the paper. */
+function SheetDrafts({ entities, layers, extraPatterns }: { entities: readonly DraftEntity[]; layers: readonly DraftLayer[]; extraPatterns: readonly HatchPattern[] }) {
+  const colour = new Map(layers.map((l) => [l.id, l.visible ? l.color : null]));
+  return (
+    <g data-dxf-layer="SHEET-ANNOTATION">
+      {entities.map((e) => {
+        const color = colour.get(e.layerId);
+        if (color === null) return null;
+        return isGeometry(e.shape)
+          ? <path key={e.id} d={shapePath(e.shape, PAPER, 'down')} stroke={color ?? '#000'} strokeWidth={PEN.seen} fill="none" />
+          : <AnnotationGraphics key={e.id} shape={e.shape} color={color ?? '#000'} selected={false} transform={PAPER} axis="down" extraPatterns={extraPatterns} strokeScale={0.25} />;
+      })}
+    </g>
+  );
+}
 
 function TitleBlock({ sheet, projectName, w, h }: { sheet: ProjectSheet; projectName: string; w: number; h: number }) {
   const { t } = useTranslation();
@@ -119,7 +140,7 @@ function TitleBlock({ sheet, projectName, w, h }: { sheet: ProjectSheet; project
   const rowH = TITLE_BLOCK_MM.h / 5;
   const font = 'ui-sans-serif, system-ui, sans-serif';
   return (
-    <g>
+    <g data-dxf-layer="TITLEBLOCK">
       <rect x={x} y={y} width={TITLE_BLOCK_MM.w} height={TITLE_BLOCK_MM.h} fill="#fff" stroke="#000" strokeWidth={0.5} />
       {rows.map(([label, value], i) => (
         <g key={label}>
@@ -138,17 +159,18 @@ function TitleBlock({ sheet, projectName, w, h }: { sheet: ProjectSheet; project
 }
 
 export const SheetPaper = forwardRef<SVGSVGElement, SheetPaperProps>(function SheetPaper(
-  { sheet, projectName, content, layers, extraPatterns, selectedViewportId, pxPerMm }, ref,
+  { sheet, projectName, content, layers, extraPatterns, selectedViewportId, pxPerMm, sheetDrafts = [] }, ref,
 ) {
   const { w, h } = paperOf(sheet);
   return (
     <svg ref={ref} xmlns="http://www.w3.org/2000/svg" width={w * pxPerMm} height={h * pxPerMm} viewBox={`0 0 ${w} ${h}`} className="block bg-white shadow-lg">
-      <rect x={0} y={0} width={w} height={h} fill="#fff" />
-      <rect x={FRAME_MARGIN_MM} y={FRAME_MARGIN_MM} width={w - FRAME_MARGIN_MM * 2} height={h - FRAME_MARGIN_MM * 2} fill="none" stroke="#000" strokeWidth={0.7} />
+      <rect data-export-ignore-dxf="true" x={0} y={0} width={w} height={h} fill="#fff" />
+      <rect data-dxf-layer="FRAME" x={FRAME_MARGIN_MM} y={FRAME_MARGIN_MM} width={w - FRAME_MARGIN_MM * 2} height={h - FRAME_MARGIN_MM * 2} fill="none" stroke="#000" strokeWidth={0.7} />
       {(sheet.viewports ?? []).map((vp) => (
         <ViewportGraphic key={vp.id} vp={vp} content={content(vp)} layers={layers} extraPatterns={extraPatterns} selected={vp.id === selectedViewportId} />
       ))}
       <TitleBlock sheet={sheet} projectName={projectName} w={w} h={h} />
+      <SheetDrafts entities={sheetDrafts} layers={layers} extraPatterns={extraPatterns} />
     </svg>
   );
 });

@@ -27,5 +27,6 @@ export const sheetsEn = {
   'sheets.dropHint': 'Drag a floor plan, section or elevation from the Project Navigator onto the paper to place it.',
   'sheets.export': 'Export',
   'sheets.svg': 'SVG',
+  'sheets.dxf': 'DXF',
   'sheets.pdf': 'PDF / Print',
 } as const satisfies Record<string, TranslationValue>;

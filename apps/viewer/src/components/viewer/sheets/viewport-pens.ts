@@ -27,6 +27,8 @@ export interface Pen {
   width: number;
   fill: string | null;
   dash?: string;
+  /** The DXF layer it exports on. */
+  layer: string;
 }
 
 /** Default pens, paper millimetres. */
@@ -57,29 +59,29 @@ export function viewportPens(
 
   for (const polygon of drawing.cutPolygons) {
     const fill = polygon.color && style(polygon.ifcType)?.fillColor ? hex(polygon.color) : DEFAULT_FILL;
-    add(`fill:${fill}`, { stroke: null, width: 0, fill }, [polygon.polygon.outer, ...polygon.polygon.holes].map(loop).join(''));
+    add(`fill:${fill}`, { stroke: null, width: 0, fill, layer: 'FILL' }, [polygon.polygon.outer, ...polygon.polygon.holes].map(loop).join(''));
   }
   for (const line of drawing.lines) {
     const g = style(line.ifcType);
     const d = `M${pt(line.line.start)}L${pt(line.line.end)}`;
     const color = g?.lineColor ?? '#000000';
     if (line.visibility === 'hidden' || line.category === 'hidden') {
-      add(`hidden:${color}`, { stroke: color, width: PEN.hidden, fill: null, dash: '1.5 1' }, d);
+      add(`hidden:${color}`, { stroke: color, width: PEN.hidden, fill: null, dash: '1.5 1', layer: 'HIDDEN' }, d);
       continue;
     }
     const cut = line.category === 'cut';
     const weight = g?.lineWeight ? WEIGHT_MM[g.lineWeight] * (cut ? 1 : 0.5) : cut ? PEN.cut : PEN.seen;
-    add(`${cut ? 'cut' : 'seen'}:${color}:${weight}`, { stroke: color, width: weight, fill: null }, d);
+    add(`${cut ? 'cut' : 'seen'}:${color}:${weight}`, { stroke: color, width: weight, fill: null, layer: cut ? 'CUT' : 'SEEN' }, d);
   }
   for (const h of cutHatches(drawing, graphics)) {
     const pattern = findPattern(h.pattern, extraPatterns);
     if (!pattern) continue;
     if (pattern.solid) {
-      add(`solid:${h.color}`, { stroke: null, width: 0, fill: h.color }, h.loops.map(loop).join(''));
+      add(`solid:${h.color}`, { stroke: null, width: 0, fill: h.color, layer: 'HATCH' }, h.loops.map(loop).join(''));
       continue;
     }
     const segments = hatchSegments(h.loops, pattern, { scale: h.scale * HATCH_UNIT_M, angleDeg: 0, maxSegments: 20000 }).segments;
-    add(`hatch:${h.color}`, { stroke: h.color, width: PEN.hatch, fill: null }, segments.map((s) => `M${pt(s.a)}L${pt(s.b)}`).join(''));
+    add(`hatch:${h.color}`, { stroke: h.color, width: PEN.hatch, fill: null, layer: 'HATCH' }, segments.map((s) => `M${pt(s.a)}L${pt(s.b)}`).join(''));
   }
   // Fills first, then hatches, then lines (hidden, seen, cut).
   const order = (p: Pen) => (p.fill ? 0 : p.width === PEN.hatch ? 1 : p.dash ? 2 : p.width < PEN.cut ? 3 : 4);

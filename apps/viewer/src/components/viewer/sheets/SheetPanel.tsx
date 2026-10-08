@@ -41,9 +41,10 @@ interface SheetPanelProps {
   viewportName: string;
   onExportSvg: () => void;
   onPrint: () => void;
+  onExportDxf: () => void;
 }
 
-export function SheetPanel({ sheet, viewport, box, viewportName, onExportSvg, onPrint }: SheetPanelProps) {
+export function SheetPanel({ sheet, viewport, box, viewportName, onExportSvg, onPrint, onExportDxf }: SheetPanelProps) {
   const { t } = useTranslation();
   const tb = sheet.titleBlock ?? {};
   return (
@@ -83,9 +84,10 @@ export function SheetPanel({ sheet, viewport, box, viewportName, onExportSvg, on
         </>
       ) : <p className="pt-2 text-zinc-500">{t('sheets.dropHint')}</p>}
       <h3 className="pt-2 font-bold uppercase tracking-wider">{t('sheets.export')}</h3>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" className="flex-1" onClick={onExportSvg}><Download className="size-3.5 mr-1" />{t('sheets.svg')}</Button>
-        <Button variant="outline" size="sm" className="flex-1" onClick={onPrint}><Printer className="size-3.5 mr-1" />{t('sheets.pdf')}</Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={onExportDxf}><Download className="size-3.5 mr-1" />{t('sheets.dxf')}</Button>
+        <Button variant="outline" size="sm" className="w-full" onClick={onPrint}><Printer className="size-3.5 mr-1" />{t('sheets.pdf')}</Button>
       </div>
     </aside>
   );

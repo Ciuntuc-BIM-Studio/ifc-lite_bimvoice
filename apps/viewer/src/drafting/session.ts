@@ -134,7 +134,7 @@ function context(viewId: string): DraftContext {
     setSelection: (ids) => set({ selection: ids }),
     // userToDrawing is diag(kx, −ky): orientation-reversing when its determinant is negative.
     orientation: (kx * -ky) > 0 ? 1 : -1,
-    settings,
+    settings: scaledSettings,
     say: (key, params) => say({ key, params }),
   };
 }
@@ -162,8 +162,27 @@ function finish(result: StepResult): void {
 }
 
 /** Point the session at the view in front (or none). A running command is cancelled on a view change. */
-export function attachDraftingView(viewId: string | null, axis: SectionAxisName, references: (min: Pt, max: Pt) => DraftShape[]): void {
+/**
+ * Annotation sizes (text height, hatch scale) are model metres on a view; a
+ * sheet drafts in paper millimetres, where the same settings read ×10
+ * (as on a 1:100 view): 0.25 m text is 2.5 mm on paper.
+ */
+let sizeScale = 1;
+
+const SCALED = new Set<keyof DraftSettings>(['textHeight', 'hatchScale']);
+
+/** The settings as commands see them on the current target. */
+const scaledSettings = new Proxy(settings, {
+  get: (target, key) => (SCALED.has(key as keyof DraftSettings) ? (target[key as keyof DraftSettings] as number) * sizeScale : target[key as keyof DraftSettings]),
+  set: (target, key, value) => {
+    (target as unknown as Record<string, unknown>)[key as string] = SCALED.has(key as keyof DraftSettings) ? Number(value) / sizeScale : value;
+    return true;
+  },
+});
+
+export function attachDraftingView(viewId: string | null, axis: SectionAxisName, references: (min: Pt, max: Pt) => DraftShape[], unitsScale = 1): void {
   referenceProvider = references;
+  sizeScale = unitsScale;
   // Plans draw drawing-y downward on screen; text and marks grow up on screen.
   setAnnotationScreenUp(axis === 'down' ? -1 : 1);
   if (get().viewId === viewId && get().axis === axis) return;

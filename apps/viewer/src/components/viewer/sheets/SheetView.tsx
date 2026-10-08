@@ -27,6 +27,11 @@ import { VIEW_DRAG_TYPE } from '../project/ProjectTreeRow';
 import { SheetPaper, type ViewportContent } from './SheetPaper';
 import { SheetPanel } from './SheetPanel';
 import { exportSheetSvg, printSheet } from './sheet-export';
+import { exportSheetDxf } from './sheet-dxf';
+import { useSheetDrafting } from './useSheetDrafting';
+import { CommandLine } from '../drafting/CommandLine';
+import { useDraftingKeys } from '../drafting/useDraftingKeys';
+import { pressEscape, submitCommandLine } from '@/drafting/session';
 
 interface Pan { x: number; y: number; k: number }
 
@@ -115,55 +120,73 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [selected, sheet.id]);
 
+  // Drafting on the paper itself (annotations, lines), in millimetres.
+  const sheetDrafting = useSheetDrafting(sheet.id, pan, extraPatterns);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [text, setText] = useState('');
+  const lastPaper = useRef<{ x: number; y: number } | null>(null);
+  useDraftingKeys({ inputRef, setText, submit: () => submitCommandLine('', lastPaper.current) });
+
   const selectedVp = (sheet.viewports ?? []).find((v) => v.id === selected) ?? null;
   return (
     <div className="flex h-full w-full min-h-0">
-      <div
-        ref={hostRef}
-        data-sheet-canvas
-        className="relative min-w-0 flex-1 overflow-hidden touch-none"
-        onDragOver={(e) => {
-          if (e.dataTransfer.types.includes(VIEW_DRAG_TYPE)) {
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div
+          ref={hostRef}
+          data-sheet-canvas
+          className={`relative min-h-0 flex-1 overflow-hidden touch-none ${sheetDrafting.drafting ? 'cursor-none' : ''}`}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes(VIEW_DRAG_TYPE)) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDrop={(e) => {
+            const viewId = e.dataTransfer.getData(VIEW_DRAG_TYPE);
+            if (!viewId) return;
             e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-          }
-        }}
-        onDrop={(e) => {
-          const viewId = e.dataTransfer.getData(VIEW_DRAG_TYPE);
-          if (!viewId) return;
-          e.preventDefault();
-          const at = toPaper(e.clientX, e.clientY);
-          setSelected(addViewport(sheet.id, viewId, at, 100));
-        }}
-        onPointerDown={(e) => {
-          capturePointer(e.currentTarget, e.pointerId);
-          const p = toPaper(e.clientX, e.clientY);
-          const vp = e.button === 0 ? viewportAt(p) : null;
-          setSelected(vp?.id ?? null);
-          drag.current = { kind: vp ? 'move' : 'pan', sx: e.clientX, sy: e.clientY, start: pan, vp: vp ?? undefined };
-        }}
-        onPointerMove={(e) => {
-          const d = drag.current;
-          if (!d) return;
-          const dx = e.clientX - d.sx;
-          const dy = e.clientY - d.sy;
-          if (d.kind === 'pan') setPan({ ...d.start, x: d.start.x + dx, y: d.start.y + dy });
-          else if (d.vp) updateViewport(sheet.id, d.vp.id, { x: d.vp.x + dx / pan.k, y: d.vp.y + dy / pan.k });
-        }}
-        onPointerUp={() => { drag.current = null; }}
-      >
-        <div className="absolute left-0 top-0" style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
-          <SheetPaper
-            ref={svgRef}
-            sheet={sheet}
-            projectName={projectName}
-            content={content}
-            layers={layers}
-            extraPatterns={extraPatterns}
-            selectedViewportId={selected}
-            pxPerMm={pan.k}
-          />
+            const at = toPaper(e.clientX, e.clientY);
+            setSelected(addViewport(sheet.id, viewId, at, 100));
+          }}
+          onPointerDown={(e) => {
+            capturePointer(e.currentTarget, e.pointerId);
+            const p = toPaper(e.clientX, e.clientY);
+            if (e.button === 0 && sheetDrafting.down(p, e.shiftKey)) {
+              setSelected(null);
+              return;
+            }
+            const vp = e.button === 0 ? viewportAt(p) : null;
+            setSelected(vp?.id ?? null);
+            drag.current = { kind: vp ? 'move' : 'pan', sx: e.clientX, sy: e.clientY, start: pan, vp: vp ?? undefined };
+          }}
+          onPointerMove={(e) => {
+            lastPaper.current = toPaper(e.clientX, e.clientY);
+            sheetDrafting.move(lastPaper.current);
+            const d = drag.current;
+            if (!d) return;
+            const dx = e.clientX - d.sx;
+            const dy = e.clientY - d.sy;
+            if (d.kind === 'pan') setPan({ ...d.start, x: d.start.x + dx, y: d.start.y + dy });
+            else if (d.vp) updateViewport(sheet.id, d.vp.id, { x: d.vp.x + dx / pan.k, y: d.vp.y + dy / pan.k });
+          }}
+          onPointerUp={() => { drag.current = null; }}
+        >
+          <div className="absolute left-0 top-0" style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
+            <SheetPaper
+              ref={svgRef}
+              sheet={sheet}
+              projectName={projectName}
+              content={content}
+              layers={layers}
+              extraPatterns={extraPatterns}
+              selectedViewportId={selected}
+              pxPerMm={pan.k}
+              sheetDrafts={sheetDrafting.entities}
+            />
+          </div>
+          {sheetDrafting.overlay}
         </div>
+        <CommandLine ref={inputRef} value={text} onChange={setText} onSubmit={() => { submitCommandLine(text, lastPaper.current); setText(''); }} onEscape={() => { setText(''); pressEscape(); }} />
       </div>
       <SheetPanel
         sheet={sheet}
@@ -172,6 +195,7 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
         viewportName={views.find((v) => v.id === selectedVp?.viewId)?.name ?? ''}
         onExportSvg={() => svgRef.current && exportSheetSvg(svgRef.current, sheet)}
         onPrint={() => svgRef.current && printSheet(svgRef.current, sheet)}
+        onExportDxf={() => svgRef.current && exportSheetDxf(svgRef.current, sheet)}
       />
     </div>
   );
