@@ -24,6 +24,7 @@ import { DocumentTabBar } from './DocumentTabBar';
 import { ViewDrawingHost } from './ViewDrawingHost';
 import { DraftingView } from '../drafting/DraftingView';
 import { SheetView } from '../sheets/SheetView';
+import { ScheduleView } from '../joinery/ScheduleView';
 
 
 /**
@@ -47,6 +48,7 @@ export function DocumentWorkspace({ children }: { children: ReactNode }) {
   const openIds = useDocumentTabs((s) => s.openIds);
   const views = useProjectStore((s) => s.views);
   const sheets = useProjectStore((s) => s.sheets);
+  const schedules = useProjectStore((s) => s.schedules);
   useMirrorFrontDrawing(activeId);
   // Views that need their own drawing: open as a tab, or placed on a sheet that is open as a tab.
   const drawn = new Set(openIds);
@@ -56,14 +58,15 @@ export function DocumentWorkspace({ children }: { children: ReactNode }) {
 
   // A deleted view (or another project loaded) takes its tab with it.
   useEffect(() => {
-    const ids = new Set([...views.map((v) => v.id), ...sheets.map((s) => s.id)]);
+    const ids = new Set([...views.map((v) => v.id), ...sheets.map((s) => s.id), ...(schedules ?? []).map((s) => s.id)]);
     const { activeId: front } = useDocumentTabs.getState();
     if (front !== MODEL_TAB_ID && !ids.has(front)) closeProjectTab(front);
     pruneDocumentTabs(ids);
-  }, [views, sheets]);
+  }, [views, sheets, schedules]);
 
   const frontView = activeId === MODEL_TAB_ID ? undefined : views.find((v) => v.id === activeId);
   const frontSheet = activeId === MODEL_TAB_ID ? undefined : sheets.find((s) => s.id === activeId);
+  const frontSchedule = activeId === MODEL_TAB_ID ? undefined : schedules?.find((s) => s.id === activeId);
   return (
     <div className="h-full w-full flex flex-col">
       <DocumentTabBar />
@@ -76,6 +79,11 @@ export function DocumentWorkspace({ children }: { children: ReactNode }) {
         {frontView && frontView.kind !== '3d' ? (
           <div className="absolute inset-0 z-30 flex flex-col bg-white dark:bg-black">
             <DraftingView key={frontView.id} view={frontView} />
+          </div>
+        ) : null}
+        {frontSchedule ? (
+          <div className="absolute inset-0 z-30 flex flex-col bg-white dark:bg-black">
+            <ScheduleView key={frontSchedule.id} schedule={frontSchedule} />
           </div>
         ) : null}
         {frontSheet ? (

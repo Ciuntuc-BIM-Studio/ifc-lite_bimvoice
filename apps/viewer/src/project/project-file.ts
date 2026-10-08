@@ -14,7 +14,7 @@ import { readDraft, readDraftLayer } from '@/drafting/draft-file';
 import { readSheetLayout } from './sheet-file';
 import { readStandards } from './standards-file';
 import { readJoineryList } from '@/joinery/spec-file';
-import type { CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
+import type { CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
 export const PROJECT_FILE_FORMAT = 'ifclite-project';
@@ -123,6 +123,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     ...readStandards(raw),
     joineryTypes: readJoineryList(raw.joineryTypes),
     currentJoinery: readCurrentJoinery(raw.currentJoinery),
+    schedules: list('schedules').flatMap((v) => readSchedule(v)),
   };
 }
 
@@ -171,4 +172,12 @@ function readCurrentJoinery(raw: unknown): { door?: string; window?: string } {
     ...(isString(raw.door) ? { door: raw.door } : {}),
     ...(isString(raw.window) ? { window: raw.window } : {}),
   };
+}
+
+function readSchedule(raw: unknown): ProjectSchedule[] {
+  if (!isObject(raw) || !isString(raw.id)) return [];
+  const kind = raw.kind === 'door' || raw.kind === 'window' ? raw.kind : 'all';
+  const out: ProjectSchedule = { id: raw.id, name: isString(raw.name) && raw.name ? raw.name : 'Schedule', kind, createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : 0 };
+  if (typeof raw.scale === 'number' && raw.scale > 0) out.scale = raw.scale;
+  return [out];
 }

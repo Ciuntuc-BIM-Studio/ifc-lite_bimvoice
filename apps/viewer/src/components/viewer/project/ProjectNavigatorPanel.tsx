@@ -11,7 +11,7 @@
  */
 
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed } from 'lucide-react';
+import { Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed, Table2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,15 +32,16 @@ import {
 import { exportProjectFile, importProjectFile, PROJECT_FILE_SUFFIX } from '@/project/project-file';
 import { activateDocumentTab, openProjectView, saveLiveCameraAsView, saveLiveSectionAsView } from '@/project/open-view';
 import { resolvePlanLevel } from '@/project/view-defaults';
+import { addSchedule } from '@/joinery/schedules';
 import type { ProjectView, ProjectViewKind } from '@/project/types';
 import { ProjectFolderRow, ProjectItemRow } from './ProjectTreeRow';
 import { ViewPropertiesPanel } from './ViewPropertiesPanel';
 import { LevelsFolder } from './LevelsFolder';
 import { useNavigatorDialogs } from './useNavigatorDialogs';
 
-type FolderId = ProjectViewKind | 'sheets' | 'models';
+type FolderId = ProjectViewKind | 'sheets' | 'schedules' | 'models';
 
-const FOLDER_ORDER: readonly FolderId[] = ['plan', 'section', 'elevation', '3d', 'sheets', 'models'];
+const FOLDER_ORDER: readonly FolderId[] = ['plan', 'section', 'elevation', '3d', 'schedules', 'sheets', 'models'];
 
 const ICONS: Record<FolderId, ReactNode> = {
   plan: <LayoutTemplate className="size-3.5" />,
@@ -48,6 +49,7 @@ const ICONS: Record<FolderId, ReactNode> = {
   elevation: <Building2 className="size-3.5" />,
   '3d': <Box className="size-3.5" />,
   sheets: <Rows3 className="size-3.5" />,
+  schedules: <Table2 className="size-3.5" />,
   models: <FileBox className="size-3.5" />,
 };
 
@@ -57,6 +59,7 @@ const FOLDER_LABELS = {
   elevation: 'projectNavigator.folder.elevations',
   '3d': 'projectNavigator.folder.views3d',
   sheets: 'projectNavigator.folder.sheets',
+  schedules: 'schedule.folder',
   models: 'projectNavigator.folder.models',
 } as const;
 
@@ -67,6 +70,7 @@ export function ProjectNavigatorPanel() {
   const name = useProjectStore((s) => s.name);
   const views = useProjectStore((s) => s.views);
   const sheets = useProjectStore((s) => s.sheets);
+  const schedules = useProjectStore((s) => s.schedules) ?? [];
   const models = useProjectStore((s) => s.models);
   const levels = useProjectStore((s) => s.levels);
   const activeItemId = useProjectStore((s) => s.activeItemId);
@@ -141,6 +145,7 @@ export function ProjectNavigatorPanel() {
     section: <AddButton label={t('projectNavigator.action.saveSection')} onClick={saveSection} />,
     '3d': <AddButton label={t('projectNavigator.action.save3d')} onClick={save3d} icon={<Camera className="size-3.5" />} />,
     sheets: <AddButton label={t('projectNavigator.action.newSheet')} onClick={newSheet} />,
+    schedules: <AddButton label={t('schedule.new')} onClick={() => setRenamingId(addSchedule('all', t('schedule.newName')))} />,
     plan: <AddButton label={t('projectNavigator.action.newPlan')} onClick={() => dialogs.open('plan')} />,
     elevation: <AddButton label={t('projectNavigator.action.newElevation')} onClick={() => dialogs.open('elevation')} />,
   };
@@ -181,6 +186,28 @@ export function ProjectNavigatorPanel() {
             onCancelRename={() => setRenamingId(null)}
             onDuplicate={() => setRenamingId(duplicateProjectSheet(sheet.id))}
             onDelete={() => removeProjectItem(sheet.id)}
+          />
+        )),
+      };
+    }
+    if (id === 'schedules') {
+      const shown = schedules.filter((s) => !q || matches(s.name, q));
+      return {
+        count: shown.length,
+        rows: shown.map((schedule) => (
+          <ProjectItemRow
+            key={schedule.id}
+            label={schedule.name}
+            icon={ICONS.schedules}
+            active={activeItemId === schedule.id}
+            renaming={renamingId === schedule.id}
+            onOpen={() => activateDocumentTab(schedule.id)}
+            onStartRename={() => setRenamingId(schedule.id)}
+            onRename={(value) => rename(schedule.id, value)}
+            onCancelRename={() => setRenamingId(null)}
+            onDuplicate={() => setRenamingId(addSchedule(schedule.kind, `${schedule.name} (2)`))}
+            onDelete={() => removeProjectItem(schedule.id)}
+            dragViewId={schedule.id}
           />
         )),
       };

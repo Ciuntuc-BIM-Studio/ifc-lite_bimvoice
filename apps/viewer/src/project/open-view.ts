@@ -75,7 +75,7 @@ export function activateDocumentTab(id: string): OpenViewResult {
     return 'opened';
   }
   const project = useProjectStore.getState();
-  if (project.sheets.some((s) => s.id === id)) {
+  if (project.sheets.some((s) => s.id === id) || project.schedules?.some((s) => s.id === id)) {
     // A sheet shows its viewports' own drawings; the 3D section state is set aside like for a view.
     leaveModelTab();
     setActiveProjectItem(id);

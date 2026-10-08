@@ -30,6 +30,7 @@ import { SheetPanel } from './SheetPanel';
 import { exportSheetSvg, printSheet } from './sheet-export';
 import { exportSheetDxf } from './sheet-dxf';
 import { useSheetDrafting } from './useSheetDrafting';
+import { useSheetSchedules } from '../joinery/ScheduleGraphic';
 import { CommandLine } from '../drafting/CommandLine';
 import { useDraftingKeys } from '../drafting/useDraftingKeys';
 import { pressEscape, submitCommandLine } from '@/drafting/session';
@@ -77,18 +78,23 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
     }
     return out;
   }, [sheet.viewports, views, byView, geometryResult, flips]);
+  const placedSchedules = useSheetSchedules(sheet);
   const content = useCallback((vp: SheetViewport): ViewportContent => ({
+    schedule: placedSchedules.get(vp.viewId),
     view: views.find((v) => v.id === vp.viewId),
     drawing: styled.get(vp.viewId)?.drawing ?? null,
     drafts: draftsOfView(vp.viewId, drafts),
     symbols: styled.get(vp.viewId)?.symbols,
-  }), [views, styled, drafts]);
+  }), [views, styled, drafts, placedSchedules]);
 
   const toPaper = (clientX: number, clientY: number) => {
     const rect = hostRef.current?.getBoundingClientRect();
     return { x: (clientX - (rect?.left ?? 0) - pan.x) / pan.k, y: (clientY - (rect?.top ?? 0) - pan.y) / pan.k };
   };
-  const boxOf = (v: SheetViewport) => viewportBox(v, byView[v.viewId]?.drawing?.bounds ?? null);
+  const boxOf = (v: SheetViewport) => {
+    const schedule = placedSchedules.get(v.viewId);
+    return schedule ? { width: schedule.width, height: schedule.height } : viewportBox(v, byView[v.viewId]?.drawing?.bounds ?? null);
+  };
   const viewportAt = (p: { x: number; y: number }) => [...(sheet.viewports ?? [])].reverse()
     .find((v) => Math.abs(p.x - v.x) <= boxOf(v).width / 2 && Math.abs(p.y - v.y) <= boxOf(v).height / 2) ?? null;
 

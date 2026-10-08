@@ -27,6 +27,8 @@ import { layerTags, penTags } from './dxf-tags';
 import { layerPen, layerShows, lookOf } from '@/drafting/styles';
 import { useProjectStore } from '@/project/project-store';
 import { PEN, viewportPens } from './viewport-pens';
+import type { ScheduleLayout } from '@/joinery/schedule-layout';
+import { ScheduleGraphic } from '../joinery/ScheduleGraphic';
 
 const AXIS_NAME = { y: 'down', z: 'front', x: 'side' } as const;
 const LABEL_MM = 3.5;
@@ -37,6 +39,8 @@ export interface ViewportContent {
   drafts: DraftEntity[];
   /** Plan symbols (door swings, windows), drawing units. */
   symbols?: DraftShape[];
+  /** A joinery schedule placed here instead of a view (paper millimetres). */
+  schedule?: ScheduleLayout;
 }
 
 interface SheetPaperProps {
@@ -111,6 +115,18 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
     </g>
   );
 });
+
+/** A joinery schedule placed on the sheet, centred on its viewport point. */
+function ScheduleViewport({ vp, layout, selected }: { vp: SheetViewport; layout: ScheduleLayout; selected: boolean }) {
+  const { width, height } = layout;
+  return (
+    <g data-viewport-id={vp.id}>
+      <ScheduleGraphic layout={layout} x={vp.x - width / 2} y={vp.y - height / 2} />
+      <rect x={vp.x - width / 2} y={vp.y - height / 2} width={width} height={height} fill="transparent"
+        stroke={selected ? '#2563eb' : 'transparent'} strokeWidth={0.4} strokeDasharray={selected ? '3 2' : undefined} data-export-ignore={selected ? 'true' : undefined} />
+    </g>
+  );
+}
 
 const PAPER: ViewTransform = { scale: 1, x: 0, y: 0 };
 
@@ -189,9 +205,12 @@ export const SheetPaper = forwardRef<SVGSVGElement, SheetPaperProps>(function Sh
     <svg ref={ref} xmlns="http://www.w3.org/2000/svg" width={w * pxPerMm} height={h * pxPerMm} viewBox={`0 0 ${w} ${h}`} className="block bg-white shadow-lg">
       <rect data-export-ignore-dxf="true" x={0} y={0} width={w} height={h} fill="#fff" />
       <rect {...penTags('FRAME', 0.7)} x={FRAME_MARGIN_MM} y={FRAME_MARGIN_MM} width={w - FRAME_MARGIN_MM * 2} height={h - FRAME_MARGIN_MM * 2} fill="none" stroke="#000" strokeWidth={0.7} />
-      {(sheet.viewports ?? []).map((vp) => (
-        <ViewportGraphic key={vp.id} vp={vp} content={content(vp)} layers={layers} extraPatterns={extraPatterns} selected={vp.id === selectedViewportId} />
-      ))}
+      {(sheet.viewports ?? []).map((vp) => {
+        const c = content(vp);
+        return c.schedule
+          ? <ScheduleViewport key={vp.id} vp={vp} layout={c.schedule} selected={vp.id === selectedViewportId} />
+          : <ViewportGraphic key={vp.id} vp={vp} content={c} layers={layers} extraPatterns={extraPatterns} selected={vp.id === selectedViewportId} />;
+      })}
       <TitleBlock sheet={sheet} projectName={projectName} w={w} h={h} />
       <SheetDrafts entities={sheetDrafts} layers={layers} extraPatterns={extraPatterns} />
     </svg>

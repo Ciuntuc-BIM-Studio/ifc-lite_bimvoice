@@ -9,7 +9,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Box, Building2, LayoutTemplate, Scissors, SquareDashed, X } from 'lucide-react';
+import { Box, Building2, LayoutTemplate, Scissors, SquareDashed, X, Table2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useProjectStore } from '@/project/project-store';
@@ -30,9 +30,12 @@ export function DocumentTabBar() {
   const activeId = useDocumentTabs((s) => s.activeId);
   const views = useProjectStore((s) => s.views);
   const sheets = useProjectStore((s) => s.sheets);
+  const schedules = useProjectStore((s) => s.schedules);
   const tabs = openIds.flatMap((id): { id: string; label: string; icon: ReactNode }[] => {
     const view = views.find((v) => v.id === id);
     if (view) return [{ id, label: view.name, icon: ICONS[view.kind] }];
+    const schedule = schedules?.find((s) => s.id === id);
+    if (schedule) return [{ id, label: schedule.name, icon: <Table2 className="size-3.5" /> }];
     const sheet = sheets.find((s) => s.id === id);
     return sheet ? [{ id, label: t('projectNavigator.sheetLabel', { number: sheet.number, name: sheet.name }), icon: <SquareDashed className="size-3.5" /> }] : [];
   });

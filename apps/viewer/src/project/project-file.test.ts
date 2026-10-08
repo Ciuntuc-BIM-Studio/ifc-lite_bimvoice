@@ -36,6 +36,7 @@ const doc: ProjectDocument = {
   layerGroups: [{ id: 'g1', name: 'Annotation', visible: false, locked: true }],
   joineryTypes: [{ ...defaultWindowSpec('W-1'), id: 'j1', columns: [2, 1], panels: [{ col: 0, row: 0, operation: 'tilt-turn-right' }] }],
   currentJoinery: { window: 'j1' },
+  schedules: [{ id: 's1', name: 'Window schedule', kind: 'window', createdAt: 5, scale: 25 }],
 };
 
 describe('project file', () => {

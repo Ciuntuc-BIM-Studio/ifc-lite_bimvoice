@@ -155,6 +155,17 @@ export interface ProjectModelRef {
   name: string;
 }
 
+/** A joinery schedule (door / window list): a project document of its own, placeable on sheets. */
+export interface ProjectSchedule {
+  id: string;
+  name: string;
+  /** Which elements it lists. */
+  kind: 'door' | 'window' | 'all';
+  createdAt: number;
+  /** Scale of its drawings (50 = 1:50). */
+  scale?: number;
+}
+
 export interface ProjectDocument {
   name: string;
   models: ProjectModelRef[];
@@ -175,4 +186,5 @@ export interface ProjectDocument {
   joineryTypes?: JoinerySpec[];
   /** The catalogue entry the Door / Window tools place, per kind. */
   currentJoinery?: { door?: string; window?: string };
+  schedules?: ProjectSchedule[];
 }
