@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import type { DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
+
 /**
  * The project document: the views and sheets a user organises over the
  * loaded models, Revit/ArchiCAD style. A view is a persistent project
@@ -44,6 +46,8 @@ interface ProjectViewBase {
   graphics?: ViewGraphics;
   /** Drawing scale denominator (100 = 1:100). Annotation sizes follow it; absent = 1:100. */
   scale?: number;
+  /** Drafting layers this view hides (by id), over their own switches. */
+  hiddenLayers?: string[];
 }
 
 export type CategoryLineWeight = 'heavy' | 'medium' | 'light' | 'hairline';
@@ -127,6 +131,8 @@ export interface SheetViewport {
   height: number;
   /** Drawing point (metres) shown at the viewport centre; `null` centres the drawing. */
   center: { x: number; y: number } | null;
+  /** Drafting layers this viewport hides, on top of its view's. */
+  hiddenLayers?: string[];
 }
 
 export interface ProjectSheet {
@@ -158,6 +164,10 @@ export interface ProjectDocument {
   draftLayers: DraftLayer[];
   /** User-imported hatch patterns, as `.pat` text (built-ins are not stored). */
   hatchPatterns?: string;
+  /** Drafting standards: text and dimension styles, and the groups layers are filed in. */
+  textStyles?: TextStyle[];
+  dimStyles?: DimStyle[];
+  layerGroups?: LayerGroup[];
   /** Plan symbol overrides by element GlobalId: bit 1 hinges a door on its other jamb, bit 2 swings it to the other side. */
   symbolFlips?: Record<string, number>;
 }

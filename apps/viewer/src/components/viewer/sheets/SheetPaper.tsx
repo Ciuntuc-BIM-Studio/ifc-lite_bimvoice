@@ -23,6 +23,8 @@ import { FRAME_MARGIN_MM, mmPerMetre, paperOf, TITLE_BLOCK_MM, viewportBox } fro
 import type { ProjectSheet, ProjectView, SheetViewport } from '@/project/types';
 import { shapePath } from '../drafting/DraftOverlay';
 import { AnnotationGraphics } from '../drafting/AnnotationGraphics';
+import { layerPen, layerShows, lookOf } from '@/drafting/styles';
+import { useProjectStore } from '@/project/project-store';
 import { PEN, viewportPens } from './viewport-pens';
 
 const AXIS_NAME = { y: 'down', z: 'front', x: 'side' } as const;
@@ -74,8 +76,12 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
   const left = vp.x - box.width / 2;
   const top = vp.y - box.height / 2;
   const clipId = `vp-${vp.id}`;
-  const layerColor = new Map(layers.map((l) => [l.id, l.visible ? l.color : null]));
+  const { book, groups } = useDraftingStandards();
+  // A layer shows in a viewport by its own switch, its group's, its view's and the viewport's.
+  const layerColor = new Map(layers.map((l) => [l.id, layerShows(l, groups, { view: view?.hiddenLayers, viewport: vp.hiddenLayers }) ? l.color : null]));
+  const layerById = new Map(layers.map((l) => [l.id, l]));
   const layerNames = new Map(layers.map((l) => [l.id, l.name]));
+  const paperUnit = (view?.scale ?? 100) / 1000;
   return (
     <g data-viewport-id={vp.id}>
       <clipPath id={clipId}><rect x={left} y={top} width={box.width} height={box.height} /></clipPath>
@@ -90,8 +96,8 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
           const color = layerColor.get(e.layerId);
           if (color === null) return null;
           return isGeometry(e.shape)
-            ? <path key={e.id} data-dxf-layer={`DRAFT-${layerNames.get(e.layerId) ?? '0'}`} d={shapePath(e.shape, t, axis)} stroke={color ?? '#000'} strokeWidth={PEN.seen} fill="none" />
-            : <g key={e.id} data-dxf-layer="ANNOTATION"><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={t} axis={axis} extraPatterns={extraPatterns} strokeScale={0.25} /></g>;
+            ? <PenPath key={e.id} layer={layerById.get(e.layerId)} dxfLayer={`DRAFT-${layerNames.get(e.layerId) ?? '0'}`} d={shapePath(e.shape, t, axis)} color={color ?? '#000'} />
+            : <g key={e.id} data-dxf-layer="ANNOTATION"><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={t} axis={axis} extraPatterns={extraPatterns} strokeScale={0.25} look={lookOf(book, e.params)} paperUnit={paperUnit} /></g>;
         })}
       </g>
       <rect
@@ -108,17 +114,34 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
 
 const PAPER: ViewTransform = { scale: 1, x: 0, y: 0 };
 
+/** The project's styles and layer groups, as drafting graphics need them. */
+function useDraftingStandards() {
+  const textStyles = useProjectStore((s) => s.textStyles);
+  const dimStyles = useProjectStore((s) => s.dimStyles);
+  const groups = useProjectStore((s) => s.layerGroups);
+  const book = useMemo(() => ({ textStyles: textStyles ?? [], dimStyles: dimStyles ?? [] }), [textStyles, dimStyles]);
+  return { book, groups: groups ?? [] };
+}
+
+/** A drafted line on paper with its layer's pen (weight and line type, millimetres). */
+function PenPath({ layer, d, color, dxfLayer }: { layer: DraftLayer | undefined; d: string; color: string; dxfLayer?: string }) {
+  const pen = layerPen(layer);
+  return <path data-dxf-layer={dxfLayer} d={d} stroke={color} strokeWidth={pen.width} strokeDasharray={pen.dash.length ? pen.dash.join(' ') : undefined} fill="none" />;
+}
+
 /** The sheet's own lines and annotations, on the paper. */
 function SheetDrafts({ entities, layers, extraPatterns }: { entities: readonly DraftEntity[]; layers: readonly DraftLayer[]; extraPatterns: readonly HatchPattern[] }) {
-  const colour = new Map(layers.map((l) => [l.id, l.visible ? l.color : null]));
+  const { book, groups } = useDraftingStandards();
+  const colour = new Map(layers.map((l) => [l.id, layerShows(l, groups) ? l.color : null]));
+  const layerById = new Map(layers.map((l) => [l.id, l]));
   return (
     <g data-dxf-layer="SHEET-ANNOTATION">
       {entities.map((e) => {
         const color = colour.get(e.layerId);
         if (color === null) return null;
         return isGeometry(e.shape)
-          ? <path key={e.id} d={shapePath(e.shape, PAPER, 'down')} stroke={color ?? '#000'} strokeWidth={PEN.seen} fill="none" />
-          : <AnnotationGraphics key={e.id} shape={e.shape} color={color ?? '#000'} selected={false} transform={PAPER} axis="down" extraPatterns={extraPatterns} strokeScale={0.25} />;
+          ? <PenPath key={e.id} layer={layerById.get(e.layerId)} d={shapePath(e.shape, PAPER, 'down')} color={color ?? '#000'} />
+          : <AnnotationGraphics key={e.id} shape={e.shape} color={color ?? '#000'} selected={false} transform={PAPER} axis="down" extraPatterns={extraPatterns} strokeScale={0.25} look={lookOf(book, e.params)} paperUnit={1} />;
       })}
     </g>
   );

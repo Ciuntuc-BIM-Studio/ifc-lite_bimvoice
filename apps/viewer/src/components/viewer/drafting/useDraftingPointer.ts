@@ -15,10 +15,14 @@ import { findSnap } from '@/drafting/snaps';
 import { capturePointer } from '@/lib/pointer-capture';
 import { referencesIn, type ReferenceSet } from '@/drafting/references';
 import type { DraftShape, Pt, SnapHit, SnapMode } from '@/drafting/types';
+import { gripAt, moveGrip, type Grip } from '@/drafting/grips';
+import { editDrafts } from '@/drafting/draft-store';
+import { useProjectStore } from '@/project/project-store';
 
 const SNAP_PX = 10;
 const PICK_PX = 6;
 const DRAG_PX = 4;
+const GRIP_PX = 7;
 const SNAP_ORDER: readonly SnapMode[] = ['endpoint', 'intersection', 'midpoint', 'center', 'quadrant', 'perpendicular', 'nearest'];
 const ALL_MODES: ReadonlySet<SnapMode> = new Set(SNAP_ORDER);
 
@@ -40,6 +44,8 @@ interface Params {
   axis: SectionAxisName;
   entityShapes: readonly DraftShape[];
   references: ReferenceSet | null;
+  /** The selected entities' grips. */
+  grips?: readonly Grip[];
 }
 
 export interface DraftingPointerState {
@@ -47,12 +53,14 @@ export interface DraftingPointerState {
   snap: SnapHit | null;
   hoverId: string | null;
   window: { a: Pt; b: Pt } | null;
+  /** A grip being dragged, and where to. */
+  gripDrag: { grip: Grip; at: Pt } | null;
 }
 
-export function useDraftingPointer({ containerRef, transform, setTransform, axis, entityShapes, references }: Params) {
+export function useDraftingPointer({ containerRef, transform, setTransform, axis, entityShapes, references, grips = [] }: Params) {
   const snapOn = useDraftingSession((s) => s.snap);
-  const [state, setState] = useState<DraftingPointerState>({ cursor: null, snap: null, hoverId: null, window: null });
-  const drag = useRef<{ kind: 'pan' | 'window'; startScreen: Pt; startDrawing: Pt; startTransform: ViewTransform } | null>(null);
+  const [state, setState] = useState<DraftingPointerState>({ cursor: null, snap: null, hoverId: null, window: null, gripDrag: null });
+  const drag = useRef<{ kind: 'pan' | 'window' | 'grip'; startScreen: Pt; startDrawing: Pt; startTransform: ViewTransform; grip?: Grip } | null>(null);
 
   const local = (e: { clientX: number; clientY: number }): Pt => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -82,12 +90,19 @@ export function useDraftingPointer({ containerRef, transform, setTransform, axis
       return;
     }
     const raw = screenToDrawing(s, transform, axis);
+    if (d?.kind === 'grip' && d.grip) {
+      // A dragged grip snaps like a point does.
+      const hit = snapOn ? findSnap(raw, entityShapes, null, { tolerance: SNAP_PX / transform.scale, modes: ALL_MODES, from: null }) : null;
+      const at = hit?.point ?? raw;
+      setState({ cursor: at, snap: hit, hoverId: null, window: null, gripDrag: { grip: d.grip, at } });
+      return;
+    }
     const { point, snap } = resolve(raw);
     const command = runningCommand();
     const hoverId = !command || command.input() === 'pick' ? pickEntity(raw, PICK_PX / transform.scale)?.id ?? null : null;
     const window = d?.kind === 'window' && Math.hypot(s.x - d.startScreen.x, s.y - d.startScreen.y) > DRAG_PX ? { a: d.startDrawing, b: raw } : null;
-    setState({ cursor: point, snap, hoverId, window });
-  }, [transform, axis, resolve, setTransform]);
+    setState({ cursor: point, snap, hoverId, window, gripDrag: null });
+  }, [transform, axis, resolve, setTransform, snapOn, entityShapes]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     const s = local(e);
@@ -108,13 +123,25 @@ export function useDraftingPointer({ containerRef, transform, setTransform, axis
       clickDrawing(raw, PICK_PX / transform.scale, e.shiftKey);
       return;
     }
+    const grip = gripAt(grips, raw, GRIP_PX / transform.scale);
+    if (grip) {
+      drag.current = { kind: 'grip', startScreen: s, startDrawing: raw, startTransform: transform, grip };
+      return;
+    }
     drag.current = { kind: 'window', startScreen: s, startDrawing: raw, startTransform: transform };
-  }, [transform, axis, resolve]);
+  }, [transform, axis, resolve, grips]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
     if (!d || d.kind === 'pan') return;
+    if (d.kind === 'grip' && d.grip) {
+      const target = state.gripDrag;
+      const entity = useProjectStore.getState().drafts.find((x) => x.id === d.grip?.id);
+      if (target && entity) editDrafts({ update: new Map([[entity.id, moveGrip(entity.shape, d.grip.key, target.at)]]) });
+      setState((prev) => ({ ...prev, gripDrag: null }));
+      return;
+    }
     const s = local(e);
     const raw = screenToDrawing(s, transform, axis);
     if (Math.hypot(s.x - d.startScreen.x, s.y - d.startScreen.y) > DRAG_PX) {
@@ -124,7 +151,7 @@ export function useDraftingPointer({ containerRef, transform, setTransform, axis
       clickDrawing(raw, PICK_PX / transform.scale, e.shiftKey);
     }
     setState((prev) => ({ ...prev, window: null }));
-  }, [transform, axis]);
+  }, [transform, axis, state.gripDrag]);
 
   const onPointerLeave = useCallback(() => setState((prev) => ({ ...prev, cursor: null, snap: null, hoverId: null })), []);
 

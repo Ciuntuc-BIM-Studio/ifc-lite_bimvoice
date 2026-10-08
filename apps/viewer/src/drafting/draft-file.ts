@@ -120,5 +120,8 @@ export function readDraftLayer(v: unknown, path: string): DraftLayer {
     color: isString(v.color) ? v.color : '#18181b',
     visible: v.visible !== false,
     locked: v.locked === true,
+    ...(typeof v.lineWeight === 'number' && v.lineWeight > 0 ? { lineWeight: v.lineWeight } : {}),
+    ...(v.lineType === 'dashed' || v.lineType === 'dotted' || v.lineType === 'dashdot' ? { lineType: v.lineType } : {}),
+    ...(isString(v.group) ? { group: v.group } : {}),
   };
 }

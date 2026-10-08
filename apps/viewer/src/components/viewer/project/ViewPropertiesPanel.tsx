@@ -18,6 +18,7 @@ import { activateDocumentTab } from '@/project/open-view';
 import { resolvePlanLevel } from '@/project/view-defaults';
 import type { ProjectView } from '@/project/types';
 import { SHEET_SCALES } from '@/project/sheets';
+import { rescaleViewAnnotations } from '@/project/drafting-standards';
 import { Button } from '@/components/ui/button';
 import { ViewGraphicsDialog } from './ViewGraphicsDialog';
 
@@ -92,7 +93,10 @@ export function ViewPropertiesPanel({ view }: { view: ProjectView }) {
           aria-label={t('projectNavigator.props.scale')}
           className="h-6 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1"
           value={view.scale ?? 100}
-          onChange={(e) => edit(view, { scale: Number(e.target.value) })}
+          onChange={(e) => {
+            edit(view, { scale: Number(e.target.value) });
+            rescaleViewAnnotations(view.id);
+          }}
         >
           {SHEET_SCALES.map((s) => <option key={s} value={s}>{`1:${s}`}</option>)}
         </select>

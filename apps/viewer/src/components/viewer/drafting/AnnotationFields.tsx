@@ -73,9 +73,8 @@ export function AnnotationFields({ entity, shape, extraPatterns }: { entity: Dra
       </>
     );
   }
-  const height = (
-    <Field label={t('drafting.props.height')} value={String(shape.height)} numeric onCommit={(v) => update(entity, { ...shape, height: positive(v, shape.height) })} />
-  );
+  // The height is set in paper millimetres with the style fields (`AnnotationStyleFields`).
+  const height = null;
   switch (shape.type) {
     case 'text':
     case 'leader':

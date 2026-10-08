@@ -64,7 +64,8 @@ export const useDraftingSession = create<SessionState>()(() => ({
 
 const HISTORY_LINES = 50;
 const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHeight: 0.25, hatchPattern: 'LINES45', hatchScale: 1, hatchAngle: 0, extrudeClass: 'IfcBuildingElementProxy', extrudeDepth: 1,
-  roofKind: 'gable', roofSlope: 30, roofThickness: 0.25, roofOverhang: 0 };
+  roofKind: 'gable', roofSlope: 30, roofThickness: 0.25, roofOverhang: 0,
+  currentTextStyle: 'standard', currentDimStyle: 'standard' };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
 let referenceProvider: (min: Pt, max: Pt) => DraftShape[] = () => [];
@@ -98,6 +99,18 @@ export function setModelPicker(picker: typeof modelPicker): void {
 
 /** The model element (renderer id) drawn under a drawing point, from the view in front. */
 let elementPicker: (p: Pt) => number | null = () => null;
+
+/** The styles new annotations take; the text height setting follows the current text style (paper mm → metres at 1:100). */
+export function setCurrentStyles(patch: { textStyle?: string; dimStyle?: string; textHeightMm?: number }): void {
+  if (patch.textStyle) settings.currentTextStyle = patch.textStyle;
+  if (patch.dimStyle) settings.currentDimStyle = patch.dimStyle;
+  if (patch.textHeightMm) settings.textHeight = patch.textHeightMm / 10;
+  set({ revision: get().revision + 1 });
+}
+
+export function currentStyles(): { textStyle: string; dimStyle: string } {
+  return { textStyle: settings.currentTextStyle, dimStyle: settings.currentDimStyle };
+}
 
 export function setElementPicker(picker: ((p: Pt) => number | null) | null): void {
   elementPicker = picker ?? (() => null);

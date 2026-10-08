@@ -35,7 +35,7 @@ export type DraftShape =
 export type AnnotationShape =
   | { type: 'text'; p: Pt; text: string; height: number; rotation: number }
   | { type: 'leader'; pts: Pt[]; text: string; height: number }
-  | { type: 'dimension'; variant: 'aligned' | 'linear'; a: Pt; b: Pt; at: Pt; height: number; text?: string }
+  | { type: 'dimension'; variant: 'aligned' | 'linear'; a: Pt; b: Pt; at: Pt; height: number; text?: string; textAt?: Pt }
   | { type: 'radial'; c: Pt; r: number; at: Pt; diameter: boolean; height: number }
   | { type: 'angular'; c: Pt; a: Pt; b: Pt; at: Pt; height: number }
   | { type: 'level'; p: Pt; value: number; height: number }
@@ -67,6 +67,12 @@ export interface DraftLayer {
   color: string;
   visible: boolean;
   locked: boolean;
+  /** Pen width, paper millimetres (absent: 0.25). */
+  lineWeight?: number;
+  /** Absent: continuous. */
+  lineType?: 'continuous' | 'dashed' | 'dotted' | 'dashdot';
+  /** The layer group it belongs to (`LayerGroup.id`). */
+  group?: string;
 }
 
 export type SnapMode = 'endpoint' | 'midpoint' | 'center' | 'quadrant' | 'intersection' | 'perpendicular' | 'nearest';

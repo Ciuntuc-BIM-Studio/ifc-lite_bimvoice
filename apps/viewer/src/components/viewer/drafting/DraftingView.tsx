@@ -16,7 +16,8 @@ import { parsePat } from '@/drafting/hatch/pattern';
 import { resolvePlanLevel } from '@/project/view-defaults';
 import { viewPlaneConfig, viewWorkPlane } from '@/project/view-plane-config';
 import { mergedSectionBounds } from '@/lib/section/section-distance';
-import { FileDown, Maximize2, Redo2, Undo2 } from 'lucide-react';
+import { FileDown, Layers, Maximize2, Redo2, Undo2 } from 'lucide-react';
+import { openStandards } from '@/project/standards-dialog-store';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
@@ -33,13 +34,16 @@ import { selectFromPlan } from '@/components/viewer/plan/PlanPointer';
 import { draftsOfView, redoDrafts, undoDrafts } from '@/drafting/draft-store';
 import {
   attachDraftingView, currentLayerId, setElementPicker, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelPicker, setWorkPlaneProvider, submitCommandLine,
-  toggleOrtho, toggleSnap, useDraftingSession,
+  toggleOrtho, toggleSnap, useDraftingSession, pickEntity, setDraftSelection,
 } from '@/drafting/session';
 import { DraftOverlay } from './DraftOverlay';
 import { CommandLine } from './CommandLine';
 import { useDraftingPointer } from './useDraftingPointer';
 import { useDraftingKeys } from './useDraftingKeys';
 import { DraftPropertiesPanel } from './DraftPropertiesPanel';
+import { SelectionBar } from './SelectionBar';
+import { gripsOf } from '@/drafting/grips';
+import { screenToDrawing } from '@/drafting/frame';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
@@ -153,7 +157,12 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
     return modelHighlight(drawing, ids);
   }, [drawing, selectedModelIds, selectedModelId]);
 
-  const { state, handlers } = useDraftingPointer({ containerRef, transform: viewTransform, setTransform: setViewTransform, axis, entityShapes, references });
+  // The selection's grips (a handful of entities at most) and the on-canvas editing bar.
+  const selected = useMemo(() => entities.filter((e) => selection.has(e.id)), [entities, selection]);
+  const grips = useMemo(() => (selected.length <= 20 ? selected.flatMap((e) => gripsOf(e.id, e.shape)) : []), [selected]);
+  const [editingText, setEditingText] = useState(false);
+  useEffect(() => setEditingText(false), [selection]);
+  const { state, handlers } = useDraftingPointer({ containerRef, transform: viewTransform, setTransform: setViewTransform, axis, entityShapes, references, grips });
   const workPlane = useMemo(() => viewWorkPlane(view, plane ?? null, levels), [view, plane, levels]);
   const bim = useModelCommandBridge({ view, plane: workPlane, transform: viewTransform, axis, containerRef });
   // A running BIM tool takes the left button; panning, zoom and the cursor stay the drafting view's.
@@ -203,6 +212,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         >
           {layers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
+        <IconButton label={t('standards.open')} className="size-7" onClick={() => openStandards('layers')}><Layers className="size-4" /></IconButton>
         <IconButton label={t('drafting.undo')} className="size-7" onClick={() => undoDrafts()}><Undo2 className="size-4" /></IconButton>
         <IconButton label={t('drafting.redo')} className="size-7" onClick={() => redoDrafts()}><Redo2 className="size-4" /></IconButton>
         <IconButton label={t('drafting.fit')} className="size-7" onClick={fitToView}><Maximize2 className="size-4" /></IconButton>
@@ -214,6 +224,16 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         // Always white paper, as the drawing canvas paints it: drafted ink stays visible in dark mode.
         className="relative min-h-0 flex-1 overflow-hidden bg-white cursor-none touch-none"
         {...pointer}
+        onDoubleClick={(e) => {
+          // Double-click an annotation: select it and edit its text in place.
+          const rect = containerRef.current?.getBoundingClientRect();
+          const p = screenToDrawing({ x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) }, viewTransform, axis);
+          const hit = runningCommand() ? null : pickEntity(p, 6 / viewTransform.scale);
+          if (hit && !isGeometry(hit.shape)) {
+            setDraftSelection(new Set([hit.id]));
+            setTimeout(() => setEditingText(true), 0);
+          }
+        }}
       >
         {shown ? (
           <Drawing2DCanvas
@@ -252,7 +272,14 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           extraPatterns={extraPatterns}
           transform={viewTransform}
           axis={axis}
+          paperUnit={(view.scale ?? 100) / 1000}
+          hiddenLayers={view.hiddenLayers}
+          grips={grips}
+          gripDrag={state.gripDrag}
         />
+        {selected.length === 1 && !state.gripDrag ? (
+          <SelectionBar entity={selected[0]} transform={viewTransform} axis={axis} editing={editingText} onEditingChange={setEditingText} areaWidth={containerRef.current?.clientWidth ?? 800} />
+        ) : null}
         <ModelCommandLayer map={bim.map} />
         <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} extraPatterns={extraPatterns} />
       </div>

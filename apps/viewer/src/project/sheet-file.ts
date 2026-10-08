@@ -28,6 +28,7 @@ function readViewport(v: unknown, path: string): SheetViewport {
   return {
     id: v.id, viewId: v.viewId, scale: v.scale,
     x: num('x', 100), y: num('y', 100), width: Math.max(0, num('width', 0)), height: Math.max(0, num('height', 0)), center,
+    ...(Array.isArray(v.hiddenLayers) ? { hiddenLayers: v.hiddenLayers.filter((x): x is string => typeof x === 'string') } : {}),
   };
 }
 

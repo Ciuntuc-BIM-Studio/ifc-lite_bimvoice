@@ -66,6 +66,9 @@ export interface DraftSettings {
   roofSlope: number;
   roofThickness: number;
   roofOverhang: number;
+  /** The styles new annotations take. */
+  currentTextStyle: string;
+  currentDimStyle: string;
 }
 
 export interface DraftCommand {

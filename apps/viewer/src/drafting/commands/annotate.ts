@@ -10,6 +10,7 @@
  */
 
 import { editDrafts, newDraft } from '../draft-store';
+import { styledParams } from '@/project/drafting-standards';
 import { dimensionLayout, entitySkeleton } from '../annotation';
 import { findPattern } from '../hatch/library';
 import { regionAt } from '../hatch/region';
@@ -17,7 +18,9 @@ import type { AnnotationShape, DraftShape, Pt } from '../types';
 import type { DraftCommandDef, DraftContext, StepResult } from './types';
 
 function add(ctx: DraftContext, shape: AnnotationShape): void {
-  editDrafts({ add: [newDraft(ctx.viewId, ctx.layerId, shape)] });
+  // The current style, and an override when the height was typed differently.
+  const params = styledParams(ctx.viewId, shape, { textStyle: ctx.settings.currentTextStyle, dimStyle: ctx.settings.currentDimStyle });
+  editDrafts({ add: [newDraft(ctx.viewId, ctx.layerId, shape, params)] });
 }
 
 const skeleton = (shape: AnnotationShape): DraftShape[] => entitySkeleton(shape);

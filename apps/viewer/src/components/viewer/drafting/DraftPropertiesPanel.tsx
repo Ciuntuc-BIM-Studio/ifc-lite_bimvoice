@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { IconButton } from '@/components/ui/icon-button';
 import { setDraftLayer, setDraftParams } from '@/drafting/draft-store';
@@ -17,6 +17,7 @@ import { measureShape, parseParamValue } from '@/drafting/measure';
 import { isGeometry, type DraftEntity, type DraftLayer } from '@/drafting/types';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
 import { AnnotationFields } from './AnnotationFields';
+import { AnnotationStyleFields } from './AnnotationStyleFields';
 
 const TYPE_KEYS = {
   line: 'drafting.props.typeLine',
@@ -33,17 +34,21 @@ const TYPE_KEYS = {
 } as const;
 
 const fmt = (n: number) => n.toFixed(3);
+const STYLE_KEYS = new Set(['textStyle', 'dimStyle']);
 
 export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { entities: DraftEntity[]; layers: DraftLayer[]; extraPatterns: readonly HatchPattern[] }) {
   const { t } = useTranslation();
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
+  // Folded by default: the on-canvas bar covers everyday edits; the panel is one click away.
+  const [open, setOpen] = useState(false);
   if (entities.length === 0) return null;
   const ids = new Set(entities.map((e) => e.id));
   const single = entities.length === 1 ? entities[0] : null;
   const layerId = entities.every((e) => e.layerId === entities[0].layerId) ? entities[0].layerId : '';
   // Parameters every selected entity shares (with the first one's value).
-  const keys = Object.keys(entities[0].params).filter((k) => entities.every((e) => k in e.params));
+  // Style links and overrides are edited with the style fields, not as free parameters.
+  const keys = Object.keys(entities[0].params).filter((k) => entities.every((e) => k in e.params) && !STYLE_KEYS.has(k) && !k.startsWith('o.'));
   const measure = single && isGeometry(single.shape) ? measureShape(single.shape) : null;
 
   const addParam = () => {
@@ -60,9 +65,11 @@ export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { enti
       className="absolute right-2 top-2 z-10 cursor-auto w-72 max-h-[80%] overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 p-3 text-xs shadow-md space-y-2"
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <h3 className="font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+      <button type="button" aria-expanded={open} className="flex w-full items-center justify-between font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100" onClick={() => setOpen(!open)}>
         {single ? t(TYPE_KEYS[single.shape.type]) : t('drafting.props.multiple', { count: entities.length })}
-      </h3>
+        {open ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+      </button>
+      {open ? <>
       {single ? <Row label={t('drafting.props.id')}><code className="break-all select-all text-2xs">{single.id}</code></Row> : null}
       <Row label={t('drafting.layer')}>
         <select
@@ -76,6 +83,7 @@ export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { enti
         </select>
       </Row>
       {single && !isGeometry(single.shape) ? <AnnotationFields entity={single} shape={single.shape} extraPatterns={extraPatterns} /> : null}
+      {single && !isGeometry(single.shape) ? <AnnotationStyleFields entity={single} shape={single.shape} /> : null}
       {measure ? (
         <>
           <Row label={t('drafting.props.length')}>{t('drafting.unit.metres', { value: fmt(measure.length) })}</Row>
@@ -126,6 +134,7 @@ export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { enti
           <Plus className="size-3" />
         </IconButton>
       </div>
+      </> : null}
     </section>
   );
 }

@@ -12,6 +12,7 @@
 import { downloadFile, sanitizeFilename } from '@/lib/export/download.js';
 import { readDraft, readDraftLayer } from '@/drafting/draft-file';
 import { readSheetLayout } from './sheet-file';
+import { readStandards } from './standards-file';
 import type { CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
@@ -61,6 +62,7 @@ function readView(v: unknown, path: string): ProjectView {
     ...(isNumber(v.viewDepth) && v.viewDepth >= 0 ? { viewDepth: v.viewDepth } : {}),
     ...(isObject(v.graphics) ? { graphics: readGraphics(v.graphics) } : {}),
     ...(isNumber(v.scale) && v.scale > 0 ? { scale: v.scale } : {}),
+    ...(Array.isArray(v.hiddenLayers) ? { hiddenLayers: v.hiddenLayers.filter(isString) } : {}),
   };
   switch (v.kind) {
     case 'plan':
@@ -117,6 +119,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     draftLayers: list('draftLayers').map((l, i) => readDraftLayer(l, `/draftLayers/${i}`)),
     hatchPatterns: isString(raw.hatchPatterns) ? raw.hatchPatterns : '',
     symbolFlips: readFlips(raw.symbolFlips),
+    ...readStandards(raw),
   };
 }
 

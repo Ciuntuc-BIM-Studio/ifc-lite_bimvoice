@@ -96,6 +96,7 @@ export function useSheetDrafting(sheetId: string, pan: Pan, extraPatterns: reado
       extraPatterns={extraPatterns}
       transform={{ scale: pan.k, x: pan.x, y: pan.y }}
       axis="down"
+      paperUnit={1}
     />
   );
   return { entities, down, move, overlay, drafting: command !== null };

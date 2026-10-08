@@ -82,7 +82,9 @@ export function useDraftingKeys({ inputRef, setText, submit }: Params): void {
         setText((prev) => prev + e.key);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Capture phase: the command line claims its keys before the viewer's global shortcuts
+    // (which skip a prevented event) — typing "DIM" must not toggle panels.
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [inputRef, setText]);
 }

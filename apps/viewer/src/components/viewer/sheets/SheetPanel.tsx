@@ -7,6 +7,7 @@
  * the selected viewport's scale and crop size, and export.
  */
 
+import { ViewportLayers } from './ViewportLayers';
 import { Download, Printer, Trash2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { Button } from '@/components/ui/button';
@@ -78,6 +79,7 @@ export function SheetPanel({ sheet, viewport, box, viewportName, onExportSvg, on
           <TextField label={t('sheets.width')} value={String(Math.round(box?.width ?? 0))} onCommit={(v) => Number(v) > 0 && updateViewport(sheet.id, viewport.id, { width: Number(v), height: box?.height ?? Number(v) })} />
           <TextField label={t('sheets.height')} value={String(Math.round(box?.height ?? 0))} onCommit={(v) => Number(v) > 0 && updateViewport(sheet.id, viewport.id, { height: Number(v), width: box?.width ?? Number(v) })} />
           <Button variant="outline" size="sm" className="w-full" onClick={() => updateViewport(sheet.id, viewport.id, { width: 0, height: 0 })}>{t('sheets.fitBox')}</Button>
+          <ViewportLayers sheetId={sheet.id} viewport={viewport} />
           <Button variant="outline" size="sm" className="w-full" onClick={() => removeViewport(sheet.id, viewport.id)}>
             <Trash2 className="size-3.5 mr-1" />{t('sheets.removeViewport')}
           </Button>

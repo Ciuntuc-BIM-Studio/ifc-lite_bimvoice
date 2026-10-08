@@ -17,6 +17,7 @@ import { useLinkedElementSync } from '@/project/useLinkedElementSync';
 import { useElementTagSync } from '@/project/useElementTagSync';
 import { ProjectNavigatorPanel } from './ProjectNavigatorPanel';
 import { NewProjectHost } from './NewProjectDialog';
+import { DraftingStandardsDialog } from '../drafting/standards/DraftingStandardsDialog';
 
 type LeftTab = 'model' | 'project';
 
@@ -72,6 +73,7 @@ export function LeftNavigator() {
         {tab === 'model' ? <HierarchyPanel /> : <ProjectNavigatorPanel />}
       </div>
       <NewProjectHost />
+      <DraftingStandardsDialog />
     </div>
   );
 }

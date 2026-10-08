@@ -13,6 +13,7 @@
 import { renderIdGlobalId } from '@/project/element-guid';
 import { elementLabel, type TagField } from '@/project/element-label';
 import { editDrafts, newDraft } from '../draft-store';
+import { styledParams } from '@/project/drafting-standards';
 import { entitySkeleton } from '../annotation';
 import type { Pt } from '../types';
 import type { DraftCommandDef } from './types';
@@ -50,7 +51,8 @@ export const tagCommand: DraftCommandDef = {
           return 'continue';
         }
         const shape = { type: 'leader' as const, pts: [anchor.p, p], text: anchor.text, height: ctx.settings.textHeight };
-        editDrafts({ add: [newDraft(ctx.viewId, ctx.layerId, shape, { tagOf: anchor.guid, tagField: field })] });
+        const styled = styledParams(ctx.viewId, shape, { textStyle: ctx.settings.currentTextStyle, dimStyle: ctx.settings.currentDimStyle });
+        editDrafts({ add: [newDraft(ctx.viewId, ctx.layerId, shape, { ...styled, tagOf: anchor.guid, tagField: field })] });
         anchor = null;
         return 'continue';
       },

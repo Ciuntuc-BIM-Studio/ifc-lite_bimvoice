@@ -1,0 +1,5 @@
+---
+"@ifc-lite/viewer": minor
+---
+
+Drafting standards and on-canvas editing. A Drafting standards dialog (Annotations tab, or a drawing tab's header) manages layers — grouped under layer groups that switch and lock them together, with colour, pen weight, line type and per-view visibility — text styles (paper height, font, bold, italic, colour) and dimension styles (ends, sizes, value placement above / in line / below, gap, unit, precision), with a live preview; style changes update every annotation using them. General rules apply everywhere: text reads left to right, and bottom to top on vertical lines; a dimension's value sits above its line, left of a vertical one. Any element can override any style field (properties panel: "by style", per-field reset, reset to style). On the canvas, a selected annotation shows a contextual bar (style, value placement, ends, bold / italic, size, edit text, reset), grips to drag its points, line and value, and edits its text in place on double-click. Sheet viewports choose their own layer visibility on top of their view's. Typing in a drawing tab no longer triggers the viewer's global shortcuts.

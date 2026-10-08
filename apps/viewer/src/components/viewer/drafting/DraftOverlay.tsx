@@ -8,7 +8,10 @@
  * all in screen space through the canvas's own transform (`drafting/frame`).
  */
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
+import { layerPen, layerShows, lookOf, type LayerGroup } from '@/drafting/styles';
+import { moveGrip, type Grip } from '@/drafting/grips';
+import { useProjectStore } from '@/project/project-store';
 import { drawingToScreen, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
 import { isGeometry, type DraftEntity, type DraftLayer, type DraftShape, type Pt, type SnapHit } from '@/drafting/types';
 import { entitySkeleton } from '@/drafting/annotation';
@@ -60,6 +63,13 @@ interface DraftOverlayProps {
   extraPatterns: readonly HatchPattern[];
   transform: ViewTransform;
   axis: SectionAxisName;
+  /** Drawing units per paper millimetre (view scale / 1000; 1 on a sheet). */
+  paperUnit?: number;
+  /** Layers the view hides. */
+  hiddenLayers?: readonly string[];
+  /** The selected entities' grips, and the one being dragged. */
+  grips?: readonly Grip[];
+  gripDrag?: { grip: Grip; at: Pt } | null;
 }
 
 function SnapMarker({ snap, t, axis }: { snap: SnapHit; t: ViewTransform; axis: SectionAxisName }) {
@@ -84,9 +94,31 @@ function SnapMarker({ snap, t, axis }: { snap: SnapHit; t: ViewTransform; axis: 
   }
 }
 
+const NO_GROUPS: LayerGroup[] = [];
+const NO_GRIPS: Grip[] = [];
+
+/** The dragged entity as it will be, drawn over the original. */
+function GripPreview({ gripDrag, entities, t, axis, look, paperUnit, extraPatterns }: {
+  gripDrag: { grip: Grip; at: Pt }; entities: readonly DraftEntity[]; t: ViewTransform; axis: SectionAxisName;
+  look: (e: DraftEntity) => ReturnType<typeof lookOf>; paperUnit: number; extraPatterns: readonly HatchPattern[];
+}) {
+  const entity = entities.find((e) => e.id === gripDrag.grip.id);
+  if (!entity) return null;
+  const moved = moveGrip(entity.shape, gripDrag.grip.key, gripDrag.at);
+  return isGeometry(moved)
+    ? <path d={shapePath(moved, t, axis)} fill="none" stroke="#2563eb" strokeWidth={1.5} strokeDasharray="5 3" />
+    : <AnnotationGraphics shape={moved} color="#2563eb" selected transform={t} axis={axis} extraPatterns={extraPatterns} look={look(entity)} paperUnit={paperUnit} />;
+}
+
 export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps) {
-  const { entities, layers, selection, hoverId, preview, snap, cursor, window, highlight, extraPatterns, transform: t, axis } = props;
+  const { entities, layers, selection, hoverId, preview, snap, cursor, window, highlight, extraPatterns, transform: t, axis, paperUnit = 0.1, hiddenLayers, grips = NO_GRIPS, gripDrag = null } = props;
   const layerById = new Map(layers.map((l) => [l.id, l]));
+  const textStyles = useProjectStore((s) => s.textStyles);
+  const dimStyles = useProjectStore((s) => s.dimStyles);
+  const groups = useProjectStore((s) => s.layerGroups) ?? NO_GROUPS;
+  const book = useMemo(() => ({ textStyles: textStyles ?? [], dimStyles: dimStyles ?? [] }), [textStyles, dimStyles]);
+  /** Paper millimetres → screen px. */
+  const mm = paperUnit * t.scale;
   return (
     <svg className="absolute inset-0 h-full w-full pointer-events-none" aria-hidden="true">
       {highlight.length > 0 ? (
@@ -94,31 +126,39 @@ export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps)
       ) : null}
       {entities.map((e) => {
         const layer = layerById.get(e.layerId);
-        if (layer && !layer.visible) return null;
+        if (layer && !layerShows(layer, groups, { view: hiddenLayers })) return null;
         const isSelected = selection.has(e.id);
         const isHover = hoverId === e.id && !isSelected;
         const color = layer?.color ?? '#18181b';
         if (!isGeometry(e.shape)) {
           return (
             <g key={e.id}>
-              <AnnotationGraphics shape={e.shape} color={color} selected={isSelected} transform={t} axis={axis} extraPatterns={extraPatterns} />
+              <AnnotationGraphics shape={e.shape} color={color} selected={isSelected} transform={t} axis={axis} extraPatterns={extraPatterns} look={lookOf(book, e.params)} paperUnit={paperUnit} />
               {isHover || isSelected ? (
                 <path d={entitySkeleton(e.shape).map((s) => shapePath(s, t, axis)).join('')} fill="none" stroke={isSelected ? '#2563eb' : '#60a5fa'} strokeWidth={1} strokeDasharray="4 3" />
               ) : null}
             </g>
           );
         }
+        // The layer's pen at the view's scale: weight and line type in paper mm, never thinner than a pixel.
+        const pen = layerPen(layer);
+        const dash = pen.dash.length ? pen.dash.map((d) => Math.max(d * mm, 2)).join(' ') : undefined;
         return (
           <path
             key={e.id}
             d={shapePath(e.shape, t, axis)}
             fill="none"
             stroke={isSelected ? '#2563eb' : isHover ? '#60a5fa' : color}
-            strokeWidth={isSelected || isHover ? 2 : 1.25}
-            strokeDasharray={isSelected ? '6 3' : undefined}
-            vectorEffect="non-scaling-stroke"
+            strokeWidth={isSelected || isHover ? 2 : Math.max(pen.width * mm, 1)}
+            strokeDasharray={isSelected ? '6 3' : dash}
           />
         );
+      })}
+      {gripDrag ? <GripPreview gripDrag={gripDrag} entities={entities} t={t} axis={axis} look={(e) => lookOf(book, e.params)} paperUnit={paperUnit} extraPatterns={extraPatterns} /> : null}
+      {grips.map((g) => {
+        const p = drawingToScreen(g.at, t, axis);
+        const active = gripDrag?.grip.id === g.id && gripDrag.grip.key === g.key;
+        return <rect key={`${g.id}:${g.key}`} x={p.x - 4} y={p.y - 4} width={8} height={8} fill={active ? '#2563eb' : '#fff'} stroke="#2563eb" strokeWidth={1.5} />;
       })}
       {preview.map((shape, i) => (
         <path key={`p${i}`} d={shapePath(shape, t, axis)} fill="none" stroke="#2563eb" strokeWidth={1.25} strokeDasharray="4 3" />

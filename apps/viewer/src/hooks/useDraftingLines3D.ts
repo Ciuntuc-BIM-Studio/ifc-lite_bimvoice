@@ -21,6 +21,7 @@ import { mergedSectionBounds } from '@/lib/section/section-distance';
 import { anchorWorldLineVertices } from '@/lib/renderer/line-overlay-rte';
 import { drawingToWorld } from '@/drafting/frame';
 import { entitySkeleton } from '@/drafting/annotation';
+import { layerShows } from '@/drafting/styles';
 import type { DraftEntity, DraftShape, Pt } from '@/drafting/types';
 
 const ARC_STEP = Math.PI / 32;
@@ -83,11 +84,12 @@ export function useDraftingLines3D(rendererRef: RefObject<Renderer | null>, isIn
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer || !isInitialized) return;
-    const visible = new Set(layers.filter((l) => l.visible).map((l) => l.id));
+    const groups = useProjectStore.getState().layerGroups ?? [];
     const bounds = mergedSectionBounds(models, legacyGeometry);
     const vertices: number[] = [];
     for (const view of views) {
-      const entities = drafts.filter((d) => d.viewId === view.id && visible.has(d.layerId));
+      const shown = new Set(layers.filter((l) => layerShows(l, groups, { view: view.hiddenLayers })).map((l) => l.id));
+      const entities = drafts.filter((d) => d.viewId === view.id && shown.has(d.layerId));
       if (entities.length === 0) continue;
       // The generated drawing's own plane when there is one (exactly what was drawn on), else the view's.
       const drawn = byView[view.id]?.drawing?.config.plane ?? viewPlaneConfig(view, levels, bounds);

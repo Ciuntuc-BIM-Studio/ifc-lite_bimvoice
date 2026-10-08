@@ -9,7 +9,7 @@
  * `annotate:*` commands (`surface-commands-annotate-ribbon.ts`).
  */
 
-import { AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText } from '@/icons';
+import { AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftingStandards } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -41,6 +41,10 @@ export function AnnotationsTab() {
       <RibbonGroup label={t('drafting.group.fill')}>
         <RibbonCommandLargeButton commandId="annotate:hatch" icon={AnnoHatch} active={on('hatch')} />
         <RibbonCommandLargeButton commandId="annotate:load-pattern" icon={AnnoLoadPattern} />
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('standards.title')}>
+        <RibbonCommandLargeButton commandId="annotate:standards" icon={DraftingStandards} />
       </RibbonGroup>
     </>
   );

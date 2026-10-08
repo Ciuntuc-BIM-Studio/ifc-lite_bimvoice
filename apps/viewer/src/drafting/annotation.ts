@@ -42,8 +42,16 @@ function unit(v: Pt): Pt {
   return l > 1e-12 ? { x: v.x / l, y: v.y / l } : { x: 1, y: 0 };
 }
 
+/** Drawing-unit sizes and the number format a dimension style gives its layout. */
+export interface LayoutOptions {
+  extGap?: number;
+  extOver?: number;
+  format?: (metres: number) => string;
+}
+
 /** A linear / aligned dimension: extension lines from the points to the dimension line through `at`. */
-function linearLayout(a: Pt, b: Pt, at: Pt, variant: 'aligned' | 'linear', text?: string): DimensionLayout {
+function linearLayout(a: Pt, b: Pt, at: Pt, variant: 'aligned' | 'linear', text: string | undefined, o: LayoutOptions): DimensionLayout {
+  const gap = o.extGap ?? EXT_GAP, over = o.extOver ?? EXT_OVER, format = o.format ?? formatLength;
   let dir: Pt;
   if (variant === 'aligned') {
     dir = unit(sub(b, a));
@@ -57,8 +65,8 @@ function linearLayout(a: Pt, b: Pt, at: Pt, variant: 'aligned' | 'linear', text?
   const offB = (at.x - b.x) * n.x + (at.y - b.y) * n.y;
   const pa = add(a, scale(n, offA));
   const pb = add(b, scale(n, offB));
-  const extA = { a: add(a, scale(n, Math.sign(offA) * Math.min(EXT_GAP, Math.abs(offA)))), b: add(pa, scale(n, Math.sign(offA) * EXT_OVER)) };
-  const extB = { a: add(b, scale(n, Math.sign(offB) * Math.min(EXT_GAP, Math.abs(offB)))), b: add(pb, scale(n, Math.sign(offB) * EXT_OVER)) };
+  const extA = { a: add(a, scale(n, Math.sign(offA) * Math.min(gap, Math.abs(offA)))), b: add(pa, scale(n, Math.sign(offA) * over)) };
+  const extB = { a: add(b, scale(n, Math.sign(offB) * Math.min(gap, Math.abs(offB)))), b: add(pb, scale(n, Math.sign(offB) * over)) };
   const value = Math.abs((b.x - a.x) * dir.x + (b.y - a.y) * dir.y);
   const along = unit(sub(pb, pa));
   return {
@@ -66,12 +74,16 @@ function linearLayout(a: Pt, b: Pt, at: Pt, variant: 'aligned' | 'linear', text?
     ticks: [{ at: pa, dir: scale(along, -1) }, { at: pb, dir: along }],
     textAt: scale(add(pa, pb), 0.5),
     textAngle: Math.atan2(along.y, along.x),
-    label: text ?? formatLength(value),
+    label: text ?? format(value),
   };
 }
 
-export function dimensionLayout(shape: Extract<AnnotationShape, { type: 'dimension' | 'radial' | 'angular' }>): DimensionLayout {
-  if (shape.type === 'dimension') return linearLayout(shape.a, shape.b, shape.at, shape.variant, shape.text);
+export function dimensionLayout(shape: Extract<AnnotationShape, { type: 'dimension' | 'radial' | 'angular' }>, o: LayoutOptions = {}): DimensionLayout {
+  const format = o.format ?? formatLength;
+  if (shape.type === 'dimension') {
+    const layout = linearLayout(shape.a, shape.b, shape.at, shape.variant, shape.text, o);
+    return shape.textAt ? { ...layout, textAt: shape.textAt } : layout;
+  }
   if (shape.type === 'radial') {
     const dir = unit(sub(shape.at, shape.c));
     const rim = add(shape.c, scale(dir, shape.r));
@@ -81,7 +93,7 @@ export function dimensionLayout(shape: Extract<AnnotationShape, { type: 'dimensi
       ticks: shape.diameter ? [{ at: rim, dir }, { at: from, dir: scale(dir, -1) }] : [{ at: rim, dir }],
       textAt: shape.at,
       textAngle: Math.atan2(dir.y, dir.x),
-      label: `${shape.diameter ? 'Ø' : 'R'} ${formatLength(shape.diameter ? shape.r * 2 : shape.r)}`,
+      label: `${shape.diameter ? 'Ø' : 'R'} ${format(shape.diameter ? shape.r * 2 : shape.r)}`,
     };
   }
   const r = Math.max(dist(shape.at, shape.c), 1e-6);
@@ -191,7 +203,7 @@ function mapAnnotation(shape: AnnotationShape, f: (p: Pt) => Pt): AnnotationShap
     case 'leader':
       return { ...shape, pts: shape.pts.map(f) };
     case 'dimension':
-      return { ...shape, a: f(shape.a), b: f(shape.b), at: f(shape.at) };
+      return { ...shape, a: f(shape.a), b: f(shape.b), at: f(shape.at), ...(shape.textAt ? { textAt: f(shape.textAt) } : {}) };
     case 'radial':
       return { ...shape, c: f(shape.c), at: f(shape.at) };
     case 'angular':

@@ -10,13 +10,14 @@
  */
 
 import {
-  AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText,
+  AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftingStandards,
 } from '@/icons';
 import { resolve } from '@/i18n/registry';
 import { toast } from '@/components/ui/toast';
 import { isDrawingTabActive } from '@/project/document-tabs';
 import { startDraftCommand } from '@/drafting/session';
 import { importHatchPatternFile } from '@/drafting/hatch-import';
+import { openStandards } from '@/project/standards-dialog-store';
 import type { SurfaceCommandDefinition } from './surface-command-types';
 
 const ribbonOnly = ['ribbon'] as const;
@@ -34,6 +35,7 @@ function draft(id: string): () => void {
 
 export const RIBBON_ANNOTATE_SURFACE_COMMANDS = [
   { id: 'annotate:text', labelKey: 'drafting.tool.text', keywords: 'text note label', category: 'Tools', icon: AnnoText, surfaces: ribbonOnly, enabled: always, run: draft('text') },
+  { id: 'annotate:standards', labelKey: 'standards.open', keywords: 'layers layer groups text style dimension style standards manager', category: 'Tools', icon: DraftingStandards, surfaces: ribbonOnly, enabled: always, run: () => openStandards('layers') },
   { id: 'annotate:tag', labelKey: 'drafting.tool.tag', keywords: 'tag label element mark door window number', category: 'Tools', icon: AnnoTag, surfaces: ribbonOnly, enabled: always, run: draft('tag') },
   { id: 'annotate:leader', labelKey: 'drafting.tool.leader', keywords: 'leader arrow callout note', category: 'Tools', icon: AnnoLeader, surfaces: ribbonOnly, enabled: always, run: draft('leader') },
   { id: 'annotate:dim-aligned', labelKey: 'drafting.tool.dimAligned', keywords: 'dimension aligned measure', category: 'Tools', icon: AnnoDimAligned, surfaces: ribbonOnly, enabled: always, run: draft('dimaligned') },

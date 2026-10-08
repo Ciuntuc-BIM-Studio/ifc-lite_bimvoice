@@ -24,6 +24,8 @@ import { viewportPens, PEN } from '../sheets/viewport-pens';
 import { svgToDxf } from '../sheets/sheet-dxf';
 import { shapePath } from './DraftOverlay';
 import { AnnotationGraphics } from './AnnotationGraphics';
+import { layerPen, layerShows, lookOf } from '@/drafting/styles';
+import { useProjectStore } from '@/project/project-store';
 
 /** Drawing metres → DXF millimetres. */
 const MM: ViewTransform = { scale: 1000, x: 0, y: 0 };
@@ -41,7 +43,11 @@ interface ViewDxfInput {
 
 function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, symbols }: ViewDxfInput) {
   const pens = drawing ? viewportPens(drawing, view.graphics, MM, axis, extraPatterns) : [];
-  const colour = new Map(layers.map((l) => [l.id, l.visible ? l.color : null]));
+  const s = useProjectStore.getState();
+  const book = { textStyles: s.textStyles ?? [], dimStyles: s.dimStyles ?? [] };
+  const colour = new Map(layers.map((l) => [l.id, layerShows(l, s.layerGroups ?? [], { view: view.hiddenLayers }) ? l.color : null]));
+  const layerById = new Map(layers.map((l) => [l.id, l]));
+  const paperUnit = (view.scale ?? 100) / 1000;
   const name = new Map(layers.map((l) => [l.id, l.name]));
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={1} height={1} overflow="visible">
@@ -53,8 +59,8 @@ function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, symbols }
         const color = colour.get(e.layerId);
         if (color === null) return null;
         return isGeometry(e.shape)
-          ? <path key={e.id} data-dxf-layer={`DRAFT-${name.get(e.layerId) ?? '0'}`} d={shapePath(e.shape, MM, axis)} stroke={color ?? '#000'} fill="none" />
-          : <g key={e.id} data-dxf-layer="ANNOTATION"><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={MM} axis={axis} extraPatterns={extraPatterns} /></g>;
+          ? <path key={e.id} data-dxf-layer={`DRAFT-${name.get(e.layerId) ?? '0'}`} d={shapePath(e.shape, MM, axis)} stroke={color ?? '#000'} strokeWidth={layerPen(layerById.get(e.layerId)).width} fill="none" />
+          : <g key={e.id} data-dxf-layer="ANNOTATION"><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={MM} axis={axis} extraPatterns={extraPatterns} look={lookOf(book, e.params)} paperUnit={paperUnit} /></g>;
       })}
     </svg>
   );
