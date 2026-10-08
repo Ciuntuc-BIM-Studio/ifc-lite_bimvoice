@@ -1,0 +1,75 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: BIMVoice test deploy (Vercel, prebuilt)
+
+# Builds the viewer on a GitHub runner (16 GB RAM — Vercel's free 8 GB builder
+# runs out of memory bundling it) and uploads the finished output to Vercel
+# with `vercel deploy --prebuilt`, so Vercel compiles nothing.
+#
+# Needs three repository secrets (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN       a token from https://vercel.com/account/tokens
+#   VERCEL_ORG_ID      "orgId" from .vercel/project.json after `vercel link`
+#   VERCEL_PROJECT_ID  "projectId" from the same file
+# Without them the job stops at the first step with a clear message.
+
+on:
+  push:
+    branches: [feat/project-navigator]
+  workflow_dispatch:
+
+concurrency:
+  group: bimvoice-vercel-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository == 'Ciuntuc-BIM-Studio/ifc-lite_bimvoice'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Check secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::error::Set the VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID repository secrets."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      # Runs vercel.json's installCommand + buildCommand here (Rust toolchain,
+      # wasm-pack, turbo build) and writes .vercel/output.
+      - name: Build
+        env:
+          VERCEL_NODE_MAX_OLD_SPACE_MB: '8192'
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
