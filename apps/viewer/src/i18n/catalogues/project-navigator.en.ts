@@ -52,6 +52,7 @@ export const projectNavigatorEn = {
   'projectNavigator.props.flip': 'Flip view direction',
   'projectNavigator.props.facing': 'Facade',
   'projectNavigator.props.viewDepth': 'View depth (m)',
+  'projectNavigator.props.scale': 'Scale',
   'projectNavigator.props.depthAuto': 'Auto',
   'projectNavigator.props.depthCutOnly': 'Cut only',
   'projectNavigator.props.axisDown': 'Horizontal',

@@ -42,6 +42,8 @@ interface ProjectViewBase {
   viewDepth?: number | null;
   /** The view's own graphics (Visibility / Graphics): a preset and per-category overrides. */
   graphics?: ViewGraphics;
+  /** Drawing scale denominator (100 = 1:100). Annotation sizes follow it; absent = 1:100. */
+  scale?: number;
 }
 
 export type CategoryLineWeight = 'heavy' | 'medium' | 'light' | 'hairline';

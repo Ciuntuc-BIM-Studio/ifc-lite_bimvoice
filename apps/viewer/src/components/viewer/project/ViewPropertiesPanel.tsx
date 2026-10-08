@@ -17,6 +17,7 @@ import { useDocumentTabs } from '@/project/document-tabs';
 import { activateDocumentTab } from '@/project/open-view';
 import { resolvePlanLevel } from '@/project/view-defaults';
 import type { ProjectView } from '@/project/types';
+import { SHEET_SCALES } from '@/project/sheets';
 import { Button } from '@/components/ui/button';
 import { ViewGraphicsDialog } from './ViewGraphicsDialog';
 
@@ -85,6 +86,16 @@ export function ViewPropertiesPanel({ view }: { view: ProjectView }) {
       ) : null}
       <Row label={t('projectNavigator.props.viewDepth')}>
         <MetresField value={view.viewDepth ?? null} placeholder={depthHint} label={t('projectNavigator.props.viewDepth')} allowEmpty onCommit={(v) => edit(view, { viewDepth: v })} />
+      </Row>
+      <Row label={t('projectNavigator.props.scale')}>
+        <select
+          aria-label={t('projectNavigator.props.scale')}
+          className="h-6 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1"
+          value={view.scale ?? 100}
+          onChange={(e) => edit(view, { scale: Number(e.target.value) })}
+        >
+          {SHEET_SCALES.map((s) => <option key={s} value={s}>{`1:${s}`}</option>)}
+        </select>
       </Row>
       <Button variant="outline" size="sm" className="w-full" onClick={() => setGraphicsOpen(true)}>{t('viewGraphics.open')}</Button>
       <ViewGraphicsDialog view={view} open={graphicsOpen} onOpenChange={setGraphicsOpen} />

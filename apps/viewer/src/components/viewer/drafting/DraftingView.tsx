@@ -16,7 +16,7 @@ import { parsePat } from '@/drafting/hatch/pattern';
 import { resolvePlanLevel } from '@/project/view-defaults';
 import { viewPlaneConfig, viewWorkPlane } from '@/project/view-plane-config';
 import { mergedSectionBounds } from '@/lib/section/section-distance';
-import { Maximize2, Redo2, Undo2 } from 'lucide-react';
+import { FileDown, Maximize2, Redo2, Undo2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
@@ -43,6 +43,8 @@ import { DraftPropertiesPanel } from './DraftPropertiesPanel';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
+import { exportViewDxf } from './view-dxf';
+import { viewOpeningSymbols } from '@/project/view-symbols';
 import { partHostType } from '@/project/part-host';
 import { cutHatches, hiddenClasses, DEFAULT_VIEW_PRESET, styledDrawing, viewOverrideRules } from '@/project/view-graphics';
 import { capturePointer } from '@/lib/pointer-capture';
@@ -111,8 +113,9 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   }, [runtimeGeometry]);
 
   useEffect(() => {
-    attachDraftingView(view.id, axis, (min, max) => (references ? referencesIn(references, min, max) : []));
-  }, [view.id, axis, references]);
+    // Annotation sizes are paper sizes at the view's scale (the settings read as at 1:100).
+    attachDraftingView(view.id, axis, (min, max) => (references ? referencesIn(references, min, max) : []), (view.scale ?? 100) / 100);
+  }, [view.id, axis, references, view.scale]);
   // An idle click on the drawing selects the model element under it (both selection channels, as the plan view does).
   useEffect(() => {
     setModelPicker((p, tolerance, additive) => {
@@ -175,6 +178,13 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   };
   useDraftingKeys({ inputRef, setText, submit: () => submitCommandLine('', state.cursor) });
 
+  const exportDxf = () => exportViewDxf({
+    view, drawing: shown, axis, drafts: entities, layers, extraPatterns,
+    symbols: view.kind === 'plan' && plane && runtimeGeometry?.meshes
+      ? viewOpeningSymbols(runtimeGeometry.meshes, plane, useProjectStore.getState().symbolFlips, hidden).flatMap((s) => s.shapes)
+      : [],
+  });
+
   const command = runningCommand();
   const preview = command && state.cursor && command.preview ? command.preview(state.cursor) : [];
 
@@ -196,11 +206,13 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         <IconButton label={t('drafting.undo')} className="size-7" onClick={() => undoDrafts()}><Undo2 className="size-4" /></IconButton>
         <IconButton label={t('drafting.redo')} className="size-7" onClick={() => redoDrafts()}><Redo2 className="size-4" /></IconButton>
         <IconButton label={t('drafting.fit')} className="size-7" onClick={fitToView}><Maximize2 className="size-4" /></IconButton>
+        <IconButton label={t('drafting.exportDxf')} className="size-7" onClick={exportDxf}><FileDown className="size-4" /></IconButton>
       </div>
       <div
         ref={containerRef}
         data-drafting-canvas
-        className="relative min-h-0 flex-1 overflow-hidden bg-white dark:bg-zinc-950 cursor-none touch-none"
+        // Always white paper, as the drawing canvas paints it: drafted ink stays visible in dark mode.
+        className="relative min-h-0 flex-1 overflow-hidden bg-white cursor-none touch-none"
         {...pointer}
       >
         {shown ? (

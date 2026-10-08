@@ -146,7 +146,7 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
             if (!viewId) return;
             e.preventDefault();
             const at = toPaper(e.clientX, e.clientY);
-            setSelected(addViewport(sheet.id, viewId, at, 100));
+            setSelected(addViewport(sheet.id, viewId, at, views.find((v) => v.id === viewId)?.scale ?? 100));
           }}
           onPointerDown={(e) => {
             capturePointer(e.currentTarget, e.pointerId);

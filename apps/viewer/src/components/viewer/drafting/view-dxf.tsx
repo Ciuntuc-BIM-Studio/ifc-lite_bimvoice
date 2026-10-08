@@ -1,0 +1,83 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+/**
+ * A plan, section or elevation as DXF, in model millimetres (1:1): the view
+ * as its Visibility / Graphics style it — cut lines, projection, hidden
+ * lines, cut hatches — with the plan's door and window symbols and every
+ * line and annotation drafted on the view. It is drawn once into an
+ * off-screen SVG with the same pens a sheet uses (`viewport-pens.ts`) and
+ * written by the sheet's SVG → DXF walker (`svgToDxf`), so what a view
+ * exports is what a sheet shows of it.
+ */
+
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
+import type { Drawing2D } from '@ifc-lite/drawing-2d';
+import { downloadFile, sanitizeFilename } from '@/lib/export/download';
+import type { SectionAxisName, ViewTransform } from '@/drafting/frame';
+import { isGeometry, type DraftEntity, type DraftLayer, type DraftShape } from '@/drafting/types';
+import type { HatchPattern } from '@/drafting/hatch/pattern';
+import type { ProjectView } from '@/project/types';
+import { viewportPens, PEN } from '../sheets/viewport-pens';
+import { svgToDxf } from '../sheets/sheet-dxf';
+import { shapePath } from './DraftOverlay';
+import { AnnotationGraphics } from './AnnotationGraphics';
+
+/** Drawing metres → DXF millimetres. */
+const MM: ViewTransform = { scale: 1000, x: 0, y: 0 };
+
+interface ViewDxfInput {
+  view: ProjectView;
+  /** The view's drawing, already styled by its graphics (`styledDrawing`), or null. */
+  drawing: Drawing2D | null;
+  axis: SectionAxisName;
+  drafts: readonly DraftEntity[];
+  layers: readonly DraftLayer[];
+  extraPatterns: readonly HatchPattern[];
+  symbols: readonly DraftShape[];
+}
+
+function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, symbols }: ViewDxfInput) {
+  const pens = drawing ? viewportPens(drawing, view.graphics, MM, axis, extraPatterns) : [];
+  const colour = new Map(layers.map((l) => [l.id, l.visible ? l.color : null]));
+  const name = new Map(layers.map((l) => [l.id, l.name]));
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={1} height={1} overflow="visible">
+      {pens.map((p, i) => (
+        <path key={i} data-dxf-layer={p.layer} d={p.d} fill="none" stroke={p.stroke ?? 'none'} strokeWidth={p.width} />
+      ))}
+      {symbols.length > 0 ? <path data-dxf-layer="SYMBOLS" d={symbols.map((s) => shapePath(s, MM, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" /> : null}
+      {drafts.map((e) => {
+        const color = colour.get(e.layerId);
+        if (color === null) return null;
+        return isGeometry(e.shape)
+          ? <path key={e.id} data-dxf-layer={`DRAFT-${name.get(e.layerId) ?? '0'}`} d={shapePath(e.shape, MM, axis)} stroke={color ?? '#000'} fill="none" />
+          : <g key={e.id} data-dxf-layer="ANNOTATION"><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={MM} axis={axis} extraPatterns={extraPatterns} /></g>;
+      })}
+    </svg>
+  );
+}
+
+/** The view's DXF document (windows-1252 bytes). */
+export function viewDxf(input: ViewDxfInput): Uint8Array {
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;visibility:hidden;pointer-events:none';
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    flushSync(() => root.render(<ViewSvg {...input} />));
+    const svg = host.querySelector('svg');
+    const scale = input.view.scale ?? 100;
+    return svgToDxf(svg as SVGSVGElement, 0, `units: millimetres (model, 1:1), view ${input.view.name}, drawn at 1:${scale}`);
+  } finally {
+    root.unmount();
+    host.remove();
+  }
+}
+
+export function exportViewDxf(input: ViewDxfInput): void {
+  const name = sanitizeFilename(input.view.name, { fallback: 'view' });
+  downloadFile(viewDxf(input), `${name}.dxf`, 'application/dxf');
+}

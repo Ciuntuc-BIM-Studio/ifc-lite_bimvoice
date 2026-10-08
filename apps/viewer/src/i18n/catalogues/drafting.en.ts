@@ -224,4 +224,5 @@ export const draftingEn = {
   'drafting.prompt.tagElement': 'Click the element to tag [{field}] — or type MARK / NAME / CLASS:',
   'drafting.prompt.tagLabel': 'Click where the tag goes [{field}] — or type MARK / NAME / CLASS:',
   'drafting.msg.notAnElement': 'No model element there: click on one drawn in this view.',
+  'drafting.exportDxf': 'Export this view as DXF (model millimetres)',
 } as const satisfies Record<string, TranslationValue>;

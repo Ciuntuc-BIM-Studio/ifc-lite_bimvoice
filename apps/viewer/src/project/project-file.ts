@@ -60,6 +60,7 @@ function readView(v: unknown, path: string): ProjectView {
     id: v.id, name: v.name, auto: v.auto === true, createdAt: isNumber(v.createdAt) ? v.createdAt : 0,
     ...(isNumber(v.viewDepth) && v.viewDepth >= 0 ? { viewDepth: v.viewDepth } : {}),
     ...(isObject(v.graphics) ? { graphics: readGraphics(v.graphics) } : {}),
+    ...(isNumber(v.scale) && v.scale > 0 ? { scale: v.scale } : {}),
   };
   switch (v.kind) {
     case 'plan':

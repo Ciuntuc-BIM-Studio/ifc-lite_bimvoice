@@ -144,10 +144,16 @@ function clipPolyline(pts: P[], clip: Rect | null): P[][] {
 }
 
 export function sheetDxf(svg: SVGSVGElement, sheet: ProjectSheet): Uint8Array {
-  const { h } = paperOf(sheet);
+  return svgToDxf(svg, paperOf(sheet).h, `units: millimetres (paper), sheet ${sheet.number} ${sheet.name}`);
+}
+
+/**
+ * Any drawn SVG as DXF: its user units become DXF units, y flipped about
+ * `h` (y_dxf = h − y_svg) so the drawing reads the same way up.
+ */
+export function svgToDxf(svg: SVGSVGElement, h: number, comment: string): Uint8Array {
   const root = svg.getScreenCTM()?.inverse();
   const writer = new DxfR12();
-  const comment = `units: millimetres (paper), sheet ${sheet.number} ${sheet.name}`;
   if (!root) return writer.bytes(comment);
   // Element-local → paper millimetres, Y up.
   const mapper = (el: SVGGraphicsElement) => {
