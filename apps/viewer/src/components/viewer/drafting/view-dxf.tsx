@@ -22,6 +22,7 @@ import type { HatchPattern } from '@/drafting/hatch/pattern';
 import type { ProjectView } from '@/project/types';
 import { viewportPens, PEN } from '../sheets/viewport-pens';
 import { svgToDxf } from '../sheets/sheet-dxf';
+import { layerTags, penTags } from '../sheets/dxf-tags';
 import { shapePath } from './DraftOverlay';
 import { AnnotationGraphics } from './AnnotationGraphics';
 import { layerPen, layerShows, lookOf } from '@/drafting/styles';
@@ -48,19 +49,18 @@ function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, symbols }
   const colour = new Map(layers.map((l) => [l.id, layerShows(l, s.layerGroups ?? [], { view: view.hiddenLayers }) ? l.color : null]));
   const layerById = new Map(layers.map((l) => [l.id, l]));
   const paperUnit = (view.scale ?? 100) / 1000;
-  const name = new Map(layers.map((l) => [l.id, l.name]));
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={1} height={1} overflow="visible">
       {pens.map((p, i) => (
-        <path key={i} data-dxf-layer={p.layer} d={p.d} fill="none" stroke={p.stroke ?? 'none'} strokeWidth={p.width} />
+        <path key={i} {...penTags(p.layer, p.width, !!p.dash, p.stroke ?? '#000000')} d={p.d} fill="none" stroke={p.stroke ?? 'none'} strokeWidth={p.width} />
       ))}
-      {symbols.length > 0 ? <path data-dxf-layer="SYMBOLS" d={symbols.map((s) => shapePath(s, MM, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" /> : null}
+      {symbols.length > 0 ? <path {...penTags('SYMBOLS', PEN.hatch)} d={symbols.map((s) => shapePath(s, MM, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" /> : null}
       {drafts.map((e) => {
         const color = colour.get(e.layerId);
         if (color === null) return null;
         return isGeometry(e.shape)
-          ? <path key={e.id} data-dxf-layer={`DRAFT-${name.get(e.layerId) ?? '0'}`} d={shapePath(e.shape, MM, axis)} stroke={color ?? '#000'} strokeWidth={layerPen(layerById.get(e.layerId)).width} fill="none" />
-          : <g key={e.id} data-dxf-layer="ANNOTATION"><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={MM} axis={axis} extraPatterns={extraPatterns} look={lookOf(book, e.params)} paperUnit={paperUnit} /></g>;
+          ? <path key={e.id} {...layerTags(layerById.get(e.layerId))} d={shapePath(e.shape, MM, axis)} stroke={color ?? '#000'} strokeWidth={layerPen(layerById.get(e.layerId)).width} fill="none" />
+          : <g key={e.id} {...layerTags(layerById.get(e.layerId))}><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={MM} axis={axis} extraPatterns={extraPatterns} look={lookOf(book, e.params)} paperUnit={paperUnit} /></g>;
       })}
     </svg>
   );
@@ -76,7 +76,8 @@ export function viewDxf(input: ViewDxfInput): Uint8Array {
     flushSync(() => root.render(<ViewSvg {...input} />));
     const svg = host.querySelector('svg');
     const scale = input.view.scale ?? 100;
-    return svgToDxf(svg as SVGSVGElement, 0, `units: millimetres (model, 1:1), view ${input.view.name}, drawn at 1:${scale}`);
+    // Line-type dashes are paper millimetres: at 1:1 in model mm they scale with the view.
+    return svgToDxf(svg as SVGSVGElement, 0, `units: millimetres (model, 1:1), view ${input.view.name}, drawn at 1:${scale}`, scale);
   } finally {
     root.unmount();
     host.remove();

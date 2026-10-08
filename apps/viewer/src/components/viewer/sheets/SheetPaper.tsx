@@ -23,6 +23,7 @@ import { FRAME_MARGIN_MM, mmPerMetre, paperOf, TITLE_BLOCK_MM, viewportBox } fro
 import type { ProjectSheet, ProjectView, SheetViewport } from '@/project/types';
 import { shapePath } from '../drafting/DraftOverlay';
 import { AnnotationGraphics } from '../drafting/AnnotationGraphics';
+import { layerTags, penTags } from './dxf-tags';
 import { layerPen, layerShows, lookOf } from '@/drafting/styles';
 import { useProjectStore } from '@/project/project-store';
 import { PEN, viewportPens } from './viewport-pens';
@@ -80,24 +81,23 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
   // A layer shows in a viewport by its own switch, its group's, its view's and the viewport's.
   const layerColor = new Map(layers.map((l) => [l.id, layerShows(l, groups, { view: view?.hiddenLayers, viewport: vp.hiddenLayers }) ? l.color : null]));
   const layerById = new Map(layers.map((l) => [l.id, l]));
-  const layerNames = new Map(layers.map((l) => [l.id, l.name]));
   const paperUnit = (view?.scale ?? 100) / 1000;
   return (
     <g data-viewport-id={vp.id}>
       <clipPath id={clipId}><rect x={left} y={top} width={box.width} height={box.height} /></clipPath>
       <g clipPath={`url(#${clipId})`}>
         {pens.map((p, i) => (
-          <path key={i} data-dxf-layer={p.layer} d={p.d} fill={p.fill ?? 'none'} fillRule="evenodd" stroke={p.stroke ?? 'none'} strokeWidth={p.width} strokeDasharray={p.dash} strokeLinejoin="round" />
+          <path key={i} {...penTags(p.layer, p.width, !!p.dash, p.stroke ?? '#000000')} d={p.d} fill={p.fill ?? 'none'} fillRule="evenodd" stroke={p.stroke ?? 'none'} strokeWidth={p.width} strokeDasharray={p.dash} strokeLinejoin="round" />
         ))}
         {content.symbols?.length ? (
-          <path data-dxf-layer="SYMBOLS" d={content.symbols.map((s) => shapePath(s, t, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" />
+          <path {...penTags('SYMBOLS', PEN.hatch)} d={content.symbols.map((s) => shapePath(s, t, axis)).join('')} stroke="#000" strokeWidth={PEN.hatch} fill="none" />
         ) : null}
         {drafts.map((e) => {
           const color = layerColor.get(e.layerId);
           if (color === null) return null;
           return isGeometry(e.shape)
-            ? <PenPath key={e.id} layer={layerById.get(e.layerId)} dxfLayer={`DRAFT-${layerNames.get(e.layerId) ?? '0'}`} d={shapePath(e.shape, t, axis)} color={color ?? '#000'} />
-            : <g key={e.id} data-dxf-layer="ANNOTATION"><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={t} axis={axis} extraPatterns={extraPatterns} strokeScale={0.25} look={lookOf(book, e.params)} paperUnit={paperUnit} /></g>;
+            ? <PenPath key={e.id} layer={layerById.get(e.layerId)} d={shapePath(e.shape, t, axis)} color={color ?? '#000'} />
+            : <g key={e.id} {...layerTags(layerById.get(e.layerId))}><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={t} axis={axis} extraPatterns={extraPatterns} strokeScale={0.25} look={lookOf(book, e.params)} paperUnit={paperUnit} /></g>;
         })}
       </g>
       <rect
@@ -105,7 +105,7 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
         stroke={selected ? '#2563eb' : 'transparent'} strokeWidth={0.4} strokeDasharray={selected ? '3 2' : undefined}
         data-export-ignore={selected ? 'true' : undefined}
       />
-      <text data-dxf-layer="VIEWPORT-LABELS" x={left} y={top + box.height + LABEL_MM + 1.5} fontSize={LABEL_MM} fontFamily="ui-sans-serif, system-ui, sans-serif" fill="#000">
+      <text {...penTags('VIEWPORT-LABELS', 0.25)} x={left} y={top + box.height + LABEL_MM + 1.5} fontSize={LABEL_MM} fontFamily="ui-sans-serif, system-ui, sans-serif" fill="#000">
         {tr('sheets.viewportLabel', { name: view?.name ?? '?', scale: vp.scale })}
       </text>
     </g>
@@ -124,9 +124,9 @@ function useDraftingStandards() {
 }
 
 /** A drafted line on paper with its layer's pen (weight and line type, millimetres). */
-function PenPath({ layer, d, color, dxfLayer }: { layer: DraftLayer | undefined; d: string; color: string; dxfLayer?: string }) {
+function PenPath({ layer, d, color }: { layer: DraftLayer | undefined; d: string; color: string }) {
   const pen = layerPen(layer);
-  return <path data-dxf-layer={dxfLayer} d={d} stroke={color} strokeWidth={pen.width} strokeDasharray={pen.dash.length ? pen.dash.join(' ') : undefined} fill="none" />;
+  return <path {...layerTags(layer)} d={d} stroke={color} strokeWidth={pen.width} strokeDasharray={pen.dash.length ? pen.dash.join(' ') : undefined} fill="none" />;
 }
 
 /** The sheet's own lines and annotations, on the paper. */
@@ -135,13 +135,13 @@ function SheetDrafts({ entities, layers, extraPatterns }: { entities: readonly D
   const colour = new Map(layers.map((l) => [l.id, layerShows(l, groups) ? l.color : null]));
   const layerById = new Map(layers.map((l) => [l.id, l]));
   return (
-    <g data-dxf-layer="SHEET-ANNOTATION">
+    <g>
       {entities.map((e) => {
         const color = colour.get(e.layerId);
         if (color === null) return null;
         return isGeometry(e.shape)
           ? <PenPath key={e.id} layer={layerById.get(e.layerId)} d={shapePath(e.shape, PAPER, 'down')} color={color ?? '#000'} />
-          : <AnnotationGraphics key={e.id} shape={e.shape} color={color ?? '#000'} selected={false} transform={PAPER} axis="down" extraPatterns={extraPatterns} strokeScale={0.25} look={lookOf(book, e.params)} paperUnit={1} />;
+          : <g key={e.id} {...layerTags(layerById.get(e.layerId))}><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={PAPER} axis="down" extraPatterns={extraPatterns} strokeScale={0.25} look={lookOf(book, e.params)} paperUnit={1} /></g>;
       })}
     </g>
   );
@@ -163,7 +163,7 @@ function TitleBlock({ sheet, projectName, w, h }: { sheet: ProjectSheet; project
   const rowH = TITLE_BLOCK_MM.h / 5;
   const font = 'ui-sans-serif, system-ui, sans-serif';
   return (
-    <g data-dxf-layer="TITLEBLOCK">
+    <g {...penTags('TITLEBLOCK', 0.35)}>
       <rect x={x} y={y} width={TITLE_BLOCK_MM.w} height={TITLE_BLOCK_MM.h} fill="#fff" stroke="#000" strokeWidth={0.5} />
       {rows.map(([label, value], i) => (
         <g key={label}>
@@ -188,7 +188,7 @@ export const SheetPaper = forwardRef<SVGSVGElement, SheetPaperProps>(function Sh
   return (
     <svg ref={ref} xmlns="http://www.w3.org/2000/svg" width={w * pxPerMm} height={h * pxPerMm} viewBox={`0 0 ${w} ${h}`} className="block bg-white shadow-lg">
       <rect data-export-ignore-dxf="true" x={0} y={0} width={w} height={h} fill="#fff" />
-      <rect data-dxf-layer="FRAME" x={FRAME_MARGIN_MM} y={FRAME_MARGIN_MM} width={w - FRAME_MARGIN_MM * 2} height={h - FRAME_MARGIN_MM * 2} fill="none" stroke="#000" strokeWidth={0.7} />
+      <rect {...penTags('FRAME', 0.7)} x={FRAME_MARGIN_MM} y={FRAME_MARGIN_MM} width={w - FRAME_MARGIN_MM * 2} height={h - FRAME_MARGIN_MM * 2} fill="none" stroke="#000" strokeWidth={0.7} />
       {(sheet.viewports ?? []).map((vp) => (
         <ViewportGraphic key={vp.id} vp={vp} content={content(vp)} layers={layers} extraPatterns={extraPatterns} selected={vp.id === selectedViewportId} />
       ))}

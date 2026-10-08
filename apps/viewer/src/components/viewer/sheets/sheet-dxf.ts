@@ -3,17 +3,20 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * A sheet as DXF (R12, `dxf-r12.ts`), exactly as it
- * is drawn: the live paper SVG is walked, every stroked path, line, rect,
- * circle and text taken to paper millimetres (Y up) through its own
- * transform. Straight path pieces are read as they are; arcs and curves are
- * sampled by the browser (`getPointAtLength`). Whatever a viewport clips is
- * clipped here too (DXF has no clipping). Layers come from the nearest
- * `data-dxf-layer` (CUT, SEEN, HIDDEN, HATCH, SYMBOLS, DRAFT-…, ANNOTATION,
- * VIEWPORT-LABELS, FRAME, TITLEBLOCK); fills are left out.
+ * A sheet (or any drawn SVG) as DXF R2000 (`dxf-r2000.ts`), exactly as it
+ * is drawn: the live SVG is walked, every stroked path, line, rect, circle
+ * and text taken to DXF units (Y up) through its own transform. Straight
+ * path pieces are read as they are; arcs and curves are sampled by the
+ * browser (`getPointAtLength`). Whatever a viewport clips is clipped here
+ * too (DXF has no clipping). Each element goes on the layer its nearest
+ * tagged ancestor names (`dxf-tags.ts`): drafted lines and annotations on
+ * their drafting layer — with its colour, line weight and line type — the
+ * generated drawing on CUT / SEEN / HIDDEN / HATCH / SYMBOLS with its pens,
+ * the sheet on FRAME / TITLEBLOCK / VIEWPORT-LABELS. Fills are left out.
  */
 
-import { DxfR12 } from './dxf-r12';
+import { DxfR2000, type PenSpec } from './dxf-r2000';
+import type { LineType } from '@/drafting/styles';
 import { downloadFile, sanitizeFilename } from '@/lib/export/download';
 import { paperOf } from '@/project/sheets';
 import type { ProjectSheet } from '@/project/types';
@@ -26,6 +29,18 @@ const STRAIGHT = /^[MLHVZmlhvz0-9eE.,\s+-]*$/;
 
 function layerOf(el: Element): string {
   return el.closest('[data-dxf-layer]')?.getAttribute('data-dxf-layer') ?? 'SHEET';
+}
+
+const tag = (el: Element, name: string) => el.closest(`[data-dxf-${name}]`)?.getAttribute(`data-dxf-${name}`) ?? undefined;
+const LINE_TYPES = new Set<LineType>(['continuous', 'dashed', 'dotted', 'dashdot']);
+
+/** The pen of the layer an element is on (from its tags), and the element's own colour. */
+function pensOf(el: Element, colour: string): { layer: PenSpec; own: PenSpec } {
+  const lt = tag(el, 'ltype');
+  const lineType = LINE_TYPES.has(lt as LineType) ? (lt as LineType) : 'continuous';
+  const lw = Number(tag(el, 'lw'));
+  const lineWeight = Number.isFinite(lw) && lw > 0 ? lw : 0.25;
+  return { layer: { color: tag(el, 'color') ?? colour, lineType, lineWeight }, own: { color: colour, lineType, lineWeight } };
 }
 
 function strokeOf(el: Element): string | null {
@@ -151,9 +166,9 @@ export function sheetDxf(svg: SVGSVGElement, sheet: ProjectSheet): Uint8Array {
  * Any drawn SVG as DXF: its user units become DXF units, y flipped about
  * `h` (y_dxf = h − y_svg) so the drawing reads the same way up.
  */
-export function svgToDxf(svg: SVGSVGElement, h: number, comment: string): Uint8Array {
+export function svgToDxf(svg: SVGSVGElement, h: number, comment: string, patternScale = 1): Uint8Array {
   const root = svg.getScreenCTM()?.inverse();
-  const writer = new DxfR12();
+  const writer = new DxfR2000(patternScale);
   if (!root) return writer.bytes(comment);
   // Element-local → paper millimetres, Y up.
   const mapper = (el: SVGGraphicsElement) => {
@@ -178,14 +193,21 @@ export function svgToDxf(svg: SVGSVGElement, h: number, comment: string): Uint8A
     const stroke = strokeOf(el);
     if (!stroke) return;
     const map = mapper(el);
-    const layer = writer.layer(layerOf(el), stroke);
+    const pens = pensOf(el, stroke);
+    const layer = writer.layer(layerOf(el), pens.layer);
     const clip = clipOf(el);
+    const inside = (p: P) => !clip || (p.x >= clip.x0 && p.x <= clip.x1 && p.y >= clip.y0 && p.y <= clip.y1);
     for (const sub of subpaths) {
       const pts = sub.pts.map(map);
+      // A closed outline nothing clips stays one closed polyline.
+      if (sub.closed && pts.length > 2 && pts.every(inside)) {
+        writer.polyline(pts, layer, pens.own, true);
+        continue;
+      }
       if (sub.closed && pts.length > 2) pts.push(pts[0]);
       for (const piece of clipPolyline(pts, clip)) {
-        if (piece.length === 2) writer.line(piece[0], piece[1], layer, stroke);
-        else if (piece.length > 2) writer.polyline(piece, layer, stroke);
+        if (piece.length === 2) writer.line(piece[0], piece[1], layer, pens.own);
+        else if (piece.length > 2) writer.polyline(piece, layer, pens.own);
       }
     }
   };
@@ -202,10 +224,11 @@ export function svgToDxf(svg: SVGSVGElement, h: number, comment: string): Uint8A
       const at = map({ x: el.x.baseVal[0]?.value ?? 0, y: el.y.baseVal[0]?.value ?? 0 });
       const anchor = getComputedStyle(el).textAnchor;
       const fill = getComputedStyle(el).fill || '#000';
-      writer.text(at, text, size * scale * 0.72, writer.layer(layerOf(el), fill), {
+      const pens = pensOf(el, fill);
+      writer.text(at, text, size * scale * 0.72, writer.layer(layerOf(el), pens.layer), {
         rotationDeg: (-Math.atan2(m.b, m.a) * 180) / Math.PI,
         align: anchor === 'middle' ? 'center' : anchor === 'end' ? 'right' : 'left',
-        css: fill,
+        pen: pens.own,
       });
       continue;
     }
