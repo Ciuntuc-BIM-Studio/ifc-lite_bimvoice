@@ -59,6 +59,15 @@ export function contourLoops(source: DraftEntity, entities: readonly DraftEntity
   return [outer, ...holes];
 }
 
+/** Two loops trace the same area (same size, same centre). */
+function sameLoop(a: Pt[], b: Pt[]): boolean {
+  const area = (l: Pt[]) => Math.abs(l.reduce((s, p, i) => s + p.x * l[(i + 1) % l.length].y - l[(i + 1) % l.length].x * p.y, 0) / 2);
+  const centre = (l: Pt[]) => ({ x: l.reduce((s, p) => s + p.x, 0) / l.length, y: l.reduce((s, p) => s + p.y, 0) / l.length });
+  const [aa, ab] = [area(a), area(b)];
+  const [ca, cb] = [centre(a), centre(b)];
+  return Math.abs(aa - ab) <= 1e-6 * Math.max(aa, ab, 1) && Math.hypot(ca.x - cb.x, ca.y - cb.y) < 1e-3;
+}
+
 export function pickSource(ctx: DraftContext, p: Pt): DraftEntity | null {
   const entities = ctx.entities();
   // The smallest closed drafted shape around the point.
@@ -72,7 +81,12 @@ export function pickSource(ctx: DraftContext, p: Pt): DraftEntity | null {
   // Else the region the point is in (drafted shapes + the drawing's cut outlines): draft its outline.
   const region = regionAt(p, ctx.closedLoops());
   if (!region) return null;
-  const [id] = editDrafts({ add: [newDraft(ctx.viewId, ctx.layerId, { type: 'polyline', pts: region[0], closed: true })] });
+  // The outline, and the region's holes no drafted shape draws yet — all editable from now on.
+  const drafted = entities.flatMap((e) => (e.shape.type === 'polyline' || e.shape.type === 'circle' ? [shapeLoop(e.shape)] : [])).filter((l): l is Pt[] => !!l);
+  const holes = region.slice(1).filter((h) => !drafted.some((d) => sameLoop(d, h)));
+  const [id] = editDrafts({
+    add: [region[0], ...holes].map((pts) => newDraft(ctx.viewId, ctx.layerId, { type: 'polyline', pts, closed: true })),
+  });
   return ctx.entities().find((e) => e.id === id) ?? null;
 }
 

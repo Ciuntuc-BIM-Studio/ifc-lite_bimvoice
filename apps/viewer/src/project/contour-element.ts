@@ -27,6 +27,8 @@ import { registerAuthoredElement } from '@/utils/spatialHierarchy';
 import { drawingToWorld, type Vec3 } from '@/drafting/frame';
 import type { Pt } from '@/drafting/types';
 import { modelLevels } from './model-levels';
+import { selfIntersects } from '@/drafting/arrangement';
+import { pointInPolygon } from '@/drafting/offset';
 import type { ProjectView } from './types';
 
 export interface ContourElementSpec {
@@ -58,6 +60,16 @@ export function towardViewer(plane: SectionPlaneConfig): V {
   const sign = plane.flipped ? -1 : 1;
   if (plane.customPlane) return [plane.customPlane.normal.x * sign, plane.customPlane.normal.y * sign, plane.customPlane.normal.z * sign];
   return plane.axis === 'x' ? [sign, 0, 0] : plane.axis === 'y' ? [0, sign, 0] : [0, 0, sign];
+}
+
+/** Why a contour cannot become a solid, or null: a loop crossing itself, a hole outside the outline or across another. */
+export function contourProblem(loops: readonly Pt[][]): string | null {
+  if (selfIntersects(loops[0])) return 'The contour crosses itself: redraw it, or split it into two contours.';
+  for (const hole of loops.slice(1)) {
+    if (selfIntersects(hole)) return 'A hole in the contour crosses itself.';
+    if (!hole.every((p) => pointInPolygon(p, loops[0]))) return 'A hole runs outside the contour.';
+  }
+  return null;
 }
 
 /** Which loaded model and storey the contour belongs to. */
@@ -118,6 +130,8 @@ export type Prepared =
 
 export function prepare(view: ProjectView, plane: SectionPlaneConfig, loops: Pt[][]): Prepared {
   if (loops.length === 0 || loops[0].length < 3) return { ok: false, error: 'The contour must be closed, with at least three points.' };
+  const invalid = contourProblem(loops);
+  if (invalid) return { ok: false, error: invalid };
   const worldMinY = Math.min(...loops[0].map((p) => drawingToWorld(plane, p).y));
   const target = resolveTarget(view, worldMinY);
   if (!target) return { ok: false, error: 'No loaded model has a storey for this view. Load or create a model first.' };

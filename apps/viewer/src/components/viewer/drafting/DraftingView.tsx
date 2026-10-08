@@ -43,6 +43,8 @@ import { useDraftingKeys } from './useDraftingKeys';
 import { DraftPropertiesPanel } from './DraftPropertiesPanel';
 import { SelectionBar } from './SelectionBar';
 import { gripsOf } from '@/drafting/grips';
+import { arrangementLoops, type Segment } from '@/drafting/arrangement';
+import { shapeSegments } from '@/hooks/useDraftingLines3D';
 import { screenToDrawing } from '@/drafting/frame';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
@@ -290,6 +292,8 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
 
 const HIGHLIGHT_LIMIT = 5000;
 const CIRCLE_STEPS = 64;
+/** Ends closer than this (metres) count as meeting when lines enclose an area. */
+const ARRANGEMENT_TOLERANCE_M = 0.001;
 
 /** Every closed loop a hatch can fill in this view. */
 function closedLoopsOf(entities: readonly DraftEntity[], drawing: Drawing2D | null): Pt[][] {
@@ -299,6 +303,9 @@ function closedLoopsOf(entities: readonly DraftEntity[], drawing: Drawing2D | nu
     if (s.type === 'polyline' && s.closed) loops.push(s.pts);
     else if (s.type === 'circle') loops.push(Array.from({ length: CIRCLE_STEPS }, (_, i) => ({ x: s.c.x + s.r * Math.cos((i / CIRCLE_STEPS) * Math.PI * 2), y: s.c.y + s.r * Math.sin((i / CIRCLE_STEPS) * Math.PI * 2) })));
   }
+  // Whatever drafted lines, arcs and polylines enclose — end to end or crossing (BOUNDARY).
+  const segments = entities.flatMap((e) => (isGeometry(e.shape) ? shapeSegments(e.shape).map(([a, b]) => [a, b] as Segment) : []));
+  loops.push(...arrangementLoops(segments, ARRANGEMENT_TOLERANCE_M));
   for (const polygon of drawing?.cutPolygons ?? []) {
     loops.push(polygon.polygon.outer);
     for (const hole of polygon.polygon.holes) loops.push(hole);
