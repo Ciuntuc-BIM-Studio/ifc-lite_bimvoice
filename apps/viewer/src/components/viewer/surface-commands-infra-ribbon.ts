@@ -10,7 +10,7 @@
  */
 
 import { parseSurveyPoints } from '@ifc-lite/create';
-import { CivilProfiles, CivilProfileDraft, CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain } from '@/icons';
+import { CivilProfileView, CivilSectionViews, CivilProfiles, CivilProfileDraft, CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain } from '@/icons';
 import { resolve } from '@/i18n/registry';
 import { toast } from '@/components/ui/toast';
 import { isDrawingTabActive } from '@/project/document-tabs';
@@ -18,6 +18,7 @@ import { activeWorkPlane, startDraftCommand } from '@/drafting/session';
 import { createTerrainFromPoints, createTerrainFromSelection } from '@/civil/corridor-element';
 import { openCorridorForSelection, selectedCorridor } from '@/civil/corridor-dialog-store';
 import { exportCorridorLandXml, importLandXml } from '@/civil/landxml-exchange';
+import { newCivilDrawing } from '@/civil/civil-drawing-actions';
 import { openProfileLibrary, profileFromDraft, structureProfile } from '@/civil/profile-library';
 import { useDraftingSession } from '@/drafting/session';
 import { deleteCorridorWithConfirm } from './civil/delete-corridor';
@@ -108,6 +109,8 @@ function profileFromSelection(): void {
 }
 
 export const RIBBON_INFRA_SURFACE_COMMANDS = [
+  { id: 'infra:profile-view', labelKey: 'civilDwg.cmd.profile', keywords: 'longitudinal profile view drawing band table station elevation grade', category: 'Tools', icon: CivilProfileView, surfaces: ribbonOnly, enabled: always, run: () => { newCivilDrawing('profile'); } },
+  { id: 'infra:section-views', labelKey: 'civilDwg.cmd.sections', keywords: 'cross sections section views sample lines drawing area cut fill', category: 'Tools', icon: CivilSectionViews, surfaces: ribbonOnly, enabled: always, run: () => { newCivilDrawing('sections'); } },
   { id: 'infra:profiles', labelKey: 'profiles.cmd.library', keywords: 'profile library retaining wall tunnel bridge deck barrier kerb ditch cross section', category: 'Tools', icon: CivilProfiles, surfaces: ribbonOnly, enabled: always, run: () => openProfileLibrary() },
   { id: 'infra:profile-from-draft', labelKey: 'profiles.cmd.fromDraft', keywords: 'profile from drawing contour polyline library', category: 'Tools', icon: CivilProfileDraft, surfaces: ribbonOnly, enabled: always, run: profileFromSelection },
   { id: 'infra:road', labelKey: 'civil.cmd.road', keywords: 'road corridor alignment polyline civil highway', category: 'Tools', icon: CivilRoad, surfaces: ribbonOnly, enabled: always, run: road },

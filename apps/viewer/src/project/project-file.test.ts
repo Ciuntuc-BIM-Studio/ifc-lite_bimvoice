@@ -44,6 +44,7 @@ const doc: ProjectDocument = {
   currentTypes: { wall: 't1', column: 't2' },
   schedules: [{ id: 's1', name: 'Window schedule', kind: 'window', createdAt: 5, scale: 25 }],
   structureProfiles: [],
+  civilDrawings: [{ id: 'c1', name: 'DN1 profile', kind: 'profile', createdAt: 3, corridorGlobalId: '2O2Fr$t4X7Zf8NOew3FLOH', scale: 1000, vExaggeration: 10 }],
 };
 
 describe('project file', () => {

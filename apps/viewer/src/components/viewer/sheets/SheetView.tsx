@@ -32,6 +32,7 @@ import { exportSheetSvg, printSheet } from './sheet-export';
 import { exportSheetDxf } from './sheet-dxf';
 import { useSheetDrafting } from './useSheetDrafting';
 import { useSheetSchedules } from '../joinery/ScheduleGraphic';
+import { useSheetCivilDrawings } from '../civil/CivilDrawingGraphic';
 import { CommandLine } from '../drafting/CommandLine';
 import { useDraftingKeys } from '../drafting/useDraftingKeys';
 import { pressEscape, submitCommandLine } from '@/drafting/session';
@@ -79,21 +80,23 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
     return out;
   }, [sheet.viewports, views, byView, geometryResult, flips, mutationVersion]);
   const placedSchedules = useSheetSchedules(sheet);
+  const placedCivil = useSheetCivilDrawings(sheet);
   const content = useCallback((vp: SheetViewport): ViewportContent => ({
     schedule: placedSchedules.get(vp.viewId),
+    civil: placedCivil.get(vp.viewId),
     view: views.find((v) => v.id === vp.viewId),
     drawing: styled.get(vp.viewId)?.drawing ?? null,
     drafts: draftsOfView(vp.viewId, drafts),
     overlays: styled.get(vp.viewId)?.overlays,
-  }), [views, styled, drafts, placedSchedules]);
+  }), [views, styled, drafts, placedSchedules, placedCivil]);
 
   const toPaper = (clientX: number, clientY: number) => {
     const rect = hostRef.current?.getBoundingClientRect();
     return { x: (clientX - (rect?.left ?? 0) - pan.x) / pan.k, y: (clientY - (rect?.top ?? 0) - pan.y) / pan.k };
   };
   const boxOf = (v: SheetViewport) => {
-    const schedule = placedSchedules.get(v.viewId);
-    return schedule ? { width: schedule.width, height: schedule.height } : viewportBox(v, byView[v.viewId]?.drawing?.bounds ?? null);
+    const placed = placedSchedules.get(v.viewId) ?? placedCivil.get(v.viewId);
+    return placed ? { width: placed.width, height: placed.height } : viewportBox(v, byView[v.viewId]?.drawing?.bounds ?? null);
   };
   const viewportAt = (p: { x: number; y: number }) => [...(sheet.viewports ?? [])].reverse()
     .find((v) => Math.abs(p.x - v.x) <= boxOf(v).width / 2 && Math.abs(p.y - v.y) <= boxOf(v).height / 2) ?? null;

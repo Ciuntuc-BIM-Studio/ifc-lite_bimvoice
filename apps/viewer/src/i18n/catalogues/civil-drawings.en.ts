@@ -1,0 +1,38 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+import type { TranslationValue } from '../types';
+export const civilDrawingsEn = {
+  'civilDwg.folder': 'Road drawings',
+  'civilDwg.cmd.profile': 'Profile view',
+  'civilDwg.cmd.sections': 'Section views',
+  'civilDwg.newProfileAction': 'New profile view of the selected corridor',
+  'civilDwg.newProfile': '{name} — longitudinal profile',
+  'civilDwg.newSections': '{name} — cross sections',
+  'civilDwg.noCorridor': 'The corridor this drawing draws is not in the loaded models',
+  'civilDwg.noPlan': 'No floor plan shows the corridor\'s level: add one in the navigator first',
+  'civilDwg.zone.profile': 'Longitudinal profile',
+  'civilDwg.zone.sections': 'Cross sections',
+  'civilDwg.zone.place': 'Place it',
+  'civilDwg.field.scale': 'Scale 1 :',
+  'civilDwg.field.vExaggeration': 'Vertical exaggeration',
+  'civilDwg.field.stationStep': 'Station grid (m)',
+  'civilDwg.field.elevationStep': 'Elevation grid (m)',
+  'civilDwg.field.every': 'Section every (m)',
+  'civilDwg.field.stations': 'Or these stations',
+  'civilDwg.field.stationsHint': 'e.g. 35, 80, 112.5',
+  'civilDwg.field.columns': 'Columns',
+  'civilDwg.field.halfWidth': 'Half width (m, 0 = auto)',
+  'civilDwg.placeSheet': 'On a sheet: drag it from Road drawings in the navigator onto the sheet — a viewport that updates with the corridor.',
+  'civilDwg.drawOnPlan': 'Draw on plan…',
+  'civilDwg.placePlan': 'Civil 3D style: opens the corridor\'s plan and draws it at the point you click, as editable lines and text (it does not update).',
+  'civilDwg.size': '{w} × {h} mm on paper',
+  'civilDwg.band.station': 'Station',
+  'civilDwg.band.ground': 'Ground',
+  'civilDwg.band.grade': 'Design',
+  'civilDwg.band.cutFill': 'Cut / fill',
+  'civilDwg.band.geometry': 'Alignment',
+  'civilDwg.curve': 'L = {length} m',
+  'civilDwg.radius': 'R = {radius}',
+  'civilDwg.areas': 'Cut {cut} m² · Fill {fill} m²',
+} as const satisfies Record<string, TranslationValue>;

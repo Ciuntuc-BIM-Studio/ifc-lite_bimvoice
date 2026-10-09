@@ -164,13 +164,13 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('joinery type → mapped
     const attr = (i: number) => view.getPositionalMutationsForEntity(id)?.get(i) ?? view.getNewEntity(id)?.attributes[i];
     const result = sync.retypeOccurrencesInStore(store, editor, b, [id]);
     expect(result.refused).toEqual([]);
-    expect(typeOf()).toBe(result.type.typeId);
+    expect(typeOf()).toBe(result.type?.typeId);
     expect(attr(2)).toBe('Window B');
     expect(attr(4)).toBe('W2');
     // A name given by hand stays; the mark still follows.
     editor.setPositionalAttribute(id, 2, 'Kitchen window');
     const back = sync.retypeOccurrencesInStore(store, editor, a, [id]);
-    expect(typeOf()).toBe(back.type.typeId);
+    expect(typeOf()).toBe(back.type?.typeId);
     expect(attr(2)).toBe('Kitchen window');
     expect(attr(4)).toBe('W1');
     sync.retypeOccurrencesInStore(store, editor, b, [id]);

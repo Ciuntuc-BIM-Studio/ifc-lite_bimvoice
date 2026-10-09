@@ -16,7 +16,7 @@ import { readStandards } from './standards-file';
 import { readJoineryList } from '@/joinery/spec-file';
 import { readCurrentTypes, readElementTypeList } from '@/element-types/spec';
 import { readStructureProfileList } from '@ifc-lite/create';
-import type { CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
+import type { ProjectCivilDrawing, CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
 export const PROJECT_FILE_FORMAT = 'ifclite-project';
@@ -129,6 +129,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     currentTypes: readCurrentTypes(raw.currentTypes),
     schedules: list('schedules').flatMap((v) => readSchedule(v)),
     structureProfiles: readStructureProfileList(raw.structureProfiles),
+    civilDrawings: list('civilDrawings').flatMap((v) => readCivilDrawing(v)),
   };
 }
 
@@ -177,6 +178,21 @@ function readCurrentJoinery(raw: unknown): { door?: string; window?: string } {
     ...(isString(raw.door) ? { door: raw.door } : {}),
     ...(isString(raw.window) ? { window: raw.window } : {}),
   };
+}
+
+function readCivilDrawing(raw: unknown): ProjectCivilDrawing[] {
+  if (!isObject(raw) || !isString(raw.id) || !isString(raw.corridorGlobalId)) return [];
+  const num = (v: unknown, min: number) => (typeof v === 'number' && Number.isFinite(v) && v >= min ? v : undefined);
+  const out: ProjectCivilDrawing = {
+    id: raw.id, name: isString(raw.name) && raw.name ? raw.name : 'Road drawing', kind: raw.kind === 'sections' ? 'sections' : 'profile',
+    createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : 0, corridorGlobalId: raw.corridorGlobalId, scale: num(raw.scale, 1) ?? (raw.kind === 'sections' ? 200 : 1000),
+  };
+  for (const key of ['vExaggeration', 'stationStep', 'elevationStep', 'every', 'columns', 'halfWidth'] as const) {
+    const v = num(raw[key], 0);
+    if (v !== undefined) out[key] = v;
+  }
+  if (Array.isArray(raw.stations)) out.stations = raw.stations.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  return [out];
 }
 
 function readSchedule(raw: unknown): ProjectSchedule[] {

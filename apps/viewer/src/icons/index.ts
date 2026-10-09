@@ -139,6 +139,8 @@ export { default as CutPriority } from '~icons/viewer/cut-priority';
 export { default as RoofSystem } from '~icons/viewer/roof-system';
 export { default as CivilRoad } from '~icons/viewer/civil-road';
 export { default as CivilProfiles } from '~icons/viewer/civil-profiles';
+export { default as CivilProfileView } from '~icons/viewer/civil-profile-view';
+export { default as CivilSectionViews } from '~icons/viewer/civil-section-views';
 export { default as CivilProfileDraft } from '~icons/viewer/civil-profile-draft';
 export { default as GroupMake } from '~icons/viewer/group-make';
 export { default as GroupUngroup } from '~icons/viewer/group-ungroup';
