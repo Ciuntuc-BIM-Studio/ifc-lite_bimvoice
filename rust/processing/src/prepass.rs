@@ -42,7 +42,8 @@ pub struct PrepassSpans {
     pub material_def_reprs: Vec<Span>,
     /// `IFCRELASSOCIATESMATERIAL` (#407 material chain).
     pub rel_associates_material: Vec<Span>,
-    /// `IFCRELVOIDSELEMENT` — host → opening.
+    /// `IFCRELVOIDSELEMENT` — host → opening; and `IFCRELINTERFERESELEMENTS`,
+    /// told apart when resolved (`prepass_interference.rs`).
     pub void_rels: Vec<Span>,
     /// `IFCRELFILLSELEMENT` — opening → filling (window/door); drives the
     /// native opening filter. Cheap to collect everywhere.
@@ -72,7 +73,7 @@ impl PrepassSpans {
             &mut self.material_def_reprs
         } else if keyword_eq(type_name, "IFCRELASSOCIATESMATERIAL") {
             &mut self.rel_associates_material
-        } else if keyword_eq(type_name, "IFCRELVOIDSELEMENT") {
+        } else if keyword_eq(type_name, "IFCRELVOIDSELEMENT") || keyword_eq(type_name, "IFCRELINTERFERESELEMENTS") {
             &mut self.void_rels
         } else if keyword_eq(type_name, "IFCRELFILLSELEMENT") {
             &mut self.fills_rels
@@ -227,6 +228,10 @@ pub fn resolve_prepass_with_style_seeds(
     // ── Voids + fills + aggregate propagation (#845) ──
     for &(id, start, end) in &spans.void_rels {
         if let Ok(entity) = decoder.decode_at_with_id(id, start, end) {
+            if crate::prepass_interference::is_interference(&entity) {
+                crate::prepass_interference::record_cut(&entity, &mut out.void_index);
+                continue;
+            }
             if let (Some(host), Some(opening)) = (entity.get_ref(4), entity.get_ref(5)) {
                 out.void_index.entry(host).or_default().push(opening);
             }

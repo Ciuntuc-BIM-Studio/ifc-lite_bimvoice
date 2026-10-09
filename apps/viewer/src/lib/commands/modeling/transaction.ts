@@ -9,7 +9,8 @@
  *   1. the shared mutation gate (edit mode, collab role, editable model);
  *   2. snapshot every model's undo-stack length;
  *   3. `cmd.commit` inside try, then the per-kind type and layer-set
- *      defaults on what it built (`authored-defaults.ts`);
+ *      defaults on what it built (`authored-defaults.ts`) and the
+ *      registered follow-ups (`registerCommitFollowUp`);
  *   4. tag everything pushed since the snapshot with one batch id, so one
  *      Ctrl+Z reverts the whole commit however many mutations it wrote;
  *   5. re-mesh the touched entities through the wasm re-mesh service and
@@ -56,6 +57,20 @@ export function setRequestRemesh(handler: RequestRemesh): () => void {
 /** The store surface a transaction needs: read, and write back the redo branch on rollback. */
 export type TransactionStore = Pick<StoreApi<ViewerState>, 'getState' | 'setState' | 'subscribe'>;
 
+/**
+ * Work every commit gets in its own undo step, after the command and its
+ * authored defaults: given what it wrote, return more ids to re-mesh (e.g.
+ * the cut priorities between structural elements it touched).
+ */
+export type CommitFollowUp = (store: TransactionStore, modelId: string, result: CommitResult) => readonly number[];
+const followUps: CommitFollowUp[] = [];
+
+/** Register a follow-up; returns the function that removes it. */
+export function registerCommitFollowUp(followUp: CommitFollowUp): () => void {
+  followUps.push(followUp);
+  return () => { const i = followUps.indexOf(followUp); if (i >= 0) followUps.splice(i, 1); };
+}
+
 export type TransactionOutcome =
   | { ok: true; batchId: string | null; result: CommitResult }
   | { ok: false; reason: string };
@@ -80,6 +95,10 @@ export function runTransaction(
   try {
     result = cmd.commit(g, tx);
     applyAuthoredDefaults(store, result.modelId ?? modelId, result.authored ?? []);
+    for (const followUp of followUps) {
+      const more = followUp(store, result.modelId ?? modelId, result);
+      if (more.length) result = { ...result, remesh: [...new Set([...result.remesh, ...more])] };
+    }
   } catch (error) {
     rollBack(store, before, redoBefore);
     dropOverlayEntitiesSince(get(), overlayBefore);

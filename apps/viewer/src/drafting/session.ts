@@ -93,15 +93,9 @@ export function setWorkPlaneProvider(plane: () => SectionPlaneConfig | null, vie
   };
 }
 
-/** The view in front and its work plane, as the commands see them (null when no drafting view is attached). */
-export function activeWorkPlane(): { plane: SectionPlaneConfig | null; view: ProjectView | null } {
-  return { plane: planeProvider(), view: viewProvider() };
-}
-
-/** The drafting settings (extrusion class and depth, roof defaults…), as the commands read them. */
-export function draftSettings(): Readonly<DraftSettings> {
-  return scaledSettings;
-}
+/** The view in front and its work plane, and the drafting settings, as the commands see them. */
+export const activeWorkPlane = (): { plane: SectionPlaneConfig | null; view: ProjectView | null } => ({ plane: planeProvider(), view: viewProvider() });
+export const draftSettings = (): Readonly<DraftSettings> => scaledSettings;
 
 export function setModelPicker(picker: typeof modelPicker): void {
   modelPicker = picker;

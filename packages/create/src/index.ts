@@ -60,6 +60,9 @@ export type * from './landxml/result-types.js';
 // In-store authoring API, kept separate from create-from-scratch types.
 export * from './in-store/index.js';
 
+// Civil / road modelling (alignments, profiles, terrains, corridors, LandXML exchange).
+export * from './civil/index.js';
+
 export type {
   // Geometry primitives
   Point3D,

@@ -132,7 +132,11 @@ export function prepare(view: ProjectView, plane: SectionPlaneConfig, loops: Pt[
   if (loops.length === 0 || loops[0].length < 3) return { ok: false, error: 'The contour must be closed, with at least three points.' };
   const invalid = contourProblem(loops);
   if (invalid) return { ok: false, error: invalid };
-  const worldMinY = Math.min(...loops[0].map((p) => drawingToWorld(plane, p).y));
+  return prepareTarget(view, Math.min(...loops[0].map((p) => drawingToWorld(plane, p).y)));
+}
+
+/** The editable model and storey of a view (any geometry, open or closed), with the world → storey-local mapping. */
+export function prepareTarget(view: ProjectView, worldMinY: number): Prepared {
   const target = resolveTarget(view, worldMinY);
   if (!target) return { ok: false, error: 'No loaded model has a storey for this view. Load or create a model first.' };
   const state = useViewerStore.getState();

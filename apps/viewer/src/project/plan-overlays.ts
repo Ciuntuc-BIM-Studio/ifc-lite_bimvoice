@@ -8,8 +8,8 @@
  * export put each on its own pen: the door and window symbols (thin lines,
  * a configured type's cut parts heavy, its exterior-seen parts dashed) and
  * the roof systems (ridges heavy; hips, eaves and verges seen; valleys
- * dashed; a downslope arrow with the pitch on every plane). Honours the
- * view's hidden categories.
+ * dashed; a downslope arrow with the pitch on every plane) and the road
+ * corridors (`civil/civil-plan.ts`). Honours the view's hidden categories.
  */
 
 import type { MeshData } from '@ifc-lite/geometry';
@@ -19,6 +19,7 @@ import { PEN } from '@/components/viewer/sheets/viewport-pens';
 import type { ProjectView } from './types';
 import { planRoofs } from './roof-plan';
 import { viewOpeningSymbols } from './view-symbols';
+import { corridorOverlays } from '@/civil/civil-plan';
 
 export interface PlanOverlay {
   /** The DXF layer. */
@@ -85,5 +86,5 @@ export function planOverlays(
   view: ProjectView, plane: SectionPlaneConfig, meshes: readonly MeshData[] | undefined, flips: Record<string, number> | undefined, hidden: ReadonlySet<string>,
 ): PlanOverlay[] {
   if (view.kind !== 'plan') return [];
-  return [...(meshes ? symbolOverlays(meshes, plane, flips, hidden) : []), ...roofOverlays(view, plane, hidden)];
+  return [...(meshes ? symbolOverlays(meshes, plane, flips, hidden) : []), ...roofOverlays(view, plane, hidden), ...corridorOverlays(view, plane, hidden)];
 }

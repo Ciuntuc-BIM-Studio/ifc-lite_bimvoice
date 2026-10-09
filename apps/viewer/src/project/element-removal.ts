@@ -6,10 +6,13 @@
  * Deleting an element together with what only it used: `removeEntity`
  * takes the element out, then its placement and body records (points,
  * faces, profiles, styled items…) are pruned when nothing else points to
- * them — tagged into the same undo step, so one undo brings all of it back.
+ * them, and its cut-priority relationships — tagged into the same undo
+ * step, so one undo brings all of it back.
  */
 
-import { elementGeometryRefs, pruneOrphanOverlay } from '@ifc-lite/create';
+import { elementGeometryRefs, pruneOrphanOverlay, resolveAuthoringAnchor, syncCutsInStore } from '@ifc-lite/create';
+import { requestRemesh } from '@/lib/remesh/remesh-service';
+import { remeshAfterCommit } from '@/lib/remesh/remesh-registry';
 import { useViewerStore } from '@/store';
 import { modelEditTarget, recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 
@@ -18,10 +21,14 @@ export function removeElementWithOrphans(modelId: string, expressId: number): bo
   const editor = modelEditTarget(state, modelId)?.editor;
   const roots = editor ? elementGeometryRefs(editor, expressId) : [];
   if (!state.removeEntity(modelId, expressId)) return false;
-  if (roots.length === 0) return true;
   const removal = useViewerStore.getState().undoStacks.get(modelId)?.at(-1);
+  let recut: number[] = [];
   try {
-    recordModellingCommit(useViewerStore, modelId, (draft) => pruneOrphanOverlay(draft, roots));
+    recut = recordModellingCommit(useViewerStore, modelId, (draft, ds) => {
+      pruneOrphanOverlay(draft, roots);
+      // The cuts it made or took go with it; what it cut is whole again.
+      return syncCutsInStore(ds, draft, resolveAuthoringAnchor(ds, draft.getMutationView()), [], []).remesh;
+    });
   } catch (err) {
     // The element is gone either way; its leftovers just stay until export.
     console.warn('[element-removal] could not prune the removed element\'s geometry', err);
@@ -31,5 +38,8 @@ export function removeElementWithOrphans(modelId: string, expressId: number): bo
   const top = after.undoStacks.get(modelId)?.at(-1);
   const batchId = top && top !== removal ? after.mutationBatchTags.get(top.id) : undefined;
   if (removal && batchId) after.tagMutationBatch([removal.id], batchId);
+  // Re-cut now, and again on undo / redo of the step.
+  if (recut.length && batchId) remeshAfterCommit(useViewerStore.getState, modelId, batchId, recut, 'shape');
+  else if (recut.length) void requestRemesh(useViewerStore.getState, modelId, recut, 'shape');
   return true;
 }

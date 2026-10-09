@@ -23,7 +23,18 @@ import { entityName, layerSetOf } from '@/lib/commands/modeling/authored-kinds';
 import { ModelInspectorPanel } from './ModelInspectorPanel.js';
 
 const s = () => useViewerStore.getState();
-const undoDepth = () => s().undoStacks.get(MODEL_ID)?.length ?? 0;
+/** Undo steps on the stack: consecutive mutations of one batch are one step (a commit may write several). */
+/** Mutations on the stack (to slice what an edit pushed). */
+const stackLen = () => s().undoStacks.get(MODEL_ID)?.length ?? 0;
+const undoDepth = () => {
+  const stack = s().undoStacks.get(MODEL_ID) ?? [];
+  let steps = 0;
+  stack.forEach((m, i) => {
+    const tag = s().mutationBatchTags.get(m.id);
+    if (i === 0 || tag === undefined || tag !== s().mutationBatchTags.get(stack[i - 1].id)) steps++;
+  });
+  return steps;
+};
 const input = (root: HTMLElement, label: string) => {
   const found = [...root.querySelectorAll('input')].find((el) => el.getAttribute('aria-label') === label || (el.id && root.querySelector(`label[for="${el.id}"]`)?.textContent === label));
   assert.ok(found, `an input labelled "${label}"`);
@@ -56,7 +67,7 @@ describe('ModelInspectorPanel (#6232 M2.5)', () => {
     assert.equal(input(root, 'Height in metres').value, '3.00');
     assert.equal(input(root, 'Length in metres').readOnly, true);
     const headings = [...root.querySelectorAll('h3')].map((h) => h.textContent);
-    assert.deepEqual(headings, ['Type', 'Dimensions', 'Material layers']);
+    assert.deepEqual(headings, ['Type', 'Dimensions', 'Material layers', 'Cut priority']);
   });
 
   it('a new name is one undo step', () => {
@@ -123,11 +134,12 @@ describe('ModelInspectorPanel dimensions of slabs, columns and beams (#6232 C4)'
     select(slab);
     const root = render(<ModelInspectorPanel />);
     const depth = undoDepth();
+    const pushed = stackLen();
     commitField(root, 'Thickness in metres', '0.35');
     assert.equal(undoDepth() - depth >= 1, true);
     const live = { dataStore: s().models.get(MODEL_ID)!.ifcDataStore!, view: s().mutationViews.get(MODEL_ID) };
     assert.deepEqual(layerSetOf(live, slab)!.layers.map((l) => +l.thickness.toFixed(6)), [0.1, 0.25], 'the last layer took the change: 0.10 + 0.25 = 0.35');
-    const tags = new Set(s().undoStacks.get(MODEL_ID)!.slice(depth).map((m) => s().mutationBatchTags.get(m.id)));
+    const tags = new Set(s().undoStacks.get(MODEL_ID)!.slice(pushed).map((m) => s().mutationBatchTags.get(m.id)));
     assert.equal(tags.size, 1, 'size and layers are one undo step');
   });
 
@@ -182,9 +194,10 @@ describe('ModelInspectorPanel dimensions of slabs, columns and beams (#6232 C4)'
     assert.ok('expressId' in placed);
     const root = render(<ModelInspectorPanel />);
     const depth = undoDepth();
+    const pushed = stackLen();
     commitField(root, 'Thickness in metres', '0.6');
     assert.equal(input(root, 'Thickness in metres').value, '0.60');
-    const tags = new Set(s().undoStacks.get(MODEL_ID)!.slice(depth).map((m) => s().mutationBatchTags.get(m.id)));
+    const tags = new Set(s().undoStacks.get(MODEL_ID)!.slice(pushed).map((m) => s().mutationBatchTags.get(m.id)));
     assert.equal(tags.size, 1, 'the wall and its re-cut opening are one batch');
     act(() => s().undo(MODEL_ID));
     assert.equal(undoDepth(), depth, 'one undo');

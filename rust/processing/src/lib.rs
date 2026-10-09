@@ -41,6 +41,7 @@ pub mod geometry_export;
 mod georeferencing;
 pub mod pipeline_diagnostics;
 pub mod prepass;
+mod prepass_interference;
 mod prepass_styled;
 pub use prepass_styled::flat_styles_rgba8_from_geometry_columns;
 mod prepass_type_material;

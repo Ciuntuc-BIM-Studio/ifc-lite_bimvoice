@@ -13,7 +13,7 @@
  *  - a host whose placement or body changed moves its openings and the
  *    fillings in them ('hostsChanged', and 'created', where the host is new);
  *  - a 'shape' edit (the element's own body, same placement) re-cuts nothing
- *    but itself and, for an opening, its host (its fillings are re-meshed
+ *    but itself, what it cuts (IfcRelInterferesElements) and, for an opening, its host (its fillings are re-meshed
  *    too: the relationships found do not say which side is which, and one
  *    extra element costs less than a second lookup).
  *
@@ -25,7 +25,7 @@
 import { IfcTypeEnum, IfcTypeEnumFromString } from '@ifc-lite/data';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import type { MutablePropertyView } from '@ifc-lite/mutations';
-import { gridPlacementDependents, remeshContextRoots } from './entity-subgraph.js';
+import { gridPlacementDependents, interferenceCut, remeshContextRoots } from './entity-subgraph.js';
 
 export type RemeshCause = 'shape' | 'created' | 'hostsChanged';
 
@@ -72,6 +72,8 @@ export function expandAffectedSet(
     // A reshaped opening re-cuts its host; nothing else moves.
     if (openingTargets && IfcTypeEnumFromString(type) !== IfcTypeEnum.IfcOpeningElement) out.add(id);
   }
+  // A reshaped cutter (a column cutting walls) re-cuts what it cuts.
+  if (cause === 'shape') for (const id of interferenceCut(store, view, targets)) out.add(id);
   for (const id of out) if (!isLive(store, view, id)) out.delete(id);
   return out;
 }

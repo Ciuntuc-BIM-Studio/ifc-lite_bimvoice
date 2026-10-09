@@ -181,7 +181,7 @@ export function LayerPreview({ spec }: { spec: ElementTypeSpec }) {
   const W = 220, H = 160;
   let at = 0;
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="rounded-sm border border-zinc-200 dark:border-zinc-800" role="img" aria-label={spec.name}>
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="rounded-sm border border-zinc-200 dark:border-zinc-800" aria-hidden="true">
       {spec.layers.map((l, i) => {
         const size = (l.thickness / total) * (across ? W - 40 : H - 40);
         const x = across ? 20 + at : 20, y = across ? 20 : 20 + at;

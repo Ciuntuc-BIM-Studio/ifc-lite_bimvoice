@@ -8,9 +8,10 @@
  * `serializeEntitySubgraph` walks FORWARD from its roots, and a forward walk
  * from a wall never reaches what the mesher reads about it through INVERSE
  * relationships: the openings that void it (`IfcRelVoidsElement`), the
- * fillings in those openings (`IfcRelFillsElement`), and its layered material
- * (`IfcRelAssociatesMaterial`, which the wasm material-layer index scans the
- * buffer for). Nor does it reach the project, whose unit assignment and
+ * fillings in those openings (`IfcRelFillsElement`), the elements cutting it
+ * or cut by it (`IfcRelInterferesElements`, which the pre-pass applies like
+ * openings), and its layered material (`IfcRelAssociatesMaterial`, which the
+ * wasm material-layer index scans the buffer for). Nor does it reach the project, whose unit assignment and
  * representation contexts the pre-pass reads. This module names those roots.
  *
  * Cost is O(targets + their relationship edges + overlay-created entities):
@@ -32,6 +33,7 @@ import { getEffectiveEntityIndex, type EffectiveEntityIndex } from './effective-
 const VOIDS = 'IFCRELVOIDSELEMENT';
 const FILLS = 'IFCRELFILLSELEMENT';
 const MATERIAL = 'IFCRELASSOCIATESMATERIAL';
+const INTERFERES = 'IFCRELINTERFERESELEMENTS';
 
 /**
  * Roots, besides the targets themselves, that a subgraph must carry for the
@@ -95,6 +97,12 @@ export function contextRootsFor(
     // Material runs material → element; the walk reaches the material through
     // the relationship's own RelatingMaterial reference.
     follow(graph.inverse.getEdges(id, RelationshipType.AssociatesMaterial), undefined, true);
+    // IfcRelInterferesElements with ImpliedOrder runs cut → cutter (the
+    // related element is subtracted from the relating one): an element cut by
+    // another (a wall by a column) needs its cutter, as a host needs its
+    // openings; a cutter brings the elements it cuts, which re-cut with it.
+    follow(graph.inverse.getEdges(id, RelationshipType.InterferesElements));
+    follow(graph.forward.getEdges(id, RelationshipType.InterferesElements));
   }
   for (const opening of openings) {
     follow(graph.forward.getEdges(opening, RelationshipType.FillsElement));
@@ -121,7 +129,7 @@ function addOverlayRelationships(
     const type = index.typeOf(entity.expressId);
     if (type === undefined) continue;
     if (type === 'IFCPROJECT') out.add(entity.expressId);
-    if (type !== VOIDS && type !== FILLS && type !== MATERIAL) continue;
+    if (type !== VOIDS && type !== FILLS && type !== MATERIAL && type !== INTERFERES) continue;
     const bucket = byType.get(type);
     if (bucket) bucket.push(entity.expressId);
     else byType.set(type, [entity.expressId]);
@@ -151,7 +159,39 @@ function addOverlayRelationships(
     out.add(opening);
     out.add(filling);
   }
+  for (const rel of byType.get(INTERFERES) ?? []) {
+    const cut = ref(rel, 'RelatingElement');
+    const cutter = ref(rel, 'RelatedElement');
+    if (cutter === undefined || cut === undefined) continue;
+    if (!targetSet.has(cutter) && !targetSet.has(cut)) continue;
+    out.add(rel);
+    out.add(cutter);
+    out.add(cut);
+  }
   for (const rel of byType.get(MATERIAL) ?? []) {
     if ((index.refsOf(rel) ?? []).some((id) => targetSet.has(id))) out.add(rel);
   }
+}
+
+/**
+ * The live elements `targets` cut: the RelatingElement of each
+ * IfcRelInterferesElements whose RelatedElement (the cutter) is a target,
+ * parsed and session-created relationships alike.
+ */
+export function interferenceCut(store: IfcDataStore, view: MutablePropertyView | null, targets: ReadonlySet<number>): Set<number> {
+  const index = getEffectiveEntityIndex(store, view, true);
+  const out = new Set<number>();
+  for (const id of targets) {
+    for (const edge of store.relationships.inverse.getEdges(id, RelationshipType.InterferesElements)) {
+      const live = [edge.relationshipId, ...(edge.shadowedRelationshipIds ?? [])].some((rel) => index.has(rel));
+      if (live && index.has(edge.target)) out.add(edge.target);
+    }
+  }
+  for (const entity of view?.getNewEntities() ?? []) {
+    if (index.typeOf(entity.expressId) !== INTERFERES) continue;
+    const cut = index.effectiveAttributeRef(entity.expressId, 'RelatingElement');
+    const cutter = index.effectiveAttributeRef(entity.expressId, 'RelatedElement');
+    if (cutter !== undefined && cut !== undefined && targets.has(cutter) && index.has(cut)) out.add(cut);
+  }
+  return out;
 }

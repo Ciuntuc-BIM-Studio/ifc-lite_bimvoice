@@ -441,3 +441,34 @@ fn finish_wire_pair_round_trips_and_treats_non_finite_as_absent() {
         "an infinite field is as unauthored as NaN"
     );
 }
+
+/// An `IfcRelInterferesElements` with ImpliedOrder TRUE subtracts its
+/// related element from its relating one, as an opening would (a wall cut by
+/// a column); FALSE cuts nothing; in the IFC4X3 layout (an extra
+/// InterferenceSpace before ImpliedOrder) the order still reads off the last
+/// attribute.
+#[test]
+fn interference_with_implied_order_cuts_the_relating_element() {
+    let content = b"ISO-10303-21;\nDATA;\n\
+        #1=IFCWALL('w',$,$,$,$,$,$,$,$);\n\
+        #2=IFCCOLUMN('c',$,$,$,$,$,$,$,$);\n\
+        #3=IFCSLAB('s',$,$,$,$,$,$,$,$);\n\
+        #4=IFCOPENINGELEMENT('o',$,$,$,$,$,$,$,$);\n\
+        #10=IFCRELVOIDSELEMENT('v',$,$,$,#1,#4);\n\
+        #11=IFCRELINTERFERESELEMENTS('i1',$,$,$,#1,#2,$,'Cut',.T.);\n\
+        #12=IFCRELINTERFERESELEMENTS('i2',$,$,$,#3,#2,$,'Cut',.F.);\n\
+        #13=IFCRELINTERFERESELEMENTS('i3',$,$,$,#3,#2,$,$,'Cut',.T.);\n\
+        ENDSEC;\nEND-ISO-10303-21;\n";
+    let mut decoder = EntityDecoder::new(content);
+    let mut spans = PrepassSpans::default();
+    let mut scanner = EntityScanner::new(content);
+    while let Some((id, type_name, start, end)) = scanner.next_entity() {
+        spans.stash(type_name, id, start, end);
+    }
+    let resolved = resolve_prepass(&spans, &mut decoder, ResolveOptions::default());
+    let mut wall = resolved.void_index.get(&1).cloned().unwrap_or_default();
+    wall.sort_unstable();
+    assert_eq!(wall, vec![2, 4]);
+    assert_eq!(resolved.void_index.get(&3), Some(&vec![2]));
+    assert_eq!(resolved.void_index.get(&2), None);
+}

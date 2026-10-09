@@ -30,6 +30,7 @@ import { DefaultProfile, SelectionProfile, isProfileOwner } from './ProfileInspe
 import { KIND_LABEL } from './inspector-fields';
 import { LayersSection } from './LayersSection';
 import { TypeSection } from './TypeSection';
+import { CutPrioritySection } from './CutPrioritySection';
 import { renameElement } from './inspector-edits';
 import { useInspectorTarget, type InspectorSelection, type InspectorTarget } from './useInspectorTarget';
 
@@ -198,6 +199,7 @@ function SelectionBody({ selection }: { selection: InspectorSelection }) {
         />
       )}
       {kind !== null && HOSTED.has(kind) && <HostingSection selection={selection} />}
+      <CutPrioritySection selection={selection} />
     </>
   );
 }

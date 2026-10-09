@@ -697,7 +697,7 @@ fn process_geometry_streaming_filtered_with_options_and_ids(
             // Individual property values are resolved lazily by id in the lookup
             // phase (only those a referenced space/zone property set lists).
             continue;
-        } else if keyword_eq(type_name, "IFCRELVOIDSELEMENT") {
+        } else if keyword_eq(type_name, "IFCRELVOIDSELEMENT") || keyword_eq(type_name, "IFCRELINTERFERESELEMENTS") {
             prepass_spans.void_rels.push((id, start, end));
         } else if keyword_eq(type_name, "IFCRELFILLSELEMENT") {
             prepass_spans.fills_rels.push((id, start, end));

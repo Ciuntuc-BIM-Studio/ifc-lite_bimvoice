@@ -20,8 +20,10 @@ import { NewProjectHost } from './NewProjectDialog';
 import { DraftingStandardsDialog } from '../drafting/standards/DraftingStandardsDialog';
 import { JoineryDialog } from '../joinery/JoineryDialog';
 import { RoofSystemDialog } from '../roof/RoofSystemDialog';
+import { CorridorDialog } from '../civil/CorridorDialog';
 import '@/joinery/placement';
 import '@/element-types/model-sync';
+import '@/project/cut-priorities';
 import { ElementTypesDialog } from '../element-types/ElementTypesDialog';
 
 type LeftTab = 'model' | 'project';
@@ -82,6 +84,7 @@ export function LeftNavigator() {
       <JoineryDialog />
       <ElementTypesDialog />
       <RoofSystemDialog />
+      <CorridorDialog />
     </div>
   );
 }

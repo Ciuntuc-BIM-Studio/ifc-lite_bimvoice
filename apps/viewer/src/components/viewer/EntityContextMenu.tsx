@@ -33,6 +33,8 @@ import { surfaceCommand, type SurfaceCommandId } from './surface-commands';
 import { runSurfaceCommand } from './surface-command-run';
 import { roofSystemOfRenderId } from '@/project/roof-system-element';
 import { deleteRoofWithConfirm } from './roof/delete-roof';
+import { corridorOfRenderId } from '@/civil/corridor-element';
+import { deleteCorridorWithConfirm } from './civil/delete-corridor';
 import { removeElementWithOrphans } from '@/project/element-removal';
 import { flipElements } from '@/project/element-flip';
 
@@ -271,6 +273,13 @@ export function EntityContextMenu() {
     if (roof) {
       closeContextMenu();
       void deleteRoofWithConfirm(roof);
+      return;
+    }
+    // A course or slope of a corridor goes with its whole block.
+    const corridor = corridorOfRenderId(contextMenu.entityId);
+    if (corridor) {
+      closeContextMenu();
+      void deleteCorridorWithConfirm(corridor);
       return;
     }
     const ok = removeElementWithOrphans(contextEntityRef.modelId, contextEntityRef.expressId);

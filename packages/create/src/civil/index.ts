@@ -1,0 +1,18 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+/** Civil / road modelling: alignments, profiles, terrains, assemblies, corridors and LandXML. */
+
+export {
+  alignmentFromPolyline, alignmentProblem, buildAlignment, clothoidPoint, fitRadius, formatStation, sampleAlignment,
+  type AlignmentPI, type AlignmentPoint, type HorizontalAlignment, type HorizontalAlignmentSpec, type AlignmentSegment, type AlignmentSegmentKind,
+} from './alignment.js';
+export { buildProfile, profileFromGround, profileProblem, type ProfilePVI, type VerticalProfile, type VerticalProfileSpec } from './profile.js';
+export { Terrain, delaunay, parseSurveyPoints, tinFromMesh, type Tin } from './tin.js';
+export {
+  assemblyWidth, defaultAssembly, defaultDesign, pavementThickness, requiredSuperelevation, slopesAt, templateAt, templateSide,
+  type AssemblyLane, type AssemblyLayer, type AssemblySpec, type SideSlopes, type SuperelevationDesign, type TemplatePoint,
+} from './assembly.js';
+export { buildCorridor, finishedGradeSurface, triangulatePolygon, type CorridorModel, type CorridorSolid, type CorridorSpec, type CorridorStation, type DaylightKind } from './corridor.js';
+export { parseXml, readLandXml, writeLandXml, type LandXmlAlignmentIn, type LandXmlAlignmentOut, type LandXmlDocument, type LandXmlSurfaceOut, type XmlNode } from './landxml.js';

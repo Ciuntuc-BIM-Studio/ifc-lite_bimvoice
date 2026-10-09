@@ -1,0 +1,6 @@
+---
+"@ifc-lite/create": minor
+"@ifc-lite/viewer": minor
+---
+
+Infrastructure (road) modelling: a civil module in `@ifc-lite/create` — PI-based horizontal alignments with circular arcs and clothoids, PVI profiles with parabolic vertical curves, terrains as Delaunay TINs with ground height and daylight-line hits, assemblies (lanes, shoulder, pavement courses, daylight slopes) with AASHTO-style superelevation, corridors swept station by station into closed course shells and cut / fill slope surfaces with average-end-area volumes, and LandXML 1.2 read / write. In the store, a corridor is an IfcElementAssembly aggregating IfcTriangulatedFaceSet elements (IfcCourse / IfcEarthworksCut / IfcEarthworksFill in IFC4X3, proxies and geographic elements in IFC4) and, in IFC4X3, the IfcAlignment with both layouts and the composite / gradient curves (the from-scratch alignment emitter, now runnable over a `StoreEditor`); terrains are IfcGeographicElement TERRAIN. The viewer gains an Infrastructure ribbon tab (terrain from survey points or from a selected mesh, ROAD along a drawn polyline, corridor configurator with live plan / profile / section previews, LandXML import and export, delete whole corridor) and draws alignments with stations and PIs on floor plans and sheets.

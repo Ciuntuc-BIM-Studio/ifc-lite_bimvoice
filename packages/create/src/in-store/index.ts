@@ -57,6 +57,7 @@ export {
   CATALOG_TYPE_PSET, catalogLayerColour, catalogTypeOfElement, ensureCatalogTypeInStore, findCatalogTypeInStore, readCatalogType, rewriteCatalogTypeInStore, setLayerUsageOffset,
   type CatalogAnchor, type CatalogTypeInModel, type CatalogTypeInput, type CatalogTypeLayer,
 } from './catalog-type.js';
+export { CUT_PRIORITY_PROP, CUT_PRIORITY_PSET, DEFAULT_CUT_PRIORITY, cutParticipants, cutPriorityOf, syncCutsInStore, type CutSyncResult } from './cut-priority.js';
 export { offsetOutline, roofFacets, roofSolidFaces, type RoofKind, type RoofSurfaceSpec } from './roof-surface.js';
 export { hipRoofFaces, weightedSkeletonFaces } from './straight-skeleton.js';
 // Roof systems: per-edge rules → planes, structure, and the IfcRoof block of slabs and members.
@@ -265,3 +266,9 @@ export { reanchorHostedOpeningsInStore } from './hosted-placement-edit.js';
 export { reassignHostedOpeningsInStore, type HostedOpeningReassignment } from './hosted-placement-edit.js';
 
 export { replaceElementInStore, type InStoreReplacementElement } from './element-replacement.js';
+export { parseStepAttributes, storeEmitter } from './step-attrs.js';
+export { addTriangulatedElementToStore, readTriangulatedBody, replaceTriangulatedGeometryInStore, type TriangulatedBody, type TriangulatedBuildResult, type TriangulatedInStoreParams } from './triangulated.js';
+export {
+  CORRIDOR_PSET, addCorridorToStore, addTerrainToStore, corridorOf, corridorParts, corridorsInStore, elementByGlobalId, readCorridor, readTerrainTin,
+  regenerateCorridorInStore, removeCorridorFromStore, terrainsInStore, type CorridorResult,
+} from './corridor-store.js';

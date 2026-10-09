@@ -38,7 +38,7 @@ import { gridReferenceContext } from './grid-reference-context.js';
 import { collectGridPlacementDependents } from './grid-placement-dependents.js';
 import type { IfcSchemaVersion } from './schema-converter.js';
 
-export { remeshContextRoots } from './remesh-context-roots.js';
+export { interferenceCut, remeshContextRoots } from './remesh-context-roots.js';
 
 const log = createLogger('EntitySubgraph');
 

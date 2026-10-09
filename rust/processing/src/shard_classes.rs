@@ -27,7 +27,7 @@ pub const PREPASS_CLASS_INDEXED_COLOUR_MAP: u8 = 5;
 pub const PREPASS_CLASS_MATERIAL_DEF_REPR: u8 = 6;
 /// `IFCRELASSOCIATESMATERIAL` (#407).
 pub const PREPASS_CLASS_REL_ASSOCIATES_MATERIAL: u8 = 7;
-/// `IFCRELVOIDSELEMENT`.
+/// `IFCRELVOIDSELEMENT` and `IFCRELINTERFERESELEMENTS`.
 pub const PREPASS_CLASS_REL_VOIDS: u8 = 8;
 /// `IFCRELFILLSELEMENT`.
 pub const PREPASS_CLASS_REL_FILLS: u8 = 9;
@@ -152,7 +152,7 @@ pub fn classify_type_name_with_content(type_name: &str, entity_bytes: &[u8]) -> 
 /// before #1910 -- the only new code path is the explicit OR-in above.
 pub fn classify_type_name(type_name: &str) -> u8 {
     use ifc_lite_core::{has_geometry_by_name, keyword_eq, type_product_ifc_type};
-    const NAMED_ARMS: [(&str, u8); 13] = [
+    const NAMED_ARMS: [(&str, u8); 14] = [
         ("IFCPROJECT", PREPASS_CLASS_PROJECT),
         ("IFCSITE", PREPASS_CLASS_SITE), // site is job + site-record; flags implied
         ("IFCSTYLEDITEM", PREPASS_CLASS_STYLED_ITEM),
@@ -160,6 +160,8 @@ pub fn classify_type_name(type_name: &str) -> u8 {
         ("IFCMATERIALDEFINITIONREPRESENTATION", PREPASS_CLASS_MATERIAL_DEF_REPR),
         ("IFCRELASSOCIATESMATERIAL", PREPASS_CLASS_REL_ASSOCIATES_MATERIAL),
         ("IFCRELVOIDSELEMENT", PREPASS_CLASS_REL_VOIDS),
+        // A cut by implied order is resolved with the voids (`prepass.rs`).
+        ("IFCRELINTERFERESELEMENTS", PREPASS_CLASS_REL_VOIDS),
         ("IFCRELFILLSELEMENT", PREPASS_CLASS_REL_FILLS),
         ("IFCRELAGGREGATES", PREPASS_CLASS_REL_AGGREGATES),
         ("IFCMAPPEDITEM", PREPASS_CLASS_MAPPED_ITEM),

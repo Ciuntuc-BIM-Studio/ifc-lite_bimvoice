@@ -71,4 +71,11 @@ export const elementTypesEn = {
   'elementTypes.editTypes': 'Edit types…',
   'elementTypes.saveAsType': 'Save as type',
   'elementTypes.savedAsType': 'Saved as roof type {name}',
+  'cutPriority.title': 'Cut priority',
+  'cutPriority.label': 'Priority',
+  'cutPriority.reset': 'Class default',
+  'cutPriority.hint': 'Where it overlaps another structural element, the higher priority cuts the lower; equal priorities do not cut. Class default {value}.',
+  'cutPriority.command': 'Cut priorities',
+  'cutPriority.applied': 'Cut priorities applied to {count} elements',
+  'cutPriority.none': 'No structural elements to cut',
 } as const satisfies Record<string, TranslationValue>;

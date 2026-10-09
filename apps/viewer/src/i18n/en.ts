@@ -110,6 +110,7 @@ import { draftingStandardsEn } from './catalogues/drafting-standards.en';
 import { joineryEn } from './catalogues/joinery.en';
 import { elementTypesEn } from './catalogues/element-types.en';
 import { roofEn } from './catalogues/roof.en';
+import { civilEn } from './catalogues/civil.en';
 import { section2dEn } from './catalogues/section-2d.en';
 import { sheetsPdfEn } from './catalogues/sheets-pdf.en';
 import { searchModalEn } from './catalogues/search-modal.en';
@@ -172,6 +173,7 @@ export const en = {
   ...joineryEn,
   ...elementTypesEn,
   ...roofEn,
+  ...civilEn,
   ...section2dEn,
   ...costPanelEn,
   ...ribbonToolbarEn,

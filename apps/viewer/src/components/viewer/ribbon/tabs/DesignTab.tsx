@@ -12,7 +12,7 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { useViewerStore } from '@/store';
@@ -98,7 +98,10 @@ export function DesignTab() {
           <RibbonCommandSmallButton commandId="design:join-butt" icon={JoinButt} />
           <RibbonCommandSmallButton commandId="design:join-swap" icon={JoinSwap} />
         </RibbonSmallStack>
-        <RibbonCommandSmallButton commandId="design:join-auto-mitre" icon={JoinAuto} active={autoMitre} />
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:join-auto-mitre" icon={JoinAuto} active={autoMitre} />
+          <RibbonCommandSmallButton commandId="design:cut-priorities" icon={CutPriority} />
+        </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.model')}>
