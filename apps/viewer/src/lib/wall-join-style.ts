@@ -23,6 +23,7 @@ import { requestRemesh } from '@/lib/remesh/remesh-service';
 
 export { defaultWallJoinStyle, setDefaultWallJoinStyle, useWallJoinPrefs, type WallJoinStyle } from './wall-join-prefs';
 import type { WallJoinStyle } from './wall-join-prefs';
+import { ensureEditMode } from '@/project/edit-mode';
 
 export type WallJoinChange = { style: WallJoinStyle } | { swap: true };
 
@@ -49,6 +50,7 @@ function selectionByModel(): Map<string, Set<number>> {
  * the selected walls. `corners: 0` when the selection has none.
  */
 export function changeSelectedWallJoins(change: WallJoinChange): WallJoinChangeOutcome {
+  ensureEditMode();
   let corners = 0;
   for (const [modelId, walls] of selectionByModel()) {
     const state = useViewerStore.getState();

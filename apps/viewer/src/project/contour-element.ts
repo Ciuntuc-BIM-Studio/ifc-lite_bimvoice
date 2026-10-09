@@ -30,6 +30,7 @@ import { modelLevels } from './model-levels';
 import { selfIntersects } from '@/drafting/arrangement';
 import { pointInPolygon } from '@/drafting/offset';
 import type { ProjectView } from './types';
+import { ensureEditMode } from '@/project/edit-mode';
 
 export interface ContourElementSpec {
   ifcClass: string;
@@ -137,6 +138,7 @@ export function prepare(view: ProjectView, plane: SectionPlaneConfig, loops: Pt[
 
 /** The editable model and storey of a view (any geometry, open or closed), with the world → storey-local mapping. */
 export function prepareTarget(view: ProjectView, worldMinY: number): Prepared {
+  ensureEditMode();
   const target = resolveTarget(view, worldMinY);
   if (!target) return { ok: false, error: 'No loaded model has a storey for this view. Load or create a model first.' };
   const state = useViewerStore.getState();

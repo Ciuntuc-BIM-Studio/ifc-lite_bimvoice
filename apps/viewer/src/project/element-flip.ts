@@ -18,6 +18,7 @@ import { invalidateJoineryReads } from '@/joinery/element-spec';
 import { renderIdGlobalId } from './element-guid';
 import { toggleSymbolFlips } from './project-store';
 import { roofSystemOfRenderId } from './roof-system-element';
+import { ensureEditMode } from '@/project/edit-mode';
 
 export interface FlipReport {
   flipped: number;
@@ -28,6 +29,7 @@ export interface FlipReport {
 
 /** Flip the given renderer ids (default: the selection) along their own `axis`. */
 export function flipElements(axis: FlipAxis, renderIds?: readonly number[]): FlipReport {
+  ensureEditMode();
   const s = useViewerStore.getState();
   const ids = new Set<number>(renderIds ?? s.selectedEntityIds ?? []);
   if (!renderIds && s.selectedEntityId !== null && s.selectedEntityId !== undefined) ids.add(s.selectedEntityId);

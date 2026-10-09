@@ -33,6 +33,7 @@ import { isDrawingTabActive, useDocumentTabs } from './document-tabs';
 import { resolveTarget } from './contour-element';
 import { useProjectStore } from './project-store';
 import type { ProjectView } from './types';
+import { ensureEditMode } from '@/project/edit-mode';
 
 export interface LocalScreenMap {
   toScreen(local: Vec2): readonly [number, number];
@@ -92,6 +93,7 @@ export function aimSessionAtPlan(view: ProjectView): boolean {
  * have no storey plane to draw on yet.
  */
 export function startBimTool(id: CommandId): void {
+  ensureEditMode();
   const view = frontView();
   if (view) {
     if (view.kind !== 'plan') {

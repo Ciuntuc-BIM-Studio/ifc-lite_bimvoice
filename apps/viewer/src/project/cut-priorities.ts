@@ -23,6 +23,7 @@ import { useViewerStore } from '@/store';
 import { recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 import { registerCommitFollowUp } from '@/lib/commands/modeling/transaction';
 import { runInspectorEdit } from '@/components/viewer/model-inspector/inspector-edits';
+import { ensureEditMode } from '@/project/edit-mode';
 
 function live(modelId: string) {
   const s = useViewerStore.getState();
@@ -74,6 +75,7 @@ registerCommitFollowUp((_store, modelId, result) => {
 
 /** Apply cut priorities to the selection, or to every structural element of every model when nothing is selected. */
 export function applyCutPriorities(): { models: number; elements: number; attempted: number } {
+  ensureEditMode();
   const s = useViewerStore.getState();
   const picked = new Set<number>(s.selectedEntityIds ?? []);
   if (s.selectedEntityId !== null && s.selectedEntityId !== undefined) picked.add(s.selectedEntityId);
@@ -101,6 +103,7 @@ export function applyCutPriorities(): { models: number; elements: number; attemp
 
 /** An element's own cut priority (0 … 100), or back to its class's (null); re-cuts it, one undo step. */
 export function setCutPriority(modelId: string, expressId: number, priority: number | null): boolean {
+  ensureEditMode();
   return runInspectorEdit(modelId, (tx) => {
     if (priority === null) tx.store.deleteProperty(modelId, expressId, CUT_PRIORITY_PSET, CUT_PRIORITY_PROP);
     else tx.store.setProperty(modelId, expressId, CUT_PRIORITY_PSET, CUT_PRIORITY_PROP, Math.round(Math.max(0, Math.min(100, priority))), PropertyValueType.Integer);

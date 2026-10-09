@@ -36,6 +36,7 @@ import { applyRoofSystem, roofSystemOfRenderId } from '@/project/roof-system-ele
 import { authoredKindOf } from '@/lib/commands/modeling/authored-kinds';
 import { currentType, elementType } from './catalog';
 import { TYPE_CLASS, layersThickness, type ElementTypeKind, type ElementTypeSpec, type RoofTypeSpec } from './spec';
+import { ensureEditMode } from '@/project/edit-mode';
 
 /** The entry as a type object: class, name, mark, layers, and itself as the stored spec. */
 export function catalogInput(spec: ElementTypeSpec): CatalogTypeInput | null {
@@ -104,6 +105,7 @@ export function roofSpecFromType(spec: RoofSystemSpec, type: RoofTypeSpec): Roof
 
 /** Push a changed entry to every loaded model that uses it. */
 export function pushElementType(spec: ElementTypeSpec): TypePushReport {
+  ensureEditMode();
   const report: TypePushReport = { models: 0, elements: 0, refused: [] };
   const s = useViewerStore.getState();
   for (const [modelId, model] of s.models) {
@@ -145,6 +147,7 @@ export function pushElementType(spec: ElementTypeSpec): TypePushReport {
 
 /** Type `ids` (one model) by `spec` and fit them to it. One undo step. */
 export function retypeElements(modelId: string, ids: readonly number[], spec: ElementTypeSpec): boolean {
+  ensureEditMode();
   const input = catalogInput(spec);
   if (!input || ids.length === 0) return false;
   return runInspectorEdit(modelId, (tx) => {
@@ -189,6 +192,7 @@ const OCCURRENCE: Partial<Record<ElementTypeKind, AuthoredElementKind>> = { wall
 
 /** Type the selected elements of the entry's kind by it (roof systems: rebuild them with its build-up). */
 export function applyTypeToSelection(spec: ElementTypeSpec): { updated: number; refused: string[] } {
+  ensureEditMode();
   const s = useViewerStore.getState();
   const ids = new Set<number>(s.selectedEntityIds ?? []);
   if (s.selectedEntityId !== null && s.selectedEntityId !== undefined) ids.add(s.selectedEntityId);

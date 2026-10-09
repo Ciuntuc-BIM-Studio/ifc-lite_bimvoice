@@ -24,6 +24,7 @@ import type { Pt } from '@/drafting/types';
 import type { HostedFillKind, HostedFillSpec } from '@/store/slices/mutation-hosted-fill';
 import { modelEditTarget } from '@/store/slices/mutation-modelling-records';
 import { towardViewer } from './contour-element';
+import { ensureEditMode } from '@/project/edit-mode';
 
 export interface HostedPlacement {
   modelId: string;
@@ -89,6 +90,7 @@ export function hostedPlacementAt(kind: HostedFillKind, renderId: number | null,
 
 /** Put the filling in; null on success, else why not. */
 export function placeHosted(kind: HostedFillKind, at: HostedPlacement): string | null {
+  ensureEditMode();
   const s = useViewerStore.getState();
   // Editing happens in the model workspace (as the plan's door / window tools do).
   if (!s.editEnabled && !s.enterModelWorkspace({ modelId: at.modelId, storeyId: at.storeyId })) return 'The model cannot be edited.';

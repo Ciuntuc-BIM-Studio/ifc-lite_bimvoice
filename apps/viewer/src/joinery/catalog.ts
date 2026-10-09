@@ -21,6 +21,7 @@ import { requestRemesh } from '@/lib/remesh/remesh-service';
 import { useProjectStore } from '@/project/project-store';
 import { freshProjectId } from '@/project/view-defaults';
 import { invalidateJoineryReads } from './element-spec';
+import { ensureEditMode } from '@/project/edit-mode';
 
 type State = ReturnType<typeof useProjectStore.getState>;
 
@@ -99,6 +100,7 @@ function eachEditableModel(run: (modelId: string) => void): void {
 
 /** Rewrite `spec`'s IFC type wherever it is placed and refit its occurrences. */
 export function pushJoinery(spec: JoinerySpec): JoineryModelOutcome {
+  ensureEditMode();
   const out: JoineryModelOutcome = { updated: 0, refused: [] };
   eachEditableModel((modelId) => {
     try {
@@ -121,6 +123,7 @@ export function pushJoinery(spec: JoinerySpec): JoineryModelOutcome {
  * and every occurrence of the type with it.
  */
 export function resizeJoineryType(spec: JoinerySpec, size: { width?: number; height?: number }): JoineryModelOutcome {
+  ensureEditMode();
   const next = { ...spec, ...size };
   if (joineryEntry(spec.id)) updateJoinery(next);
   else importJoinery([next]);
@@ -129,6 +132,7 @@ export function resizeJoineryType(spec: JoinerySpec, size: { width?: number; hei
 
 /** Move the selected doors / windows of `spec`'s kind to it. */
 export function applyJoineryToSelection(spec: JoinerySpec): JoineryModelOutcome {
+  ensureEditMode();
   const s = useViewerStore.getState();
   const ids = new Set<number>(s.selectedEntityIds ?? []);
   if (s.selectedEntityId !== null && s.selectedEntityId !== undefined) ids.add(s.selectedEntityId);

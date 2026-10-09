@@ -21,10 +21,15 @@ import { DraftingStandardsDialog } from '../drafting/standards/DraftingStandards
 import { JoineryDialog } from '../joinery/JoineryDialog';
 import { RoofSystemDialog } from '../roof/RoofSystemDialog';
 import { CorridorDialog } from '../civil/CorridorDialog';
+import { GroupEditBar } from '../groups/GroupEditBar';
+import { installGroupBehaviour } from '@/project/element-groups';
 import '@/joinery/placement';
 import '@/element-types/model-sync';
 import '@/project/cut-priorities';
 import { ElementTypesDialog } from '../element-types/ElementTypesDialog';
+
+// Clicking a member selects its group; a group in edit mode keeps the rest locked.
+installGroupBehaviour();
 
 type LeftTab = 'model' | 'project';
 
@@ -85,6 +90,7 @@ export function LeftNavigator() {
       <ElementTypesDialog />
       <RoofSystemDialog />
       <CorridorDialog />
+      <GroupEditBar />
     </div>
   );
 }

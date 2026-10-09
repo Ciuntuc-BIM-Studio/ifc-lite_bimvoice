@@ -28,6 +28,7 @@ import { setDraftParams } from '@/drafting/draft-store';
 import { useProjectStore } from './project-store';
 import { findElementByGlobalId, prepare, type ContourElementResult } from './contour-element';
 import type { ProjectView } from './types';
+import { ensureEditMode } from '@/project/edit-mode';
 
 type Vec2 = [number, number];
 
@@ -132,6 +133,7 @@ export function roofSystemByGlobalId(modelId: string, globalId: string): RoofSys
 
 /** Regenerate a roof system from a changed spec. */
 export function applyRoofSystem(ref: Pick<RoofSystemRef, 'modelId' | 'roofId'>, spec: RoofSystemSpec): { ok: true } | { ok: false; error: string } {
+  ensureEditMode();
   const storeyId = storeyOf(ref.modelId, ref.roofId);
   if (storeyId === null) return { ok: false, error: 'The roof is not on a storey.' };
   try {
@@ -167,6 +169,7 @@ export function updateRoofSystemOutline(view: ProjectView, plane: SectionPlaneCo
  * plan, unlinked.
  */
 export function deleteRoofSystem(ref: Pick<RoofSystemRef, 'modelId' | 'roofId'>): { ok: true } | { ok: false; error: string } {
+  ensureEditMode();
   const get = useViewerStore.getState;
   const globalId = roofGuid(ref);
   try {

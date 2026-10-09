@@ -30,6 +30,7 @@ import { setDraftParams } from '@/drafting/draft-store';
 import { useProjectStore } from '@/project/project-store';
 import { findElementByGlobalId, prepareTarget } from '@/project/contour-element';
 import type { ProjectView } from '@/project/types';
+import { ensureEditMode } from '@/project/edit-mode';
 
 type V3 = [number, number, number];
 
@@ -145,6 +146,7 @@ export function readCorridorSpec(modelId: string, corridorId: number): CorridorS
 
 /** Regenerate a corridor from a changed spec, one undo step. */
 export function applyCorridor(ref: Pick<CorridorRef, 'modelId' | 'corridorId'>, spec: CorridorSpec): { ok: true; volumes: { cut: number; fill: number } } | { ok: false; error: string } {
+  ensureEditMode();
   const storeyId = storeyOf(ref.modelId, ref.corridorId);
   if (storeyId === null) return { ok: false, error: 'The corridor is not on a storey.' };
   try {
@@ -178,6 +180,7 @@ export function updateCorridorPolyline(view: ProjectView, plane: SectionPlaneCon
 
 /** Delete a corridor whole (courses, slopes, alignment), one undo step; a polyline it came from stays, unlinked. */
 export function deleteCorridor(ref: Pick<CorridorRef, 'modelId' | 'corridorId'>): { ok: true } | { ok: false; error: string } {
+  ensureEditMode();
   const get = useViewerStore.getState;
   const m = live(ref.modelId);
   const globalId = m?.view?.getNewEntity(ref.corridorId)?.attributes[0] ?? m?.dataStore.entities.getGlobalId(ref.corridorId) ?? null;

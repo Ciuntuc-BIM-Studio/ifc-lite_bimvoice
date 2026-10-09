@@ -11,13 +11,14 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { startBimTool } from '@/project/model-command-bridge';
 import { openJoinery } from '@/joinery/dialog-store';
 import { openElementTypes } from '@/element-types/dialog-store';
 import { applyCutPriorities } from '@/project/cut-priorities';
+import { editSelectedGroup, groupSelection, ungroupSelection, useGroupPrefs, type GroupOutcome } from '@/project/element-groups';
 import { openRoofForSelection } from '@/project/roof-dialog-store';
 import { roofSystemOfRenderId } from '@/project/roof-system-element';
 import { useViewerStore } from '@/store';
@@ -74,6 +75,24 @@ function flip(axis: 'x' | 'y'): () => void {
   };
 }
 
+/** Say what a group action did, or why it did not. */
+function groupToast(outcome: GroupOutcome, ok: (o: Extract<GroupOutcome, { ok: true }>) => string): void {
+  if (outcome.ok) toast.success(ok(outcome));
+  else toast.info(resolve(`groups.error.${outcome.error}`));
+}
+
+function makeGroup(): void {
+  groupToast(groupSelection(), (o) => resolve('groups.created', { name: o.group?.name ?? '', count: o.group?.members.length ?? 0 }));
+}
+
+function ungroup(): void {
+  groupToast(ungroupSelection(), (o) => resolve('groups.ungrouped', { count: o.count ?? 0 }));
+}
+
+function editGroup(): void {
+  if (!editSelectedGroup()) toast.info(resolve('groups.error.noGroup'));
+}
+
 /** Cut priorities on the selection, or on every structural element when nothing is selected. */
 function runCutPriorities(): void {
   const { elements, attempted } = applyCutPriorities();
@@ -114,6 +133,10 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:cut-priorities', labelKey: 'cutPriority.command', keywords: 'cut priority intersection column wall slab beam boolean clean-up join', category: 'Tools', icon: CutPriority, surfaces: ribbonOnly, enabled: always, run: runCutPriorities },
   { id: 'design:element-types', labelKey: 'elementTypes.open', keywords: 'type types catalogue wall slab column beam roof opening layers build-up section configurator', category: 'Tools', icon: ElementTypes, surfaces: ribbonOnly, enabled: always, run: () => openElementTypes() },
   { id: 'design:joinery', labelKey: 'joinery.open', keywords: 'door window type configurator catalogue joinery frame sash tilt turn schedule', category: 'Tools', icon: JoineryTypes, surfaces: ribbonOnly, enabled: always, run: () => openJoinery() },
+  { id: 'design:group', labelKey: 'groups.cmd.group', keywords: 'group elements together revit model group select move', category: 'Tools', icon: GroupMake, surfaces: ribbonOnly, enabled: always, run: makeGroup },
+  { id: 'design:ungroup', labelKey: 'groups.cmd.ungroup', keywords: 'ungroup dissolve group', category: 'Tools', icon: GroupUngroup, surfaces: ribbonOnly, enabled: always, run: ungroup },
+  { id: 'design:group-edit', labelKey: 'groups.cmd.edit', keywords: 'edit group in place isolate add remove members finish', category: 'Tools', icon: GroupEdit, surfaces: ribbonOnly, enabled: always, run: editGroup },
+  { id: 'design:group-select', labelKey: 'groups.cmd.selectGroups', keywords: 'select whole groups toggle members', category: 'Tools', icon: GroupSelect, surfaces: ribbonOnly, enabled: always, run: () => useGroupPrefs.setState({ selectGroups: !useGroupPrefs.getState().selectGroups }) },
   { id: 'design:flip-x', labelKey: 'drafting.flip.x', keywords: 'flip mirror x left right door hinge hand column beam element', category: 'Tools', icon: DoorFlipHand, surfaces: ribbonOnly, enabled: always, run: flip('x') },
   { id: 'design:flip-y', labelKey: 'drafting.flip.y', keywords: 'flip mirror y front back door swing side wall layers element', category: 'Tools', icon: DoorFlipSide, surfaces: ribbonOnly, enabled: always, run: flip('y') },
   { id: 'design:bim-room', labelKey: 'drafting.bim.room', keywords: 'room space bim place', category: 'Tools', icon: BimRoom, surfaces: ribbonOnly, enabled: always, run: bim('room.place') },

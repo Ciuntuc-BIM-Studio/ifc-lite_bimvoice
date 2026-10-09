@@ -12,7 +12,7 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  JoinAuto, JoinButt, JoinMitre, JoinSwap, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide, CutPriority,
+  JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { useViewerStore } from '@/store';
@@ -20,6 +20,7 @@ import { useWallJoinPrefs } from '@/lib/wall-join-prefs';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { useDrafting3dPref } from '@/lib/drafting-3d-prefs';
+import { useGroupEdit, useGroupPrefs } from '@/project/element-groups';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
 import { RibbonCommandLargeButton, RibbonCommandSmallButton } from '../command-button';
 
@@ -33,6 +34,8 @@ export function DesignTab() {
   const bim = (id: string) => modelCommand === id;
   const autoMitre = useWallJoinPrefs((s) => s.style === 'mitre');
   const drafting3d = useDrafting3dPref((s) => s.show);
+  const selectGroups = useGroupPrefs((s) => s.selectGroups);
+  const groupEditing = useGroupEdit((s) => s.editing !== null);
 
   return (
     <>
@@ -101,6 +104,15 @@ export function DesignTab() {
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="design:join-auto-mitre" icon={JoinAuto} active={autoMitre} />
           <RibbonCommandSmallButton commandId="design:cut-priorities" icon={CutPriority} />
+        </RibbonSmallStack>
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('groups.group')}>
+        <RibbonCommandLargeButton commandId="design:group" icon={GroupMake} />
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:group-edit" icon={GroupEdit} active={groupEditing} />
+          <RibbonCommandSmallButton commandId="design:ungroup" icon={GroupUngroup} />
+          <RibbonCommandSmallButton commandId="design:group-select" icon={GroupSelect} active={selectGroups} />
         </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />

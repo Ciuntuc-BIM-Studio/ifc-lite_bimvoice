@@ -272,3 +272,7 @@ export {
   CORRIDOR_PSET, addCorridorToStore, addTerrainToStore, corridorOf, corridorParts, corridorsInStore, elementByGlobalId, readCorridor, readTerrainTin,
   regenerateCorridorInStore, removeCorridorFromStore, terrainsInStore, type CorridorResult,
 } from './corridor-store.js';
+export {
+  MODEL_GROUP_TYPE, addToGroupInStore, createGroupInStore, groupMembers, groupOfElement, groupableElements, modelGroups, removeFromGroupInStore, renameGroupInStore, ungroupInStore,
+  type GroupAnchor, type GroupResult, type ModelGroup,
+} from './element-group.js';
