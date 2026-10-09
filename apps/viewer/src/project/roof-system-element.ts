@@ -16,6 +16,7 @@ import {
   addRoofSystemToStore, defaultRoofStructure, orientRoof, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, resolveSpatialAnchor,
   roofSystemOf, type RoofEdgeRule, type RoofLayer, type RoofSystemSpec,
 } from '@ifc-lite/create';
+import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
 import { recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 import { stashAndPruneEntityMesh } from '@/store/slices/mutation-mesh-stash';
@@ -62,9 +63,7 @@ export function defaultRules(outline: readonly Vec2[], d: RoofDefaults): RoofEdg
   return outline.map(() => eave);
 }
 
-function storeyOf(modelId: string, id: number): number | null {
-  return useViewerStore.getState().models.get(modelId)?.ifcDataStore?.spatialHierarchy?.elementToStorey.get(id) ?? null;
-}
+const storeyOf = storeyOfElement;
 
 function afterCommit(modelId: string, storeyId: number, parts: readonly number[], removed: readonly number[], created: boolean, roofId?: number): void {
   const get = useViewerStore.getState;

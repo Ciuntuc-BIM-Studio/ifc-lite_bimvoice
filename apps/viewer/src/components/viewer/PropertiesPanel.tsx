@@ -9,6 +9,7 @@ import { Copy, Check, Building2, Layers, Layers2, FileText, Calculator, Tag, Mou
 import { Badge } from '@/components/ui/badge';
 import { EditToolbar } from './PropertyEditor';
 import { GeometryEditCard } from './GeometryEditCard';
+import { PlacementCard } from './properties/PlacementCard';
 import { ElementCards } from './ElementCards';
 import { ModelBadge } from './ModelBadge';
 import { IconButton } from '@/components/ui/icon-button';
@@ -1572,6 +1573,7 @@ export function PropertiesPanel() {
                   entityId={selectedEntity.expressId}
                   entityLabel={entityType ? `${entityType} #${selectedEntity.expressId}` : `#${selectedEntity.expressId}`}
                 />
+                <PlacementCard modelId={selectedEntity.modelId} expressId={selectedEntity.expressId} />
                 <EditToolbar
                   modelId={selectedEntity.modelId}
                   entityId={selectedEntity.expressId}

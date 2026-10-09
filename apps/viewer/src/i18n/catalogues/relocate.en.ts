@@ -1,0 +1,35 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+import type { TranslationValue } from '../types';
+export const relocateEn = {
+  'relocate.cmd.moveToStorey': 'Move to storey',
+  'relocate.title': 'Move to storey',
+  'relocate.selection': '{count} selected in {model}',
+  'relocate.nothing': 'Select the elements (or a group, a roof, a corridor) to move to another storey first.',
+  'relocate.twoModels': 'The selection spans several models: the elements of {model} are moved.',
+  'relocate.storey': 'Storey',
+  'relocate.storeyOption': '{name} ({elevation} m)',
+  'relocate.keep.storey': 'Keep its place relative to the storey: it moves with the level (a roof drawn on the ground floor sits as high above the new floor)',
+  'relocate.keep.world': 'Keep it where it is in space: only the storey it belongs to changes',
+  'relocate.move': 'Move',
+  'relocate.cancel': 'Cancel',
+  'relocate.moved': '{count} element(s) moved to {storey}',
+  'relocate.failed': 'The elements could not be moved',
+  'placement.title': 'Placement',
+  'placement.storey': 'Storey',
+  'placement.relativeTo.storey': 'Offsets and angles relative to the storey',
+  'placement.relativeTo.parent': 'Offsets and angles relative to its host (#{id})',
+  'placement.x': 'X (m)',
+  'placement.y': 'Y (m)',
+  'placement.z': 'Z (m)',
+  'placement.rx': 'Rotation X (°)',
+  'placement.ry': 'Rotation Y (°)',
+  'placement.rz': 'Rotation Z (°)',
+  'placement.apply': 'Apply',
+  'placement.reset': 'No rotation',
+  'placement.none': 'This element has no local placement to edit.',
+  'placement.keepWorld': 'Keep in space',
+  'placement.keepWorldHint': 'Moving to another storey: keep it where it is in space instead of moving with the level',
+  'placement.applied': 'Placement changed',
+} as const satisfies Record<string, TranslationValue>;

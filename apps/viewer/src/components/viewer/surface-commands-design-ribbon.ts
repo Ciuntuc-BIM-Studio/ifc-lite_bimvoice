@@ -11,7 +11,7 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
+  BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { startBimTool } from '@/project/model-command-bridge';
@@ -25,6 +25,7 @@ import { roofSystemOfRenderId } from '@/project/roof-system-element';
 import { useViewerStore } from '@/store';
 import { selectedGlobalIds } from '@/project/element-guid';
 import { flipElements } from '@/project/element-flip';
+import { openMoveToStorey } from '@/project/element-relocate';
 import { changeSelectedWallJoins, defaultWallJoinStyle, setDefaultWallJoinStyle, type WallJoinChange } from '@/lib/wall-join-style';
 import { startWorkPlaneFromFace } from '@/project/workplane-from-face';
 import { resolve } from '@/i18n/registry';
@@ -139,6 +140,7 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:ungroup', labelKey: 'groups.cmd.ungroup', keywords: 'ungroup dissolve group', category: 'Tools', icon: GroupUngroup, surfaces: ribbonOnly, enabled: always, run: ungroup },
   { id: 'design:group-edit', labelKey: 'groups.cmd.edit', keywords: 'edit group in place isolate add remove members finish', category: 'Tools', icon: GroupEdit, surfaces: ribbonOnly, enabled: always, run: editGroup },
   { id: 'design:group-select', labelKey: 'groups.cmd.selectGroups', keywords: 'select whole groups toggle members', category: 'Tools', icon: GroupSelect, surfaces: ribbonOnly, enabled: always, run: () => useGroupPrefs.setState({ selectGroups: !useGroupPrefs.getState().selectGroups }) },
+  { id: 'design:move-to-storey', labelKey: 'relocate.cmd.moveToStorey', keywords: 'move to storey level floor reassign containment elevation roof group', category: 'Tools', icon: MoveToStorey, surfaces: ribbonOnly, enabled: always, run: openMoveToStorey },
   { id: 'design:flip-x', labelKey: 'drafting.flip.x', keywords: 'flip mirror x left right door hinge hand column beam element', category: 'Tools', icon: DoorFlipHand, surfaces: ribbonOnly, enabled: always, run: flip('x') },
   { id: 'design:flip-y', labelKey: 'drafting.flip.y', keywords: 'flip mirror y front back door swing side wall layers element', category: 'Tools', icon: DoorFlipSide, surfaces: ribbonOnly, enabled: always, run: flip('y') },
   { id: 'design:bim-room', labelKey: 'drafting.bim.room', keywords: 'room space bim place', category: 'Tools', icon: BimRoom, surfaces: ribbonOnly, enabled: always, run: bim('room.place') },

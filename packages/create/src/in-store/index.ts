@@ -54,6 +54,13 @@ export { addFacetedElementToStore, replaceFacetedGeometryInStore, type FacetedIn
 export { elementGeometryRefs, pruneOrphanOverlay } from './overlay-prune.js';
 export { flipElementInStore, type FlipAxis, type FlipOutcome } from './element-flip.js';
 export {
+  aggregatedParts, moveElementsToStoreyInStore, readElementPlacement, setElementPlacementInStore, type ElementPlacement, type MoveToStoreyResult, type StoreyKeep,
+} from './element-relocate.js';
+export {
+  compose as composeFrame3D, eulerFromRotation, frameOfTransform, invert as invertFrame3D, localFrame, rotationFromEuler, transformOfFrame, worldFrame,
+  type Frame3D, type PlacementTransform,
+} from './placement-3d.js';
+export {
   CATALOG_TYPE_PSET, catalogLayerColour, catalogTypeOfElement, ensureCatalogTypeInStore, findCatalogTypeInStore, readCatalogType, rewriteCatalogTypeInStore, setLayerUsageOffset,
   type CatalogAnchor, type CatalogTypeInModel, type CatalogTypeInput, type CatalogTypeLayer,
 } from './catalog-type.js';

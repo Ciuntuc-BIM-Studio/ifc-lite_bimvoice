@@ -25,6 +25,7 @@ import { freshProjectId } from '@/project/view-defaults';
 import type { ProjectCivilDrawing } from '@/project/types';
 import type { DraftEntity, DraftLayer, EntityShape, Pt } from '@/drafting/types';
 import { newDraft } from '@/drafting/draft-store';
+import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
 import { allCorridors, terrainTin, type CorridorRef } from './corridor-element';
 
@@ -71,7 +72,7 @@ export function drawingCorridor(d: ProjectCivilDrawing): CorridorRef | null {
 export function buildCivilDrawing(d: ProjectCivilDrawing, scale = d.scale): CivilDrawing | { error: string } {
   const ref = drawingCorridor(d);
   if (!ref) return { error: resolve('civilDwg.noCorridor') };
-  const storeyId = useViewerStore.getState().models.get(ref.modelId)?.ifcDataStore?.spatialHierarchy?.elementToStorey.get(ref.corridorId) ?? null;
+  const storeyId = storeyOfElement(ref.modelId, ref.corridorId);
   const tin = storeyId === null ? null : terrainTin(ref.modelId, storeyId, ref.spec.terrainGlobalId);
   const terrain = tin ? new Terrain(tin) : null;
   try {

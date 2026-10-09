@@ -12,6 +12,7 @@
 
 import { buildCorridor, defaultAssembly, defaultDesign, finishedGradeSurface, readLandXml, Terrain, writeLandXml, type CorridorSpec } from '@ifc-lite/create';
 import { downloadFile, sanitizeFilename } from '@/lib/export/download';
+import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
 import { recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 import { ensureStoreyPlacement } from '@/store/slices/storeyPlacement';
@@ -24,8 +25,7 @@ import { createTerrain, terrainTin, type CorridorRef } from './corridor-element'
 
 /** Download a corridor as LandXML 1.2. */
 export function exportCorridorLandXml(ref: CorridorRef): void {
-  const s = useViewerStore.getState();
-  const storeyId = s.models.get(ref.modelId)?.ifcDataStore?.spatialHierarchy?.elementToStorey.get(ref.corridorId) ?? null;
+  const storeyId = storeyOfElement(ref.modelId, ref.corridorId);
   const tin = storeyId === null ? null : terrainTin(ref.modelId, storeyId, ref.spec.terrainGlobalId);
   const model = buildCorridor(ref.spec, tin ? new Terrain(tin) : null);
   const xml = writeLandXml({

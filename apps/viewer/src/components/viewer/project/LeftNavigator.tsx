@@ -26,6 +26,7 @@ import { RoofSystemDialog } from '../roof/RoofSystemDialog';
 import { CorridorDialog } from '../civil/CorridorDialog';
 import { GroupEditBar } from '../groups/GroupEditBar';
 import { ProfileLibraryDialog } from '../civil/ProfileLibraryDialog';
+import { MoveToStoreyDialog } from '../properties/MoveToStoreyDialog';
 import { MaterialsDialog } from '../materials/MaterialsDialog';
 import { installGroupBehaviour } from '@/project/element-groups';
 import { installRoofBlocks } from '@/project/roof-block';
@@ -103,6 +104,7 @@ export function LeftNavigator() {
       <GroupEditBar />
       <ProfileLibraryDialog />
       <MaterialsDialog />
+      <MoveToStoreyDialog />
     </div>
   );
 }

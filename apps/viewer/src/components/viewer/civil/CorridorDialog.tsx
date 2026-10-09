@@ -18,6 +18,7 @@ import { useTranslation } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/toast';
+import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
 import { applyCorridor, listTerrains, readCorridorSpec, terrainTin } from '@/civil/corridor-element';
 import { closeCorridorDialog, useCorridorDialog } from '@/civil/corridor-dialog-store';
@@ -35,7 +36,7 @@ export function CorridorDialog() {
   const target = useCorridorDialog((s) => s.open);
   const mutationVersion = useViewerStore((s) => s.mutationVersion);
   const saved = useMemo(() => (target ? readCorridorSpec(target.modelId, target.corridorId) : null), [target, mutationVersion]);
-  const storeyId = useMemo(() => (target ? useViewerStore.getState().models.get(target.modelId)?.ifcDataStore?.spatialHierarchy?.elementToStorey.get(target.corridorId) ?? null : null), [target, mutationVersion]);
+  const storeyId = useMemo(() => (target ? storeyOfElement(target.modelId, target.corridorId) : null), [target, mutationVersion]);
   const terrains = useMemo(() => (target ? listTerrains(target.modelId) : []), [target, mutationVersion]);
   const [draft, setDraft] = useState<CorridorSpec | null>(null);
   const [station, setStation] = useState(0);

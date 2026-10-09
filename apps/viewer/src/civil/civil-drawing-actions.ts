@@ -14,6 +14,7 @@ import { toast } from '@/components/ui/toast';
 import { useProjectStore } from '@/project/project-store';
 import { activateDocumentTab } from '@/project/open-view';
 import { startDraftCommand } from '@/drafting/session';
+import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
 import { selectedCorridor } from './corridor-dialog-store';
 import { addCivilDrawing, civilDrawing, drawingCorridor } from './civil-drawings';
@@ -52,7 +53,7 @@ export function drawCivilOnPlan(drawingId: string): boolean {
   }
   const s = useViewerStore.getState();
   const ds = s.models.get(ref.modelId)?.ifcDataStore;
-  const storeyId = ds?.spatialHierarchy?.elementToStorey.get(ref.corridorId);
+  const storeyId = storeyOfElement(ref.modelId, ref.corridorId) ?? undefined;
   const storeyGuid = storeyId === undefined ? null : ds?.entities.getGlobalId(storeyId) ?? null;
   const plan = useProjectStore.getState().views.find((v) => v.kind === 'plan' && (!storeyGuid || v.level.storeyGlobalIds.includes(storeyGuid)));
   if (!plan) {

@@ -12,7 +12,7 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide, CutPriority,
+  BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { useViewerStore } from '@/store';
@@ -114,6 +114,9 @@ export function DesignTab() {
           <RibbonCommandSmallButton commandId="design:group-edit" icon={GroupEdit} active={groupEditing} />
           <RibbonCommandSmallButton commandId="design:ungroup" icon={GroupUngroup} />
           <RibbonCommandSmallButton commandId="design:group-select" icon={GroupSelect} active={selectGroups} />
+        </RibbonSmallStack>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:move-to-storey" icon={MoveToStorey} />
         </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />

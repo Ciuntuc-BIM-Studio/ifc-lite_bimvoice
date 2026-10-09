@@ -144,6 +144,7 @@ export { default as CutPriority } from '~icons/viewer/cut-priority';
 export { default as RoofSystem } from '~icons/viewer/roof-system';
 export { default as CivilRoad } from '~icons/viewer/civil-road';
 export { default as CivilBridge } from '~icons/viewer/civil-bridge';
+export { default as MoveToStorey } from '~icons/viewer/move-to-storey';
 export { default as CivilProfiles } from '~icons/viewer/civil-profiles';
 export { default as CivilProfileView } from '~icons/viewer/civil-profile-view';
 export { default as CivilSectionViews } from '~icons/viewer/civil-section-views';

@@ -18,6 +18,7 @@ import {
   profileFromGround, readCorridor, readTerrainTin, regenerateCorridorInStore, removeCorridorFromStore, resolveSpatialAnchor, Terrain, terrainsInStore, tinFromMesh,
   type CorridorSpec, type Tin,
 } from '@ifc-lite/create';
+import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
 import { recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 import { stashAndPruneEntityMesh } from '@/store/slices/mutation-mesh-stash';
@@ -49,9 +50,7 @@ function live(modelId: string) {
   return dataStore ? { dataStore, view: s.mutationViews.get(modelId) ?? null } : null;
 }
 
-function storeyOf(modelId: string, id: number): number | null {
-  return useViewerStore.getState().models.get(modelId)?.ifcDataStore?.spatialHierarchy?.elementToStorey.get(id) ?? null;
-}
+const storeyOf = storeyOfElement;
 
 /** The terrains of a model (name and GlobalId), for the configurator's choice. */
 export function listTerrains(modelId: string): { id: number; name: string; globalId: string }[] {
@@ -271,7 +270,7 @@ export function corridorsOnView(view: ProjectView): (CorridorRef & { storeyId: n
     if (!dataStore || !hierarchy) continue;
     const mv = s.mutationViews.get(modelId) ?? null;
     for (const corridorId of corridorsOf(modelId)) {
-      const storeyId = hierarchy.elementToStorey.get(corridorId);
+      const storeyId = storeyOfElement(modelId, corridorId) ?? undefined;
       if (storeyId === undefined || (wanted.size && !wanted.has(dataStore.entities.getGlobalId(storeyId) ?? ''))) continue;
       const spec = readCorridor(dataStore, corridorId, mv);
       if (spec) out.push({ modelId, corridorId, spec, storeyId });

@@ -12,6 +12,7 @@
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import { readRoofSystem, roofGeometry, type RoofGeometry, type RoofSystemSpec } from '@ifc-lite/create';
 import { iterateEffectiveEntityIds } from '@ifc-lite/mutations';
+import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
 import { toGlobalIdFromModels } from '@/store/globalId';
 import { buildStoreyWorkplane } from '@/lib/commands/modeling/workplane';
@@ -48,7 +49,7 @@ export function planRoofs(view: ProjectView, plane: SectionPlaneConfig): PlanRoo
     if (!dataStore || !hierarchy) continue;
     const mv = s.mutationViews.get(modelId) ?? null;
     for (const { expressId: roofId } of iterateEffectiveEntityIds(dataStore, mv, ['IFCROOF'])) {
-      const storeyId = hierarchy.elementToStorey.get(roofId);
+      const storeyId = storeyOfElement(modelId, roofId) ?? undefined;
       if (storeyId === undefined || (wanted.size && !wanted.has(dataStore.entities.getGlobalId(storeyId) ?? ''))) continue;
       let spec: RoofSystemSpec | null = null;
       let geometry: RoofGeometry;
