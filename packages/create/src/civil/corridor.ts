@@ -40,6 +40,8 @@ export interface CorridorSpec {
   components?: CorridorComponent[];
   /** Bridges: a deck over a station range on two abutments with strip footings. */
   bridges?: CorridorBridge[];
+  /** What it was made as: a road (default) or a bridge on its own axis (the configurator opens on the bridge). */
+  kind?: 'road' | 'bridge';
 }
 
 export type DaylightKind = 'cut' | 'fill' | 'none';
@@ -165,7 +167,7 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
   // A bridge's deck sweeps like a centred component that takes the earthworks away.
   const decks = (spec.bridges ?? []).map((b): CorridorComponent => ({
     id: `bridge:${b.id}:deck`, profileId: b.deck.profileId, profile: { ...b.deck.profile, name: `${b.name} — deck` }, side: 'centre', attach: 'axis',
-    offset: b.deck.offset, from: b.from, to: b.to, daylight: 'both',
+    offset: b.deck.offset, from: b.from, to: b.to, daylight: 'both', tilt: b.deck.tilt,
   }));
   const components = [...(spec.components ?? []), ...decks];
   const section = (station: number): CorridorStation => {

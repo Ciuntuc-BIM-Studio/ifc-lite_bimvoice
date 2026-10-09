@@ -8,7 +8,7 @@ export {
   alignmentFromPolyline, alignmentProblem, buildAlignment, clothoidPoint, fitRadius, formatStation, sampleAlignment,
   type AlignmentPI, type AlignmentPoint, type HorizontalAlignment, type HorizontalAlignmentSpec, type AlignmentSegment, type AlignmentSegmentKind,
 } from './alignment.js';
-export { buildProfile, profileFromGround, profileProblem, type ProfilePVI, type VerticalProfile, type VerticalProfileSpec } from './profile.js';
+export { buildProfile, profileFromGround, profileProblem, segmentGrades, withSegmentGrade, type ProfilePVI, type VerticalProfile, type VerticalProfileSpec } from './profile.js';
 export { Terrain, delaunay, parseSurveyPoints, tinFromMesh, type Tin } from './tin.js';
 export {
   assemblyWidth, defaultAssembly, defaultDesign, pavementThickness, requiredSuperelevation, slopesAt, templateAt, templateSide,
@@ -23,10 +23,10 @@ export {
 } from './structure-profile.js';
 export { triangulateWithHoles } from './triangulate.js';
 export {
-  componentFromProfile, componentSection, defaultDaylight, defaultSide, suppressesDaylight, sweepComponent,
+  componentFromProfile, componentSection, defaultDaylight, defaultSide, suppressesDaylight, sweepComponent, tilted,
   type ComponentAttach, type ComponentDaylight, type ComponentSide, type CorridorComponent, type StationFrame, type SweptComponent,
 } from './components.js';
 export { boundsOf, paper, translatePrims, type CivilDrawing, type DrawPen, type DrawPrim } from './drawing-prims.js';
 export { DEFAULT_PROFILE_OPTIONS, profileDrawing, type ProfileDrawingLabels, type ProfileDrawingOptions } from './profile-drawing.js';
 export { DEFAULT_SECTION_OPTIONS, oneSection, sampleStations, sectionsDrawing, type SectionDrawingLabels, type SectionDrawingOptions } from './section-drawing.js';
-export { abutmentSections, abutmentSolids, defaultAbutment, extrudeOutline, type AbutmentSpec, type AbutmentType, type CorridorBridge, type ExtrudedSolid } from './bridge.js';
+export { abutmentPreset, abutmentProfile, abutmentSections, abutmentSolids, bridgeElevation, defaultAbutment, extrudeOutline, type AbutmentSpec, type AbutmentType, type BridgeElevation, type CorridorBridge, type ExtrudedSolid } from './bridge.js';

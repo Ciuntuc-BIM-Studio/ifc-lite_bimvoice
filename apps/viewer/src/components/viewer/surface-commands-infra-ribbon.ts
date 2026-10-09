@@ -10,13 +10,15 @@
  */
 
 import { parseSurveyPoints } from '@ifc-lite/create';
-import { CivilProfileView, CivilSectionViews, CivilProfiles, CivilProfileDraft, CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain } from '@/icons';
+import { CivilProfileView, CivilSectionViews, CivilProfiles, CivilProfileDraft, CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain, CivilBridge } from '@/icons';
 import { resolve } from '@/i18n/registry';
 import { toast } from '@/components/ui/toast';
 import { isDrawingTabActive } from '@/project/document-tabs';
 import { activeWorkPlane, startDraftCommand } from '@/drafting/session';
-import { createTerrainFromPoints, createTerrainFromSelection } from '@/civil/corridor-element';
-import { openCorridorForSelection, selectedCorridor } from '@/civil/corridor-dialog-store';
+import { createCorridorFromPolyline, createTerrainFromPoints, createTerrainFromSelection } from '@/civil/corridor-element';
+import { openCorridorDialog, openCorridorForSelection, selectedCorridor } from '@/civil/corridor-dialog-store';
+import { axisPoints } from '@/drafting/commands/road';
+import { useProjectStore } from '@/project/project-store';
 import { exportCorridorLandXml, importLandXml } from '@/civil/landxml-exchange';
 import { newCivilDrawing } from '@/civil/civil-drawing-actions';
 import { openProfileLibrary, profileFromDraft, structureProfile } from '@/civil/profile-library';
@@ -57,6 +59,28 @@ function road(): void {
     return;
   }
   startDraftCommand('road');
+}
+
+let bridges = 0;
+
+/** A bridge along the axis selected on the plan in front (a polyline or line), else pick one (BRIDGE). */
+function bridge(): void {
+  if (!isDrawingTabActive()) {
+    toast.info(resolve('drafting.needsView'));
+    return;
+  }
+  const ids = [...useDraftingSession.getState().selection];
+  const draft = ids.length === 1 ? useProjectStore.getState().drafts.find((d) => d.id === ids[0]) : undefined;
+  const pts = draft ? axisPoints(draft.shape) : null;
+  const { view, plane } = activeWorkPlane();
+  if (!draft || !pts || draft.params.ifcGlobalId || !view || !plane || view.kind !== 'plan') {
+    startDraftCommand('bridge');
+    return;
+  }
+  const made = createCorridorFromPolyline(view, plane, pts, { name: `Bridge ${++bridges}`, radius: 50, bridge: true }, draft.id);
+  if (!made.ok) { toast.error(made.error); return; }
+  toast.success(resolve('civil.bridgeCreated'));
+  openCorridorDialog({ modelId: made.modelId, corridorId: made.elementId });
 }
 
 async function terrainFromPoints(): Promise<void> {
@@ -114,6 +138,7 @@ export const RIBBON_INFRA_SURFACE_COMMANDS = [
   { id: 'infra:profiles', labelKey: 'profiles.cmd.library', keywords: 'profile library retaining wall tunnel bridge deck barrier kerb ditch cross section', category: 'Tools', icon: CivilProfiles, surfaces: ribbonOnly, enabled: always, run: () => openProfileLibrary() },
   { id: 'infra:profile-from-draft', labelKey: 'profiles.cmd.fromDraft', keywords: 'profile from drawing contour polyline library', category: 'Tools', icon: CivilProfileDraft, surfaces: ribbonOnly, enabled: always, run: profileFromSelection },
   { id: 'infra:road', labelKey: 'civil.cmd.road', keywords: 'road corridor alignment polyline civil highway', category: 'Tools', icon: CivilRoad, surfaces: ribbonOnly, enabled: always, run: road },
+  { id: 'infra:bridge', labelKey: 'civil.cmd.bridge', keywords: 'bridge deck abutment axis alignment polyline viaduct pod', category: 'Tools', icon: CivilBridge, surfaces: ribbonOnly, enabled: always, run: bridge },
   { id: 'infra:corridor', labelKey: 'civil.cmd.corridor', keywords: 'corridor configurator alignment profile assembly superelevation daylight cut fill', category: 'Tools', icon: CivilCorridor, surfaces: ribbonOnly, enabled: always, run: () => { if (!openCorridorForSelection()) toast.info(resolve('civil.noSelection')); } },
   { id: 'infra:delete-corridor', labelKey: 'civil.cmd.deleteCorridor', keywords: 'delete corridor road remove', category: 'Tools', icon: CivilDelete, surfaces: ribbonOnly, enabled: always, run: () => { const ref = corridorOrToast(); if (ref) void deleteCorridorWithConfirm(ref); } },
   { id: 'infra:terrain-points', labelKey: 'civil.cmd.terrainPoints', keywords: 'terrain survey points csv xyz penzd tin delaunay', category: 'Tools', icon: CivilPoints, surfaces: ribbonOnly, enabled: always, run: () => { void terrainFromPoints(); } },

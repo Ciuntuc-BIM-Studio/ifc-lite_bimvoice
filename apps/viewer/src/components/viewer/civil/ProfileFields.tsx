@@ -17,7 +17,7 @@ import { INPUT, Section } from '../joinery/JoineryFields';
 import { moveOrigin, reflectProfile } from '@/civil/profile-library';
 import { Cell } from './CorridorFields';
 
-const KINDS: StructureKind[] = ['retaining-wall', 'tunnel', 'bridge-deck', 'barrier', 'kerb', 'ditch', 'custom'];
+const KINDS: StructureKind[] = ['retaining-wall', 'tunnel', 'bridge-deck', 'abutment', 'barrier', 'kerb', 'ditch', 'custom'];
 const CLASSES = ['IfcWall', 'IfcSlab', 'IfcKerb', 'IfcRailing', 'IfcBeam', 'IfcColumn', 'IfcFooting', 'IfcCourse', 'IfcBuildingElementProxy'];
 
 interface Props {

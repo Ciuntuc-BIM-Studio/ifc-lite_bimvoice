@@ -5,7 +5,9 @@
 /**
  * The corridor configurator, on one corridor: the corridor, alignment and
  * profile tables on the left, the assembly in the middle, the plan /
- * profile / section previews on the right (live, from the draft), Apply
+ * bridge / profile / section previews on the right (live, from the draft).
+ * A corridor made as a bridge (BRIDGE) opens on its bridge: deck and
+ * abutments in the middle, the pavement on the deck under them. Apply
  * regenerating the block in the model (one undo step). From here the
  * corridor is exported to LandXML or deleted.
  */
@@ -26,6 +28,7 @@ import { AssemblyFields } from './AssemblyFields';
 import { ComponentFields } from './ComponentFields';
 import { BridgeFields } from './BridgeFields';
 import { PlanPreview, ProfilePreview, SectionPreview } from './CorridorPreview';
+import { BridgePreview } from './BridgePreview';
 
 export function CorridorDialog() {
   const { t } = useTranslation();
@@ -50,6 +53,9 @@ export function CorridorDialog() {
   }, [draft, problem, terrain]);
   const model = built && 'stations' in built ? built : null;
   const dirty = !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved);
+  const bridgeMode = draft?.kind === 'bridge';
+  const bridges = draft?.bridges ?? [];
+  const shownBridge = bridges.find((b) => station >= Math.min(b.from, b.to) && station <= Math.max(b.from, b.to)) ?? bridges[0] ?? null;
   const maxE = model ? Math.max(0, ...model.alignment.segments.filter((s) => s.kind === 'arc').map((s) => requiredSuperelevation(s.radius, draft!.design))) : 0;
 
   const apply = () => {
@@ -62,16 +68,17 @@ export function CorridorDialog() {
   return (
     <Dialog open={target !== null} onOpenChange={(o) => { if (!o) closeCorridorDialog(); }}>
       <DialogContent className="sm:max-w-[1240px] max-h-[92vh] overflow-hidden">
-        <DialogHeader><DialogTitle>{t('civil.title', { name: draft?.name ?? '' })}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t(bridgeMode ? 'civil.bridgeTitle' : 'civil.title', { name: draft?.name ?? '' })}</DialogTitle></DialogHeader>
         {draft ? (
-          <div className="grid h-[70vh] grid-cols-[25rem_19rem_1fr] gap-3 text-xs">
+          <div className={`grid h-[70vh] gap-3 text-xs ${bridgeMode ? 'grid-cols-[23rem_21rem_1fr]' : 'grid-cols-[25rem_19rem_1fr]'}`}>
             <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
               <GeneralFields spec={draft} onChange={setDraft} terrains={terrains} />
               <AlignmentFields spec={draft} onChange={setDraft} />
               <ProfileFields spec={draft} onChange={setDraft} terrain={terrain} />
-              <BridgeFields spec={draft} onChange={setDraft} />
+              {!bridgeMode ? <BridgeFields spec={draft} onChange={setDraft} /> : null}
             </div>
             <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
+              {bridgeMode ? <BridgeFields spec={draft} onChange={setDraft} /> : null}
               <AssemblyFields spec={draft} onChange={setDraft} />
               <ComponentFields spec={draft} onChange={setDraft} />
               <p className="text-zinc-500">{t('civil.hint.schema')}</p>
@@ -84,7 +91,11 @@ export function CorridorDialog() {
               ) : null}
               {model ? (
                 <>
-                  <PlanPreview model={model} width={440} height={240} label={t('civil.preview.plan')} station={station} />
+                  <PlanPreview model={model} width={440} height={bridgeMode ? 180 : 240} label={t('civil.preview.plan')} station={station} />
+                  {shownBridge ? (
+                    <BridgePreview model={model} bridge={shownBridge} terrain={terrain} width={440} height={200} label={t('civil.preview.bridge', { name: shownBridge.name })} station={station}
+                      caption={(span, heights, ve) => t('civil.preview.bridgeCaption', { span, heights, ve })} />
+                  ) : null}
                   <ProfilePreview model={model} terrain={terrain} width={440} height={140} label={t('civil.preview.profile')} station={station} />
                   <label className="flex items-center gap-2">
                     <span className="text-zinc-500">{t('civil.preview.station')}</span>

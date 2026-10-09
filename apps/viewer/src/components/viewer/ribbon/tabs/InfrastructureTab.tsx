@@ -4,12 +4,12 @@
 
 /**
  * Ribbon · Infrastructure tab — Civil-style road modelling on the floor
- * plan in front: terrains, road corridors along drawn polylines, the
+ * plan in front: terrains, road corridors and bridges along drawn polylines, the
  * corridor configurator, and LandXML in and out. The buttons are the
  * registered `infra:*` commands (`surface-commands-infra-ribbon.ts`).
  */
 
-import { CivilProfileView, CivilSectionViews, CivilProfiles, CivilProfileDraft, CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain } from '@/icons';
+import { CivilProfileView, CivilSectionViews, CivilProfiles, CivilProfileDraft, CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain, CivilBridge } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -27,6 +27,7 @@ export function InfrastructureTab() {
       <RibbonGroupDivider />
       <RibbonGroup label={t('civil.group.road')}>
         <RibbonCommandLargeButton commandId="infra:road" icon={CivilRoad} active={commandId === 'road'} />
+        <RibbonCommandLargeButton commandId="infra:bridge" icon={CivilBridge} active={commandId === 'bridge'} />
         <RibbonCommandLargeButton commandId="infra:corridor" icon={CivilCorridor} />
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="infra:delete-corridor" icon={CivilDelete} />

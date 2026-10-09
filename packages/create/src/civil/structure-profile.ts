@@ -19,7 +19,7 @@
 
 export type P2 = [number, number];
 
-export type StructureKind = 'retaining-wall' | 'tunnel' | 'bridge-deck' | 'barrier' | 'kerb' | 'ditch' | 'custom';
+export type StructureKind = 'retaining-wall' | 'tunnel' | 'bridge-deck' | 'abutment' | 'barrier' | 'kerb' | 'ditch' | 'custom';
 
 export interface ProfileAnchor {
   name: string;
@@ -44,7 +44,7 @@ export interface StructureProfile {
   objectType?: string;
 }
 
-export type PresetId = 'cantilever-wall' | 'gravity-wall' | 'box-tunnel' | 'arch-tunnel' | 'deck-slab' | 'concrete-barrier' | 'kerb' | 'lined-ditch';
+export type PresetId = 'cantilever-wall' | 'gravity-wall' | 'box-tunnel' | 'arch-tunnel' | 'deck-slab' | 'wall-abutment' | 'gravity-abutment' | 'concrete-barrier' | 'kerb' | 'lined-ditch';
 
 export interface PresetParam {
   key: string;
@@ -130,6 +130,27 @@ export const PROFILE_PRESETS: Readonly<Record<PresetId, PresetDef>> = {
         holes: [],
         anchors: [{ name: 'leftEdge', at: [-w, 0] }, { name: 'rightEdge', at: [w, 0] }, { name: 'soffit', at: [0, -D] }],
       };
+    },
+  },
+  // Abutments: origin on the front face at the bearing seat (the deck's soffit); x back into the
+  // embankment, y up. In a bridge the height reaches down to the footing and the back wall up to the
+  // deck's top (`bridge.ts`).
+  'wall-abutment': {
+    kind: 'abutment', name: 'Wall abutment', material: 'Reinforced concrete', color: '#a8a29e',
+    ifcClass: 'IfcWall', predefinedType: 'USERDEFINED', objectType: 'Abutment',
+    params: [{ key: 'height', default: 6, min: 0.5 }, { key: 'stem', default: 1, min: 0.2 }, { key: 'backwall', default: 0.4, min: 0.15 }, { key: 'backwallHeight', default: 1.2, min: 0.3 }],
+    build: ({ height: H, stem: t, backwall, backwallHeight: hb }) => {
+      const tb = Math.min(backwall, t);
+      return { outer: [[0, -H], [t, -H], [t, hb], [t - tb, hb], [t - tb, 0], [0, 0]], holes: [], anchors: [{ name: 'seat', at: [0, 0] }, { name: 'top', at: [t, hb] }] };
+    },
+  },
+  'gravity-abutment': {
+    kind: 'abutment', name: 'Gravity abutment', material: 'Mass concrete', color: '#a8a29e',
+    ifcClass: 'IfcWall', predefinedType: 'USERDEFINED', objectType: 'Abutment',
+    params: [{ key: 'height', default: 6, min: 0.5 }, { key: 'stem', default: 1.2, min: 0.2 }, { key: 'base', default: 3, min: 0.2 }, { key: 'backwall', default: 0.4, min: 0.15 }, { key: 'backwallHeight', default: 1.2, min: 0.3 }],
+    build: ({ height: H, stem: t, base, backwall, backwallHeight: hb }) => {
+      const tb = Math.min(backwall, t), b = Math.max(base, t);
+      return { outer: [[0, -H], [b, -H], [t, 0], [t, hb], [t - tb, hb], [t - tb, 0], [0, 0]], holes: [], anchors: [{ name: 'seat', at: [0, 0] }, { name: 'top', at: [t, hb] }] };
     },
   },
   'concrete-barrier': {
@@ -289,7 +310,7 @@ export function profileIfcClass(p: Pick<StructureProfile, 'ifcClass' | 'predefin
 
 export const PROFILE_LIBRARY_FORMAT = 'ifc-lite-structure-profiles';
 export const PROFILE_LIBRARY_VERSION = 1;
-const KINDS: readonly StructureKind[] = ['retaining-wall', 'tunnel', 'bridge-deck', 'barrier', 'kerb', 'ditch', 'custom'];
+const KINDS: readonly StructureKind[] = ['retaining-wall', 'tunnel', 'bridge-deck', 'abutment', 'barrier', 'kerb', 'ditch', 'custom'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);

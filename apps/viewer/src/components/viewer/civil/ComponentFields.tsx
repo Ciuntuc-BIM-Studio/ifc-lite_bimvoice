@@ -5,7 +5,8 @@
 /**
  * The corridor's components: library profiles swept over a station range —
  * which profile, on which side, attached where, from / to, offset, whether
- * they replace the earthwork slopes, and (a wall from a preset) whether
+ * they replace the earthwork slopes, the cross-fall it is turned by in its
+ * own plane, and (a wall from a preset) whether
  * their height follows the ground. "Refresh" copies the library's current
  * version of the profile in.
  */
@@ -82,7 +83,7 @@ export function ComponentFields({ spec, onChange }: Props) {
             {editing !== c.id ? (
               <div className="flex justify-center"><ProfileCanvas profile={c.profile} width={260} height={90} /></div>
             ) : (
-              <ComponentProfileEditor component={c} onChange={(next) => set(components.map((x, k) => (k === i ? next : x)))} />
+              <ComponentProfileEditor profileId={c.profileId} profile={c.profile} onChange={(profileId, profile) => patch(i, { profileId, profile })} />
             )}
             <div className="grid grid-cols-3 gap-1">
               <select aria-label={t('civil.components.side')} className={INPUT} value={c.side} onChange={(e) => patch(i, { side: e.target.value as ComponentSide })}>
@@ -104,6 +105,8 @@ export function ComponentFields({ spec, onChange }: Props) {
               <Cell label={t('civil.components.dx')} value={c.offset[0]} onCommit={(dx) => patch(i, { offset: [dx, c.offset[1]] })} />
               <span>{t('civil.components.dy')}</span>
               <Cell label={t('civil.components.dy')} value={c.offset[1]} onCommit={(dy) => patch(i, { offset: [c.offset[0], dy] })} />
+              <span>{t('civil.components.tilt')}</span>
+              <Cell label={t('civil.components.tilt')} value={c.tilt ?? 0} onCommit={(tilt) => patch(i, { tilt: tilt || undefined })} />
             </div>
             {canAuto ? (
               <label className="flex items-center gap-1.5 text-2xs">

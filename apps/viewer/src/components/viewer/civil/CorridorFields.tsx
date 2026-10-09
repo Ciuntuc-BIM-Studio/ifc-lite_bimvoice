@@ -5,12 +5,13 @@
 /**
  * The corridor configurator's data zones: the corridor itself (name,
  * sampling, design speed, terrain), the horizontal alignment as a PI table
- * and the vertical profile as a PVI table — with a profile taken from the
- * terrain in one click.
+ * and the vertical profile as a PVI table — each tangent's grade typed in
+ * % (the later PVIs follow), or a profile taken from the terrain in one
+ * click.
  */
 
 import { useState } from 'react';
-import { buildAlignment, profileFromGround, Terrain, type CorridorSpec, type Tin } from '@ifc-lite/create';
+import { buildAlignment, profileFromGround, segmentGrades, Terrain, withSegmentGrade, type CorridorSpec, type Tin } from '@ifc-lite/create';
 import { useTranslation } from '@/i18n';
 import { IconButton } from '@/components/ui/icon-button';
 import { Button } from '@/components/ui/button';
@@ -121,6 +122,7 @@ export function AlignmentFields({ spec, onChange }: Props) {
 export function ProfileFields({ spec, onChange, terrain }: Props & { terrain: Tin | null }) {
   const { t } = useTranslation();
   const pvis = spec.profile.pvis;
+  const grades = segmentGrades(pvis);
   const set = (next: CorridorSpec['profile']['pvis']) => onChange({ ...spec, profile: { pvis: next } });
   const patch = (i: number, p: Partial<(typeof pvis)[number]>) => set(pvis.map((x, k) => (k === i ? { ...x, ...p } : x)));
   const add = () => {
@@ -153,6 +155,7 @@ export function ProfileFields({ spec, onChange, terrain }: Props & { terrain: Ti
           <tr className="text-left text-zinc-500">
             <th className="font-medium">{t('civil.col.station')}</th>
             <th className="font-medium">{t('civil.col.elevation')}</th>
+            <th className="w-16 font-medium">{t('civil.col.grade')}</th>
             <th className="w-16 font-medium">{t('civil.col.curve')}</th>
             <th className="w-7" aria-label={t('civil.col.actions')} />
           </tr>
@@ -164,6 +167,7 @@ export function ProfileFields({ spec, onChange, terrain }: Props & { terrain: Ti
               <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
                 <td><Cell label={`${t('civil.col.station')} ${i}`} value={p.station} onCommit={(station) => patch(i, { station })} /></td>
                 <td><Cell label={`${t('civil.col.elevation')} ${i}`} value={p.elevation} onCommit={(elevation) => patch(i, { elevation })} /></td>
+                <td><Cell label={`${t('civil.col.grade')} ${i}`} value={i > 0 ? Math.round(grades[i - 1] * 1000) / 1000 : undefined} disabled={i === 0} onCommit={(g) => set(withSegmentGrade(pvis, i, g))} /></td>
                 <td><Cell label={`${t('civil.col.curve')} ${i}`} value={inner ? p.length ?? 0 : undefined} disabled={!inner} min={0} onCommit={(length) => patch(i, { length: length || undefined })} /></td>
                 <td><IconButton label={t('civil.row.remove')} className="size-6" disabled={pvis.length <= 2} onClick={() => set(pvis.filter((_, k) => k !== i))}><Trash2 className="size-3" /></IconButton></td>
               </tr>

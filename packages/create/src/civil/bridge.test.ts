@@ -3,12 +3,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { describe, expect, it } from 'vitest';
-import { abutmentSections, defaultAbutment, extrudeOutline, type CorridorBridge } from './bridge.js';
+import { abutmentProfile, abutmentSections, bridgeElevation, defaultAbutment, extrudeOutline, type AbutmentSpec, type CorridorBridge } from './bridge.js';
+import { buildAlignment } from './alignment.js';
+import { buildProfile, segmentGrades, withSegmentGrade } from './profile.js';
 import { buildCorridor, type CorridorSolid, type CorridorSpec } from './corridor.js';
 import { defaultAssembly, defaultDesign } from './assembly.js';
 import { Terrain, delaunay, type V3 } from './tin.js';
 import { componentFromProfile } from './components.js';
-import { profileFromPreset, signedArea } from './structure-profile.js';
+import { profileFromPreset, signedArea, toCustomProfile } from './structure-profile.js';
 
 function volume(s: { points: V3[]; triangles: [number, number, number][] }): number {
   let v = 0;
@@ -56,6 +58,47 @@ describe('bridges', () => {
     // Trapezoid (1.2 + 3) / 2 × 6 plus the back wall.
     expect(Math.abs(signedArea(gravity.body))).toBeCloseTo(12.6 + 0.48, 9);
     expect(Math.abs(signedArea(gravity.footing))).toBeCloseTo(4.5 * 1, 9);
+    // The back wall follows the deck; with no height given the preset's own (6 m) stands.
+    expect(Math.max(...abutmentSections(defaultAbutment('wall', 5), null, 2).body.map((q) => q[1]))).toBeCloseTo(2, 9);
+    expect(Math.min(...abutmentSections(defaultAbutment('wall', 5), null, 2).body.map((q) => q[1]))).toBeCloseTo(-6, 9);
+  });
+
+  it('a drawn abutment profile stretches below the seat to the height; an old typed abutment reads as its preset', () => {
+    const custom = { ...defaultAbutment('wall', 5), profile: toCustomProfile({ ...profileFromPreset('wall-abutment', 'c'), outer: [[0, -4], [2, -4], [2, 1], [0, 0]] }) };
+    const s = abutmentSections(custom, 8, 1.2);
+    expect(s.body).toEqual([[0, -8], [2, -8], [2, 1], [0, 0]]);
+    // The footing sits under the body's lowest edge.
+    expect(Math.max(...s.footing.map((q) => q[1]))).toBeCloseTo(-8, 9);
+    const old = { type: 'gravity', left: 5, right: 5, stem: 1.5, base: 4, backwall: 0.4, footing: { width: 5, thickness: 1, toe: 0.5 } } as unknown as AbutmentSpec;
+    const p = abutmentProfile(old);
+    expect(p.preset).toEqual({ id: 'gravity-abutment', params: expect.objectContaining({ stem: 1.5, base: 4 }) });
+  });
+
+  it('the bridge in elevation: the deck between the abutments, each reaching back into its bank, the ground under it', () => {
+    const el = bridgeElevation(bridge(), buildAlignment(spec().alignment), buildProfile(spec().profile), valley());
+    const xs = el.deck.map((p) => p[0]);
+    expect([Math.min(...xs), Math.max(...xs)]).toEqual([50, 150]);
+    expect(Math.max(...el.abutments[0].body.map((p) => p[0]))).toBeCloseTo(50, 9);
+    expect(Math.min(...el.abutments[1].body.map((p) => p[0]))).toBeCloseTo(150, 9);
+    expect(el.ground.some(([, z]) => z < 1)).toBe(true);
+    expect(el.abutments[0].height).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('grades per tangent: setting one moves its PVI and every later one, keeping the later grades', () => {
+    const pvis = [{ station: 0, elevation: 10 }, { station: 100, elevation: 12 }, { station: 200, elevation: 11 }];
+    expect(segmentGrades(pvis).map((g) => Math.round(g * 100) / 100)).toEqual([2, -1]);
+    const next = withSegmentGrade(pvis, 1, -3);
+    expect(next.map((p) => p.elevation)).toEqual([10, 7, 6]);
+    expect(segmentGrades(next).map((g) => Math.round(g * 100) / 100)).toEqual([-3, -1]);
+  });
+
+  it('a deck tilted in its own plane: its right edge rises by the cross-fall', () => {
+    const tilted = buildCorridor(spec({ bridges: [{ ...bridge(), deck: { ...bridge().deck, tilt: 4 } }] }), valley());
+    const [loop] = tilted.componentsAt(100).find((c) => c.id === 'bridge:b1:deck')!.loops;
+    const at = (x: number) => loop.filter((p) => Math.abs(p[0] - x) < 0.05).map((p) => p[1]);
+    const right = Math.max(...loop.map((p) => p[0])), left = Math.min(...loop.map((p) => p[0]));
+    // 11 m wide deck: the right top edge is 0.44 m above the left one.
+    expect(Math.max(...at(right)) - Math.max(...at(left))).toBeCloseTo(0.44, 1);
   });
 
   it('extrudes an outline into a closed prism of area × length', () => {

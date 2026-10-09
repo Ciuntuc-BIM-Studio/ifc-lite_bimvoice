@@ -122,3 +122,19 @@ function simplify(pts: [number, number][], tol: number): [number, number][] {
   if (worst <= tol) return [a, b];
   return [...simplify(pts.slice(0, at + 1), tol).slice(0, -1), ...simplify(pts.slice(at), tol)];
 }
+
+/** The grades of the tangents between PVIs, in % (one fewer than the PVIs). */
+export function segmentGrades(pvis: readonly ProfilePVI[]): number[] {
+  return pvis.slice(1).map((p, i) => {
+    const run = p.station - pvis[i].station;
+    return Math.abs(run) < 1e-9 ? 0 : ((p.elevation - pvis[i].elevation) / run) * 100;
+  });
+}
+
+/** Set the grade (%) of the tangent ending at PVI `i`: it and every PVI after it move by the same height, so the later grades stay. */
+export function withSegmentGrade(pvis: readonly ProfilePVI[], i: number, grade: number): ProfilePVI[] {
+  if (i < 1 || i >= pvis.length) return pvis.map((p) => ({ ...p }));
+  const target = pvis[i - 1].elevation + (grade / 100) * (pvis[i].station - pvis[i - 1].station);
+  const dz = Math.round((target - pvis[i].elevation) * 1000) / 1000;
+  return pvis.map((p, k) => (k >= i ? { ...p, elevation: Math.round((p.elevation + dz) * 1000) / 1000 } : { ...p }));
+}

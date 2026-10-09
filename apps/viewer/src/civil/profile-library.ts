@@ -10,7 +10,7 @@
  */
 
 import { create } from 'zustand';
-import { profileFromPreset, readProfileLibrary, starterProfiles, toCustomProfile, writeProfileLibrary, type P2, type PresetId, type StructureProfile } from '@ifc-lite/create';
+import { PRESET_IDS, PROFILE_PRESETS, profileFromPreset, readProfileLibrary, starterProfiles, toCustomProfile, writeProfileLibrary, type P2, type PresetId, type StructureKind, type StructureProfile } from '@ifc-lite/create';
 import { useProjectStore } from '@/project/project-store';
 import { freshProjectId } from '@/project/view-defaults';
 import { contourLoops } from '@/drafting/commands/model';
@@ -28,6 +28,15 @@ function save(list: StructureProfile[]): void {
 /** A library with nothing in it gets the starter profiles (one per preset). */
 export function ensureStarterProfiles(): void {
   if (structureProfiles().length === 0) save(starterProfiles().map((p) => ({ ...p, id: freshProjectId('profile') })));
+}
+
+/** A library with no profile of a kind gets that kind's presets (the bridge configurator needs decks and abutments). */
+export function ensureProfilesOfKind(kind: StructureKind): StructureProfile[] {
+  const have = structureProfiles().filter((p) => p.kind === kind);
+  if (have.length) return have;
+  const added = PRESET_IDS.filter((id) => PROFILE_PRESETS[id].kind === kind).map((id) => profileFromPreset(id, freshProjectId('profile')));
+  save([...structureProfiles(), ...added]);
+  return added;
 }
 
 export function addProfile(preset: PresetId): string {

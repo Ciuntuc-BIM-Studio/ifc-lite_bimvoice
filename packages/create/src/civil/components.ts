@@ -44,6 +44,8 @@ export interface CorridorComponent {
   mirror?: boolean;
   /** Flipped about the profile's own horizontal axis (y → −y), before the offset. */
   flip?: boolean;
+  /** Turned in its own plane about its origin, as a cross-fall in % (+: its +x end rises), after mirror / flip. */
+  tilt?: number;
 }
 
 /** What a component's placement looks like at one station. */
@@ -84,9 +86,17 @@ function profileAt(c: CorridorComponent, frame: StationFrame, terrain: Terrain |
   return regenerateProfile({ ...c.profile, preset: { id: preset.id, params: { ...preset.params, height } } });
 }
 
+/** (x, y) turned about the origin by a cross-fall in %. */
+export function tilted(tilt: number | undefined, x: number, y: number): P2 {
+  if (!tilt) return [x, y];
+  const a = Math.atan(tilt / 100), c = Math.cos(a), s = Math.sin(a);
+  return [x * c - y * s, x * s + y * c];
+}
+
 /** A profile point at a station frame, world. */
 function place(frame: StationFrame, c: CorridorComponent, p: P2): V3 {
-  const a = (c.mirror ? -p[0] : p[0]) + c.offset[0], up = (c.flip ? -p[1] : p[1]) + c.offset[1];
+  const [x, y] = tilted(c.tilt, c.mirror ? -p[0] : p[0], c.flip ? -p[1] : p[1]);
+  const a = x + c.offset[0], up = y + c.offset[1];
   return [frame.origin[0] + frame.across[0] * a, frame.origin[1] + frame.across[1] * a, frame.origin[2] + up];
 }
 

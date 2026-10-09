@@ -31,6 +31,7 @@ import { useProjectStore } from '@/project/project-store';
 import { findElementByGlobalId, prepareTarget } from '@/project/contour-element';
 import type { ProjectView } from '@/project/types';
 import { ensureEditMode } from '@/project/edit-mode';
+import { newBridge } from './bridge-defaults';
 
 type V3 = [number, number, number];
 
@@ -84,12 +85,14 @@ export interface CorridorDefaults {
   name: string;
   /** PI radius, metres. */
   radius: number;
+  /** A bridge on its own axis: one bridge the whole length, its grade straight from bank to bank. */
+  bridge?: boolean;
 }
 
-/** Build a corridor along a polyline drawn on a floor plan (drawing coordinates). */
+/** Build a corridor (or a bridge) along a polyline drawn on a floor plan (drawing coordinates). */
 export function createCorridorFromPolyline(view: ProjectView, plane: SectionPlaneConfig, pts: Pt[], defaults: CorridorDefaults, sourceId?: string): CivilResult {
   if (view.kind !== 'plan') return { ok: false, error: 'Roads are drawn on a floor plan.' };
-  if (pts.length < 2) return { ok: false, error: 'A road needs a polyline of at least two points.' };
+  if (pts.length < 2) return { ok: false, error: 'An axis needs a polyline of at least two points.' };
   const ready = prepareTarget(view, Math.min(...pts.map((p) => drawingToWorld(plane, p).y)));
   if (!ready.ok) return { ok: false, error: ready.error };
   try {
@@ -103,10 +106,19 @@ export function createCorridorFromPolyline(view: ProjectView, plane: SectionPlan
     let profile = { pvis: [{ station: built.startStation, elevation: z0 }, { station: built.endStation, elevation: z0 }] };
     if (tin) {
       const terrain = new Terrain(tin);
-      const ground = profileFromGround(built.startStation, built.endStation, (s) => { const p = built.pointAt(s); return terrain.elevationAt(p.x, p.y); });
-      if (ground.pvis.length >= 2 && ground.pvis.some((p) => p.elevation !== 0)) profile = ground;
+      const groundAt = (s: number) => { const p = built.pointAt(s); return terrain.elevationAt(p.x, p.y); };
+      const ground = profileFromGround(built.startStation, built.endStation, groundAt);
+      if (defaults.bridge) {
+        // A bridge spans the ground: its grade runs straight from one bank to the other.
+        const a = groundAt(built.startStation), b = groundAt(built.endStation);
+        if (a !== null && b !== null) profile = { pvis: [{ station: built.startStation, elevation: a }, { station: built.endStation, elevation: b }] };
+      } else if (ground.pvis.length >= 2 && ground.pvis.some((p) => p.elevation !== 0)) profile = ground;
     }
     const spec: CorridorSpec = { name: defaults.name, alignment, profile, assembly: defaultAssembly(), design: defaultDesign(), interval: 10, terrainGlobalId };
+    if (defaults.bridge) {
+      spec.kind = 'bridge';
+      spec.bridges = [newBridge(spec, defaults.name, [built.startStation, built.endStation])];
+    }
     const made = recordModellingCommit(useViewerStore, ready.modelId, (editor, ds) => {
       ensureStoreyPlacement(ds, editor, ready.storeyId);
       return addCorridorToStore(ds, editor, resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView()), spec, tin);
