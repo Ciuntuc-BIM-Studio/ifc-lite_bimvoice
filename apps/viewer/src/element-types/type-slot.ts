@@ -44,7 +44,8 @@ export interface TypeSlot {
 }
 
 const label = (e: { mark?: string; name: string }) => (e.mark ? `${e.mark} · ${e.name}` : e.name);
-const ELEMENT_KINDS = new Set<SlotKind>(['wall', 'slab', 'column', 'beam']);
+const ELEMENT_KINDS: readonly string[] = ['wall', 'slab', 'column', 'beam'];
+const isElementKind = (k: string | null): k is 'wall' | 'slab' | 'column' | 'beam' => k !== null && ELEMENT_KINDS.includes(k);
 
 /** The type slot of element `expressId` in `modelId`, or null when no configurator covers it. */
 export function typeSlotOf(modelId: string, expressId: number): TypeSlot | null {
@@ -69,9 +70,9 @@ export function typeSlotOf(modelId: string, expressId: number): TypeSlot | null 
     const listed = typed?.spec.id && options.some((o) => o.id === typed.spec.id);
     return { modelId, elementId: expressId, kind, options, current: listed ? typed!.spec.id! : null, foreign: typed && !listed ? label(typed.spec) : undefined };
   }
-  if (kind && ELEMENT_KINDS.has(kind)) {
+  if (isElementKind(kind)) {
     const options = elementTypes().filter((e) => e.kind === kind).map((e) => ({ id: e.id, label: label(e) }));
-    return { modelId, elementId: expressId, kind: kind as SlotKind, options, current: elementTypeOfElement(modelId, expressId)?.id ?? null };
+    return { modelId, elementId: expressId, kind, options, current: elementTypeOfElement(modelId, expressId)?.id ?? null };
   }
   return null;
 }

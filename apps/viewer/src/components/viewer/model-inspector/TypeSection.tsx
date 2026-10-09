@@ -24,12 +24,10 @@ import type { AuthoredElementKind } from '@/store/slices/authoringDefaultsSlice'
 import { InspectorCaption, InspectorRow, InspectorSection } from './InspectorControls';
 import { createElementType, setElementType } from './inspector-edits';
 import { useProjectStore } from '@/project/project-store';
-import { elementTypeOfElement, retypeElements } from '@/element-types/model-sync';
-import { openElementTypes } from '@/element-types/dialog-store';
+import { ElementTypeSelect, useTypeSlot } from '../ElementTypeCard';
 
 const NONE = 'none';
 const NEW = 'new';
-const EDIT = 'edit-types';
 
 export interface TypeSectionProps {
   modelId: string;
@@ -149,41 +147,20 @@ function NewTypeRow({ placeholder, onCreate, onCancel }: { placeholder: string; 
   );
 }
 
-/** The kinds the project's type catalogue covers. */
-const CATALOG_KIND: Partial<Record<AuthoredElementKind, 'wall' | 'slab' | 'column' | 'beam'>> = { wall: 'wall', slab: 'slab', column: 'column', beam: 'beam' };
-
 /**
- * The project type (`element-types/`) the element is typed by: picking
- * another one types it by that entry and fits it — a wall's or slab's
- * thickness and layers, a column's or beam's section — in one undo step.
+ * The type from the configurators' libraries (`element-types/type-slot.ts`):
+ * picking another entry types the element by it and fits it — a wall's or
+ * slab's layers, a column's or beam's section, a door's or window's size — in
+ * one undo step.
  */
-function ProjectTypeRow({ modelId, kind, elementId }: { modelId: string; kind: AuthoredElementKind; elementId: number }) {
+function ProjectTypeRow({ modelId, elementId }: { modelId: string; kind: AuthoredElementKind; elementId: number }) {
   const { t } = useTranslation();
   const id = useId();
-  const mutationVersion = useViewerStore((s) => s.mutationVersion);
-  const all = useProjectStore((s) => s.elementTypes);
-  const catalogKind = CATALOG_KIND[kind];
-  const entries = useMemo(() => (all ?? []).filter((e) => e.kind === catalogKind), [all, catalogKind]);
-  const current = useMemo(() => { void mutationVersion; return elementTypeOfElement(modelId, elementId)?.id ?? null; }, [modelId, elementId, mutationVersion]);
-  if (!catalogKind) return null;
-  const choose = (value: string) => {
-    if (value === EDIT) { openElementTypes(catalogKind, current); return; }
-    const spec = entries.find((e) => e.id === value);
-    if (spec && spec.id !== current) retypeElements(modelId, [elementId], spec);
-  };
+  const slot = useTypeSlot(modelId, elementId);
+  if (!slot) return null;
   return (
     <InspectorRow label={t('elementTypes.changeType')} htmlFor={id}>
-      <Select value={current ?? NONE} onValueChange={choose}>
-        <SelectTrigger id={id} data-inspector-project-type className="h-7 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {current === null && <SelectItem value={NONE} className="text-xs">{t('elementTypes.noProjectType')}</SelectItem>}
-          {entries.map((e) => <SelectItem key={e.id} value={e.id} className="text-xs">{e.mark ? `${e.mark} · ${e.name}` : e.name}</SelectItem>)}
-          <SelectSeparator />
-          <SelectItem value={EDIT} className="text-xs">{t('elementTypes.editTypes')}</SelectItem>
-        </SelectContent>
-      </Select>
+      <ElementTypeSelect slot={slot} id={id} />
     </InspectorRow>
   );
 }

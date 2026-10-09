@@ -9,6 +9,7 @@ import { Copy, Check, Building2, Layers, Layers2, FileText, Calculator, Tag, Mou
 import { Badge } from '@/components/ui/badge';
 import { EditToolbar } from './PropertyEditor';
 import { GeometryEditCard } from './GeometryEditCard';
+import { ElementTypeCard } from './ElementTypeCard';
 import { ModelBadge } from './ModelBadge';
 import { IconButton } from '@/components/ui/icon-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1562,7 +1563,8 @@ export function PropertiesPanel() {
                 <TaskEditCard taskGlobalId={singleSelectedTaskGlobalId} />
               </div>
             )}
-            {/* Edit toolbar - only shown when edit mode is active */}
+            {/* The type from the configurators' libraries, always; the edit toolbar only in edit mode */}
+            {selectedEntity && <ElementTypeCard modelId={selectedEntity.modelId} expressId={selectedEntity.expressId} />}
             {editMode && selectedEntity && (
               <>
                 <GeometryEditCard

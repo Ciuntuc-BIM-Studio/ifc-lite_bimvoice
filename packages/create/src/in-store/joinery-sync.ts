@@ -148,6 +148,13 @@ export function retypeOccurrencesInStore(store: IfcDataStore, editor: StoreEdito
   const remesh = new Set<number>();
   const refused: { id: number; reason: string }[] = [];
   const moved: number[] = [];
+  // Name / ObjectType the occurrence inherited from its old type (placement copies them) follow the new one.
+  const reader = new AnchorEntityReader(store, view);
+  const oldType = new Map(readRelatedLists(store, 'IfcRelDefinesByType', view).flatMap((r) => r.relatedIds.map((id) => [id, r.relatingId] as const)));
+  const inherited = new Map(ids.map((id) => {
+    const typeId = oldType.get(id);
+    return [id, typeId === undefined ? null : readJoineryType(store, typeId, view)?.spec ?? null] as const;
+  }));
   for (const id of ids) {
     try {
       editor.runAtomic((draft) => fitOccurrence(store, draft, id, spec, type.mapId, anchor.bodyContextId)).forEach((r) => remesh.add(r));
@@ -155,6 +162,12 @@ export function retypeOccurrencesInStore(store: IfcDataStore, editor: StoreEdito
     } catch (error) {
       refused.push({ id, reason: error instanceof Error ? error.message : String(error) });
     }
+  }
+  for (const id of moved) {
+    const attrs = reader.entity(id)?.attributes;
+    const was = inherited.get(id);
+    if (attrs && (!attrs[2] || attrs[2] === was?.name)) editor.setPositionalAttribute(id, 2, spec.name);
+    if (attrs && (!attrs[4] || attrs[4] === was?.mark)) editor.setPositionalAttribute(id, 4, spec.mark || null);
   }
   if (moved.length) assignTypeInStore(editor, anchor, type.typeId, moved, readRelatedLists(store, 'IfcRelDefinesByType', view));
   return { type, remesh: [...remesh], refused };

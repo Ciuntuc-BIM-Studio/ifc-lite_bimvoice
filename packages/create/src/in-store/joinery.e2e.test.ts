@@ -27,6 +27,7 @@ let assignTypeInStore: typeof import('./element-type.js').assignTypeInStore;
 let readJoineryType: typeof import('./joinery-read.js').readJoineryType;
 let readJoineryFlips: typeof import('./joinery-read.js').readJoineryFlips;
 let sync: typeof import('./joinery-sync.js');
+let readRelatedLists: typeof import('./resolve-relations.js').readRelatedLists;
 
 const parse = (bytes: Uint8Array) => new IfcParser().parseColumnar(
   bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
@@ -73,6 +74,7 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('joinery type → mapped
     ({ IfcParser } = await import('@ifc-lite/parser'));
     ({ MutablePropertyView, StoreEditor } = await import('@ifc-lite/mutations'));
     ({ StepExporter } = await import('@ifc-lite/export'));
+    ({ readRelatedLists } = await import('./resolve-relations.js'));
     ({ resolveHostAnchor } = await import('./resolve-host.js'));
     ({ addHostedElementInStore } = await import('./hosted-element.js'));
     ({ addJoineryTypeToStore } = await import('./joinery-type.js'));
@@ -139,6 +141,42 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('joinery type → mapped
     expect(stats.min[2]).toBeCloseTo(0.9, 3);
     const opening = meshStats(bytes, reparsed, placed.openingId);
     expect(opening.max[0] - opening.min[0]).toBeCloseTo(1.5, 3);
+  });
+
+  it('moves an occurrence to another catalogue type: retyped, refitted, its inherited name and mark following', async () => {
+    const source = readFileSync(new URL('../../../../apps/viewer/public/samples/hello-wall.ifc', import.meta.url));
+    const store = await parse(source);
+    const view = new MutablePropertyView(null, 'm');
+    const editor = new StoreEditor(store, view);
+    const a = { ...defaultWindowSpec('W-A'), id: 'cat-a', mark: 'W1', name: 'Window A', board: { interior: 0, exterior: 0 } };
+    const b = { ...defaultWindowSpec('W-B'), id: 'cat-b', mark: 'W2', name: 'Window B', width: 1.6, board: { interior: 0, exterior: 0 } };
+    const typeA = sync.ensureJoineryTypeInStore(store, editor, a);
+    const place = (offset: number, name: string) => {
+      const placed = addHostedElementInStore(store, editor, WALL, {
+        kind: 'window', params: { Offset: offset, Sill: 0.9, Width: a.width, Height: a.height, MappedBody: typeA.mapId, Name: name, ObjectType: a.mark },
+      });
+      assignTypeInStore(editor, resolveHostAnchor(store, WALL, view), typeA.typeId, [placed.expressId], readRelatedLists(store, 'IfcRelDefinesByType', view));
+      return placed;
+    };
+    const inherited = place(8.5, 'Window A');
+    const id = inherited.expressId;
+    const typeOf = () => readRelatedLists(store, 'IfcRelDefinesByType', view).find((r) => r.relatedIds.includes(id))?.relatingId;
+    const attr = (i: number) => view.getPositionalMutationsForEntity(id)?.get(i) ?? view.getNewEntity(id)?.attributes[i];
+    const result = sync.retypeOccurrencesInStore(store, editor, b, [id]);
+    expect(result.refused).toEqual([]);
+    expect(typeOf()).toBe(result.type.typeId);
+    expect(attr(2)).toBe('Window B');
+    expect(attr(4)).toBe('W2');
+    // A name given by hand stays; the mark still follows.
+    editor.setPositionalAttribute(id, 2, 'Kitchen window');
+    const back = sync.retypeOccurrencesInStore(store, editor, a, [id]);
+    expect(typeOf()).toBe(back.type.typeId);
+    expect(attr(2)).toBe('Kitchen window');
+    expect(attr(4)).toBe('W1');
+    sync.retypeOccurrencesInStore(store, editor, b, [id]);
+    const bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content;
+    const stats = meshStats(bytes, await parse(bytes), inherited.expressId);
+    expect(stats.max[0] - stats.min[0]).toBeCloseTo(1.6, 3);
   });
 
   it('turns and mirrors an occurrence through its mapped item, readable back', async () => {
