@@ -188,6 +188,25 @@ export interface ProjectCivilDrawing {
   halfWidth?: number;
 }
 
+/**
+ * How a building material draws where a view cuts it (ArchiCAD's Building
+ * Materials): matched by IfcMaterial name. `hatch` null draws no hatch,
+ * absent takes the default its name suggests; a membrane (or any layer under
+ * 2 mm) draws as a heavy dashed line instead of a band.
+ */
+export interface ProjectMaterial {
+  id: string;
+  name: string;
+  hatch?: string | null;
+  /** 1 = the pattern's own size. */
+  hatchScale?: number;
+  /** Cut fill colour; null: none (white), absent: the material's IFC colour. */
+  fill?: string | null;
+  /** Pen of the hatch lines. */
+  hatchPen?: CategoryLineWeight;
+  membrane?: boolean;
+}
+
 /** A typical road cross-section (assembly) kept in the project's library. */
 export interface ProjectTypicalSection {
   id: string;
@@ -226,4 +245,6 @@ export interface ProjectDocument {
   civilDrawings?: ProjectCivilDrawing[];
   /** Typical road cross-sections (assemblies) corridors take from. */
   typicalSections?: ProjectTypicalSection[];
+  /** Building materials: how each IfcMaterial draws where it is cut. */
+  materials?: ProjectMaterial[];
 }

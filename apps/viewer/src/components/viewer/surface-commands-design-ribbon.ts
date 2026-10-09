@@ -11,12 +11,13 @@
 import {
   DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
-  JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
+  BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { startBimTool } from '@/project/model-command-bridge';
 import { openJoinery } from '@/joinery/dialog-store';
 import { openElementTypes } from '@/element-types/dialog-store';
+import { openMaterials } from './materials/MaterialsDialog';
 import { applyCutPriorities } from '@/project/cut-priorities';
 import { editSelectedGroup, groupSelection, ungroupSelection, useGroupPrefs, type GroupOutcome } from '@/project/element-groups';
 import { openRoofForSelection } from '@/project/roof-dialog-store';
@@ -131,6 +132,7 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:join-auto-mitre', labelKey: 'drafting.join.autoMitre', keywords: 'wall join automatic default mitre corners', category: 'Tools', icon: JoinAuto, surfaces: ribbonOnly, enabled: always, run: toggleAutoMitre },
   { id: 'design:roof-system', labelKey: 'roof.open', keywords: 'roof system configurator rafters purlins ridge gable hip eave pitch structure edit in place', category: 'Tools', icon: RoofSystem, surfaces: ribbonOnly, enabled: always, run: openRoofSystem },
   { id: 'design:cut-priorities', labelKey: 'cutPriority.command', keywords: 'cut priority intersection column wall slab beam boolean clean-up join', category: 'Tools', icon: CutPriority, surfaces: ribbonOnly, enabled: always, run: runCutPriorities },
+  { id: 'design:materials', labelKey: 'materials.cmd', keywords: 'building materials hatch cut fill membrane vapour barrier layers priority', category: 'Tools', icon: BuildingMaterials, surfaces: ribbonOnly, enabled: always, run: openMaterials },
   { id: 'design:element-types', labelKey: 'elementTypes.open', keywords: 'type types catalogue wall slab column beam roof opening layers build-up section configurator', category: 'Tools', icon: ElementTypes, surfaces: ribbonOnly, enabled: always, run: () => openElementTypes() },
   { id: 'design:joinery', labelKey: 'joinery.open', keywords: 'door window type configurator catalogue joinery frame sash tilt turn schedule', category: 'Tools', icon: JoineryTypes, surfaces: ribbonOnly, enabled: always, run: () => openJoinery() },
   { id: 'design:group', labelKey: 'groups.cmd.group', keywords: 'group elements together revit model group select move', category: 'Tools', icon: GroupMake, surfaces: ribbonOnly, enabled: always, run: makeGroup },

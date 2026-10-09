@@ -116,6 +116,7 @@ import { civilEn } from './catalogues/civil.en';
 import { groupsEn } from './catalogues/groups.en';
 import { profilesEn } from './catalogues/profiles.en';
 import { civilDrawingsEn } from './catalogues/civil-drawings.en';
+import { materialsEn } from './catalogues/materials.en';
 import { section2dEn } from './catalogues/section-2d.en';
 import { sheetsPdfEn } from './catalogues/sheets-pdf.en';
 import { searchModalEn } from './catalogues/search-modal.en';
@@ -184,6 +185,7 @@ export const en = {
   ...groupsEn,
   ...profilesEn,
   ...civilDrawingsEn,
+  ...materialsEn,
   ...section2dEn,
   ...costPanelEn,
   ...ribbonToolbarEn,

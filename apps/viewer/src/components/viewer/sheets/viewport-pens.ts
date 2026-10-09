@@ -81,9 +81,10 @@ export function viewportPens(
       continue;
     }
     const segments = hatchSegments(h.loops, pattern, { scale: h.scale * HATCH_UNIT_M, angleDeg: 0, maxSegments: 20000 }).segments;
-    add(`hatch:${h.color}`, { stroke: h.color, width: PEN.hatch, fill: null, layer: 'HATCH' }, segments.map((s) => `M${pt(s.a)}L${pt(s.b)}`).join(''));
+    const width = h.width ?? PEN.hatch;
+    add(`hatch:${h.color}:${width}`, { stroke: h.color, width, fill: null, layer: 'HATCH' }, segments.map((s) => `M${pt(s.a)}L${pt(s.b)}`).join(''));
   }
   // Fills first, then hatches, then lines (hidden, seen, cut).
-  const order = (p: Pen) => (p.fill ? 0 : p.width === PEN.hatch ? 1 : p.dash ? 2 : p.width < PEN.cut ? 3 : 4);
+  const order = (p: Pen) => (p.fill ? 0 : p.layer === 'HATCH' ? 1 : p.dash ? 2 : p.width < PEN.cut ? 3 : 4);
   return [...pens.values()].sort((a, b) => order(a) - order(b));
 }

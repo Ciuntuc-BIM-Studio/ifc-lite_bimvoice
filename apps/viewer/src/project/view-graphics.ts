@@ -15,6 +15,11 @@
 import { BUILT_IN_PRESETS, ifcTypeCriterion, type Drawing2D, type GraphicOverrideRule } from '@ifc-lite/drawing-2d';
 import type { Pt } from '@/drafting/types';
 import type { CategoryGraphics, ViewGraphics } from './types';
+import type { MaterialDrawing, MaterialHatch } from './material-drawing';
+import type { DraftShape } from '@/drafting/types';
+
+/** A drawing as a view shows it, with its building materials' hatches and membrane lines. */
+export type StyledDrawing = Drawing2D & { materialHatches?: (MaterialHatch & { ifcType?: string })[]; membranes?: DraftShape[] };
 
 /** The Drawing panel's default preset (IFC material colours). */
 export const DEFAULT_VIEW_PRESET = 'preset-3d-colors';
@@ -102,7 +107,22 @@ export function styledDrawing(
   hostTypeOf: (entityId: number, ifcType: string | undefined) => string | null = () => null,
   /** Elements a symbol draws instead (a plan's configured doors and windows): their cut and lines are left out. */
   replaced?: (entityId: number, ifcType: string | undefined) => boolean,
-): Drawing2D {
+  /** The cut by building materials (`material-drawing.ts`), computed on this same drawing. */
+  materials?: MaterialDrawing | null,
+): StyledDrawing {
+  if (materials) {
+    const hatchOf = new Map<unknown, string | undefined>(drawing.cutPolygons.map((p) => [p.polygon.outer, p.ifcType]));
+    drawing = {
+      ...drawing,
+      cutPolygons: drawing.cutPolygons.filter((p) => !materials.hidePolygons.has(p)).map((p) => {
+        const fill = materials.fills.get(p);
+        return fill === undefined ? p : { ...p, color: fill === null ? [1, 1, 1, 1] as [number, number, number, number] : rgba(fill) ?? p.color };
+      }),
+      lines: materials.dropLines.size ? drawing.lines.filter((l) => !materials.dropLines.has(l)) : drawing.lines,
+      materialHatches: materials.hatches.map((h) => ({ ...h, ifcType: hatchOf.get(h.loops[0]) ?? undefined })),
+      membranes: materials.membranes,
+    } as StyledDrawing;
+  }
   if (replaced) {
     drawing = {
       ...drawing,
@@ -117,7 +137,7 @@ export function styledDrawing(
     const color = fill ? rgba(fill) : null;
     if (color) for (const k of category.classes) fills.set(k.toUpperCase(), color);
   }
-  if (hidden.size === 0 && fills.size === 0 && !graphics?.categories) return drawing;
+  if (hidden.size === 0 && fills.size === 0 && !graphics?.categories) return drawing as StyledDrawing;
   const shown = (type: string | undefined) => !type || !hidden.has(type.toUpperCase());
   // A layer part takes its host's class here, so a category's graphics reach it.
   const relabel = <T extends { entityId: number; ifcType?: string }>(item: T): T => {
@@ -125,7 +145,7 @@ export function styledDrawing(
     return host ? { ...item, ifcType: host } : item;
   };
   return {
-    ...drawing,
+    ...(drawing as StyledDrawing),
     cutPolygons: drawing.cutPolygons.map(relabel).filter((p) => shown(p.ifcType)).map((p) => {
       const color = fills.get((p.ifcType ?? '').toUpperCase());
       return color ? { ...p, color } : p;
@@ -139,13 +159,27 @@ export interface CutHatch {
   pattern: string;
   scale: number;
   color: string;
+  /** Pen of the hatch lines, paper millimetres (absent: the hatch pen). */
+  width?: number;
 }
 
+const HATCH_PEN_MM = { heavy: 0.35, medium: 0.25, light: 0.18, hairline: 0.13 } as const;
+
 /** The cut faces to hatch, by their category's `cutHatch`. */
-export function cutHatches(drawing: Drawing2D, graphics: ViewGraphics | undefined): CutHatch[] {
+export function cutHatches(drawing: StyledDrawing, graphics: ViewGraphics | undefined): CutHatch[] {
   const categories = graphics?.categories;
-  if (!categories) return [];
   const out: CutHatch[] = [];
+  // A category's own cut hatch wins over its elements' materials.
+  const overridden = (ifcType: string | undefined) => {
+    const id = categoryOf(ifcType ?? '');
+    const g = id ? categories?.[id] : undefined;
+    return !!g?.cutHatch || g?.visible === false;
+  };
+  for (const h of drawing.materialHatches ?? []) {
+    if (overridden(h.ifcType)) continue;
+    out.push({ loops: h.loops, pattern: h.pattern, scale: h.scale, color: '#000000', width: HATCH_PEN_MM[h.pen] });
+  }
+  if (!categories) return out;
   for (const polygon of drawing.cutPolygons) {
     const id = categoryOf(polygon.ifcType ?? '');
     const g = id ? categories[id] : undefined;

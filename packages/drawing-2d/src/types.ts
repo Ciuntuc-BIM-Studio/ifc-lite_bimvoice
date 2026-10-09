@@ -196,7 +196,7 @@ export interface DrawingPolygon {
    *  layer fills with its own colour instead of one colour for the whole
    *  element; absent for single-material elements (keep the existing
    *  per-`ifcType` / per-entity fill). */
-  color?: [number, number, number, number];
+  color?: [number, number, number, number]; materialId?: number; // + the layer IfcMaterial, to draw it by material
   /** Set on the OPAQUE BASE polygon emitted for a multi-material entity: the
    *  entity's full closed cross-section (built from the watertight union of all
    *  its layer bands, so it always closes). It is drawn BEHIND the per-layer
@@ -232,7 +232,7 @@ export interface CutSegment {
   /** Source sub-mesh RGBA colour (0–1) — the cut triangle's `MeshData.color`.
    *  Carried so the polygon builder can split one entity's cut into per-material
    *  loops (material-layer walls/slabs). Absent when the cutter has no colour. */
-  color?: [number, number, number, number];
+  color?: [number, number, number, number]; materialId?: number; // + `MeshData.materialId`
   /** Max |coordinate| of the source triangle's LOCAL vertex positions —
    *  i.e. the `Float32Array` values BEFORE the per-mesh RTC `origin` was
    *  added. This is the quantity that actually bounds float32 rounding

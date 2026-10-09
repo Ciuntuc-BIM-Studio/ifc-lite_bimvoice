@@ -138,6 +138,7 @@ export { default as JoinAuto } from '~icons/viewer/join-auto';
 export { default as DoorFlipHand } from '~icons/viewer/door-flip-hand';
 export { default as JoineryTypes } from '~icons/viewer/joinery-types';
 export { default as ElementTypes } from '~icons/viewer/element-types';
+export { default as BuildingMaterials } from '~icons/viewer/building-materials';
 export { default as CutPriority } from '~icons/viewer/cut-priority';
 export { default as RoofSystem } from '~icons/viewer/roof-system';
 export { default as CivilRoad } from '~icons/viewer/civil-road';
