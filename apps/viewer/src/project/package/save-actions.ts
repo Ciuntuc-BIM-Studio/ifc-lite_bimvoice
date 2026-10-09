@@ -23,7 +23,7 @@ import { newProjectId, usePackageSession } from './session';
 let busy = false;
 
 /** Save the open project (as: ask where); the package written, or null when cancelled or failed (the reason shown). */
-export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo): Promise<PackagedProject | null> {
+export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo, options: { analytics?: boolean } = {}): Promise<PackagedProject | null> {
   if (busy) return null;
   if (useViewerStore.getState().models.size === 0) { toast.info(resolve('projectPackage.nothingToSave')); return null; }
   busy = true;
@@ -39,7 +39,7 @@ export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo)
     usePackageSession.setState({ busy: 'saving', progress: resolve('projectPackage.saving') });
     try {
       const packaged = await packageCurrentProject(projectId, {
-        versionInfo, onProgress: (label) => usePackageSession.setState({ progress: resolve('projectPackage.savingModel', { name: label }) }),
+        versionInfo, analytics: options.analytics, onProgress: (label) => usePackageSession.setState({ progress: resolve('projectPackage.savingModel', { name: label }) }),
       });
       const fileName = handle?.name ?? session.fileName ?? `${name}${PACKAGE_SUFFIX}`;
       if (handle) await writeToHandle(handle, packaged.bytes);

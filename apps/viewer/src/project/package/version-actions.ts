@@ -4,8 +4,9 @@
 
 /**
  * The version commands on the open project: Save to version saves the
- * project (as Save does) stamped as a new numbered version and records it in
- * the browser's vault; Update version saves it again as the current version,
+ * project (as Save does) stamped as a new numbered version, with each native
+ * model's tables as Parquet for analysis, and records it in the browser's
+ * vault; Update version saves it again as the current version,
  * which keeps its number and name, what it held before kept as a revision.
  */
 
@@ -35,7 +36,7 @@ export async function saveToVersion(name: string, message: string): Promise<Vers
   const number = (await vault.listVersions(project)).reduce((n, v) => Math.max(n, v.number), 0) + 1;
   const id = globalThis.crypto.randomUUID();
   const label = name.trim() || `Version ${number}`;
-  const packaged = await saveProject(false, { id, ...(parent ? { parent } : {}), number, name: label, message });
+  const packaged = await saveProject(false, { id, ...(parent ? { parent } : {}), number, name: label, message }, { analytics: true });
   if (!packaged) return null;
   try {
     const record = await saveVersion(vault, packaged.files, packaged.manifest, { id, name: label, message, ...(parent ? { parent } : {}) });
@@ -56,7 +57,7 @@ export async function updateCurrentVersion(message?: string): Promise<VersionRec
     toast.info(resolve('projectVersions.noCurrent'));
     return null;
   }
-  const packaged = await saveProject(false, { ...record.manifest.versionInfo, message: message ?? record.message });
+  const packaged = await saveProject(false, { ...record.manifest.versionInfo, message: message ?? record.message }, { analytics: true });
   if (!packaged) return null;
   try {
     const updated = await updateVersion(vault, record, packaged.files, packaged.manifest, message);

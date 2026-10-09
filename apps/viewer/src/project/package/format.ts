@@ -18,6 +18,8 @@
  * project/standards.json  layers, layer groups, text and dimension styles, hatch patterns
  * project/catalogs.json   joinery, element types, profiles, schedules
  * models/<id>.ifc         a native model, with all its edits
+ * analytics/<model>/*.parquet  its elements, properties, quantities and
+ *                          relationships as tables (versions only), for BI
  * ```
  */
 

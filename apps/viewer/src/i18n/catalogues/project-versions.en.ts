@@ -39,4 +39,5 @@ export const projectVersionsEn = {
   'projectVersions.area.catalogs': 'catalogues',
   'projectVersions.area.document': 'project',
   'projectVersions.area.other': 'other',
+  'projectVersions.area.analytics': 'analysis tables',
 } as const satisfies Record<string, TranslationValue>;

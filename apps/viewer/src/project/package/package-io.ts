@@ -39,6 +39,8 @@ export interface PackageInput {
   author?: string;
   versionInfo?: PackageVersionInfo;
   now?: Date;
+  /** Further parts by path (analytics tables), listed in the manifest like the rest. */
+  extras?: ReadonlyMap<string, Uint8Array>;
 }
 
 /** The package as path → bytes, manifest included. */
@@ -63,6 +65,7 @@ export async function buildPackage(input: PackageInput): Promise<{ files: Packag
       models.push({ id: m.id, name: m.name, role: 'linked', ...(m.source ? { source: m.source } : {}), ...(m.sha256 ? { sha256: m.sha256 } : {}) });
     }
   }
+  for (const [path, bytes] of input.extras ?? []) files.set(path, bytes);
   const parts = await Promise.all([...files].map(async ([path, bytes]) => ({ path, sha256: await sha256(bytes), size: bytes.byteLength })));
   const manifest: PackageManifest = {
     format: PACKAGE_FORMAT, version: PACKAGE_VERSION,

@@ -123,6 +123,7 @@ export interface VersionDiff {
 
 const AREA = (path: string): string => {
   if (path.startsWith('models/')) return 'models';
+  if (path.startsWith('analytics/')) return 'analytics';
   if (path.startsWith('project/drafts/')) return 'drawings';
   const m = /^project\/([a-z]+)\.json$/.exec(path);
   return m ? m[1] : 'other';

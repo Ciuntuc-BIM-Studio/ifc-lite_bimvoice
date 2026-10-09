@@ -12,6 +12,8 @@
  */
 
 import { asSourceBytes, type IfcDataStore } from '@ifc-lite/parser';
+import { ParquetExporter } from '@ifc-lite/export';
+import { unzipSync } from 'fflate';
 import { useViewerStore } from '@/store';
 import { collectChangedModels } from '@/lib/export/model-changes';
 import { exportChangedModelToStep } from '@/lib/export/changed-model-export';
@@ -21,7 +23,7 @@ import { projectDocument } from '../project-store';
 import { modelRef } from '../project-sync';
 import type { ProjectDocument } from '../types';
 import { buildPackage, zipPackage, type ModelInput, type PackageFiles } from './package-io';
-import type { PackageManifest, PackageVersionInfo } from './format';
+import { segment, type PackageManifest, type PackageVersionInfo } from './format';
 
 const APP = { name: 'BIMVoice', version: '4.0.0' };
 
@@ -48,11 +50,18 @@ export interface PackagedProject {
   doc: ProjectDocument;
 }
 
-export async function packageCurrentProject(projectId: string, options: { versionInfo?: PackageVersionInfo; onProgress?: (label: string) => void } = {}): Promise<PackagedProject> {
+/** A model's tables (BIM Open Schema Parquet: entities, properties, quantities, relationships) by file name. */
+async function modelTables(dataStore: IfcDataStore, modelId: string): Promise<Map<string, Uint8Array>> {
+  const bos = await new ParquetExporter(dataStore, undefined, useViewerStore.getState().mutationViews.get(modelId)).exportBOS({ includeGeometry: false });
+  return new Map(Object.entries(unzipSync(bos)).filter(([name]) => name.endsWith('.parquet')));
+}
+
+export async function packageCurrentProject(projectId: string, options: { versionInfo?: PackageVersionInfo; onProgress?: (label: string) => void; analytics?: boolean } = {}): Promise<PackagedProject> {
   const state = useViewerStore.getState();
   const edited = new Set(collectChangedModels(state).models.map((m) => m.id));
   const doc = projectDocument();
   const renamed = new Map<string, string>();
+  const extras = new Map<string, Uint8Array>();
   const models: ModelInput[] = [];
   for (const model of state.models.values()) {
     if (!model.ifcDataStore) continue;
@@ -66,10 +75,19 @@ export async function packageCurrentProject(projectId: string, options: { versio
     const key = (await placementSourceIdentity(new Blob([bytes as BlobPart]), undefined, bytes)) ?? ref.key;
     renamed.set(ref.key, key);
     models.push({ id: key, name: model.name, role: 'native', bytes });
+    if (options.analytics) {
+      try {
+        const folder = `analytics/${segment(model.name.replace(/\.[^.]+$/, '') || model.id)}`;
+        for (const [name, table] of await modelTables(model.ifcDataStore, model.id)) extras.set(`${folder}/${name}`, table);
+      } catch (err) {
+        // Tables are for analysis: a model they cannot be written for still saves.
+        console.warn('[project] analytics tables skipped for', model.name, err);
+      }
+    }
   }
   const saved: ProjectDocument = { ...doc, models: models.map((m) => ({ key: m.id, name: m.name })) };
   // Keep a reference the document had to a model not loaded right now.
   for (const ref of doc.models) if (!renamed.has(ref.key) && !saved.models.some((m) => m.key === ref.key)) saved.models.push(ref);
-  const { files, manifest } = await buildPackage({ projectId, doc: saved, models, app: APP, versionInfo: options.versionInfo });
+  const { files, manifest } = await buildPackage({ projectId, doc: saved, models, app: APP, versionInfo: options.versionInfo, extras });
   return { bytes: zipPackage(files), files, manifest, doc: saved };
 }
