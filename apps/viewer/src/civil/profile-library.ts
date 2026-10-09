@@ -95,6 +95,14 @@ export function moveOrigin(p: StructureProfile, at: P2): StructureProfile {
   return { ...toCustomProfile(p), outer: p.outer.map(shift), holes: p.holes.map((h) => h.map(shift)), anchors: p.anchors.map((a) => ({ ...a, at: shift(a.at) })) };
 }
 
+/** Mirror (about the origin's vertical, x → −x) or flip (about its horizontal, y → −y) a profile's points for good. */
+export function reflectProfile(p: StructureProfile, axis: 'x' | 'y'): StructureProfile {
+  const r = (q: P2): P2 => (axis === 'x' ? [-q[0], q[1]] : [q[0], -q[1]]);
+  // Reflection reverses a loop's turn: put the points back the way round they were.
+  const loop = (l: P2[]) => l.map(r).reverse();
+  return { ...toCustomProfile(p), outer: loop(p.outer), holes: p.holes.map(loop), anchors: p.anchors.map((a) => ({ ...a, at: r(a.at) })) };
+}
+
 export const useProfileDialog = create<{ open: boolean; selectedId: string | null }>()(() => ({ open: false, selectedId: null }));
 
 export function openProfileLibrary(selectedId: string | null = null): void {

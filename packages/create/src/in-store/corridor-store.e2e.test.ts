@@ -20,6 +20,7 @@ import { defaultAssembly, defaultDesign } from '../civil/assembly.js';
 import { delaunay, type V3 } from '../civil/tin.js';
 import type { CorridorSpec } from '../civil/corridor.js';
 import { componentFromProfile } from '../civil/components.js';
+import { defaultAbutment } from '../civil/bridge.js';
 import { profileFromPreset } from '../civil/structure-profile.js';
 import { resolveSpatialAnchor } from './resolve-anchor.js';
 import {
@@ -144,6 +145,19 @@ describe('corridor components in store', () => {
     const parts4 = four.parts.map((id) => view.getNewEntity(id)!);
     expect(parts4.find((e) => e.attributes[7] === 'comp:w')!.type).toBe('IfcWall');
     expect(parts4.find((e) => e.attributes[7] === 'comp:k')!.type).toBe('IfcBuildingElementProxy');
+  });
+});
+
+describe('bridges in store', () => {
+  it('writes the deck, the abutments as walls and their strip footings as IfcFooting', async () => {
+    const x3 = await ifc4x3Scene();
+    const withBridge = { ...spec(), bridges: [{ id: 'b', name: 'Bridge', from: 40, to: 90, deck: { profileId: 'd', profile: profileFromPreset('deck-slab', 'd'), offset: [0, -0.6] as [number, number] }, start: defaultAbutment('wall', 6), end: defaultAbutment('gravity', 6) }] };
+    const made = addCorridorToStore(x3.store, x3.editor, x3.anchor, withBridge, groundTin());
+    const byTag = new Map(made.parts.map((id) => [x3.view.getNewEntity(id)!.attributes[7], x3.view.getNewEntity(id)!]));
+    expect(byTag.get('bridge:b:start-footing')?.type).toBe('IfcFooting');
+    expect(byTag.get('bridge:b:start-footing')?.attributes[8]).toBe('.STRIP_FOOTING.');
+    expect(byTag.get('bridge:b:end')?.type).toBe('IfcWall');
+    expect(byTag.get('comp:bridge:b:deck')?.type).toBe('IfcSlab');
   });
 });
 

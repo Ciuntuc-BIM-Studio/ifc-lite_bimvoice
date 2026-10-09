@@ -19,6 +19,7 @@ import { buildProfile, type VerticalProfile, type VerticalProfileSpec } from './
 import { slopesAt, templateAt, type AssemblySpec, type SideSlopes, type SuperelevationDesign } from './assembly.js';
 import type { Terrain, V3 } from './tin.js';
 import { componentSection, suppressesDaylight, sweepComponent, type CorridorComponent, type StationFrame } from './components.js';
+import { abutmentSolids, type CorridorBridge } from './bridge.js';
 import type { P2, StructureProfile } from './structure-profile.js';
 
 export type V2 = [number, number];
@@ -37,6 +38,8 @@ export interface CorridorSpec {
   typicalSectionId?: string;
   /** Library profiles swept over station ranges: walls, tunnels, decks, barriers… */
   components?: CorridorComponent[];
+  /** Bridges: a deck over a station range on two abutments with strip footings. */
+  bridges?: CorridorBridge[];
 }
 
 export type DaylightKind = 'cut' | 'fill' | 'none';
@@ -159,7 +162,12 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
   const profile = buildProfile(spec.profile);
   const a = spec.assembly;
   const depth = a.layers.reduce((s, l) => s + l.thickness, 0);
-  const components = spec.components ?? [];
+  // A bridge's deck sweeps like a centred component that takes the earthworks away.
+  const decks = (spec.bridges ?? []).map((b): CorridorComponent => ({
+    id: `bridge:${b.id}:deck`, profileId: b.deck.profileId, profile: { ...b.deck.profile, name: `${b.name} — deck` }, side: 'centre', attach: 'axis',
+    offset: b.deck.offset, from: b.from, to: b.to, daylight: 'both',
+  }));
+  const components = [...(spec.components ?? []), ...decks];
   const section = (station: number): CorridorStation => {
     const at = alignment.pointAt(station);
     const z = profile.elevationAt(station);
@@ -185,7 +193,9 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
     };
     const dl = daylight(edgeL, -1), dr = daylight(edgeR, 1);
     let cutArea = 0, fillArea = 0;
-    if (terrain) {
+    // Under a bridge deck (or through a tunnel) there are no earthworks.
+    const noEarthworks = components.some((c) => c.daylight === 'both' && station >= Math.min(c.from, c.to) - 1e-9 && station <= Math.max(c.from, c.to) + 1e-9);
+    if (terrain && !noEarthworks) {
       // The earthwork design line: daylight → top edge → subgrade across → top edge → daylight.
       const o = (p: V3) => (p[0] - at.x) * right[0] + (p[1] - at.y) * right[1];
       const line = [
@@ -271,6 +281,16 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
     const swept = sweepComponent(c, framesOf(c), terrain);
     if (!swept) continue;
     solids.push({ key: `comp:${c.id}`, name: c.profile.name, color: c.profile.color, kind: 'component', ifc: { ifcClass: c.profile.ifcClass, predefinedType: c.profile.predefinedType, objectType: c.profile.objectType }, ...swept, closed: true });
+  }
+
+  for (const b of spec.bridges ?? []) {
+    const { start, end } = abutmentSolids(b, alignment, profile, terrain);
+    const wall = { ifcClass: 'IfcWall', predefinedType: 'USERDEFINED', objectType: 'Abutment' };
+    const strip = { ifcClass: 'IfcFooting', predefinedType: 'STRIP_FOOTING', objectType: 'Abutment footing' };
+    for (const [end_, a] of [['start', start], ['end', end]] as const) {
+      solids.push({ key: `bridge:${b.id}:${end_}`, name: `${b.name} — ${end_} abutment`, color: '#a8a29e', kind: 'component', ifc: wall, ...a.body, closed: true });
+      solids.push({ key: `bridge:${b.id}:${end_}-footing`, name: `${b.name} — ${end_} footing`, color: '#78716c', kind: 'component', ifc: strip, ...a.footing, closed: true });
+    }
   }
 
   let cut = 0, fill = 0;

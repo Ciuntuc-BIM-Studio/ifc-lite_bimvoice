@@ -11,7 +11,7 @@ import { EMPTY_PROJECT, loadProjectDocument, projectDocument, useProjectStore } 
 import { parseProjectFile, serializeProject } from '@/project/project-file';
 import type { DraftEntity } from '@/drafting/types';
 import {
-  addProfile, duplicateProfile, ensureStarterProfiles, exportProfiles, importProfiles, moveOrigin, profileFromDraft, removeProfile, structureProfile, structureProfiles, updateProfile,
+  reflectProfile, addProfile, duplicateProfile, ensureStarterProfiles, exportProfiles, importProfiles, moveOrigin, profileFromDraft, removeProfile, structureProfile, structureProfiles, updateProfile,
 } from './profile-library';
 
 const poly = (id: string, pts: [number, number][]): DraftEntity => ({ id, viewId: 'v', layerId: '0', shape: { type: 'polyline', pts: pts.map(([x, y]) => ({ x, y })), closed: true }, params: {} });
@@ -32,6 +32,18 @@ describe('structure profile library', () => {
     removeProfile(id);
     assert.equal(structureProfile(id), null);
     assert.equal(useProjectStore.getState().dirty, true);
+  });
+
+  it('mirrors and flips a profile for good, keeping it counter-clockwise and valid', () => {
+    const id = addProfile('cantilever-wall');
+    const p = structureProfile(id)!;
+    const m = reflectProfile(p, 'x');
+    assert.equal(m.preset, undefined);
+    assert.ok(m.outer.every((q, i) => q[0] === -[...p.outer].reverse()[i][0]));
+    assert.equal(structureProfileProblem(m), null);
+    assert.ok(Math.abs(profileArea(m) - profileArea(p)) < 1e-9);
+    const f = reflectProfile(p, 'y');
+    assert.equal(f.anchors.find((a) => a.name === 'top')!.at[1], -3);
   });
 
   it('round-trips through a library file and the project file', () => {
