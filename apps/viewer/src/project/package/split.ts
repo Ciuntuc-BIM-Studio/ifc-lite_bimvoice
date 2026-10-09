@@ -20,7 +20,7 @@ const GROUPS: Record<string, readonly string[]> = {
   'project/views.json': ['views'],
   'project/sheets.json': ['sheets'],
   'project/standards.json': ['draftLayers', 'layerGroups', 'textStyles', 'dimStyles', 'hatchPatterns'],
-  'project/catalogs.json': ['joineryTypes', 'currentJoinery', 'elementTypes', 'currentTypes', 'schedules', 'structureProfiles', 'civilDrawings'],
+  'project/catalogs.json': ['joineryTypes', 'currentJoinery', 'elementTypes', 'currentTypes', 'schedules', 'structureProfiles', 'civilDrawings', 'typicalSections'],
 };
 const DOCUMENT = 'project/document.json';
 const DRAFTS = 'project/drafts/';
