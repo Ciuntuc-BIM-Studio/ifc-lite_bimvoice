@@ -29,4 +29,9 @@ export {
 export { boundsOf, paper, translatePrims, type CivilDrawing, type DrawPen, type DrawPrim } from './drawing-prims.js';
 export { DEFAULT_PROFILE_OPTIONS, profileDrawing, type ProfileDrawingLabels, type ProfileDrawingOptions } from './profile-drawing.js';
 export { DEFAULT_SECTION_OPTIONS, oneSection, sampleStations, sectionsDrawing, type SectionDrawingLabels, type SectionDrawingOptions } from './section-drawing.js';
-export { abutmentPreset, abutmentProfile, abutmentSections, abutmentSolids, bridgeElevation, defaultAbutment, extrudeOutline, type AbutmentSpec, type AbutmentType, type BridgeElevation, type CorridorBridge, type ExtrudedSolid } from './bridge.js';
+export {
+  abutmentPreset, abutmentProfile, abutmentSections, bearingHeight, defaultAbutment, defaultBearings, defaultPier, distributePiers, extrudeOutline, seatLength,
+  type AbutmentSpec, type AbutmentType, type BearingSpec, type CorridorBridge, type ExtrudedSolid, type PierSpec, type PierType,
+} from './bridge.js';
+export { bearingOffsets, verticalCut } from './bridge-piers.js';
+export { BRIDGE_COLORS, bridgeCut, bridgeElevation, bridgeParts, deckRange, type BridgeContext, type BridgeElevation, type BridgeParts } from './bridge-solids.js';

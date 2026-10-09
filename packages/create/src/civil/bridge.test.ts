@@ -3,9 +3,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { describe, expect, it } from 'vitest';
-import { abutmentProfile, abutmentSections, bridgeElevation, defaultAbutment, extrudeOutline, type AbutmentSpec, type CorridorBridge } from './bridge.js';
-import { buildAlignment } from './alignment.js';
-import { buildProfile, segmentGrades, withSegmentGrade } from './profile.js';
+import { abutmentProfile, abutmentSections, defaultAbutment, defaultBearings, defaultPier, distributePiers, extrudeOutline, type AbutmentSpec, type CorridorBridge } from './bridge.js';
+import { segmentGrades, withSegmentGrade } from './profile.js';
 import { buildCorridor, type CorridorSolid, type CorridorSpec } from './corridor.js';
 import { defaultAssembly, defaultDesign } from './assembly.js';
 import { Terrain, delaunay, type V3 } from './tin.js';
@@ -75,9 +74,11 @@ describe('bridges', () => {
   });
 
   it('the bridge in elevation: the deck between the abutments, each reaching back into its bank, the ground under it', () => {
-    const el = bridgeElevation(bridge(), buildAlignment(spec().alignment), buildProfile(spec().profile), valley());
+    const el = buildCorridor(spec({ bridges: [bridge()] }), valley()).bridgeElevation('b1')!;
     const xs = el.deck.map((p) => p[0]);
-    expect([Math.min(...xs), Math.max(...xs)]).toEqual([50, 150]);
+    // The deck reaches back over each seat to the back wall, less a 5 cm joint (seats 0.6 and 0.8 m).
+    expect(Math.min(...xs)).toBeCloseTo(49.45, 6);
+    expect(Math.max(...xs)).toBeCloseTo(150.75, 6);
     expect(Math.max(...el.abutments[0].body.map((p) => p[0]))).toBeCloseTo(50, 9);
     expect(Math.min(...el.abutments[1].body.map((p) => p[0]))).toBeCloseTo(150, 9);
     expect(el.ground.some(([, z]) => z < 1)).toBe(true);
@@ -153,5 +154,38 @@ describe('bridges', () => {
     closed(mirrored);
     closed(flipped);
     expect(volume(mirrored)).toBeGreaterThan(0);
+  });
+
+  it('piers, bearings and quarter cones: closed supports under the deck, bearings on every seat, cones of fill at the abutments', () => {
+    const b: CorridorBridge = { ...bridge(), piers: [defaultPier('p1', 100, 6), defaultPier('p2', 120, 6, 'wall')], bearings: defaultBearings() };
+    const model = buildCorridor(spec({ bridges: [b] }), valley());
+    const by = (k: string) => model.solids.find((s) => s.key === `bridge:b1:${k}`) as CorridorSolid;
+    for (const k of ['pier:p1', 'pier:p1-cap', 'pier:p1-footing', 'pier:p2', 'pier:p2-footing', 'bearings:start', 'bearings:pier:p1', 'bearings:end']) { closed(by(k)); expect(volume(by(k)), k).toBeGreaterThan(0); }
+    expect(by('pier:p2-cap')).toBeUndefined();
+    expect(by('pier:p1').ifc).toEqual({ ifcClass: 'IfcColumn', predefinedType: 'PIERSTEM', objectType: 'Pier' });
+    // Pier 1 (in the valley, ground 0): a metre under the ground, its top 0.15 m under the soffit (10 − 0.6 − 1.2).
+    const zs = (k: string) => by(k).points.map((p) => p[2]);
+    expect(Math.min(...zs('pier:p1'))).toBeCloseTo(-1, 6);
+    expect(Math.max(...zs('pier:p1-cap'))).toBeCloseTo(8.2 - 0.15, 6);
+    // Four pads a line, each 0.5 × 0.4 × 0.15.
+    expect(volume(by('bearings:pier:p1'))).toBeCloseTo(4 * 0.5 * 0.4 * 0.15, 6);
+    // Abutments' seats drop by the bearings; their back wall still reaches the deck's top.
+    expect(Math.max(...zs('start'))).toBeCloseTo(9.4, 6);
+    // Cones: fill surfaces beside the abutments, with a fill volume.
+    const without = buildCorridor(spec({ bridges: [{ ...b, start: { ...b.start, cones: false }, end: { ...b.end, cones: false } }] }), valley());
+    expect(model.volumes.fill).toBeGreaterThan(without.volumes.fill);
+    // The cross-section through pier 1 cuts its columns, cap and footing.
+    const cut = model.componentsAt(100).map((c) => c.id);
+    expect(cut).toEqual(expect.arrayContaining(['bridge:b1:deck', 'bridge:b1:pier:p1', 'bridge:b1:pier:p1-cap', 'bridge:b1:pier:p1-footing', 'bridge:b1:bearings:1']));
+    expect(model.componentsAt(100).find((c) => c.id === 'bridge:b1:pier:p1')!.loops).toHaveLength(defaultPier('x', 0, 6).columns);
+    // Through the start abutment, half a metre behind its face: the wall from the seat down, its footing.
+    expect(model.componentsAt(49.5).map((c) => c.id)).toEqual(expect.arrayContaining(['bridge:b1:start', 'bridge:b1:start-footing']));
+    const el = model.bridgeElevation('b1')!;
+    expect([el.piers.length, el.bearings.length, el.cones.length]).toEqual([2, 4, 4]);
+  });
+
+  it('distributes piers into equal spans', () => {
+    let n = 0;
+    expect(distributePiers(bridge(), 4, 6, () => `p${++n}`).map((p) => p.station)).toEqual([75, 100, 125]);
   });
 });

@@ -4,41 +4,39 @@
 
 /**
  * A bridge in the corridor configurator, seen from the side and unrolled
- * along the alignment: the ground, the road's grade line, the deck between
- * its two abutments with their footings, the station the section preview
- * cuts at. Heights are exaggerated (shown in the corner) when the bridge is
+ * along the alignment: the ground, the road's grade line, the deck on its
+ * abutments and piers (with their footings and bearings), the quarter cones'
+ * slopes, the station the section preview cuts at. Heights are exaggerated (shown in the corner) when the bridge is
  * long and low, so the abutments stay readable.
  */
 
 import { useMemo } from 'react';
-import { bridgeElevation, formatStation, Terrain, type CorridorBridge, type CorridorModel, type P2, type Tin } from '@ifc-lite/create';
+import { BRIDGE_COLORS, formatStation, type CorridorBridge, type CorridorModel, type P2 } from '@ifc-lite/create';
 import { ZoomBox } from './ZoomBox';
 
 interface Props {
   model: CorridorModel;
   bridge: CorridorBridge;
-  terrain: Tin | null;
   width: number;
   height: number;
   label: string;
   station: number;
-  /** The text written in the corner: the bridge's name, its span, the abutments' heights and the exaggeration. */
+  /** The text written in the corner: the bridge's range, the supports' heights and the exaggeration. */
   caption: (span: string, heights: string, exaggeration: string) => string;
-  abutmentColor?: string;
 }
 
 const MAX_EXAGGERATION = 5;
 
-export function BridgePreview({ model, bridge, terrain, width, height, label, station, caption, abutmentColor = '#a8a29e' }: Props) {
+export function BridgePreview({ model, bridge, width, height, label, station, caption }: Props) {
   const el = useMemo(() => {
     try {
-      return bridgeElevation(bridge, model.alignment, model.profile, terrain ? new Terrain(terrain) : null);
+      return model.bridgeElevation(bridge.id);
     } catch {
       return null;
     }
-  }, [bridge, model, terrain]);
+  }, [bridge.id, model]);
   if (!el) return null;
-  const all = [...el.deck, ...el.grade, ...el.ground, ...el.abutments.flatMap((a) => [...a.body, ...a.footing])];
+  const all = [...el.deck, ...el.grade, ...el.ground, ...el.abutments.flatMap((a) => [...a.body, ...a.footing]), ...el.piers.flatMap((p) => [...p.stem, ...p.footing])];
   const xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const m = 16;
@@ -59,13 +57,22 @@ export function BridgePreview({ model, bridge, terrain, width, height, label, st
           {el.abutments.map((a, i) => (
             <g key={i}>
               <path d={`${line(a.footing)}Z`} fill="#78716c" stroke="#27272a" strokeWidth={0.6} />
-              <path d={`${line(a.body)}Z`} fill={abutmentColor} stroke="#27272a" strokeWidth={0.8} />
+              <path d={`${line(a.body)}Z`} fill={BRIDGE_COLORS.abutment} stroke="#27272a" strokeWidth={0.8} />
             </g>
           ))}
+          {el.piers.map((p, i) => (
+            <g key={`p${i}`}>
+              <path d={`${line(p.footing)}Z`} fill={BRIDGE_COLORS.footing} stroke="#27272a" strokeWidth={0.6} />
+              <path d={`${line(p.stem)}Z`} fill={BRIDGE_COLORS.pier} stroke="#27272a" strokeWidth={0.8} />
+              {p.cap ? <path d={`${line(p.cap)}Z`} fill={BRIDGE_COLORS.cap} stroke="#27272a" strokeWidth={0.8} /> : null}
+            </g>
+          ))}
+          {el.bearings.map((b, i) => <path key={`b${i}`} d={`${line(b)}Z`} fill={BRIDGE_COLORS.bearing} />)}
+          {el.cones.map((c, i) => <path key={`c${i}`} d={line(c)} fill="none" stroke="#6b8e23" strokeWidth={1} strokeDasharray="4 2" />)}
           <path d={`${line(el.deck)}Z`} fill={bridge.deck.profile.color} stroke="#27272a" strokeWidth={0.8} />
           <path d={line(el.grade)} fill="none" stroke="#b91c1c" strokeWidth={1} strokeDasharray="6 2 1 2" />
           {station >= minX && station <= maxX ? <line x1={x} y1={8} x2={x} y2={height - 8} stroke="#2563eb" strokeWidth={1} strokeDasharray="3 2" /> : null}
-          <text x={6} y={12} fontSize={9} fill="#71717a">{caption(`${formatStation(Math.min(bridge.from, bridge.to))} – ${formatStation(Math.max(bridge.from, bridge.to))} (${span.toFixed(1)} m)`, el.abutments.map((a) => a.height.toFixed(1)).join(' / '), ve.toFixed(1))}</text>
+          <text x={6} y={12} fontSize={9} fill="#71717a">{caption(`${formatStation(Math.min(bridge.from, bridge.to))} – ${formatStation(Math.max(bridge.from, bridge.to))} (${span.toFixed(1)} m)`, [...el.abutments.slice(0, 1), ...el.piers, ...el.abutments.slice(1)].map((a) => a.height.toFixed(1)).join(' / '), ve.toFixed(1))}</text>
         </svg>
       </ZoomBox>
       <figcaption className="px-1 text-2xs text-zinc-500">{label}</figcaption>

@@ -93,7 +93,7 @@ export function CorridorDialog() {
                 <>
                   <PlanPreview model={model} width={440} height={bridgeMode ? 180 : 240} label={t('civil.preview.plan')} station={station} />
                   {shownBridge ? (
-                    <BridgePreview model={model} bridge={shownBridge} terrain={terrain} width={440} height={200} label={t('civil.preview.bridge', { name: shownBridge.name })} station={station}
+                    <BridgePreview model={model} bridge={shownBridge} width={440} height={200} label={t('civil.preview.bridge', { name: shownBridge.name })} station={station}
                       caption={(span, heights, ve) => t('civil.preview.bridgeCaption', { span, heights, ve })} />
                   ) : null}
                   <ProfilePreview model={model} terrain={terrain} width={440} height={140} label={t('civil.preview.profile')} station={station} />

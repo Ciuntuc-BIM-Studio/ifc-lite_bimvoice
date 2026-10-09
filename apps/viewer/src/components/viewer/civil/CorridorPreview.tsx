@@ -86,7 +86,7 @@ export function SectionPreview({ model, terrain, width, height, label, station, 
   /** The text written in the corner: the station and the two cross slopes. */
   caption: (station: string, left: string, right: string) => string;
 }) {
-  const st = model.stations.find((s) => s.station >= station) ?? model.stations[model.stations.length - 1];
+  const st = useMemo(() => (model.stations.length ? model.sectionAt(station) : null), [model, station]);
   const section = useMemo(() => {
     if (!st) return null;
     const right = [Math.sin(st.direction), -Math.cos(st.direction)];

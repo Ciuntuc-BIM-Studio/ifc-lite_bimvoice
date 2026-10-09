@@ -45,6 +45,45 @@ export interface AbutmentSpec {
   footing: { width: number; thickness: number; toe: number };
   /** Turned round about its own vertical axis (front ↔ back). */
   mirror?: boolean;
+  /** Quarter cones of embankment at its two sides (default on). */
+  cones?: boolean;
+}
+
+export type PierType = 'wall' | 'columns';
+
+/**
+ * An intermediate pier, square across the alignment at its station: a wall
+ * (blade) pier, or a row of columns under a pier cap; on a continuous
+ * footing. Its top carries the bearings under the deck's soffit.
+ */
+export interface PierSpec {
+  id: string;
+  station: number;
+  type: PierType;
+  /** Across the road from the alignment (the wall's, or the cap's, ends), metres. */
+  left: number;
+  right: number;
+  /** Along the road: the wall's thickness, or a column's size (diameter / side). */
+  thickness: number;
+  /** Columns: how many, and their section. */
+  columns: number;
+  shape: 'round' | 'square';
+  /** Pier cap (columns): depth and width along the road. */
+  cap: { depth: number; width: number };
+  /** Down to a metre under the ground (default); false: `height`. */
+  autoHeight?: boolean;
+  /** Top of the pier to the footing's top, metres (used without terrain too). */
+  height: number;
+  footing: { width: number; thickness: number };
+}
+
+/** The bearings under the deck at every support (abutment seats and pier tops): a line of pads across. */
+export interface BearingSpec {
+  count: number;
+  /** Across, along the road, and high, metres. */
+  width: number;
+  length: number;
+  height: number;
 }
 
 export interface CorridorBridge {
@@ -57,6 +96,30 @@ export interface CorridorBridge {
   deck: { profileId: string; profile: StructureProfile; offset: [number, number]; tilt?: number };
   start: AbutmentSpec;
   end: AbutmentSpec;
+  /** Intermediate piers, by station. */
+  piers?: PierSpec[];
+  /** Absent: the deck sits straight on the supports. */
+  bearings?: BearingSpec;
+}
+
+export const defaultBearings = (): BearingSpec => ({ count: 4, width: 0.5, length: 0.4, height: 0.15 });
+
+/** A pier at a station, `halfWidth` either side of the axis. */
+export function defaultPier(id: string, station: number, halfWidth: number, type: PierType = 'columns'): PierSpec {
+  return type === 'wall'
+    ? { id, station, type, left: halfWidth - 0.5, right: halfWidth - 0.5, thickness: 1.2, columns: 1, shape: 'square', cap: { depth: 0, width: 1.2 }, autoHeight: true, height: 8, footing: { width: 4, thickness: 1.2 } }
+    : { id, station, type, left: halfWidth - 0.5, right: halfWidth - 0.5, thickness: 1.2, columns: Math.max(2, Math.round((2 * halfWidth) / 5)), shape: 'round', cap: { depth: 1.2, width: 1.8 }, autoHeight: true, height: 8, footing: { width: 4, thickness: 1.2 } };
+}
+
+/** `n` piers dividing the bridge into equal spans (the existing ones' settings carried over). */
+export function distributePiers(bridge: CorridorBridge, spans: number, halfWidth: number, freshId: () => string): PierSpec[] {
+  const lo = Math.min(bridge.from, bridge.to), hi = Math.max(bridge.from, bridge.to);
+  const old = bridge.piers ?? [];
+  return Array.from({ length: Math.max(0, Math.round(spans) - 1) }, (_, i) => {
+    const station = Math.round((lo + ((hi - lo) * (i + 1)) / Math.round(spans)) * 1000) / 1000;
+    const like = old[Math.min(i, old.length - 1)];
+    return like ? { ...structuredClone(like), id: old[i]?.id ?? freshId(), station } : defaultPier(freshId(), station, halfWidth);
+  });
 }
 
 export const abutmentPreset = (type: AbutmentType): PresetId => (type === 'wall' ? 'wall-abutment' : 'gravity-abutment');
@@ -136,14 +199,7 @@ export function extrudeOutline(outline: readonly P2[], origin: V3, ex: V3, ey: V
   return { points, triangles };
 }
 
-export interface BridgeAbutmentSolids {
-  body: ExtrudedSolid;
-  footing: ExtrudedSolid;
-  /** Seat to footing top, metres. */
-  height: number;
-}
-
-interface PlacedAbutment {
+export interface PlacedAbutment {
   station: number;
   /** Seat elevation. */
   seat: number;
@@ -153,72 +209,36 @@ interface PlacedAbutment {
   footing: P2[];
 }
 
-function deckDepthOf(bridge: CorridorBridge) {
+export function deckDepthOf(bridge: CorridorBridge) {
   const b = profileBounds(bridge.deck.profile);
   return { minY: b.minY, maxY: b.maxY, depth: Math.max(b.maxY - b.minY, 0.3) };
 }
 
-/** Where a bridge's two abutments stand, with their sections. */
-function placeAbutments(bridge: CorridorBridge, alignment: HorizontalAlignment, profile: VerticalProfile, terrain: Terrain | null): { start: PlacedAbutment; end: PlacedAbutment } {
+/** The bearings' height (0 without bearings). */
+export const bearingHeight = (bridge: CorridorBridge) => (bridge.bearings && bridge.bearings.count > 0 ? Math.max(bridge.bearings.height, 0.02) : 0);
+
+/** The deck's soffit on the axis at a station. */
+export function soffitAt(bridge: CorridorBridge, profile: VerticalProfile, station: number): number {
+  return profile.elevationAt(station) + bridge.deck.offset[1] + deckDepthOf(bridge).minY;
+}
+
+/** How far the seat reaches back from the front face before the back wall (where the deck rests), less a 5 cm joint. */
+export function seatLength(pl: PlacedAbutment): number {
+  const up = pl.body.filter((q) => q[1] > 1e-6).map((q) => q[0]);
+  return up.length ? Math.max(Math.min(...up) - 0.05, 0) : 0;
+}
+
+/** Where a bridge's two abutments stand, with their sections (the seat under the bearings). */
+export function placeAbutments(bridge: CorridorBridge, alignment: HorizontalAlignment, profile: VerticalProfile, terrain: Terrain | null): { start: PlacedAbutment; end: PlacedAbutment } {
   const deck = deckDepthOf(bridge);
   const make = (a: AbutmentSpec, station: number, forward: boolean): PlacedAbutment => {
     const p = alignment.pointAt(station);
-    const seat = profile.elevationAt(station) + bridge.deck.offset[1] + deck.minY;
+    const seat = soffitAt(bridge, profile, station) - bearingHeight(bridge);
     const ground = terrain?.elevationAt(p.x, p.y) ?? null;
     const height = autoHeight(a) && ground !== null ? seat - (ground - 1) : null;
     // x runs back into the embankment: behind the start abutment, ahead of the end one.
     const back = ((forward ? -1 : 1) * (a.mirror ? -1 : 1)) as 1 | -1;
-    return { station, seat, back, ...abutmentSections(a, height, deck.depth) };
+    return { station, seat, back, ...abutmentSections(a, height, deck.depth + bearingHeight(bridge)) };
   };
   return { start: make(bridge.start, Math.min(bridge.from, bridge.to), true), end: make(bridge.end, Math.max(bridge.from, bridge.to), false) };
-}
-
-/** The two abutments of a bridge (start, end) as closed solids, storey-local metres. */
-export function abutmentSolids(
-  bridge: CorridorBridge, alignment: HorizontalAlignment, profile: VerticalProfile, terrain: Terrain | null,
-): { start: BridgeAbutmentSolids; end: BridgeAbutmentSolids } {
-  const placed = placeAbutments(bridge, alignment, profile, terrain);
-  const solid = (pl: PlacedAbutment, a: AbutmentSpec): BridgeAbutmentSolids => {
-    const p = alignment.pointAt(pl.station);
-    const ex: V3 = [Math.cos(p.direction) * pl.back, Math.sin(p.direction) * pl.back, 0];
-    const right: V3 = [Math.sin(p.direction), -Math.cos(p.direction), 0];
-    const origin: V3 = [p.x, p.y, pl.seat];
-    return {
-      body: extrudeOutline(pl.body, origin, ex, [0, 0, 1], right, -a.left, a.right),
-      footing: extrudeOutline(pl.footing, origin, ex, [0, 0, 1], right, -a.left - 0.3, a.right + 0.3),
-      height: -Math.min(...pl.body.map((q) => q[1])),
-    };
-  };
-  return { start: solid(placed.start, bridge.start), end: solid(placed.end, bridge.end) };
-}
-
-/** A bridge drawn in elevation along its alignment: points are (station, elevation). */
-export interface BridgeElevation {
-  deck: P2[];
-  abutments: { body: P2[]; footing: P2[]; height: number }[];
-  grade: P2[];
-  ground: P2[];
-}
-
-/** The bridge seen from the side, unrolled along the alignment, with the road and the ground a little beyond it. */
-export function bridgeElevation(bridge: CorridorBridge, alignment: HorizontalAlignment, profile: VerticalProfile, terrain: Terrain | null): BridgeElevation {
-  const deck = deckDepthOf(bridge);
-  const placed = placeAbutments(bridge, alignment, profile, terrain);
-  const lo = placed.start.station, hi = placed.end.station;
-  const sample = (a: number, b: number) => {
-    const n = Math.max(2, Math.ceil((b - a) / 1));
-    return Array.from({ length: n + 1 }, (_, i) => a + (b - a) * (i / n));
-  };
-  const top = sample(lo, hi).map((s): P2 => [s, profile.elevationAt(s) + bridge.deck.offset[1] + deck.maxY]);
-  const soffit = sample(lo, hi).reverse().map((s): P2 => [s, profile.elevationAt(s) + bridge.deck.offset[1] + deck.minY]);
-  const reach = Math.max(...[placed.start, placed.end].flatMap((pl) => [...pl.body, ...pl.footing].map((q) => Math.abs(q[0])))) + 10;
-  const around = sample(Math.max(alignment.startStation, lo - reach), Math.min(alignment.endStation, hi + reach));
-  const ground = terrain ? around.flatMap((s): P2[] => { const p = alignment.pointAt(s); const z = terrain.elevationAt(p.x, p.y); return z === null ? [] : [[s, z]]; }) : [];
-  const unroll = (pl: PlacedAbutment, loop: P2[]) => loop.map(([x, y]): P2 => [pl.station + pl.back * x, pl.seat + y]);
-  return {
-    deck: [...top, ...soffit],
-    abutments: [placed.start, placed.end].map((pl) => ({ body: unroll(pl, pl.body), footing: unroll(pl, pl.footing), height: -Math.min(...pl.body.map((q) => q[1])) })),
-    grade: around.map((s): P2 => [s, profile.elevationAt(s)]),
-    ground,
-  };
 }

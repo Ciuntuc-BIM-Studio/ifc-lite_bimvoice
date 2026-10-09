@@ -19,7 +19,8 @@ import { buildProfile, type VerticalProfile, type VerticalProfileSpec } from './
 import { slopesAt, templateAt, type AssemblySpec, type SideSlopes, type SuperelevationDesign } from './assembly.js';
 import type { Terrain, V3 } from './tin.js';
 import { componentSection, suppressesDaylight, sweepComponent, type CorridorComponent, type StationFrame } from './components.js';
-import { abutmentSolids, type CorridorBridge } from './bridge.js';
+import type { CorridorBridge } from './bridge.js';
+import { bridgeCut, bridgeElevation, bridgeParts, deckRange, type BridgeContext, type BridgeElevation, type BridgeParts } from './bridge-solids.js';
 import type { P2, StructureProfile } from './structure-profile.js';
 
 export type V2 = [number, number];
@@ -88,7 +89,9 @@ export interface CorridorModel {
   volumes: { cut: number; fill: number };
   /** The corridor's section at any station (finished grade, daylight, earthwork areas). */
   sectionAt(station: number): CorridorStation;
-  /** The components cut by the section at a station: loops in (offset across from the axis, elevation). */
+  /** A bridge seen from the side, unrolled along the alignment; null for an unknown id. */
+  bridgeElevation(bridgeId: string): BridgeElevation | null;
+  /** The components (and bridge supports) cut by the section at a station: loops in (offset across from the axis, elevation). */
   componentsAt(station: number): { id: string; name: string; color: string; loops: P2[][] }[];
 }
 
@@ -165,10 +168,13 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
   const a = spec.assembly;
   const depth = a.layers.reduce((s, l) => s + l.thickness, 0);
   // A bridge's deck sweeps like a centred component that takes the earthworks away.
-  const decks = (spec.bridges ?? []).map((b): CorridorComponent => ({
-    id: `bridge:${b.id}:deck`, profileId: b.deck.profileId, profile: { ...b.deck.profile, name: `${b.name} — deck` }, side: 'centre', attach: 'axis',
-    offset: b.deck.offset, from: b.from, to: b.to, daylight: 'both', tilt: b.deck.tilt,
-  }));
+  const decks = (spec.bridges ?? []).map((b): CorridorComponent => {
+    const [from, to] = deckRange(b, alignment, profile, terrain);
+    return {
+      id: `bridge:${b.id}:deck`, profileId: b.deck.profileId, profile: { ...b.deck.profile, name: `${b.name} — deck` }, side: 'centre', attach: 'axis',
+      offset: b.deck.offset, from, to, daylight: 'both', tilt: b.deck.tilt,
+    };
+  });
   const components = [...(spec.components ?? []), ...decks];
   const section = (station: number): CorridorStation => {
     const at = alignment.pointAt(station);
@@ -285,13 +291,22 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
     solids.push({ key: `comp:${c.id}`, name: c.profile.name, color: c.profile.color, kind: 'component', ifc: { ifcClass: c.profile.ifcClass, predefinedType: c.profile.predefinedType, objectType: c.profile.objectType }, ...swept, closed: true });
   }
 
-  for (const b of spec.bridges ?? []) {
-    const { start, end } = abutmentSolids(b, alignment, profile, terrain);
-    const wall = { ifcClass: 'IfcWall', predefinedType: 'USERDEFINED', objectType: 'Abutment' };
-    const strip = { ifcClass: 'IfcFooting', predefinedType: 'STRIP_FOOTING', objectType: 'Abutment footing' };
-    for (const [end_, a] of [['start', start], ['end', end]] as const) {
-      solids.push({ key: `bridge:${b.id}:${end_}`, name: `${b.name} — ${end_} abutment`, color: '#a8a29e', kind: 'component', ifc: wall, ...a.body, closed: true });
-      solids.push({ key: `bridge:${b.id}:${end_}-footing`, name: `${b.name} — ${end_} footing`, color: '#78716c', kind: 'component', ifc: strip, ...a.footing, closed: true });
+  // Bridges: abutments, piers, bearings as closed parts; the quarter cones join the fill slopes.
+  const bridgeContext: BridgeContext = {
+    alignment, profile, terrain, fillSlope: a.daylight.fillSlope,
+    crest: (station, side) => { const st = section(Math.min(Math.max(station, alignment.startStation), alignment.endStation)); return (side === 'left' ? st.top[0] : st.top[st.top.length - 1])[2]; },
+  };
+  const bridges: { bridge: CorridorBridge; parts: BridgeParts }[] = (spec.bridges ?? []).map((bridge) => ({ bridge, parts: bridgeParts(bridge, bridgeContext) }));
+  let coneFill = 0;
+  for (const { parts } of bridges) {
+    for (const s of parts.solids) solids.push({ key: s.key, name: s.name, color: s.color, kind: 'component', ifc: s.ifc, points: s.points, triangles: s.triangles, closed: true });
+    for (const c of parts.cones) {
+      coneFill += c.volume;
+      let fillSolid = solids.find((x) => x.key === 'fill');
+      if (!fillSolid) { fillSolid = { key: 'fill', name: 'Fill slopes', color: '#6b8e23', kind: 'fill', points: [], triangles: [], closed: false }; solids.push(fillSolid); }
+      const base = fillSolid.points.length;
+      fillSolid.points.push(...c.points);
+      for (const [i, j, k] of c.triangles) fillSolid.triangles.push([base + i, base + j, base + k]);
     }
   }
 
@@ -301,6 +316,7 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
     cut += (stations[i].cutArea + stations[i + 1].cutArea) / 2 * ds;
     fill += (stations[i].fillArea + stations[i + 1].fillArea) / 2 * ds;
   }
+  fill += coneFill;
   return {
     alignment, profile, stations, solids,
     centreline: stations.map((s) => s.origin),
@@ -310,12 +326,14 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
     },
     volumes: { cut, fill },
     sectionAt: (station: number) => section(Math.min(Math.max(station, alignment.startStation), alignment.endStation)),
+    bridgeElevation: (bridgeId: string) => { const b = spec.bridges?.find((x) => x.id === bridgeId); return b ? bridgeElevation(b, bridgeContext) : null; },
     componentsAt: (station: number) => {
       const st = section(Math.min(Math.max(station, alignment.startStation), alignment.endStation));
       const right: [number, number] = [Math.sin(st.direction), -Math.cos(st.direction)];
       return components
         .filter((c) => station >= Math.min(c.from, c.to) - 1e-9 && station <= Math.max(c.from, c.to) + 1e-9)
-        .map((c) => ({ id: c.id, name: c.profile.name, color: c.profile.color, loops: componentSection(c, frame(c, st), st.origin, right, terrain) }));
+        .map((c) => ({ id: c.id, name: c.profile.name, color: c.profile.color, loops: componentSection(c, frame(c, st), st.origin, right, terrain) }))
+        .concat(bridges.flatMap(({ bridge, parts }) => bridgeCut(bridge, parts, st.station)));
     },
   };
 }

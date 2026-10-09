@@ -20,7 +20,7 @@ import { defaultAssembly, defaultDesign } from '../civil/assembly.js';
 import { delaunay, type V3 } from '../civil/tin.js';
 import type { CorridorSpec } from '../civil/corridor.js';
 import { componentFromProfile } from '../civil/components.js';
-import { defaultAbutment } from '../civil/bridge.js';
+import { defaultAbutment, defaultBearings, defaultPier } from '../civil/bridge.js';
 import { profileFromPreset } from '../civil/structure-profile.js';
 import { resolveSpatialAnchor } from './resolve-anchor.js';
 import {
@@ -158,6 +158,16 @@ describe('bridges in store', () => {
     expect(byTag.get('bridge:b:start-footing')?.attributes[8]).toBe('.STRIP_FOOTING.');
     expect(byTag.get('bridge:b:end')?.type).toBe('IfcWall');
     expect(byTag.get('comp:bridge:b:deck')?.type).toBe('IfcSlab');
+  });
+
+  it('writes piers as IfcColumn PIERSTEM under an IfcBeam PIERCAP, bearings as IfcBearing (IFC4X3)', async () => {
+    const x3 = await ifc4x3Scene();
+    const withBridge = { ...spec(), bridges: [{ id: 'b', name: 'Bridge', from: 40, to: 90, deck: { profileId: 'd', profile: profileFromPreset('deck-slab', 'd'), offset: [0, -0.6] as [number, number] }, start: defaultAbutment('wall', 6), end: defaultAbutment('gravity', 6), piers: [defaultPier('p', 65, 6)], bearings: defaultBearings() }] };
+    const made = addCorridorToStore(x3.store, x3.editor, x3.anchor, withBridge, groundTin());
+    const byTag = new Map(made.parts.map((id) => [x3.view.getNewEntity(id)!.attributes[7], x3.view.getNewEntity(id)!]));
+    expect([byTag.get('bridge:b:pier:p')?.type, byTag.get('bridge:b:pier:p')?.attributes[8]]).toEqual(['IfcColumn', '.PIERSTEM.']);
+    expect([byTag.get('bridge:b:pier:p-cap')?.type, byTag.get('bridge:b:pier:p-cap')?.attributes[8]]).toEqual(['IfcBeam', '.PIERCAP.']);
+    expect(byTag.get('bridge:b:bearings:pier:p')?.type).toBe('IfcBearing');
   });
 });
 

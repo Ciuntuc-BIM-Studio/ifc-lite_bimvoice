@@ -8,7 +8,8 @@
  * plane), and an abutment at either end — a library profile (the wall and
  * gravity presets, or any drawn one), edited in place like a component's,
  * how far it reaches left and right of the alignment, whether its height
- * follows the ground, its continuous footing, and Mirror to turn it round.
+ * follows the ground, its quarter cones, its continuous footing, and Mirror
+ * to turn it round; then the piers and the bearings (`BridgeSupportFields`).
  */
 
 import { useState } from 'react';
@@ -22,6 +23,7 @@ import { INPUT, Section } from '../joinery/JoineryFields';
 import { Cell } from './CorridorFields';
 import { ProfileCanvas } from './ProfileCanvas';
 import { ComponentProfileEditor } from './ComponentProfileEditor';
+import { BearingFields, PierFields } from './BridgeSupportFields';
 
 interface Props {
   spec: CorridorSpec;
@@ -85,6 +87,10 @@ function AbutmentFields({ title, a, choices, onChange }: { title: string; a: Abu
           <input type="checkbox" checked={auto} onChange={(e) => set({ autoHeight: e.target.checked })} />
           {t('civil.bridge.autoHeight')}
         </label>
+        <label className="col-span-2 flex items-center gap-1.5 text-2xs">
+          <input type="checkbox" checked={a.cones !== false} onChange={(e) => set({ cones: e.target.checked })} />
+          {t('civil.bridge.cones')}
+        </label>
         <Num label={t('civil.bridge.footingWidth')} value={a.footing.width} min={0.5} onCommit={(width) => footing({ width })} />
         <Num label={t('civil.bridge.footingThickness')} value={a.footing.thickness} min={0.2} onCommit={(thickness) => footing({ thickness })} />
         <Num label={t('civil.bridge.footingToe')} value={a.footing.toe} onCommit={(toe) => footing({ toe })} />
@@ -124,6 +130,8 @@ export function BridgeFields({ spec, onChange }: Props) {
           </div>
           <AbutmentFields title={t('civil.bridge.start')} a={b.start} choices={abutments} onChange={(start) => patch(i, { start })} />
           <AbutmentFields title={t('civil.bridge.end')} a={b.end} choices={abutments} onChange={(end) => patch(i, { end })} />
+          <PierFields spec={spec} bridge={b} onChange={(next) => patch(i, next)} />
+          <BearingFields bridge={b} onChange={(next) => patch(i, next)} />
         </div>
       ))}
       <button type="button" className="flex items-center gap-1 rounded-sm border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
