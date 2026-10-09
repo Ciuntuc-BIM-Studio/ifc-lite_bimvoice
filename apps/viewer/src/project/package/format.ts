@@ -53,6 +53,8 @@ export interface PackageVersionInfo {
   /** Set once versions exist (S5): this version, and the one it was made from. */
   id?: string;
   parent?: string;
+  /** 1, 2, 3… within the project. */
+  number?: number;
   name?: string;
   message?: string;
 }

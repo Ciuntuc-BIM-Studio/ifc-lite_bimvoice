@@ -10,6 +10,7 @@
  */
 
 import { create } from 'zustand';
+import type { PackageManifest } from './format';
 
 export interface PackageSession {
   projectId: string | null;
@@ -21,10 +22,14 @@ export interface PackageSession {
   savedMutationVersion: number | null;
   savedDocument: string | null;
   busy: 'saving' | 'opening' | null;
+  /** What a long save or open is doing, shown while it runs. */
+  progress: string | null;
+  /** The version the open project was saved to or opened from (`versions.ts`). */
+  version: { id: string; number: number; name: string } | null;
 }
 
 export const usePackageSession = create<PackageSession>()(() => ({
-  projectId: null, fileName: null, handle: null, savedAt: null, savedMutationVersion: null, savedDocument: null, busy: null,
+  projectId: null, fileName: null, handle: null, savedAt: null, savedMutationVersion: null, savedDocument: null, busy: null, progress: null, version: null,
 }));
 
 export function newProjectId(): string {
@@ -33,5 +38,11 @@ export function newProjectId(): string {
 
 /** Forget the package (a New project, or models loaded on their own). */
 export function resetPackageSession(): void {
-  usePackageSession.setState({ projectId: null, fileName: null, handle: null, savedAt: null, savedMutationVersion: null, savedDocument: null, busy: null });
+  usePackageSession.setState({ projectId: null, fileName: null, handle: null, savedAt: null, savedMutationVersion: null, savedDocument: null, busy: null, progress: null, version: null });
+}
+
+/** The version a package says it is, or null. */
+export function versionOf(manifest: PackageManifest): PackageSession['version'] {
+  const v = manifest.versionInfo;
+  return v?.id ? { id: v.id, number: v.number ?? 0, name: v.name ?? '' } : null;
 }

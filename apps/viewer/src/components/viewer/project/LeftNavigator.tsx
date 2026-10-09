@@ -18,6 +18,7 @@ import { useElementTagSync } from '@/project/useElementTagSync';
 import { ProjectNavigatorPanel } from './ProjectNavigatorPanel';
 import { NewProjectHost } from './NewProjectDialog';
 import { ProjectPackageHost } from './ProjectPackageHost';
+import { ProjectVersionsHost } from './ProjectVersionsHost';
 import { RoofEditBar } from '../roof/RoofEditBar';
 import { DraftingStandardsDialog } from '../drafting/standards/DraftingStandardsDialog';
 import { JoineryDialog } from '../joinery/JoineryDialog';
@@ -92,6 +93,7 @@ export function LeftNavigator() {
       </div>
       <NewProjectHost />
       <ProjectPackageHost />
+      <ProjectVersionsHost />
       <RoofEditBar />
       <DraftingStandardsDialog />
       <JoineryDialog />

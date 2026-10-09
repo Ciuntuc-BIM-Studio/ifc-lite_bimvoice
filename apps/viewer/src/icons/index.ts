@@ -116,6 +116,7 @@ export { default as NewProject } from '~icons/viewer/new-project';
 export { default as ProjectOpen } from '~icons/viewer/project-open';
 export { default as ProjectSave } from '~icons/viewer/project-save';
 export { default as LinkModel } from '~icons/viewer/link-model';
+export { default as ProjectVersion } from '~icons/viewer/project-version';
 export { default as DraftSectionLine } from '~icons/viewer/draft-section-line';
 export { default as DraftWorkplane } from '~icons/viewer/draft-workplane';
 export { default as DraftExtrude } from '~icons/viewer/draft-extrude';

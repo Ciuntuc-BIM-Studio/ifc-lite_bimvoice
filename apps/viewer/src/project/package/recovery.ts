@@ -9,8 +9,8 @@
  * project, clears it; at startup a slot left behind is offered back.
  */
 
-const DB = 'bimvoice-projects';
-const STORE = 'recovery';
+import { idbRun, STORES } from './vault-idb';
+
 const SLOT = 'current';
 
 export interface RecoveryEntry {
@@ -21,28 +21,7 @@ export interface RecoveryEntry {
   bytes: Blob;
 }
 
-function open(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 1);
-    req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE); };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error('IndexedDB unavailable'));
-  });
-}
-
-async function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  const db = await open();
-  try {
-    return await new Promise<T>((resolve, reject) => {
-      const tx = db.transaction(STORE, mode);
-      const req = fn(tx.objectStore(STORE));
-      tx.oncomplete = () => resolve(req.result);
-      tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
-    });
-  } finally {
-    db.close();
-  }
-}
+const run = <T,>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>) => idbRun(STORES.recovery, mode, fn);
 
 export async function writeRecovery(entry: RecoveryEntry): Promise<void> {
   await run('readwrite', (s) => s.put(entry, SLOT));

@@ -52,6 +52,8 @@ import { CutHatchLayer } from './CutHatchLayer';
 import { MembraneLayer } from './MembraneLayer';
 import { RoofPlanLayer } from '../roof/RoofPlanLayer';
 import { roofAtPoint } from '@/project/roof-plan';
+import { editRoofBlock } from '@/project/roof-block';
+import { useRoofDialog } from '@/project/roof-dialog-store';
 import { exportViewDxf } from './view-dxf';
 import { drawnBySymbol } from '@/project/view-symbols';
 import { planOverlays } from '@/project/plan-overlays';
@@ -244,7 +246,11 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           if (hit && !isGeometry(hit.shape)) {
             setDraftSelection(new Set([hit.id]));
             setTimeout(() => setEditingText(true), 0);
+            return;
           }
+          // Inside a roof's outline (nothing drafted hit): enter the roof as a block.
+          const roof = !hit && !runningCommand() && view.kind === 'plan' && plane ? roofAtPoint(view, plane, p) : null;
+          if (roof !== null && !useRoofDialog.getState().editing) editRoofBlock(roof);
         }}
       >
         {shown ? (

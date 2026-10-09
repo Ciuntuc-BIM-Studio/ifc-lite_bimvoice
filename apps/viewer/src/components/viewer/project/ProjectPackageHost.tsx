@@ -10,7 +10,7 @@
  * copy is kept in the browser (`recovery.ts`) and offered back at startup.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,15 +18,14 @@ import { confirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/components/ui/toast';
 import { useIfc } from '@/hooks/useIfc';
 import { useViewerStore } from '@/store';
-import { sanitizeFilename } from '@/lib/export/download';
-import { projectDocument, useProjectStore } from '@/project/project-store';
 import { PACKAGE_ACTION_EVENT, type PackageAction } from '@/project/package/actions';
-import { canWriteInPlace, downloadPackage, pickFile, pickPackageToOpen, pickSaveTarget, writeToHandle } from '@/project/package/file-access';
-import { PACKAGE_SUFFIX, type PackageModel } from '@/project/package/format';
-import { loadLinkedModel, openPackageBytes, type ModelLoader } from '@/project/package/project-open';
-import { packageCurrentProject } from '@/project/package/project-save';
+import { pickFile, pickPackageToOpen } from '@/project/package/file-access';
+import type { PackageModel } from '@/project/package/format';
+import { loadLinkedModel, type ModelLoader } from '@/project/package/project-open';
+import { saveProject } from '@/project/package/save-actions';
+import { openProjectBytes, useLinkedToLocate } from '@/project/package/open-actions';
 import { clearRecovery, readRecovery, type RecoveryEntry } from '@/project/package/recovery';
-import { newProjectId, usePackageSession } from '@/project/package/session';
+import { usePackageSession } from '@/project/package/session';
 import { useAutosaveRecovery, isProjectDirty } from './useAutosaveRecovery';
 
 const MODEL_FILES = '.ifc,.ifczip,.ifcx';
@@ -35,73 +34,23 @@ export function ProjectPackageHost() {
   const { t } = useTranslation();
   const { addModel, clearAllModels } = useIfc();
   const resetViewerState = useViewerStore((s) => s.resetViewerState);
-  const [linked, setLinked] = useState<PackageModel[]>([]);
+  const linked = useLinkedToLocate((s) => s.models);
+  const setLinked = (next: PackageModel[] | ((list: PackageModel[]) => PackageModel[])) =>
+    useLinkedToLocate.setState((s) => ({ models: typeof next === 'function' ? next(s.models) : next }));
   const [recovery, setRecovery] = useState<RecoveryEntry | null>(null);
-  const [progress, setProgress] = useState<string | null>(null);
-  const busy = useRef(false);
+  const progress = usePackageSession((s) => s.progress);
 
   const loader: ModelLoader = {
     clearAll: () => { resetViewerState(); clearAllModels(); },
     addModel: (file, options) => addModel(file, { name: options.name }),
   };
 
-  const save = useCallback(async (as: boolean) => {
-    if (busy.current) return;
-    if (useViewerStore.getState().models.size === 0) { toast.info(t('projectPackage.nothingToSave')); return; }
-    busy.current = true;
-    const session = usePackageSession.getState();
-    try {
-      const name = sanitizeFilename(useProjectStore.getState().name || 'project', { fallback: 'project' });
-      let handle = as ? null : session.handle;
-      if (!handle && canWriteInPlace()) {
-        handle = await pickSaveTarget(session.fileName ?? `${name}${PACKAGE_SUFFIX}`);
-        if (!handle) return;
-      }
-      usePackageSession.setState({ busy: 'saving' });
-      const projectId = session.projectId ?? newProjectId();
-      setProgress(t('projectPackage.saving'));
-      try {
-        const packaged = await packageCurrentProject(projectId, { onProgress: (label) => setProgress(t('projectPackage.savingModel', { name: label })) });
-        const fileName = handle?.name ?? session.fileName ?? `${name}${PACKAGE_SUFFIX}`;
-        if (handle) await writeToHandle(handle, packaged.bytes);
-        else downloadPackage(packaged.bytes, fileName);
-        usePackageSession.setState({
-          projectId, fileName, handle, savedAt: Date.now(),
-          savedMutationVersion: useViewerStore.getState().mutationVersion, savedDocument: JSON.stringify(projectDocument()),
-        });
-        await clearRecovery();
-        toast.success(t('projectPackage.saved', { name: fileName, mb: (packaged.bytes.byteLength / 1e6).toFixed(1) }));
-      } catch (err) {
-        toast.error(t('projectPackage.saveFailed', { detail: err instanceof Error ? err.message : String(err) }));
-      }
-    } finally {
-      usePackageSession.setState({ busy: null });
-      setProgress(null);
-      busy.current = false;
-    }
-  }, [t]);
+  const save = useCallback(async (as: boolean) => { await saveProject(as); }, []);
 
   const openBytes = useCallback(async (bytes: Uint8Array, fileName: string | null, handle: FileSystemFileHandle | null) => {
-    usePackageSession.setState({ busy: 'opening' });
-    setProgress(t('projectPackage.opening'));
-    try {
-      const result = await openPackageBytes(bytes, loader, (label) => setProgress(t('projectPackage.openingModel', { name: label })));
-      usePackageSession.setState({
-        projectId: result.opened.manifest.projectId, fileName, handle, savedAt: Date.parse(result.opened.manifest.savedAt) || null,
-        savedMutationVersion: useViewerStore.getState().mutationVersion, savedDocument: JSON.stringify(projectDocument()),
-      });
-      await clearRecovery();
-      if (result.failed.length) toast.error(t('projectPackage.modelsFailed', { names: result.failed.join(', ') }));
-      else toast.success(t('projectPackage.opened', { name: result.opened.manifest.projectName }));
-      setLinked(result.linked);
-    } catch (err) {
-      toast.error(t('projectPackage.openFailed', { detail: err instanceof Error ? err.message : String(err) }));
-    } finally {
-      usePackageSession.setState({ busy: null });
-      setProgress(null);
-    }
+    await openProjectBytes(bytes, { fileName, handle }, loader);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t, addModel, clearAllModels, resetViewerState]);
+  }, [addModel, clearAllModels, resetViewerState]);
 
   const open = useCallback(async () => {
     if (isProjectDirty() && !(await confirmDialog({ title: t('projectPackage.open'), description: t('projectPackage.discardChanges'), confirmLabel: t('projectPackage.openAnyway'), destructive: true }))) return;

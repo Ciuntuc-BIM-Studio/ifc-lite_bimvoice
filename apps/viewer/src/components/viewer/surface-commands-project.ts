@@ -8,7 +8,7 @@
  * (a read-only coordination model). The package commands are handled by
  * `ProjectPackageHost`.
  */
-import { LinkModel, NewProject, ProjectOpen, ProjectSave } from '@/icons';
+import { LinkModel, NewProject, ProjectOpen, ProjectSave, ProjectVersion } from '@/icons';
 import { requestNewProject } from '@/project/new-project';
 import { requestPackageAction } from '@/project/package/actions';
 import type { SurfaceCommandDefinition } from './surface-command-types';
@@ -43,5 +43,23 @@ export const RIBBON_PROJECT_SURFACE_COMMANDS = [
     keywords: 'link model reference coordination read only federate', category: 'File', icon: LinkModel,
     surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
     run: () => { requestPackageAction('link'); },
+  },
+  {
+    id: 'file:save-version', labelKey: 'projectVersions.save',
+    keywords: 'version save milestone snapshot named history', category: 'File', icon: ProjectVersion,
+    surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
+    run: () => { requestPackageAction('save-version'); },
+  },
+  {
+    id: 'file:update-version', labelKey: 'projectVersions.update',
+    keywords: 'version update overwrite current', category: 'File', icon: ProjectVersion,
+    surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
+    run: () => { requestPackageAction('update-version'); },
+  },
+  {
+    id: 'file:version-history', labelKey: 'projectVersions.history',
+    keywords: 'version history list restore compare', category: 'File', icon: ProjectVersion,
+    surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
+    run: () => { requestPackageAction('history'); },
   },
 ] as const satisfies readonly SurfaceCommandDefinition[];

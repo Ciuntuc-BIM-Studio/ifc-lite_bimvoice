@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { AddFile, CloudSources, Loading, NewProject, OpenFile, ProjectOpen, ProjectSave, LinkModel, SaveFederationSetup, Refresh, Share, CollabsRoom } from '@/icons';
+import { AddFile, CloudSources, Loading, NewProject, OpenFile, ProjectOpen, ProjectSave, LinkModel, ProjectVersion, SaveFederationSetup, Refresh, Share, CollabsRoom } from '@/icons';
 import { useViewerStore } from '@/store';
 import { useIfc } from '@/hooks/useIfc';
 import { isCollabEnabled } from '@/lib/collab/config';
@@ -62,6 +62,11 @@ export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="file:save-project-as" icon={ProjectSave} />
           <RibbonCommandSmallButton commandId="file:link-model" icon={LinkModel} />
+        </RibbonSmallStack>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="file:save-version" icon={ProjectVersion} />
+          <RibbonCommandSmallButton commandId="file:update-version" icon={ProjectVersion} />
+          <RibbonCommandSmallButton commandId="file:version-history" icon={ProjectVersion} />
         </RibbonSmallStack>
         <RibbonCommandLargeButton
           commandId="file:open"

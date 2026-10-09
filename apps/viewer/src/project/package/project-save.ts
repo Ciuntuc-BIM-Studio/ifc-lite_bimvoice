@@ -20,7 +20,7 @@ import { placementSourceIdentity } from '@/lib/model-placement/source-identity';
 import { projectDocument } from '../project-store';
 import { modelRef } from '../project-sync';
 import type { ProjectDocument } from '../types';
-import { buildPackage, zipPackage, type ModelInput } from './package-io';
+import { buildPackage, zipPackage, type ModelInput, type PackageFiles } from './package-io';
 import type { PackageManifest, PackageVersionInfo } from './format';
 
 const APP = { name: 'BIMVoice', version: '4.0.0' };
@@ -41,6 +41,8 @@ async function nativeModelBytes(modelId: string, dataStore: IfcDataStore, edited
 
 export interface PackagedProject {
   bytes: Uint8Array;
+  /** The package as path → bytes (what a version stores). */
+  files: PackageFiles;
   manifest: PackageManifest;
   /** The document as saved (native model keys moved to the saved bytes' identity). */
   doc: ProjectDocument;
@@ -69,5 +71,5 @@ export async function packageCurrentProject(projectId: string, options: { versio
   // Keep a reference the document had to a model not loaded right now.
   for (const ref of doc.models) if (!renamed.has(ref.key) && !saved.models.some((m) => m.key === ref.key)) saved.models.push(ref);
   const { files, manifest } = await buildPackage({ projectId, doc: saved, models, app: APP, versionInfo: options.versionInfo });
-  return { bytes: zipPackage(files), manifest, doc: saved };
+  return { bytes: zipPackage(files), files, manifest, doc: saved };
 }
