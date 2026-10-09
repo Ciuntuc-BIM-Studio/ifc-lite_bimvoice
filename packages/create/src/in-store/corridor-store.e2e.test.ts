@@ -19,6 +19,8 @@ import { IfcCreator } from '../ifc-creator.js';
 import { defaultAssembly, defaultDesign } from '../civil/assembly.js';
 import { delaunay, type V3 } from '../civil/tin.js';
 import type { CorridorSpec } from '../civil/corridor.js';
+import { componentFromProfile } from '../civil/components.js';
+import { profileFromPreset } from '../civil/structure-profile.js';
 import { resolveSpatialAnchor } from './resolve-anchor.js';
 import {
   addCorridorToStore, addTerrainToStore, corridorOf, corridorParts, corridorsInStore, readCorridor, readTerrainTin, regenerateCorridorInStore, removeCorridorFromStore, terrainsInStore,
@@ -120,6 +122,31 @@ describe('corridor in store', () => {
   });
 });
 
+describe('corridor components in store', () => {
+  it('writes a retaining wall as IfcWall RETAININGWALL (IFC4X3) and a kerb as IfcKerb; IFC4 falls back', async () => {
+    const withParts = { ...spec(), components: [componentFromProfile('w', profileFromPreset('cantilever-wall', 'p1'), 20, 120), componentFromProfile('k', profileFromPreset('kerb', 'p2'), 0, 300)] };
+    const x3 = await ifc4x3Scene();
+    const made = addCorridorToStore(x3.store, x3.editor, x3.anchor, withParts, groundTin());
+    const types = made.parts.map((id) => x3.view.getNewEntity(id)!);
+    const wall = types.find((e) => e.attributes[7] === 'comp:w')!;
+    expect(wall.type).toBe('IfcWall');
+    expect(wall.attributes[8]).toBe('.RETAININGWALL.');
+    expect(types.find((e) => e.attributes[7] === 'comp:k')!.type).toBe('IfcKerb');
+    // Regenerating without the kerb removes it and keeps the wall's GlobalId.
+    const again = regenerateCorridorInStore(x3.store, x3.editor, x3.anchor, made.corridorId, { ...withParts, components: withParts.components.slice(0, 1) }, groundTin());
+    expect(again.removed).toHaveLength(1);
+    expect(again.parts.map((id) => x3.view.getNewEntity(id)!.attributes[0])).toContain(wall.attributes[0]);
+
+    const store = await parse(readFileSync(SAMPLE));
+    const view = new MutablePropertyView(null, 'm');
+    const editor = new StoreEditor(store, view);
+    const four = addCorridorToStore(store, editor, resolveSpatialAnchor(store, 42, view), withParts, groundTin());
+    const parts4 = four.parts.map((id) => view.getNewEntity(id)!);
+    expect(parts4.find((e) => e.attributes[7] === 'comp:w')!.type).toBe('IfcWall');
+    expect(parts4.find((e) => e.attributes[7] === 'comp:k')!.type).toBe('IfcBuildingElementProxy');
+  });
+});
+
 describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('corridor, real WASM meshes', () => {
   let RuntimeIfcAPI: typeof IfcAPI;
   let StepExporter: typeof import('@ifc-lite/export').StepExporter;
@@ -154,10 +181,10 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('corridor, real WASM mes
     }
   }
 
-  it('meshes the wearing course along the whole road at the profile grade, and the terrain', async () => {
+  it('meshes the wearing course along the whole road at the profile grade, the terrain and a retaining wall', async () => {
     const { store, view, editor, anchor } = await ifc4x3Scene();
     const terrain = addTerrainToStore(editor, anchor, { Name: 'EG', tin: groundTin() });
-    const made = addCorridorToStore(store, editor, anchor, spec(), groundTin());
+    const made = addCorridorToStore(store, editor, anchor, { ...spec(), components: [componentFromProfile('w', profileFromPreset('cantilever-wall', 'p'), 20, 120)] }, groundTin());
     const bytes = new StepExporter(store, view).export({ schema: 'IFC4X3', applyMutations: true }).content;
     const reparsed = await parse(bytes);
     const wearing = meshZ(bytes, reparsed, made.parts[0]);
@@ -167,8 +194,15 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('corridor, real WASM mes
     expect(wearing.max).toBeLessThan(3.0);
     expect(wearing.max - wearing.min).toBeGreaterThan(0.7);
     const ground = meshZ(bytes, reparsed, terrain.elementId);
+    expect(ground.triangles).toBeGreaterThan(0);
     expect(ground.triangles).toBe(groundTin().triangles.length);
     expect(ground.min).toBeCloseTo(0, 3);
     expect(ground.max).toBeCloseTo(3, 3);
+    const wallId = made.parts.find((id) => view.getNewEntity(id)!.attributes[7] === 'comp:w')!;
+    const wall = meshZ(bytes, reparsed, wallId);
+    expect(wall.triangles).toBeGreaterThan(50);
+    // Footing 0.4 below the road edge, stem up to the ground behind (auto height).
+    expect(wall.min).toBeLessThan(2);
+    expect(wall.max).toBeGreaterThan(wall.min + 0.5);
   });
 });

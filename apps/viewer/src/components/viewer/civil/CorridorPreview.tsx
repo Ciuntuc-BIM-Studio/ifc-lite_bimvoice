@@ -104,7 +104,8 @@ export function SectionPreview({ model, terrain, width, height, label, station, 
   }, [st, terrain]);
   if (!st || !section) return null;
   const depth = layers.reduce((s, l) => s + l.thickness, 0);
-  const all = [...section.top, ...section.ground, ...(section.dl ? [section.dl] : []), ...(section.dr ? [section.dr] : []), ...section.top.map((p) => ({ x: p.x, y: p.y - depth }))];
+  const parts = model.componentsAt(st.station).flatMap((c) => c.loops.flat().map(([x, y]) => ({ x, y })));
+  const all = [...parts, ...section.top, ...section.ground, ...(section.dl ? [section.dl] : []), ...(section.dr ? [section.dr] : []), ...section.top.map((p) => ({ x: p.x, y: p.y - depth }))];
   const f = fit(all, width, height);
   const S = (p: P) => ({ x: f.ox + p.x * f.scale, y: f.oy - p.y * f.scale });
   let above = 0;
@@ -116,6 +117,9 @@ export function SectionPreview({ model, terrain, width, height, label, station, 
         above = below;
         return <path key={i} d={path(ring.map(S)) + 'Z'} fill={l.color} stroke="#27272a" strokeWidth={0.5} />;
       })}
+      {model.componentsAt(st.station).map((c) => (
+        <path key={c.id} d={c.loops.map((l) => path(l.map(([x, y]) => S({ x, y }))) + 'Z').join('')} fillRule="evenodd" fill={c.color} fillOpacity={0.8} stroke="#27272a" strokeWidth={0.6} />
+      ))}
       {section.ground.length ? <path d={path(section.ground.map(S))} fill="none" stroke="#15803d" strokeWidth={1.2} /> : null}
       {section.dl ? <line {...xy(S(section.top[0]), S(section.dl))} stroke="#a0783c" strokeWidth={1} /> : null}
       {section.dr ? <line {...xy(S(section.top[section.top.length - 1]), S(section.dr))} stroke="#a0783c" strokeWidth={1} /> : null}

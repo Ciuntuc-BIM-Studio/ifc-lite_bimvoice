@@ -25,7 +25,8 @@ import type { IfcDataStore } from '@ifc-lite/parser';
 import { emitAlignment } from '../ifc-creator-alignment.js';
 import type { HorizontalSegment as EmittedHorizontalSegment } from '../landxml/alignment-mapping.js';
 import type { VerticalSegment as EmittedVerticalSegment } from '../landxml/profile-geometry.js';
-import { buildCorridor, type CorridorModel, type CorridorSpec } from '../civil/corridor.js';
+import { buildCorridor, type CorridorModel, type CorridorSolid, type CorridorSpec } from '../civil/corridor.js';
+import { profileIfcClass } from '../civil/structure-profile.js';
 import type { HorizontalAlignment } from '../civil/alignment.js';
 import type { VerticalProfile } from '../civil/profile.js';
 import { Terrain, type Tin } from '../civil/tin.js';
@@ -34,7 +35,7 @@ import { toNativeLength, type SpatialAnchor } from './anchor.js';
 import { refId } from './host-geometry-frame.js';
 import { attributeRefs, elementGeometryRefs, pruneOrphanOverlay } from './overlay-prune.js';
 import { AnchorEntityReader } from './resolve-anchor.js';
-import { canonicalEntity, schemaAttributes, schemaRegistry } from './schema-attributes.js';
+import { canonicalEntity, conformsTo, schemaAttributes, schemaRegistry } from './schema-attributes.js';
 import { storeEmitter } from './step-attrs.js';
 import { addTriangulatedElementToStore, readTriangulatedBody, rewriteTriangulatedGeometry, type TriangulatedBuildResult, type TriangulatedInStoreParams } from './triangulated.js';
 
@@ -192,9 +193,22 @@ function specProperty(editor: StoreEditor, spec: CorridorSpec): number {
   return editor.addEntity('IfcPropertySingleValue', ['Spec', null, { typed: { type: 'IfcText', value: JSON.stringify(spec) } }, null]).expressId;
 }
 
+/** A component's class in the schema, made safe: an unknown class becomes a proxy, an unknown predefined type USERDEFINED. */
+function componentClass(schema: string, ifc: NonNullable<CorridorSolid['ifc']>): Pick<TriangulatedInStoreParams, 'IfcClass' | 'PredefinedType' | 'ObjectType'> {
+  const wanted = profileIfcClass(ifc, schema);
+  const registry = schemaRegistry(schema as SpatialAnchor['schema'], 'componentClass');
+  const cls = canonicalEntity(registry, wanted.ifcClass);
+  if (!cls || !conformsTo(registry, cls, 'IfcElement')) return { IfcClass: 'IfcBuildingElementProxy', PredefinedType: 'USERDEFINED', ObjectType: wanted.objectType ?? ifc.ifcClass };
+  const enumType = registry.entities[cls].allAttributes?.find((a) => a.name === 'PredefinedType')?.type;
+  const values = enumType ? registry.enums[enumType] ?? [] : [];
+  const predefined = wanted.predefinedType && values.includes(wanted.predefinedType) ? wanted.predefinedType : values.includes('USERDEFINED') ? 'USERDEFINED' : undefined;
+  return { IfcClass: cls, PredefinedType: predefined, ObjectType: wanted.objectType };
+}
+
 function partParams(schema: string, model: CorridorModel, key: string): TriangulatedInStoreParams {
   const solid = model.solids.find((s) => s.key === key)!;
-  return { ...partClass(schema, solid.kind), Name: solid.name, Tag: key, Points: solid.points, Triangles: solid.triangles, Closed: solid.closed, Color: solid.color };
+  const cls = solid.kind === 'component' && solid.ifc ? componentClass(schema, solid.ifc) : partClass(schema, solid.kind as 'course' | 'cut' | 'fill');
+  return { ...cls, Name: solid.name, Tag: key, Points: solid.points, Triangles: solid.triangles, Closed: solid.closed, Color: solid.color };
 }
 
 export function addCorridorToStore(store: IfcDataStore, editor: StoreEditor, anchor: SpatialAnchor, spec: CorridorSpec, terrain: Tin | null, params: { GlobalId?: string } = {}): CorridorResult {

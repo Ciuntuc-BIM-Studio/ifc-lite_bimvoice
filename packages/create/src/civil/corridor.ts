@@ -18,6 +18,8 @@ import { buildAlignment, type HorizontalAlignment, type HorizontalAlignmentSpec 
 import { buildProfile, type VerticalProfile, type VerticalProfileSpec } from './profile.js';
 import { slopesAt, templateAt, type AssemblySpec, type SideSlopes, type SuperelevationDesign } from './assembly.js';
 import type { Terrain, V3 } from './tin.js';
+import { componentSection, suppressesDaylight, sweepComponent, type CorridorComponent, type StationFrame } from './components.js';
+import type { P2, StructureProfile } from './structure-profile.js';
 
 export type V2 = [number, number];
 
@@ -31,6 +33,8 @@ export interface CorridorSpec {
   interval: number;
   /** GlobalId of the terrain element (IfcGeographicElement) the corridor daylights to, in the same model. */
   terrainGlobalId?: string | null;
+  /** Library profiles swept over station ranges: walls, tunnels, decks, barriers… */
+  components?: CorridorComponent[];
 }
 
 export type DaylightKind = 'cut' | 'fill' | 'none';
@@ -53,11 +57,13 @@ export interface CorridorStation {
 }
 
 export interface CorridorSolid {
-  /** Stable part key: course:<i>, cut, fill. */
+  /** Stable part key: course:<i>, cut, fill, comp:<id>. */
   key: string;
   name: string;
   color: string;
-  kind: 'course' | 'cut' | 'fill';
+  kind: 'course' | 'cut' | 'fill' | 'component';
+  /** A component's IFC class (its profile's). */
+  ifc?: Pick<StructureProfile, 'ifcClass' | 'predefinedType' | 'objectType'>;
   points: V3[];
   triangles: [number, number, number][];
   closed: boolean;
@@ -73,6 +79,8 @@ export interface CorridorModel {
   edges: { left: V3[]; right: V3[]; daylightLeft: V3[]; daylightRight: V3[] };
   /** Cut and fill, m³. */
   volumes: { cut: number; fill: number };
+  /** The components cut by the section at a station: loops in (offset across from the axis, elevation). */
+  componentsAt(station: number): { id: string; name: string; color: string; loops: P2[][] }[];
 }
 
 const DAYLIGHT_RUN = 150;
@@ -147,8 +155,8 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
   const profile = buildProfile(spec.profile);
   const a = spec.assembly;
   const depth = a.layers.reduce((s, l) => s + l.thickness, 0);
-  const stations: CorridorStation[] = [];
-  for (const station of stationsOf(alignment, profile, spec.interval)) {
+  const components = spec.components ?? [];
+  const section = (station: number): CorridorStation => {
     const at = alignment.pointAt(station);
     const z = profile.elevationAt(station);
     const right: V2 = [Math.sin(at.direction), -Math.cos(at.direction)];
@@ -158,6 +166,7 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
     const top = template.map((p) => place(p.offset, p.dz));
     const edgeL = top[0], edgeR = top[top.length - 1];
     const daylight = (edge: V3, side: 1 | -1): { p: V3 | null; kind: DaylightKind } => {
+      if (components.some((c) => suppressesDaylight(c, station, side < 0 ? 'left' : 'right'))) return { p: null, kind: 'none' };
       if (!terrain) {
         const run = (a.nominalDepth ?? 1) * a.daylight.fillSlope;
         return { p: [edge[0] + right[0] * side * run, edge[1] + right[1] * side * run, edge[2] - (a.nominalDepth ?? 1)], kind: 'none' };
@@ -184,8 +193,9 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
       ];
       ({ cut: cutArea, fill: fillArea } = earthworkAreas(line, terrain));
     }
-    stations.push({ station, origin: [at.x, at.y, z], direction: at.direction, slopes, top, daylightLeft: dl.p, daylightRight: dr.p, kindLeft: dl.kind, kindRight: dr.kind, cutArea, fillArea });
-  }
+    return { station, origin: [at.x, at.y, z], direction: at.direction, slopes, top, daylightLeft: dl.p, daylightRight: dr.p, kindLeft: dl.kind, kindRight: dr.kind, cutArea, fillArea };
+  };
+  const stations = stationsOf(alignment, profile, spec.interval).map(section);
 
   const solids: CorridorSolid[] = [];
   const m = stations[0]?.top.length ?? 0;
@@ -241,6 +251,24 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
     if (strips[kind].triangles.length) solids.push({ key: kind, name: kind === 'cut' ? 'Cut slopes' : 'Fill slopes', color: kind === 'cut' ? '#a0783c' : '#6b8e23', kind, ...strips[kind], closed: false });
   }
 
+  const frame = (c: CorridorComponent, st: CorridorStation): StationFrame => {
+    const right: [number, number] = [Math.sin(st.direction), -Math.cos(st.direction)];
+    const across: [number, number] = c.side === 'left' ? [-right[0], -right[1]] : right;
+    const origin = c.attach === 'axis' || c.side === 'centre' ? st.origin : c.side === 'left' ? st.top[0] : st.top[st.top.length - 1];
+    return { station: st.station, origin, across };
+  };
+  const framesOf = (c: CorridorComponent): StationFrame[] => {
+    const lo = Math.max(Math.min(c.from, c.to), alignment.startStation), hi = Math.min(Math.max(c.from, c.to), alignment.endStation);
+    if (hi - lo < 0.01) return [];
+    const inner = stations.filter((st) => st.station > lo + 0.01 && st.station < hi - 0.01);
+    return [section(lo), ...inner, section(hi)].map((st) => frame(c, st));
+  };
+  for (const c of components) {
+    const swept = sweepComponent(c, framesOf(c), terrain);
+    if (!swept) continue;
+    solids.push({ key: `comp:${c.id}`, name: c.profile.name, color: c.profile.color, kind: 'component', ifc: { ifcClass: c.profile.ifcClass, predefinedType: c.profile.predefinedType, objectType: c.profile.objectType }, ...swept, closed: true });
+  }
+
   let cut = 0, fill = 0;
   for (let i = 0; i + 1 < stations.length; i++) {
     const ds = stations[i + 1].station - stations[i].station;
@@ -255,6 +283,13 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
       daylightLeft: stations.flatMap((s) => (s.daylightLeft ? [s.daylightLeft] : [])), daylightRight: stations.flatMap((s) => (s.daylightRight ? [s.daylightRight] : [])),
     },
     volumes: { cut, fill },
+    componentsAt: (station: number) => {
+      const st = section(Math.min(Math.max(station, alignment.startStation), alignment.endStation));
+      const right: [number, number] = [Math.sin(st.direction), -Math.cos(st.direction)];
+      return components
+        .filter((c) => station >= Math.min(c.from, c.to) - 1e-9 && station <= Math.max(c.from, c.to) + 1e-9)
+        .map((c) => ({ id: c.id, name: c.profile.name, color: c.profile.color, loops: componentSection(c, frame(c, st), st.origin, right, terrain) }));
+    },
   };
 }
 

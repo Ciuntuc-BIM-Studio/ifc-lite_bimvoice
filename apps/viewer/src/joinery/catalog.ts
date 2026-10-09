@@ -143,15 +143,22 @@ export function applyJoineryToSelection(spec: JoinerySpec): JoineryModelOutcome 
   }
   const out: JoineryModelOutcome = { updated: 0, refused: [] };
   for (const [modelId, elements] of byModel) {
-    try {
-      const result = recordModellingCommit(useViewerStore, modelId, (editor, ds) => retypeOccurrencesInStore(ds, editor, spec, elements));
-      invalidateJoineryReads(modelId);
-      out.updated += elements.length - result.refused.length;
-      out.refused.push(...result.refused.map((r) => `#${r.id}: ${r.reason}`));
-      if (result.remesh.length) void requestRemesh(useViewerStore.getState, modelId, result.remesh, 'shape');
-    } catch (err) {
-      out.refused.push(err instanceof Error ? err.message : String(err));
-    }
+    const one = retypeJoineryElements(modelId, elements, spec);
+    out.updated += one.updated;
+    out.refused.push(...one.refused);
   }
   return out;
+}
+
+/** Move doors / windows `ids` of one model to `spec`: typed by it and refitted to its size. One undo step. */
+export function retypeJoineryElements(modelId: string, ids: readonly number[], spec: JoinerySpec): JoineryModelOutcome {
+  ensureEditMode();
+  try {
+    const result = recordModellingCommit(useViewerStore, modelId, (editor, ds) => retypeOccurrencesInStore(ds, editor, spec, ids));
+    invalidateJoineryReads(modelId);
+    if (result.remesh.length) void requestRemesh(useViewerStore.getState, modelId, result.remesh, 'shape');
+    return { updated: ids.length - result.refused.length, refused: result.refused.map((r) => `#${r.id}: ${r.reason}`) };
+  } catch (err) {
+    return { updated: 0, refused: [err instanceof Error ? err.message : String(err)] };
+  }
 }

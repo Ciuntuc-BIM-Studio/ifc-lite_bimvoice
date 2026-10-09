@@ -21,3 +21,8 @@ export {
   readStructureProfile, readStructureProfileList, regenerateProfile, signedArea, starterProfiles, structureProfileProblem, toCustomProfile, writeProfileLibrary,
   type P2, type PresetId, type PresetParam, type ProfileAnchor, type StructureKind, type StructureProfile,
 } from './structure-profile.js';
+export { triangulateWithHoles } from './triangulate.js';
+export {
+  componentFromProfile, componentSection, defaultDaylight, defaultSide, suppressesDaylight, sweepComponent,
+  type ComponentAttach, type ComponentDaylight, type ComponentSide, type CorridorComponent, type StationFrame, type SweptComponent,
+} from './components.js';

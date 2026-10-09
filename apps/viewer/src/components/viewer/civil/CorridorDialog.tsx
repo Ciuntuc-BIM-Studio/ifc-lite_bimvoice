@@ -23,6 +23,7 @@ import { exportCorridorLandXml } from '@/civil/landxml-exchange';
 import { deleteCorridorWithConfirm } from './delete-corridor';
 import { AlignmentFields, GeneralFields, ProfileFields } from './CorridorFields';
 import { AssemblyFields } from './AssemblyFields';
+import { ComponentFields } from './ComponentFields';
 import { PlanPreview, ProfilePreview, SectionPreview } from './CorridorPreview';
 
 export function CorridorDialog() {
@@ -70,6 +71,7 @@ export function CorridorDialog() {
             </div>
             <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
               <AssemblyFields spec={draft} onChange={setDraft} />
+              <ComponentFields spec={draft} onChange={setDraft} />
               <p className="text-zinc-500">{t('civil.hint.schema')}</p>
             </div>
             <div className="min-h-0 space-y-2 overflow-y-auto">
