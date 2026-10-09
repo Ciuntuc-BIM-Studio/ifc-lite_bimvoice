@@ -22,6 +22,7 @@ import { JoineryDialog } from '../joinery/JoineryDialog';
 import { RoofSystemDialog } from '../roof/RoofSystemDialog';
 import { CorridorDialog } from '../civil/CorridorDialog';
 import { GroupEditBar } from '../groups/GroupEditBar';
+import { ProfileLibraryDialog } from '../civil/ProfileLibraryDialog';
 import { installGroupBehaviour } from '@/project/element-groups';
 import '@/joinery/placement';
 import '@/element-types/model-sync';
@@ -91,6 +92,7 @@ export function LeftNavigator() {
       <RoofSystemDialog />
       <CorridorDialog />
       <GroupEditBar />
+      <ProfileLibraryDialog />
     </div>
   );
 }

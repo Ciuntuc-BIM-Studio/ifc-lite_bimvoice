@@ -6,6 +6,7 @@ export const civilEn = {
   'civil.group.terrain': 'Terrain',
   'civil.group.road': 'Road',
   'civil.group.exchange': 'LandXML',
+  'civil.group.profiles': 'Profiles',
   'civil.cmd.road': 'Road',
   'civil.cmd.corridor': 'Corridor',
   'civil.cmd.deleteCorridor': 'Delete corridor',

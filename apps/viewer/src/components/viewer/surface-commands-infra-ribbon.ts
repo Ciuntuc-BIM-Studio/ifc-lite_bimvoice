@@ -10,7 +10,7 @@
  */
 
 import { parseSurveyPoints } from '@ifc-lite/create';
-import { CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain } from '@/icons';
+import { CivilProfiles, CivilProfileDraft, CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain } from '@/icons';
 import { resolve } from '@/i18n/registry';
 import { toast } from '@/components/ui/toast';
 import { isDrawingTabActive } from '@/project/document-tabs';
@@ -18,6 +18,8 @@ import { activeWorkPlane, startDraftCommand } from '@/drafting/session';
 import { createTerrainFromPoints, createTerrainFromSelection } from '@/civil/corridor-element';
 import { openCorridorForSelection, selectedCorridor } from '@/civil/corridor-dialog-store';
 import { exportCorridorLandXml, importLandXml } from '@/civil/landxml-exchange';
+import { openProfileLibrary, profileFromDraft, structureProfile } from '@/civil/profile-library';
+import { useDraftingSession } from '@/drafting/session';
 import { deleteCorridorWithConfirm } from './civil/delete-corridor';
 import { useViewerStore } from '@/store';
 import type { SurfaceCommandDefinition } from './surface-command-types';
@@ -96,7 +98,18 @@ function corridorOrToast() {
   return ref;
 }
 
+/** The one closed contour selected on the drawing in front becomes a library profile. */
+function profileFromSelection(): void {
+  const ids = [...useDraftingSession.getState().selection];
+  const made = ids.length === 1 && isDrawingTabActive() ? profileFromDraft(ids[0], `Profile ${new Date().toISOString().slice(11, 19)}`) : null;
+  if (!made || !made.ok) { toast.info(resolve('profiles.fromDraftNeedsSelection')); return; }
+  openProfileLibrary(made.id);
+  toast.success(resolve('profiles.fromDraftCreated', { name: structureProfile(made.id)?.name ?? '' }));
+}
+
 export const RIBBON_INFRA_SURFACE_COMMANDS = [
+  { id: 'infra:profiles', labelKey: 'profiles.cmd.library', keywords: 'profile library retaining wall tunnel bridge deck barrier kerb ditch cross section', category: 'Tools', icon: CivilProfiles, surfaces: ribbonOnly, enabled: always, run: () => openProfileLibrary() },
+  { id: 'infra:profile-from-draft', labelKey: 'profiles.cmd.fromDraft', keywords: 'profile from drawing contour polyline library', category: 'Tools', icon: CivilProfileDraft, surfaces: ribbonOnly, enabled: always, run: profileFromSelection },
   { id: 'infra:road', labelKey: 'civil.cmd.road', keywords: 'road corridor alignment polyline civil highway', category: 'Tools', icon: CivilRoad, surfaces: ribbonOnly, enabled: always, run: road },
   { id: 'infra:corridor', labelKey: 'civil.cmd.corridor', keywords: 'corridor configurator alignment profile assembly superelevation daylight cut fill', category: 'Tools', icon: CivilCorridor, surfaces: ribbonOnly, enabled: always, run: () => { if (!openCorridorForSelection()) toast.info(resolve('civil.noSelection')); } },
   { id: 'infra:delete-corridor', labelKey: 'civil.cmd.deleteCorridor', keywords: 'delete corridor road remove', category: 'Tools', icon: CivilDelete, surfaces: ribbonOnly, enabled: always, run: () => { const ref = corridorOrToast(); if (ref) void deleteCorridorWithConfirm(ref); } },

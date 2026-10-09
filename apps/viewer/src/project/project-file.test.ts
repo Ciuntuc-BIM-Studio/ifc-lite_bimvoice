@@ -43,6 +43,7 @@ const doc: ProjectDocument = {
   ],
   currentTypes: { wall: 't1', column: 't2' },
   schedules: [{ id: 's1', name: 'Window schedule', kind: 'window', createdAt: 5, scale: 25 }],
+  structureProfiles: [],
 };
 
 describe('project file', () => {

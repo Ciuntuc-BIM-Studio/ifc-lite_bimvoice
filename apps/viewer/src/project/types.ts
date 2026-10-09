@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import type { JoinerySpec } from '@ifc-lite/create';
+import type { JoinerySpec, StructureProfile } from '@ifc-lite/create';
 import type { ElementTypeKind, ElementTypeSpec } from '@/element-types/spec';
 import type { DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
 
@@ -192,4 +192,6 @@ export interface ProjectDocument {
   /** The entry each Design tool builds with, per kind. */
   currentTypes?: Partial<Record<ElementTypeKind, string>>;
   schedules?: ProjectSchedule[];
+  /** The project's structure profile library (retaining walls, tunnels, decks, barriers… and drawn shapes). */
+  structureProfiles?: StructureProfile[];
 }

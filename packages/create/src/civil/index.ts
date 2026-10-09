@@ -16,3 +16,8 @@ export {
 } from './assembly.js';
 export { buildCorridor, finishedGradeSurface, triangulatePolygon, type CorridorModel, type CorridorSolid, type CorridorSpec, type CorridorStation, type DaylightKind } from './corridor.js';
 export { parseXml, readLandXml, writeLandXml, type LandXmlAlignmentIn, type LandXmlAlignmentOut, type LandXmlDocument, type LandXmlSurfaceOut, type XmlNode } from './landxml.js';
+export {
+  PRESET_IDS, PROFILE_LIBRARY_FORMAT, PROFILE_PRESETS, orient, presetParams, profileArea, profileBounds, profileFromPreset, profileIfcClass, readProfileLibrary,
+  readStructureProfile, readStructureProfileList, regenerateProfile, signedArea, starterProfiles, structureProfileProblem, toCustomProfile, writeProfileLibrary,
+  type P2, type PresetId, type PresetParam, type ProfileAnchor, type StructureKind, type StructureProfile,
+} from './structure-profile.js';

@@ -9,7 +9,7 @@
  * registered `infra:*` commands (`surface-commands-infra-ribbon.ts`).
  */
 
-import { CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain } from '@/icons';
+import { CivilProfiles, CivilProfileDraft, CivilCorridor, CivilDelete, CivilLandXmlIn, CivilLandXmlOut, CivilPoints, CivilRoad, CivilTerrain } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -31,6 +31,11 @@ export function InfrastructureTab() {
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="infra:delete-corridor" icon={CivilDelete} />
         </RibbonSmallStack>
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('civil.group.profiles')}>
+        <RibbonCommandLargeButton commandId="infra:profiles" icon={CivilProfiles} />
+        <RibbonCommandLargeButton commandId="infra:profile-from-draft" icon={CivilProfileDraft} />
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('civil.group.exchange')}>
