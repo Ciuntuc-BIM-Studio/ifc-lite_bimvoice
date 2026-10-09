@@ -91,6 +91,8 @@ export function recordModellingCommit<T>(
   batchId?: string,
 ): T {
   const state = store.getState();
+  // A project's linked models are references: no edit reaches them, whichever tool asks.
+  if (state.models.get(modelId)?.linked) throw new Error('This is a linked model: it is shown for coordination and cannot be edited');
   const target = modelEditTarget(state, modelId);
   if (!target) throw new Error(`No model loaded for id "${modelId}"`);
   return recordResolvedModellingCommit(store, target, commit, batchId);

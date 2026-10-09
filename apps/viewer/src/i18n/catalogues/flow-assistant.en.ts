@@ -56,6 +56,7 @@ export const flowAssistantEn = {
   'flowAssistant.preflightDeniedEditMode': '{nodes} edits the model: Turn on Edit mode before changing a model',
   'flowAssistant.preflightDeniedRole': '{nodes} edits the model: Editing is disabled for your role in this shared session',
   'flowAssistant.preflightDeniedModel': '{nodes} edits the model: This model has no editable IFC data',
+  'flowAssistant.preflightDeniedLinked': '{nodes} edits the model: it is a linked model and cannot be edited',
   'flowAssistant.preflightSecrets': 'Secrets are never available in the viewer: {names}',
   'flowAssistant.preflightNative': '{message}',
   'flowAssistant.preflightStale': 'The graph changed after this preflight; check it again.',

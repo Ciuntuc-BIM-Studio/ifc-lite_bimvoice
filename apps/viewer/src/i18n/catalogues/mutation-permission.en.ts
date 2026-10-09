@@ -7,4 +7,5 @@ export const mutationPermissionEn = {
   'mutationPermission.editModeRequired': 'Turn on Edit mode to change this model',
   'mutationPermission.roleRequired': 'Editing requires editor access in this shared session',
   'mutationPermission.modelUnavailable': 'This model has no editable IFC data',
+  'mutationPermission.modelLinked': 'This is a linked model: it is shown for coordination and cannot be edited',
 } as const;

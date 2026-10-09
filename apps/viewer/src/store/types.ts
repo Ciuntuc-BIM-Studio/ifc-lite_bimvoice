@@ -502,6 +502,8 @@ export interface FederatedModel extends ModelLoadReportFields {
   name: string;
   sourceFingerprint?: string; // Durable identity for persisted model filters.
   sourceContentHash?: string; // Full-content identity for workspace placements.
+  /** A linked (reference) model of a project: shown for coordination, never edited (`mutationPermission` refuses it). */
+  linked?: boolean;
   /** Parsed IFC data model */
   ifcDataStore: IfcDataStore | null;
   /** Non-IFC source semantics, kept outside the IFC data store by design; `terrainImagery` is imagery draped on it (#5942), provenance only. */

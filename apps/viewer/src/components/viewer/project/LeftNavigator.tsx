@@ -17,6 +17,7 @@ import { useLinkedElementSync } from '@/project/useLinkedElementSync';
 import { useElementTagSync } from '@/project/useElementTagSync';
 import { ProjectNavigatorPanel } from './ProjectNavigatorPanel';
 import { NewProjectHost } from './NewProjectDialog';
+import { ProjectPackageHost } from './ProjectPackageHost';
 import { DraftingStandardsDialog } from '../drafting/standards/DraftingStandardsDialog';
 import { JoineryDialog } from '../joinery/JoineryDialog';
 import { RoofSystemDialog } from '../roof/RoofSystemDialog';
@@ -86,6 +87,7 @@ export function LeftNavigator() {
         {tab === 'model' ? <HierarchyPanel /> : <ProjectNavigatorPanel />}
       </div>
       <NewProjectHost />
+      <ProjectPackageHost />
       <DraftingStandardsDialog />
       <JoineryDialog />
       <ElementTypesDialog />

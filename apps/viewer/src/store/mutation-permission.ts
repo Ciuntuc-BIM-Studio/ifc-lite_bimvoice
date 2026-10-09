@@ -8,7 +8,7 @@ import { getModelForRef } from '../sdk/adapters/model-compat.js';
 
 type MutationPermissionState = Pick<ViewerState, 'editEnabled' | 'canCollabEdit' | 'models' | 'ifcDataStore'>;
 
-export type MutationDenialReason = 'edit-mode' | 'collab-role' | 'model-unavailable' | 'workflow-running';
+export type MutationDenialReason = 'edit-mode' | 'collab-role' | 'model-unavailable' | 'model-linked' | 'workflow-running';
 
 export function mutationDenialKey(reason: MutationDenialReason) {
   switch (reason) {
@@ -16,6 +16,7 @@ export function mutationDenialKey(reason: MutationDenialReason) {
     case 'edit-mode': return 'mutationPermission.editModeRequired' as const;
     case 'collab-role': return 'mutationPermission.roleRequired' as const;
     case 'model-unavailable': return 'mutationPermission.modelUnavailable' as const;
+    case 'model-linked': return 'mutationPermission.modelLinked' as const;
   }
 }
 
@@ -27,9 +28,11 @@ export function mutationPermission(
   if (areWorkflowModelsReadLocked()) return { allowed: false, reason: 'workflow-running' };
   if (!state.editEnabled) return { allowed: false, reason: 'edit-mode' };
   if (!state.canCollabEdit()) return { allowed: false, reason: 'collab-role' };
-  if (modelId !== undefined && !getModelForRef(state, modelId)?.ifcDataStore) {
+  const model = modelId === undefined ? undefined : getModelForRef(state, modelId);
+  if (modelId !== undefined && !model?.ifcDataStore) {
     return { allowed: false, reason: 'model-unavailable' };
   }
+  if (model && 'linked' in model && model.linked) return { allowed: false, reason: 'model-linked' };
   return { allowed: true };
 }
 
@@ -55,6 +58,7 @@ export function mutationDenialMessage(reason: MutationDenialReason): string {
     case 'edit-mode': return 'Turn on Edit mode before changing a model';
     case 'collab-role': return 'Editing is disabled for your role in this shared session';
     case 'model-unavailable': return 'This model has no editable IFC data';
+    case 'model-linked': return 'This is a linked model: it is shown for coordination and cannot be edited';
   }
 }
 

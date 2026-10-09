@@ -43,6 +43,7 @@ export const modelChangesEn = {
   'modelChanges.undoRefused.workflow-running': 'Wait for the running workflow to finish.',
   'modelChanges.undoRefused.collab-role': 'Your session role cannot edit this model.',
   'modelChanges.undoRefused.model-unavailable': 'The model is no longer loaded.',
+  'modelChanges.undoRefused.model-linked': 'The model is a linked model and cannot be edited.',
   'modelChanges.receiptsTitle': 'Reviewed changes',
   'modelChanges.receiptsEmpty': 'No reviewed change batches yet.',
   'assistant.proposalChanges': 'Model change proposal',

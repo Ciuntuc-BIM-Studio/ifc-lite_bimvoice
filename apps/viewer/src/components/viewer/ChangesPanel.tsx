@@ -27,6 +27,7 @@ function refusalKey(reason: RevertRefusal): TranslationKey {
     case 'edit-mode':
     case 'collab-role':
     case 'model-unavailable': return 'changesPanel.revertPermission';
+    case 'model-linked': return 'mutationPermission.modelLinked';
     case 'newer-conflict': return 'changesPanel.revertUnavailable';
     case 'shared-room': return 'changesPanel.revertSharedRoom';
     case 'missing-view':

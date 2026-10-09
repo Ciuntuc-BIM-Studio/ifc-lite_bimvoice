@@ -18,6 +18,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { toast } from '@/components/ui/toast';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useIfc } from '@/hooks/useIfc';
+import { resetPackageSession } from '@/project/package/session';
 import { setProjectName } from '@/project/project-store';
 import {
   defaultNewProjectSpec, generateLevels, NEW_PROJECT_EVENT, newProjectFile, validateNewProject, type NewProjectSpec,
@@ -71,6 +72,7 @@ export function NewProjectHost() {
     try {
       await loadFile(newProjectFile(full), { kind: 'primary', modelId: crypto.randomUUID() });
       setProjectName(full.projectName);
+      resetPackageSession();
       setOpen(false);
       toast.success(t('newProject.created', { name: full.projectName }));
     } catch (err) {

@@ -105,6 +105,7 @@ import { projectNavigatorEn } from './catalogues/project-navigator.en';
 import { draftingEn } from './catalogues/drafting.en';
 import { sheetsEn } from './catalogues/sheets.en';
 import { newProjectEn } from './catalogues/new-project.en';
+import { projectPackageEn } from './catalogues/project-package.en';
 import { viewGraphicsEn } from './catalogues/view-graphics.en';
 import { draftingStandardsEn } from './catalogues/drafting-standards.en';
 import { joineryEn } from './catalogues/joinery.en';
@@ -170,6 +171,7 @@ export const en = {
   ...draftingEn,
   ...sheetsEn,
   ...newProjectEn,
+  ...projectPackageEn,
   ...viewGraphicsEn,
   ...draftingStandardsEn,
   ...joineryEn,
