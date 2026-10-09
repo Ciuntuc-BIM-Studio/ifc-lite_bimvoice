@@ -12,7 +12,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { defaultTruss, type MemberSection, type RoofEdgeRule, type RoofStructureSpec, type RoofSystemSpec, type TrussSpec } from '@ifc-lite/create';
+import { END_CUTS, defaultTruss, type EndCut, type MemberSection, type RoofEdgeRule, type RoofStructureSpec, type RoofSystemSpec, type TrussSpec } from '@ifc-lite/create';
 import { useTranslation, type TranslationKey } from '@/i18n';
 import { INPUT, NumberField, Section } from '../joinery/JoineryFields';
 import { CoveringLayers } from './RoofLayers';
@@ -147,6 +147,7 @@ export function StructureFields({ spec, onChange }: Pick<Props, 'spec' | 'onChan
           {optional('wallPlate', 'roof.structure.wallPlate', { width: 0.14, depth: 0.14 })}
           {optional('hipRafter', 'roof.structure.hip', { width: 0.1, depth: 0.2 })}
           <NumberField label={t('roof.structure.cover')} value={st.coverDepth} onChange={(v) => v !== undefined && set({ coverDepth: v })} />
+          <RafterEnds value={st.rafterEnds} onChange={(rafterEnds) => set({ rafterEnds })} />
         </>
       ) : null}
       {st.system === 'trusses' ? <TrussFields truss={st.truss ?? defaultTruss()} onChange={(truss) => set({ truss })} optional={optional} cover={st.coverDepth} onCover={(v) => set({ coverDepth: v })} /> : null}
@@ -174,6 +175,26 @@ function TrussFields({ truss, onChange, optional, cover, onCover }: {
       {optional('wallPlate', 'roof.structure.wallPlate', { width: 0.14, depth: 0.14 })}
       {optional('hipRafter', 'roof.structure.hip', { width: 0.1, depth: 0.2 })}
       <NumberField label={t('roof.structure.cover')} value={cover} onChange={(v) => v !== undefined && onCover(v)} />
+    </>
+  );
+}
+
+/** How rafters are cut at the eave and at the ridge (a part's own cut, set inside the block, wins). */
+function RafterEnds({ value, onChange }: { value: RoofStructureSpec['rafterEnds']; onChange: (v: RoofStructureSpec['rafterEnds']) => void }) {
+  const { t } = useTranslation();
+  const ends = value ?? { eave: 'square' as const, ridge: 'square' as const };
+  const row = (key: 'eave' | 'ridge', label: string) => (
+    <label className="grid grid-cols-[1fr_12rem] items-center gap-2 text-xs">
+      <span className="text-zinc-600 dark:text-zinc-400">{label}</span>
+      <select className={INPUT} value={ends[key]} onChange={(e) => onChange({ ...ends, [key]: e.target.value as EndCut })}>
+        {END_CUTS.map((c) => <option key={c} value={c}>{t(`roofBlock.cut.${c}`)}</option>)}
+      </select>
+    </label>
+  );
+  return (
+    <>
+      {row('eave', t('roof.structure.eaveCut'))}
+      {row('ridge', t('roof.structure.ridgeCut'))}
     </>
   );
 }

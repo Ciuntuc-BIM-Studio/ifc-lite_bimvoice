@@ -55,6 +55,8 @@ export const roofEn = {
   'roof.structure.ridge': 'Ridge beam',
   'roof.structure.wallPlate': 'Wall plates',
   'roof.structure.hip': 'Hip and valley rafters',
+  'roof.structure.eaveCut': 'Rafter cut at the eave',
+  'roof.structure.ridgeCut': 'Rafter cut at the ridge',
   'roof.structure.cover': 'Battens and covering above the rafters',
   'roof.preview.plan': 'Plan',
   'roof.preview.model': '3D',
