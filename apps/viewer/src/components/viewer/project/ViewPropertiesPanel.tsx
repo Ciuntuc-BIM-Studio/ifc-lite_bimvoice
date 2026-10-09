@@ -47,7 +47,7 @@ export function ViewPropertiesPanel({ view }: { view: ProjectView }) {
   const [graphicsOpen, setGraphicsOpen] = useState(false);
   if (view.kind === '3d') return null;
 
-  const depthHint = view.kind === 'plan' ? t('projectNavigator.props.depthCutOnly') : t('projectNavigator.props.depthAuto');
+  const depthHint = view.kind === 'plan' ? t('projectNavigator.props.depthToFloor', { depth: view.cutHeight.toFixed(2) }) : t('projectNavigator.props.depthAuto');
   let workPlane: string;
   if (view.kind === 'plan') {
     const level = resolvePlanLevel(view, levels) ?? view.level;

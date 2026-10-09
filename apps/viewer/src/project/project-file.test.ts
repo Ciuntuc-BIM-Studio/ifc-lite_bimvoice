@@ -44,6 +44,8 @@ const doc: ProjectDocument = {
   currentTypes: { wall: 't1', column: 't2' },
   schedules: [{ id: 's1', name: 'Window schedule', kind: 'window', createdAt: 5, scale: 25 }],
   structureProfiles: [],
+  typicalSections: [{ id: 't1', name: 'Rural', assembly: { lanes: [{ width: 3.5, slope: -2.5 }], shoulder: null, layers: [{ name: 'Asphalt', thickness: 0.1, color: '#333333' }], daylight: { cutSlope: 1, fillSlope: 1.5 } } }],
+  civilDrawings: [{ id: 'c1', name: 'DN1 profile', kind: 'profile', createdAt: 3, corridorGlobalId: '2O2Fr$t4X7Zf8NOew3FLOH', scale: 1000, vExaggeration: 10 }],
 };
 
 describe('project file', () => {

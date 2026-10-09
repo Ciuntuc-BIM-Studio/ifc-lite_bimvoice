@@ -31,6 +31,8 @@ import { OverlayPaths } from './OverlayPaths';
 import type { PlanOverlay } from '@/project/plan-overlays';
 import type { ScheduleLayout } from '@/joinery/schedule-layout';
 import { ScheduleGraphic } from '../joinery/ScheduleGraphic';
+import { CivilDrawingGraphic } from '../civil/CivilDrawingGraphic';
+import type { CivilLayout } from '@/civil/civil-drawings';
 
 const AXIS_NAME = { y: 'down', z: 'front', x: 'side' } as const;
 const LABEL_MM = 3.5;
@@ -43,6 +45,8 @@ export interface ViewportContent {
   overlays?: PlanOverlay[];
   /** A joinery schedule placed here instead of a view (paper millimetres). */
   schedule?: ScheduleLayout;
+  /** A road drawing (profile / cross sections) placed here instead of a view (paper millimetres). */
+  civil?: CivilLayout;
 }
 
 interface SheetPaperProps {
@@ -115,6 +119,18 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
     </g>
   );
 });
+
+/** A road drawing placed on the sheet, centred on its viewport point. */
+function CivilViewport({ vp, layout, selected }: { vp: SheetViewport; layout: CivilLayout; selected: boolean }) {
+  const { width, height } = layout;
+  return (
+    <g data-viewport-id={vp.id}>
+      <CivilDrawingGraphic layout={layout} x={vp.x - width / 2} y={vp.y - height / 2} />
+      <rect x={vp.x - width / 2} y={vp.y - height / 2} width={width} height={height} fill="transparent"
+        stroke={selected ? '#2563eb' : 'transparent'} strokeWidth={0.4} strokeDasharray={selected ? '3 2' : undefined} data-export-ignore={selected ? 'true' : undefined} />
+    </g>
+  );
+}
 
 /** A joinery schedule placed on the sheet, centred on its viewport point. */
 function ScheduleViewport({ vp, layout, selected }: { vp: SheetViewport; layout: ScheduleLayout; selected: boolean }) {
@@ -207,6 +223,7 @@ export const SheetPaper = forwardRef<SVGSVGElement, SheetPaperProps>(function Sh
       <rect {...penTags('FRAME', 0.7)} x={FRAME_MARGIN_MM} y={FRAME_MARGIN_MM} width={w - FRAME_MARGIN_MM * 2} height={h - FRAME_MARGIN_MM * 2} fill="none" stroke="#000" strokeWidth={0.7} />
       {(sheet.viewports ?? []).map((vp) => {
         const c = content(vp);
+        if (c.civil) return <CivilViewport key={vp.id} vp={vp} layout={c.civil} selected={vp.id === selectedViewportId} />;
         return c.schedule
           ? <ScheduleViewport key={vp.id} vp={vp} layout={c.schedule} selected={vp.id === selectedViewportId} />
           : <ViewportGraphic key={vp.id} vp={vp} content={c} layers={layers} extraPatterns={extraPatterns} selected={vp.id === selectedViewportId} />;

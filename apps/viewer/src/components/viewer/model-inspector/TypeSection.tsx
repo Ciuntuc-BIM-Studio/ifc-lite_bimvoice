@@ -23,7 +23,6 @@ import { AUTHORED_KINDS, typeClassInSchema, typeOf, typesOfKind, type LiveModel 
 import type { AuthoredElementKind } from '@/store/slices/authoringDefaultsSlice';
 import { InspectorCaption, InspectorRow, InspectorSection } from './InspectorControls';
 import { createElementType, setElementType } from './inspector-edits';
-import { useProjectStore } from '@/project/project-store';
 import { ElementTypeSelect, useTypeSlot } from '../ElementTypeCard';
 
 const NONE = 'none';

@@ -31,7 +31,7 @@ export const DEFAULT_DRAFT_LAYER = { id: '0', name: '0', color: '#18181b', visib
 export const EMPTY_PROJECT: ProjectDocument = {
   name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }], hatchPatterns: '', symbolFlips: {},
   textStyles: [{ ...DEFAULT_TEXT_STYLE }], dimStyles: [{ ...DEFAULT_DIM_STYLE }], layerGroups: [],
-  joineryTypes: [], currentJoinery: {}, elementTypes: [], currentTypes: {}, schedules: [], structureProfiles: [],
+  joineryTypes: [], currentJoinery: {}, elementTypes: [], currentTypes: {}, schedules: [], structureProfiles: [], civilDrawings: [], typicalSections: [],
 };
 
 export const useProjectStore = create<ProjectState>()(() => ({
@@ -51,6 +51,8 @@ export function projectDocument(state: ProjectState = useProjectStore.getState()
     joineryTypes: state.joineryTypes ?? [], currentJoinery: state.currentJoinery ?? {}, schedules: state.schedules ?? [],
     elementTypes: state.elementTypes ?? [], currentTypes: state.currentTypes ?? {},
     structureProfiles: state.structureProfiles ?? [],
+    civilDrawings: state.civilDrawings ?? [],
+    typicalSections: state.typicalSections ?? [],
   };
 }
 
@@ -69,6 +71,8 @@ export function loadProjectDocument(doc: ProjectDocument, options: { dirty?: boo
     currentTypes: doc.currentTypes ?? {},
     schedules: doc.schedules ?? [],
     structureProfiles: doc.structureProfiles ?? [],
+    civilDrawings: doc.civilDrawings ?? [],
+    typicalSections: doc.typicalSections ?? [],
     draftLayers: doc.draftLayers.length > 0 ? doc.draftLayers : [{ ...DEFAULT_DRAFT_LAYER }],
     views: [...syncDefaultViews(doc.views, levels)],
     activeItemId: null,
@@ -141,6 +145,10 @@ export function renameProjectItem(id: string, name: string): void {
     useProjectStore.setState({ schedules: state.schedules.map((s) => (s.id === id ? { ...s, name: trimmed } : s)), dirty: true });
     return;
   }
+  if (state.civilDrawings?.some((d) => d.id === id)) {
+    useProjectStore.setState({ civilDrawings: state.civilDrawings.map((d) => (d.id === id ? { ...d, name: trimmed } : d)), dirty: true });
+    return;
+  }
   useProjectStore.setState({ sheets: state.sheets.map((s) => (s.id === id ? { ...s, name: trimmed } : s)), dirty: true });
 }
 
@@ -170,6 +178,7 @@ export function removeProjectItem(id: string): void {
     views: state.views.filter((v) => v.id !== id),
     sheets: state.sheets.filter((s) => s.id !== id),
     schedules: (state.schedules ?? []).filter((s) => s.id !== id),
+    civilDrawings: (state.civilDrawings ?? []).filter((d) => d.id !== id),
     drafts: state.drafts.some((d) => d.viewId === id) ? state.drafts.filter((d) => d.viewId !== id) : state.drafts,
     activeItemId: state.activeItemId === id ? null : state.activeItemId,
     dirty: true,

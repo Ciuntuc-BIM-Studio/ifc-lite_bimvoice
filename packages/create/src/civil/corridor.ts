@@ -33,6 +33,8 @@ export interface CorridorSpec {
   interval: number;
   /** GlobalId of the terrain element (IfcGeographicElement) the corridor daylights to, in the same model. */
   terrainGlobalId?: string | null;
+  /** The typical section (project library entry) the assembly was taken from, if any. */
+  typicalSectionId?: string;
   /** Library profiles swept over station ranges: walls, tunnels, decks, barriers… */
   components?: CorridorComponent[];
 }
@@ -79,6 +81,8 @@ export interface CorridorModel {
   edges: { left: V3[]; right: V3[]; daylightLeft: V3[]; daylightRight: V3[] };
   /** Cut and fill, m³. */
   volumes: { cut: number; fill: number };
+  /** The corridor's section at any station (finished grade, daylight, earthwork areas). */
+  sectionAt(station: number): CorridorStation;
   /** The components cut by the section at a station: loops in (offset across from the axis, elevation). */
   componentsAt(station: number): { id: string; name: string; color: string; loops: P2[][] }[];
 }
@@ -283,6 +287,7 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
       daylightLeft: stations.flatMap((s) => (s.daylightLeft ? [s.daylightLeft] : [])), daylightRight: stations.flatMap((s) => (s.daylightRight ? [s.daylightRight] : [])),
     },
     volumes: { cut, fill },
+    sectionAt: (station: number) => section(Math.min(Math.max(station, alignment.startStation), alignment.endStation)),
     componentsAt: (station: number) => {
       const st = section(Math.min(Math.max(station, alignment.startStation), alignment.endStation));
       const right: [number, number] = [Math.sin(st.direction), -Math.cos(st.direction)];

@@ -55,6 +55,7 @@ export const projectNavigatorEn = {
   'projectNavigator.props.scale': 'Scale',
   'projectNavigator.props.depthAuto': 'Auto',
   'projectNavigator.props.depthCutOnly': 'Cut only',
+  'projectNavigator.props.depthToFloor': 'To the floor ({depth}); 0 = cut only',
   'projectNavigator.props.axisDown': 'Horizontal',
   'projectNavigator.props.axisFront': 'Front (north-south)',
   'projectNavigator.props.axisSide': 'Side (east-west)',

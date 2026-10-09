@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import type { JoinerySpec, StructureProfile } from '@ifc-lite/create';
+import type { AssemblySpec, JoinerySpec, StructureProfile } from '@ifc-lite/create';
 import type { ElementTypeKind, ElementTypeSpec } from '@/element-types/spec';
 import type { DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
 
@@ -167,6 +167,34 @@ export interface ProjectSchedule {
   scale?: number;
 }
 
+/** A road drawing (longitudinal profile or cross-section set) of a corridor: a project document of its own, placeable on sheets or drawn on a plan. */
+export interface ProjectCivilDrawing {
+  id: string;
+  name: string;
+  kind: 'profile' | 'sections';
+  createdAt: number;
+  /** The corridor it draws, by GlobalId (in whichever loaded model has it). */
+  corridorGlobalId: string;
+  /** Drawing scale denominator (profile: horizontal). */
+  scale: number;
+  /** Profile: vertical exaggeration, grid steps. */
+  vExaggeration?: number;
+  stationStep?: number;
+  elevationStep?: number;
+  /** Sections: sample spacing or explicit stations, layout columns, half width shown (0: automatic). */
+  every?: number;
+  stations?: number[];
+  columns?: number;
+  halfWidth?: number;
+}
+
+/** A typical road cross-section (assembly) kept in the project's library. */
+export interface ProjectTypicalSection {
+  id: string;
+  name: string;
+  assembly: AssemblySpec;
+}
+
 export interface ProjectDocument {
   name: string;
   models: ProjectModelRef[];
@@ -194,4 +222,8 @@ export interface ProjectDocument {
   schedules?: ProjectSchedule[];
   /** The project's structure profile library (retaining walls, tunnels, decks, barriers… and drawn shapes). */
   structureProfiles?: StructureProfile[];
+  /** Road drawings: longitudinal profiles and cross-section sets. */
+  civilDrawings?: ProjectCivilDrawing[];
+  /** Typical road cross-sections (assemblies) corridors take from. */
+  typicalSections?: ProjectTypicalSection[];
 }

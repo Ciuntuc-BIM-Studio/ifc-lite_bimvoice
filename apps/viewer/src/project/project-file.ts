@@ -16,7 +16,7 @@ import { readStandards } from './standards-file';
 import { readJoineryList } from '@/joinery/spec-file';
 import { readCurrentTypes, readElementTypeList } from '@/element-types/spec';
 import { readStructureProfileList } from '@ifc-lite/create';
-import type { CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
+import type { ProjectCivilDrawing, ProjectTypicalSection, CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
 export const PROJECT_FILE_FORMAT = 'ifclite-project';
@@ -129,6 +129,8 @@ export function parseProjectFile(text: string): ProjectDocument {
     currentTypes: readCurrentTypes(raw.currentTypes),
     schedules: list('schedules').flatMap((v) => readSchedule(v)),
     structureProfiles: readStructureProfileList(raw.structureProfiles),
+    civilDrawings: list('civilDrawings').flatMap((v) => readCivilDrawing(v)),
+    typicalSections: list('typicalSections').flatMap((v) => readTypicalSection(v)),
   };
 }
 
@@ -177,6 +179,40 @@ function readCurrentJoinery(raw: unknown): { door?: string; window?: string } {
     ...(isString(raw.door) ? { door: raw.door } : {}),
     ...(isString(raw.window) ? { window: raw.window } : {}),
   };
+}
+
+function readTypicalSection(raw: unknown): ProjectTypicalSection[] {
+  if (!isObject(raw) || !isString(raw.id) || !isObject(raw.assembly)) return [];
+  const a = raw.assembly;
+  const lane = (v: unknown) => (isObject(v) && isNumber(v.width) && v.width > 0 && isNumber(v.slope) ? { width: v.width, slope: v.slope } : null);
+  const lanes = Array.isArray(a.lanes) ? a.lanes.map(lane).filter((l): l is { width: number; slope: number } => l !== null) : [];
+  const layers = Array.isArray(a.layers) ? a.layers.flatMap((l) => (isObject(l) && isString(l.name) && isNumber(l.thickness) && l.thickness > 0
+    ? [{ name: l.name, thickness: l.thickness, color: isString(l.color) && /^#[0-9a-f]{6}$/i.test(l.color) ? l.color : '#8a7f6a' }] : [])) : [];
+  const day = isObject(a.daylight) ? a.daylight : {};
+  if (!lanes.length || !layers.length) return [];
+  return [{
+    id: raw.id, name: isString(raw.name) && raw.name ? raw.name : 'Typical section',
+    assembly: {
+      lanes, shoulder: lane(a.shoulder), layers,
+      daylight: { cutSlope: isNumber(day.cutSlope) && day.cutSlope > 0 ? day.cutSlope : 1, fillSlope: isNumber(day.fillSlope) && day.fillSlope > 0 ? day.fillSlope : 1.5 },
+      ...(isNumber(a.nominalDepth) && a.nominalDepth > 0 ? { nominalDepth: a.nominalDepth } : {}),
+    },
+  }];
+}
+
+function readCivilDrawing(raw: unknown): ProjectCivilDrawing[] {
+  if (!isObject(raw) || !isString(raw.id) || !isString(raw.corridorGlobalId)) return [];
+  const num = (v: unknown, min: number) => (typeof v === 'number' && Number.isFinite(v) && v >= min ? v : undefined);
+  const out: ProjectCivilDrawing = {
+    id: raw.id, name: isString(raw.name) && raw.name ? raw.name : 'Road drawing', kind: raw.kind === 'sections' ? 'sections' : 'profile',
+    createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : 0, corridorGlobalId: raw.corridorGlobalId, scale: num(raw.scale, 1) ?? (raw.kind === 'sections' ? 200 : 1000),
+  };
+  for (const key of ['vExaggeration', 'stationStep', 'elevationStep', 'every', 'columns', 'halfWidth'] as const) {
+    const v = num(raw[key], 0);
+    if (v !== undefined) out[key] = v;
+  }
+  if (Array.isArray(raw.stations)) out.stations = raw.stations.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  return [out];
 }
 
 function readSchedule(raw: unknown): ProjectSchedule[] {

@@ -26,3 +26,6 @@ export {
   componentFromProfile, componentSection, defaultDaylight, defaultSide, suppressesDaylight, sweepComponent,
   type ComponentAttach, type ComponentDaylight, type ComponentSide, type CorridorComponent, type StationFrame, type SweptComponent,
 } from './components.js';
+export { boundsOf, paper, translatePrims, type CivilDrawing, type DrawPen, type DrawPrim } from './drawing-prims.js';
+export { DEFAULT_PROFILE_OPTIONS, profileDrawing, type ProfileDrawingLabels, type ProfileDrawingOptions } from './profile-drawing.js';
+export { DEFAULT_SECTION_OPTIONS, oneSection, sampleStations, sectionsDrawing, type SectionDrawingLabels, type SectionDrawingOptions } from './section-drawing.js';

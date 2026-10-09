@@ -11,7 +11,7 @@
  */
 
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed, Table2 } from 'lucide-react';
+import { Spline, Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed, Table2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -33,15 +33,17 @@ import { exportProjectFile, importProjectFile, PROJECT_FILE_SUFFIX } from '@/pro
 import { activateDocumentTab, openProjectView, saveLiveCameraAsView, saveLiveSectionAsView } from '@/project/open-view';
 import { resolvePlanLevel } from '@/project/view-defaults';
 import { addSchedule } from '@/joinery/schedules';
+import { duplicateCivilDrawing } from '@/civil/civil-drawings';
+import { newCivilDrawing } from '@/civil/civil-drawing-actions';
 import type { ProjectView, ProjectViewKind } from '@/project/types';
 import { ProjectFolderRow, ProjectItemRow } from './ProjectTreeRow';
 import { ViewPropertiesPanel } from './ViewPropertiesPanel';
 import { LevelsFolder } from './LevelsFolder';
 import { useNavigatorDialogs } from './useNavigatorDialogs';
 
-type FolderId = ProjectViewKind | 'sheets' | 'schedules' | 'models';
+type FolderId = ProjectViewKind | 'sheets' | 'schedules' | 'civil' | 'models';
 
-const FOLDER_ORDER: readonly FolderId[] = ['plan', 'section', 'elevation', '3d', 'schedules', 'sheets', 'models'];
+const FOLDER_ORDER: readonly FolderId[] = ['plan', 'section', 'elevation', '3d', 'schedules', 'civil', 'sheets', 'models'];
 
 const ICONS: Record<FolderId, ReactNode> = {
   plan: <LayoutTemplate className="size-3.5" />,
@@ -50,6 +52,7 @@ const ICONS: Record<FolderId, ReactNode> = {
   '3d': <Box className="size-3.5" />,
   sheets: <Rows3 className="size-3.5" />,
   schedules: <Table2 className="size-3.5" />,
+  civil: <Spline className="size-3.5" />,
   models: <FileBox className="size-3.5" />,
 };
 
@@ -60,6 +63,7 @@ const FOLDER_LABELS = {
   '3d': 'projectNavigator.folder.views3d',
   sheets: 'projectNavigator.folder.sheets',
   schedules: 'schedule.folder',
+  civil: 'civilDwg.folder',
   models: 'projectNavigator.folder.models',
 } as const;
 
@@ -71,6 +75,7 @@ export function ProjectNavigatorPanel() {
   const views = useProjectStore((s) => s.views);
   const sheets = useProjectStore((s) => s.sheets);
   const schedules = useProjectStore((s) => s.schedules) ?? [];
+  const civilDrawings = useProjectStore((s) => s.civilDrawings) ?? [];
   const models = useProjectStore((s) => s.models);
   const levels = useProjectStore((s) => s.levels);
   const activeItemId = useProjectStore((s) => s.activeItemId);
@@ -146,6 +151,7 @@ export function ProjectNavigatorPanel() {
     '3d': <AddButton label={t('projectNavigator.action.save3d')} onClick={save3d} icon={<Camera className="size-3.5" />} />,
     sheets: <AddButton label={t('projectNavigator.action.newSheet')} onClick={newSheet} />,
     schedules: <AddButton label={t('schedule.new')} onClick={() => setRenamingId(addSchedule('all', t('schedule.newName')))} />,
+    civil: <AddButton label={t('civilDwg.newProfileAction')} onClick={() => newCivilDrawing('profile')} />,
     plan: <AddButton label={t('projectNavigator.action.newPlan')} onClick={() => dialogs.open('plan')} />,
     elevation: <AddButton label={t('projectNavigator.action.newElevation')} onClick={() => dialogs.open('elevation')} />,
   };
@@ -208,6 +214,28 @@ export function ProjectNavigatorPanel() {
             onDuplicate={() => setRenamingId(addSchedule(schedule.kind, `${schedule.name} (2)`))}
             onDelete={() => removeProjectItem(schedule.id)}
             dragViewId={schedule.id}
+          />
+        )),
+      };
+    }
+    if (id === 'civil') {
+      const shown = civilDrawings.filter((d) => !q || matches(d.name, q));
+      return {
+        count: shown.length,
+        rows: shown.map((d) => (
+          <ProjectItemRow
+            key={d.id}
+            label={d.name}
+            icon={ICONS.civil}
+            active={activeItemId === d.id}
+            renaming={renamingId === d.id}
+            onOpen={() => activateDocumentTab(d.id)}
+            onStartRename={() => setRenamingId(d.id)}
+            onRename={(value) => rename(d.id, value)}
+            onCancelRename={() => setRenamingId(null)}
+            onDuplicate={() => setRenamingId(duplicateCivilDrawing(d.id))}
+            onDelete={() => removeProjectItem(d.id)}
+            dragViewId={d.id}
           />
         )),
       };
