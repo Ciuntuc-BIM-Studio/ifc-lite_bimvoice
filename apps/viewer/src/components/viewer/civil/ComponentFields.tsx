@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { BookOpen, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { BookOpen, FlipHorizontal2, FlipVertical2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { PROFILE_PRESETS, buildAlignment, componentFromProfile, type ComponentAttach, type ComponentDaylight, type ComponentSide, type CorridorComponent, type CorridorSpec } from '@ifc-lite/create';
 import { useTranslation } from '@/i18n';
 import { IconButton } from '@/components/ui/icon-button';
@@ -74,6 +74,8 @@ export function ComponentFields({ spec, onChange }: Props) {
                 {library.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <IconButton label={t('civil.components.refresh')} className="size-6" disabled={!inLibrary} onClick={() => choose(i, c.profileId)}><RefreshCw className="size-3" /></IconButton>
+              <IconButton label={t('civil.components.mirror')} className="size-6" aria-pressed={!!c.mirror} onClick={() => patch(i, { mirror: !c.mirror })}><FlipHorizontal2 className={`size-3 ${c.mirror ? 'text-primary' : ''}`} /></IconButton>
+              <IconButton label={t('civil.components.flip')} className="size-6" aria-pressed={!!c.flip} onClick={() => patch(i, { flip: !c.flip })}><FlipVertical2 className={`size-3 ${c.flip ? 'text-primary' : ''}`} /></IconButton>
               <IconButton label={t('civil.components.edit')} className="size-6" aria-pressed={editing === c.id} onClick={() => setEditing(editing === c.id ? null : c.id)}><Pencil className="size-3" /></IconButton>
               <IconButton label={t('civil.row.remove')} className="size-6" onClick={() => set(components.filter((_, k) => k !== i))}><Trash2 className="size-3" /></IconButton>
             </div>

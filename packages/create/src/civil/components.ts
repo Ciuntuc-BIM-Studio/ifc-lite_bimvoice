@@ -40,6 +40,10 @@ export interface CorridorComponent {
   to: number;
   daylight: ComponentDaylight;
   autoHeight?: boolean;
+  /** Mirrored about the profile's own vertical axis (x → −x), before the offset. */
+  mirror?: boolean;
+  /** Flipped about the profile's own horizontal axis (y → −y), before the offset. */
+  flip?: boolean;
 }
 
 /** What a component's placement looks like at one station. */
@@ -71,7 +75,8 @@ function profileAt(c: CorridorComponent, frame: StationFrame, terrain: Terrain |
   const preset = c.profile.preset;
   if (!c.autoHeight || !terrain || !preset || !PROFILE_PRESETS[preset.id].params.some((p) => p.key === 'height')) return c.profile;
   // The ground at the profile's back (its widest point away from the road).
-  const back = Math.max(...c.profile.outer.map((p) => p[0])) + c.offset[0];
+  const xs = c.profile.outer.map((p) => (c.mirror ? -p[0] : p[0]));
+  const back = Math.max(...xs) + c.offset[0];
   const x = frame.origin[0] + frame.across[0] * back, y = frame.origin[1] + frame.across[1] * back;
   const ground = terrain.elevationAt(x, y);
   if (ground === null) return c.profile;
@@ -81,7 +86,7 @@ function profileAt(c: CorridorComponent, frame: StationFrame, terrain: Terrain |
 
 /** A profile point at a station frame, world. */
 function place(frame: StationFrame, c: CorridorComponent, p: P2): V3 {
-  const a = p[0] + c.offset[0], up = p[1] + c.offset[1];
+  const a = (c.mirror ? -p[0] : p[0]) + c.offset[0], up = (c.flip ? -p[1] : p[1]) + c.offset[1];
   return [frame.origin[0] + frame.across[0] * a, frame.origin[1] + frame.across[1] * a, frame.origin[2] + up];
 }
 

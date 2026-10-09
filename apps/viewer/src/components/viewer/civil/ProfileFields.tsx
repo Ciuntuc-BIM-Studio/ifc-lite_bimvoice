@@ -14,7 +14,7 @@ import { useTranslation, type TranslationKey } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
 import { INPUT, Section } from '../joinery/JoineryFields';
-import { moveOrigin } from '@/civil/profile-library';
+import { moveOrigin, reflectProfile } from '@/civil/profile-library';
 import { Cell } from './CorridorFields';
 
 const KINDS: StructureKind[] = ['retaining-wall', 'tunnel', 'bridge-deck', 'barrier', 'kerb', 'ditch', 'custom'];
@@ -119,6 +119,8 @@ export function ShapeFields({ profile: p, onChange, active, onActive }: Props) {
       {p.holes.length ? <p className="text-2xs text-zinc-500">{t('profiles.holes', { count: p.holes.length })}</p> : null}
       <div className="flex flex-wrap gap-1">
         <Button size="sm" variant="outline" disabled={active === null} onClick={() => active !== null && onChange(moveOrigin(p, p.outer[active]))}>{t('profiles.originHere')}</Button>
+        <Button size="sm" variant="ghost" onClick={() => onChange(reflectProfile(p, 'x'))}>{t('profiles.mirror')}</Button>
+        <Button size="sm" variant="ghost" onClick={() => onChange(reflectProfile(p, 'y'))}>{t('profiles.flip')}</Button>
         {p.holes.length ? <Button size="sm" variant="ghost" onClick={() => onChange({ ...p, holes: [] })}>{t('profiles.removeHoles')}</Button> : null}
       </div>
     </Section>

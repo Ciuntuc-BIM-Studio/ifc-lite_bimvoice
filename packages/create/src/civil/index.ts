@@ -29,3 +29,4 @@ export {
 export { boundsOf, paper, translatePrims, type CivilDrawing, type DrawPen, type DrawPrim } from './drawing-prims.js';
 export { DEFAULT_PROFILE_OPTIONS, profileDrawing, type ProfileDrawingLabels, type ProfileDrawingOptions } from './profile-drawing.js';
 export { DEFAULT_SECTION_OPTIONS, oneSection, sampleStations, sectionsDrawing, type SectionDrawingLabels, type SectionDrawingOptions } from './section-drawing.js';
+export { abutmentSections, abutmentSolids, defaultAbutment, extrudeOutline, type AbutmentSpec, type AbutmentType, type CorridorBridge, type ExtrudedSolid } from './bridge.js';

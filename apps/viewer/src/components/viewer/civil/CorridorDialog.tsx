@@ -24,6 +24,7 @@ import { deleteCorridorWithConfirm } from './delete-corridor';
 import { AlignmentFields, GeneralFields, ProfileFields } from './CorridorFields';
 import { AssemblyFields } from './AssemblyFields';
 import { ComponentFields } from './ComponentFields';
+import { BridgeFields } from './BridgeFields';
 import { PlanPreview, ProfilePreview, SectionPreview } from './CorridorPreview';
 
 export function CorridorDialog() {
@@ -68,6 +69,7 @@ export function CorridorDialog() {
               <GeneralFields spec={draft} onChange={setDraft} terrains={terrains} />
               <AlignmentFields spec={draft} onChange={setDraft} />
               <ProfileFields spec={draft} onChange={setDraft} terrain={terrain} />
+              <BridgeFields spec={draft} onChange={setDraft} />
             </div>
             <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
               <AssemblyFields spec={draft} onChange={setDraft} />

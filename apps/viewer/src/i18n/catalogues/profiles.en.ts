@@ -41,6 +41,8 @@ export const profilesEn = {
   'profiles.insertPoint': 'Insert a point after',
   'profiles.removePoint': 'Remove point',
   'profiles.originHere': 'Origin at selected point',
+  'profiles.mirror': 'Mirror ↔',
+  'profiles.flip': 'Flip ↕',
   'profiles.holes': '{count} hole(s)',
   'profiles.removeHoles': 'Remove holes',
   'profiles.actions': 'Point actions',
