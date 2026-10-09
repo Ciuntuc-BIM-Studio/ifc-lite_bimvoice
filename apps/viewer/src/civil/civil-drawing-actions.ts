@@ -6,7 +6,7 @@
  * Making and placing road drawings: a profile or section set of the
  * selected (or only) corridor, opened in its tab; and "Draw on plan", which
  * opens the corridor's floor plan and starts CIVILDWG to pick where the
- * drawing goes, Civil 3D style.
+ * drawing goes, as plain drafted lines and text.
  */
 
 import { resolve } from '@/i18n/registry';

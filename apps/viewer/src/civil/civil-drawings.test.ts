@@ -5,7 +5,7 @@
 /**
  * Road drawings of a corridor in a loaded model: a longitudinal profile and
  * a section set as project documents, laid out in paper millimetres for a
- * sheet, and drawn on a plan's canvas as drafted entities (Civil 3D style).
+ * sheet, and drawn on a plan's canvas as drafted entities.
  */
 
 import '@/test/setup-dom.js';

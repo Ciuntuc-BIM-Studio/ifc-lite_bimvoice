@@ -11,7 +11,7 @@
  * - as a document placed on sheets like a view (a viewport that follows
  *   the corridor): `layoutCivilDrawing` gives it in paper millimetres, with
  *   pens and DXF layers;
- * - Civil 3D style, drawn on a plan's canvas as ordinary drafted lines,
+ * - drawn on a plan's canvas as ordinary drafted lines,
  *   polylines, hatches and text at a picked point (`drawingEntities`):
  *   static, editable like any drawing.
  */
@@ -135,7 +135,7 @@ export function layoutCivilDrawing(drawing: CivilDrawing, scale: number): CivilL
   return { width: (maxX - minX) * k, height: (maxY - minY) * k, prims };
 }
 
-// --- on a plan's canvas (Civil 3D style) -------------------------------------------
+// --- on a plan's canvas -------------------------------------------------------
 
 const LAYERS: readonly DraftLayer[] = [
   { id: 'civil-grid', name: 'C-ROAD-GRID', color: '#a1a1aa', visible: true, locked: false, lineWeight: 0.09 },

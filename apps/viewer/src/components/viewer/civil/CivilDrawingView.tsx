@@ -7,8 +7,8 @@
  * grid for a profile; sample spacing or stations, columns and width for
  * sections), the drawing itself on the right, live from the corridor. It is
  * placed on a sheet by dragging it from the navigator (a viewport that
- * follows the corridor), or drawn on the plan with "Draw on plan" (Civil 3D
- * style, static drafted entities) — the user picks either.
+ * follows the corridor), or drawn on the plan with "Draw on plan" (as
+ * static drafted entities) — the user picks either.
  */
 
 import { useMemo, useRef } from 'react';

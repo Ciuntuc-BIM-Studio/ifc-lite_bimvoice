@@ -25,7 +25,7 @@ export const civilDrawingsEn = {
   'civilDwg.field.halfWidth': 'Half width (m, 0 = auto)',
   'civilDwg.placeSheet': 'On a sheet: drag it from Road drawings in the navigator onto the sheet — a viewport that updates with the corridor.',
   'civilDwg.drawOnPlan': 'Draw on plan…',
-  'civilDwg.placePlan': 'Civil 3D style: opens the corridor\'s plan and draws it at the point you click, as editable lines and text (it does not update).',
+  'civilDwg.placePlan': 'Draw on the plan: opens the corridor\'s plan and draws it at the point you click, as editable lines and text (it does not update).',
   'civilDwg.canvas': 'Drawing',
   'civilDwg.zoomIn': 'Zoom in (+)',
   'civilDwg.zoomOut': 'Zoom out (−)',

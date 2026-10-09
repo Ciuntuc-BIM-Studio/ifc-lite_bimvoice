@@ -4,7 +4,7 @@
 
 /**
  * CIVILDWG: draw a road drawing (profile / cross sections) on the view in
- * front, Civil 3D style — click its bottom-left corner. The drawing is
+ * front — click its bottom-left corner. The drawing is
  * rebuilt at the view's scale (text sizes and band rows print right there)
  * and written as ordinary drafted lines, polylines, solid hatches and text
  * on the C-ROAD layers: static, editable like any drawing. Each click
