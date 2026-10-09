@@ -23,6 +23,9 @@ import { pickViewportAppearanceFace, viewportFacePickError } from './appearance/
 import { resolve as translate } from '@/i18n/registry';
 
 /** The click-driven Measure modes' point placement; also a touch tap's (#5856). */
+
+/** A double click on a model element in 3D, with its renderer id. */
+export const ELEMENT_DOUBLE_CLICK_EVENT = 'bimvoice:element-double-click';
 export function handleMeasureClickAt(ctx: MouseHandlerContext, x: number, y: number): void {
   const mode = useViewerStore.getState().measureMode;
   if (mode === 'polyline') handlePolylineClick(ctx, x, y);
@@ -141,6 +144,8 @@ export async function handleSelectionClick(ctx: MouseHandlerContext, e: MouseEve
   const applyIfc = (pickResult: PickResult | null) => {
     if (doubleClick) {
       if (pickResult) ctx.handlePickForSelection(pickResult);
+      // Blocks (a roof system) enter their edit mode on a double click.
+      if (pickResult) window.dispatchEvent(new CustomEvent<number>(ELEMENT_DOUBLE_CLICK_EVENT, { detail: pickResult.expressId }));
       ctx.lastClickTimeRef.current = 0; ctx.lastClickPosRef.current = null;
     } else {
       if (e.ctrlKey || e.metaKey) { if (pickResult) ctx.toggleSelection(pickResult.expressId); }

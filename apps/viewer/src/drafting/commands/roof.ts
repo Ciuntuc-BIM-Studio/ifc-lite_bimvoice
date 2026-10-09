@@ -3,8 +3,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * ROOF: a closed contour on a floor plan becomes a roof. By default a roof
- * SYSTEM (`roof-system-element.ts`): an IfcRoof of covering planes and
+ * ROOF: by default the roof's outline is drawn on the floor plan — click its
+ * corners, then C, Enter or a click on the first corner — and becomes one
+ * roof system that owns its outline (reshaped later by its grips on the
+ * plan). PICK instead turns an existing closed contour into a roof (DRAW
+ * goes back), linked to it. By default a roof SYSTEM (`roof-system-element.ts`): an IfcRoof of covering planes and
  * timber structure, its rules per edge — GABLE puts gables on a rectangle's
  * short edges, HIP makes every edge an eave, MONO only the first — to refine
  * in the roof configurator. SIMPLE makes the older single solid instead
@@ -18,7 +21,8 @@ import { createRoofSystem } from '@/project/roof-system-element';
 import { currentRoofPreset } from '@/element-types/roof-preset';
 import { setDraftParams } from '../draft-store';
 import { pickSource, shapeLoop } from './model';
-import type { DraftCommandDef } from './types';
+import type { DraftCommandDef, Prompt } from './types';
+import type { Pt } from '../types';
 
 const KINDS = { FLAT: 'flat', MONO: 'mono', SHED: 'mono', GABLE: 'gable', HIP: 'hip' } as const;
 
@@ -28,10 +32,30 @@ export const roofCommand: DraftCommandDef = {
   labelKey: 'drafting.cmd.roof',
   create(ctx) {
     const s = ctx.settings;
+    const pts: Pt[] = [];
+    const kindLabel = () => `${s.roofKind.toUpperCase()}${s.roofSystem && s.roofKind !== 'flat' ? ' SYSTEM' : ''}`;
+    /** The drawn outline as a roof system of its own (no contour to link). */
+    const finish = (): 'continue' => {
+      const view = ctx.view();
+      const plane = ctx.plane();
+      const outline = pts.splice(0);
+      if (!view || !plane) { ctx.say('drafting.msg.noWorkPlane'); return 'continue'; }
+      if (outline.length < 3) { ctx.say('drafting.msg.roofNeedsThree'); return 'continue'; }
+      if (s.roofKind === 'flat' || !s.roofSystem) { ctx.say('drafting.msg.roofDrawSystemOnly'); return 'continue'; }
+      const typed = currentRoofPreset();
+      const covering = typed?.defaults.thickness ?? (s.roofThickness <= 0.15 ? s.roofThickness : 0.08);
+      const made = createRoofSystem(view, plane, outline, { shape: s.roofKind, pitch: s.roofSlope, overhang: s.roofOverhang, thickness: covering, eaveHeight: 0 }, typed?.name, typed?.preset);
+      if (!made.ok) ctx.say('drafting.msg.extrudeFailed', { detail: made.error });
+      else ctx.say('drafting.msg.roofDrawn', { guid: made.globalId });
+      return 'continue';
+    };
     return {
-      prompt: () => ({ key: 'drafting.prompt.roof', params: { kind: `${s.roofKind.toUpperCase()}${s.roofSystem && s.roofKind !== 'flat' ? ' SYSTEM' : ''}`, slope: s.roofSlope, thickness: s.roofThickness, overhang: s.roofOverhang } }),
+      prompt: (): Prompt => s.roofPick
+        ? { key: 'drafting.prompt.roof', params: { kind: kindLabel(), slope: s.roofSlope, thickness: s.roofThickness, overhang: s.roofOverhang } }
+        : { key: pts.length < 3 ? 'drafting.prompt.roofDraw' : 'drafting.prompt.roofDrawClose', params: { kind: kindLabel(), slope: s.roofSlope, overhang: s.roofOverhang, n: pts.length } },
       input: () => 'point',
-      basePoint: () => null,
+      basePoint: () => (s.roofPick ? null : pts[pts.length - 1] ?? null),
+      preview: (cursor) => (s.roofPick || pts.length === 0 ? [] : [{ type: 'polyline', pts: [...pts, cursor], closed: pts.length >= 2 }]),
       wantsValue: () => true,
       onValue(v) {
         if (v >= 0 && v < 90) s.roofSlope = v;
@@ -39,6 +63,13 @@ export const roofCommand: DraftCommandDef = {
       },
       onKeyword(word) {
         const upper = word.toUpperCase();
+        if (upper === 'PICK' || upper === 'DRAW') {
+          s.roofPick = upper === 'PICK';
+          pts.length = 0;
+          return 'continue';
+        }
+        if (!s.roofPick && (upper === 'C' || upper === 'CLOSE')) return finish();
+        if (!s.roofPick && (upper === 'U' || upper === 'UNDO')) { pts.pop(); return 'continue'; }
         const kind = KINDS[upper as keyof typeof KINDS];
         if (kind) {
           s.roofKind = kind;
@@ -61,6 +92,13 @@ export const roofCommand: DraftCommandDef = {
         return undefined;
       },
       onPoint(p) {
+        if (!s.roofPick) {
+          // Back on the first corner closes the outline.
+          const first = pts[0];
+          if (first && pts.length >= 3 && Math.hypot(p.x - first.x, p.y - first.y) < 0.15) return finish();
+          pts.push(p);
+          return 'continue';
+        }
         const view = ctx.view();
         const plane = ctx.plane();
         if (!view || !plane) {
@@ -104,7 +142,7 @@ export const roofCommand: DraftCommandDef = {
         ctx.say('drafting.msg.extruded', { ifcClass: 'IfcRoof', guid: result.globalId });
         return 'continue';
       },
-      onEnter: () => 'done',
+      onEnter: () => (!s.roofPick && pts.length >= 3 ? finish() : 'done'),
     };
   },
 };

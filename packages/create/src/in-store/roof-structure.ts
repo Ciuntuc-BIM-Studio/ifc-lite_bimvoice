@@ -42,6 +42,8 @@ export interface RoofStructureSpec {
   coverDepth: number;
   /** Trusses (used by the 'trusses' system; older specs may lack it). */
   truss?: TrussSpec;
+  /** How rafters (and hip, valley rafters, top chords) are cut at their eave and ridge ends; square when absent. */
+  rafterEnds?: { eave: 'square' | 'plumb' | 'level'; ridge: 'square' | 'plumb' | 'level' };
 }
 
 export interface TrussSpec {

@@ -4,8 +4,8 @@
 
 /**
  * The storey chip's context control (charter #6232, D9): what 3D does with
- * the storeys above the one being drawn on — "Hide above" (the default),
- * "Ghost above" or "Show all". The icon names the current choice; a click
+ * the storeys above the one being drawn on — "Hide above", "Ghost above" or
+ * "Show all" (the default). The icon names the current choice; a click
  * opens the three. The choice is remembered for the browser session
  * (`storeyContextSlice`) and applied by `useVisibilityState`.
  */

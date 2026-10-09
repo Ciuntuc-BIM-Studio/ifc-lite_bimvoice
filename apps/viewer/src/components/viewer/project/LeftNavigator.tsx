@@ -18,6 +18,7 @@ import { useElementTagSync } from '@/project/useElementTagSync';
 import { ProjectNavigatorPanel } from './ProjectNavigatorPanel';
 import { NewProjectHost } from './NewProjectDialog';
 import { ProjectPackageHost } from './ProjectPackageHost';
+import { RoofEditBar } from '../roof/RoofEditBar';
 import { DraftingStandardsDialog } from '../drafting/standards/DraftingStandardsDialog';
 import { JoineryDialog } from '../joinery/JoineryDialog';
 import { RoofSystemDialog } from '../roof/RoofSystemDialog';
@@ -25,6 +26,7 @@ import { CorridorDialog } from '../civil/CorridorDialog';
 import { GroupEditBar } from '../groups/GroupEditBar';
 import { ProfileLibraryDialog } from '../civil/ProfileLibraryDialog';
 import { installGroupBehaviour } from '@/project/element-groups';
+import { installRoofBlocks } from '@/project/roof-block';
 import '@/joinery/placement';
 import '@/element-types/model-sync';
 import '@/project/cut-priorities';
@@ -32,6 +34,7 @@ import { ElementTypesDialog } from '../element-types/ElementTypesDialog';
 
 // Clicking a member selects its group; a group in edit mode keeps the rest locked.
 installGroupBehaviour();
+installRoofBlocks();
 
 type LeftTab = 'model' | 'project';
 
@@ -88,6 +91,7 @@ export function LeftNavigator() {
       </div>
       <NewProjectHost />
       <ProjectPackageHost />
+      <RoofEditBar />
       <DraftingStandardsDialog />
       <JoineryDialog />
       <ElementTypesDialog />

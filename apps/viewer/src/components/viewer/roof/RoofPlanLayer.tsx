@@ -23,6 +23,9 @@ import { drawingToScreen, type SectionAxisName, type ViewTransform } from '@/dra
 import type { Pt } from '@/drafting/types';
 import type { ProjectView } from '@/project/types';
 import { planRoofs, type PlanRoof } from '@/project/roof-plan';
+import { useProjectStore } from '@/project/project-store';
+import { toGlobalIdFromModels } from '@/store/globalId';
+import { RoofOutlineGrips } from './RoofOutlineGrips';
 import { applyRoofSystem } from '@/project/roof-system-element';
 import { openRoofDialog, stopRoofEdit, useRoofDialog } from '@/project/roof-dialog-store';
 
@@ -67,6 +70,21 @@ export const RoofPlanLayer = memo(function RoofPlanLayer({ view, plane, transfor
   const editing = useRoofDialog((s) => s.editing);
   const [open, setOpen] = useState<number | null>(null);
   const roofs = useMemo(() => (plane ? planRoofs(view, plane) : []), [view, plane, mutationVersion, models]);
+  const selectedIds = useViewerStore((s) => s.selectedEntityIds);
+  const selectedId = useViewerStore((s) => s.selectedEntityId);
+  const drafts = useProjectStore((s) => s.drafts);
+  // Selected roofs that own their outline (not linked to a drafted contour) show its grips.
+  const reshapable = useMemo(() => {
+    const selected = new Set<number>(selectedIds ?? []);
+    if (typeof selectedId === 'number') selected.add(selectedId);
+    const linked = new Set(drafts.filter((d) => d.params.roofSystem && typeof d.params.ifcGlobalId === 'string').map((d) => String(d.params.ifcGlobalId)));
+    const s = useViewerStore.getState();
+    return roofs.filter((r) => {
+      if (!selected.has(toGlobalIdFromModels(s.models, r.modelId, r.roofId))) return false;
+      const entity = s.mutationViews.get(r.modelId)?.getNewEntity(r.roofId) ?? s.models.get(r.modelId)?.ifcDataStore?.getEntity(r.roofId);
+      return !linked.has(String(entity?.attributes[0] ?? ''));
+    });
+  }, [roofs, selectedIds, selectedId, drafts]);
   if (roofs.length === 0) return null;
   const S = (p: Pt) => drawingToScreen(p, transform, axis);
   const path = (pts: Pt[], closed = false) => pts.map((p, i) => `${i ? 'L' : 'M'}${S(p).x.toFixed(1)},${S(p).y.toFixed(1)}`).join('') + (closed ? 'Z' : '');
@@ -98,6 +116,9 @@ export const RoofPlanLayer = memo(function RoofPlanLayer({ view, plane, transfor
           </g>
         ))}
       </svg>
+      {plane ? reshapable.filter((r) => !active(r)).map((r) => (
+        <RoofOutlineGrips key={`grips${r.roofId}`} roof={r} view={view} plane={plane} transform={transform} axis={axis} />
+      )) : null}
       {roofs.filter(active).map((r) => (
         <div key={`edit${r.roofId}`} className="pointer-events-none absolute inset-0">
           {r.outline.map((p, i) => {

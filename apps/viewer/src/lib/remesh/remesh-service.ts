@@ -25,9 +25,11 @@
 
 import type { StoreApi } from 'zustand';
 import type { IfcDataStore } from '@ifc-lite/parser';
+import type { MutablePropertyView } from '@ifc-lite/mutations';
 import { serializeEntitySubgraph } from '@ifc-lite/export';
 import { hostsOtherEntities } from '@ifc-lite/renderer';
 import type { MeshData } from '@ifc-lite/geometry';
+import { overlayStyleWire, withOverlayStyles } from './overlay-style-wire';
 import { RemeshClient, filterStyleWire, type RemeshConfig, type RemeshRequest, type RemeshResult, type StyleWire } from '@ifc-lite/geometry/remesh';
 import type { ViewerState } from '@/store';
 import type { FederatedModel } from '@/store/types';
@@ -40,6 +42,25 @@ import type { TranslationKey } from '@/i18n';
 import { expandAffectedSet, type RemeshCause } from './affected-set';
 import { loadRtcFrame, toRenderFrame } from './render-frame';
 
+
+/** The model's style wire with this session's styled items added (`overlay-style-wire.ts`), as filterStyleWire's first two arguments. */
+function stylesWithOverlay(wire: { styleIds: Uint32Array; styleColors: Uint8Array }, store: IfcDataStore, view: MutablePropertyView | null): [Uint32Array, Uint8Array] {
+  if (!view) return [wire.styleIds, wire.styleColors];
+  const merged = withOverlayStyles(wire, overlayStyleWire({
+    entities: () => view.getNewEntities().filter((e) => !view.isDeleted(e.expressId)),
+    attributes: (id) => {
+      if (view.isDeleted(id)) return null;
+      const base = view.getNewEntity(id)?.attributes ?? store.getEntity(id)?.attributes;
+      if (!base) return null;
+      const edits = view.getPositionalMutationsForEntity(id);
+      if (!edits?.size) return base;
+      const attrs = [...base];
+      for (const [index, value] of edits) attrs[index] = value;
+      return attrs;
+    },
+  }));
+  return [merged.styleIds, merged.styleColors];
+}
 export type { RemeshCause } from './affected-set';
 type Get = () => ViewerState;
 
@@ -314,7 +335,7 @@ async function remesh(
       buffer: sub.bytes,
       targets: Uint32Array.from(targets),
       frame,
-      ...filterStyleWire(wire.styleIds, wire.styleColors, sub.ids),
+      ...filterStyleWire(...stylesWithOverlay(wire, store, view), sub.ids),
       materialElementIds: wire.materialElementIds,
       materialColorCounts: wire.materialColorCounts,
       materialColors: wire.materialColors,

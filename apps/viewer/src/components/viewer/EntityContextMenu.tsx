@@ -31,8 +31,7 @@ import { effectiveContextType, sameEffectiveTypeIds } from './EntityContextMenu.
 import { sameEffectiveStoreyIds } from './EntityContextMenu.effective-storey';
 import { surfaceCommand, type SurfaceCommandId } from './surface-commands';
 import { runSurfaceCommand } from './surface-command-run';
-import { roofSystemOfRenderId } from '@/project/roof-system-element';
-import { deleteRoofWithConfirm } from './roof/delete-roof';
+import { deleteRoofOrPart } from './roof/delete-roof';
 import { corridorOfRenderId } from '@/civil/corridor-element';
 import { deleteCorridorWithConfirm } from './civil/delete-corridor';
 import { removeElementWithOrphans } from '@/project/element-removal';
@@ -268,11 +267,9 @@ export function EntityContextMenu() {
       closeContextMenu();
       return;
     }
-    // A part of a roof system goes with its whole block.
-    const roof = roofSystemOfRenderId(contextMenu.entityId);
-    if (roof) {
+    // A roof system part: on its own inside the roof being edited, else with the whole roof.
+    if (deleteRoofOrPart(contextMenu.entityId)) {
       closeContextMenu();
-      void deleteRoofWithConfirm(roof);
       return;
     }
     // A course or slope of a corridor goes with its whole block.

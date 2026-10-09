@@ -13,6 +13,7 @@ import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import { readRoofSystem, roofGeometry, type RoofGeometry, type RoofSystemSpec } from '@ifc-lite/create';
 import { iterateEffectiveEntityIds } from '@ifc-lite/mutations';
 import { useViewerStore } from '@/store';
+import { toGlobalIdFromModels } from '@/store/globalId';
 import { buildStoreyWorkplane } from '@/lib/commands/modeling/workplane';
 import { worldToDrawing } from '@/drafting/frame';
 import type { Pt } from '@/drafting/types';
@@ -84,4 +85,18 @@ export function planRoofs(view: ProjectView, plane: SectionPlaneConfig): PlanRoo
     }
   }
   return out;
+}
+
+/** The roof (renderer id) whose outline contains drawing point `p` on this plan, or null — what a click inside a roof selects. */
+export function roofAtPoint(view: ProjectView, plane: SectionPlaneConfig, p: Pt): number | null {
+  const s = useViewerStore.getState();
+  for (const roof of planRoofs(view, plane)) {
+    let inside = false;
+    const o = roof.outline;
+    for (let i = 0, j = o.length - 1; i < o.length; j = i++) {
+      if ((o[i].y > p.y) !== (o[j].y > p.y) && p.x < ((o[j].x - o[i].x) * (p.y - o[i].y)) / (o[j].y - o[i].y) + o[i].x) inside = !inside;
+    }
+    if (inside) return toGlobalIdFromModels(s.models, roof.modelId, roof.roofId);
+  }
+  return null;
 }

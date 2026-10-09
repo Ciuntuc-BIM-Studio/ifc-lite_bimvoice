@@ -164,6 +164,22 @@ export function updateRoofSystemOutline(view: ProjectView, plane: SectionPlaneCo
 }
 
 /**
+ * A roof that owns its outline, reshaped on the plan (its grips): the new
+ * outline in drawing coordinates and a rule per edge (edge i from point i).
+ */
+export function reshapeRoofSystem(ref: Pick<RoofSystemRef, 'modelId' | 'roofId' | 'spec'>, view: ProjectView, plane: SectionPlaneConfig, outline: Pt[], rules: RoofEdgeRule[]): { ok: true } | { ok: false; error: string } {
+  if (outline.length < 3) return { ok: false, error: 'A roof outline needs at least three corners.' };
+  const ready = prepare(view, plane, [outline]);
+  if (!ready.ok) return { ok: false, error: ready.error };
+  const pts: Vec2[] = outline.map((p) => {
+    const l = ready.toLocal(drawingToWorld(plane, p));
+    return [l.x, l.y];
+  });
+  const oriented = orientRoof(pts, rules);
+  return applyRoofSystem(ref, { ...ref.spec, outline: oriented.outline, rules: oriented.rules });
+}
+
+/**
  * Delete a roof system whole — the roof, its planes and members, their
  * materials — in one undo step. A contour it was drawn from stays on the
  * plan, unlinked.

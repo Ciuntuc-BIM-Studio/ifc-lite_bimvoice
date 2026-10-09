@@ -22,7 +22,7 @@ import { generateIfcGuid } from '@ifc-lite/encoding';
 import type { MutablePropertyView, StoreEditor } from '@ifc-lite/mutations';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import type { SpatialAnchor } from './anchor.js';
-import { emitLocalPlacement, emitSurfaceStyle, ownerHistoryRef, productGuid } from './_emit-helpers.js';
+import { emitLocalPlacement, ownerHistoryRef, productGuid } from './_emit-helpers.js';
 import { addFacetedElementToStore, rewriteFacetedGeometry } from './faceted.js';
 import { elementGeometryRefs, pruneOrphanOverlay } from './overlay-prune.js';
 import { addMemberToStore } from './member.js';
@@ -31,6 +31,8 @@ import { roofSolidFaces } from './roof-surface.js';
 import { roofGeometry, type RoofEdgeRule, type RoofGeometry } from './roof-system.js';
 import { roofStructure, type RoofMember, type RoofStructureSpec } from './roof-structure.js';
 import { coveringThickness, removeRoofMaterials, writeRoofMaterials, type RoofCovering } from './roof-system-material.js';
+import { memberSolidFaces, shapeMembers, type RoofOverrides } from './roof-overrides.js';
+import { partStyles, settledSpec, stylePart } from './roof-system-style.js';
 
 type Vec2 = [number, number];
 type Vec3 = [number, number, number];
@@ -52,6 +54,8 @@ export interface RoofSystemSpec {
   covering: RoofCovering;
   structure: RoofStructureSpec;
   timberColor: string;
+  /** Edits to single parts by part key, kept across regenerations while the part is still generated. */
+  overrides?: RoofOverrides;
 }
 
 export interface RoofSystemResult {
@@ -67,23 +71,6 @@ function roofShape(g: RoofGeometry): string {
   if (eaves === 1) return 'SHED_ROOF';
   if (eaves === g.rules.length) return g.outline.length === 4 ? 'HIP_ROOF' : 'FREEFORM';
   return g.outline.length === 4 && eaves === 2 ? 'GABLE_ROOF' : 'FREEFORM';
-}
-
-const rgb = (hex: string) => {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
-  return m ? { red: parseInt(m[1], 16) / 255, green: parseInt(m[2], 16) / 255, blue: parseInt(m[3], 16) / 255 } : { red: 0.6, green: 0.4, blue: 0.3 };
-};
-
-/** Colour every item of a product we just wrote. */
-function stylePart(editor: StoreEditor, productShapeId: number, styleRef: number): void {
-  const view = editor.getMutationView();
-  const ref = (v: unknown) => (typeof v === 'string' && v.startsWith('#') ? Number(v.slice(1)) : null);
-  for (const rep of (view.getNewEntity(productShapeId)?.attributes[2] as unknown[] | undefined) ?? []) {
-    const repId = ref(rep);
-    for (const item of (repId === null ? [] : (view.getNewEntity(repId)?.attributes[3] as unknown[] | undefined)) ?? []) {
-      editor.addEntity('IfcStyledItem', [item as string, [`#${styleRef}`], null]);
-    }
-  }
 }
 
 /**
@@ -117,6 +104,8 @@ function planeFrame(top: readonly Vec3[]): { origin: Vec3; x: Vec3; z: Vec3; toL
 
 interface PartPlan {
   key: string;
+  /** A colour of its own (an override), else the covering's or the timber's. */
+  color?: string;
   build: (globalId: string | undefined) => { id: number; shape: number };
   /** New geometry for an existing part: placement and representation written onto it (the old ones are left to prune). */
   rewrite: (id: number) => number;
@@ -125,7 +114,9 @@ interface PartPlan {
 function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemSpec, g: RoofGeometry, members: RoofMember[]): PartPlan[] {
   const lift = spec.eaveHeight;
   const plans: PartPlan[] = [];
+  const overrides = spec.overrides ?? {};
   g.planes.forEach((plane) => {
+    if (overrides[`plane:${plane.edge}`]?.deleted) return;
     const tv = coveringThickness(spec.covering) / Math.cos((plane.pitch * Math.PI) / 180);
     const bottom = plane.pts.map(([x, y, z]) => [x, y, z - tv] as Vec3);
     // Each plane in its own frame, Z square to the slope: its layer-set usage (AXIS3) stacks the layers across it.
@@ -137,6 +128,7 @@ function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemS
     };
     plans.push({
       key: params.Tag,
+      color: overrides[params.Tag]?.color,
       build: (GlobalId) => {
         const made = addFacetedElementToStore(editor, anchor, { ...params, GlobalId });
         editor.removeEntity(made.relContainedId);
@@ -150,11 +142,30 @@ function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemS
     ridge: { type: 'MEMBER', name: 'Ridge beam' }, purlin: { type: 'PURLIN', name: 'Purlin' }, plate: { type: 'PLATE', name: 'Wall plate' },
     chord: { type: 'CHORD', name: 'Truss top chord' }, tie: { type: 'CHORD', name: 'Truss bottom chord' }, post: { type: 'POST', name: 'King post' }, strut: { type: 'STRUT', name: 'Strut' },
   };
-  for (const m of members) {
+  for (const m of shapeMembers(members, spec.structure, overrides)) {
     const params = {
       Start: [m.start[0], m.start[1], m.start[2] + lift] as Vec3, End: [m.end[0], m.end[1], m.end[2] + lift] as Vec3,
       Width: m.width, Height: m.depth, PredefinedType: kinds[m.role].type, Name: `${kinds[m.role].name}`, Tag: m.key,
     };
+    if (m.startCut !== 'square' || m.endCut !== 'square') {
+      // A cut end: the member as a solid of its own, placed at its start.
+      const at = params.Start;
+      const faced = {
+        IfcClass: 'IfcMember', PredefinedType: params.PredefinedType, Name: params.Name, Tag: m.key, Location: at,
+        Faces: memberSolidFaces({ ...m, start: [0, 0, 0], end: [params.End[0] - at[0], params.End[1] - at[1], params.End[2] - at[2]] }),
+      };
+      plans.push({
+        key: m.key,
+        color: m.color,
+        build: (GlobalId) => {
+          const made = addFacetedElementToStore(editor, anchor, { ...faced, GlobalId });
+          editor.removeEntity(made.relContainedId);
+          return { id: made.elementId, shape: made.productShapeId };
+        },
+        rewrite: (id) => rewriteFacetedGeometry(editor, anchor, id, faced).productShapeId,
+      });
+      continue;
+    }
     const build = (GlobalId?: string) => {
       const made = addMemberToStore(editor, anchor, { ...params, GlobalId });
       editor.removeEntity(made.relContainedId);
@@ -162,6 +173,7 @@ function partPlans(editor: StoreEditor, anchor: SpatialAnchor, spec: RoofSystemS
     };
     plans.push({
       key: m.key,
+      color: m.color,
       build,
       rewrite: (id) => {
         // Build the new geometry on a scratch member, move it over, drop the scratch.
@@ -197,12 +209,11 @@ export function addRoofSystemToStore(editor: StoreEditor, anchor: SpatialAnchor,
     globalId, ownerHistoryRef(anchor.ownerHistoryId), spec.name, null, null, `#${placementId}`, null, null, `.${roofShape(g)}.`,
   ] as Attr).expressId;
   editor.addEntity('IfcRelContainedInSpatialStructure', [generateIfcGuid(anchor.guidRandom), ownerHistoryRef(anchor.ownerHistoryId), null, null, [`#${roofId}`], `#${anchor.storeyId}`]);
-  const schema = anchor.schema ?? 'IFC4';
-  const cover = emitSurfaceStyle(editor, schema, rgb(spec.covering.color), `${spec.name} covering`).styleRefId;
-  const timber = emitSurfaceStyle(editor, schema, rgb(spec.timberColor), `${spec.name} timber`).styleRefId;
+  spec = settledSpec(spec, g, members);
+  const styleOf = partStyles(editor, anchor, spec);
   const parts = partPlans(editor, anchor, spec, g, members).map((plan) => {
     const made = plan.build(undefined);
-    stylePart(editor, made.shape, plan.key.startsWith('plane:') ? cover : timber);
+    stylePart(editor, made.shape, styleOf(plan));
     return made.id;
   });
   if (parts.length) editor.addEntity('IfcRelAggregates', [generateIfcGuid(anchor.guidRandom), ownerHistoryRef(anchor.ownerHistoryId), null, null, `#${roofId}`, parts.map((id) => `#${id}`)]);
@@ -287,9 +298,8 @@ export function regenerateRoofSystemInStore(store: IfcDataStore, editor: StoreEd
   if (!current) throw new Error(`#${roofId} is not a roof system`);
   const g = roofGeometry(spec.outline, spec.rules);
   const members = roofStructure(g, spec.structure);
-  const schema = anchor.schema ?? 'IFC4';
-  const cover = emitSurfaceStyle(editor, schema, rgb(spec.covering.color), `${spec.name} covering`).styleRefId;
-  const timber = emitSurfaceStyle(editor, schema, rgb(spec.timberColor), `${spec.name} timber`).styleRefId;
+  spec = settledSpec(spec, g, members);
+  const styleOf = partStyles(editor, anchor, spec);
   removeRoofMaterials(store, editor, current.parts.map((p) => p.id), view);
   const existing = new Map(current.parts.map((p) => [p.tag, p.id]));
   // Every part's current placement and body: rewritten or removed below, then pruned once.
@@ -297,7 +307,7 @@ export function regenerateRoofSystemInStore(store: IfcDataStore, editor: StoreEd
   const parts: number[] = [];
   for (const plan of partPlans(editor, anchor, spec, g, members)) {
     const id = existing.get(plan.key);
-    const style = plan.key.startsWith('plane:') ? cover : timber;
+    const style = styleOf(plan);
     if (id !== undefined) {
       existing.delete(plan.key);
       stylePart(editor, plan.rewrite(id), style);

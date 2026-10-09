@@ -11,7 +11,8 @@
 import { resolve } from '@/i18n/registry';
 import { confirmDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/components/ui/toast';
-import { deleteRoofSystem, type RoofSystemRef } from '@/project/roof-system-element';
+import { deleteRoofSystem, roofSystemOfRenderId, type RoofSystemRef } from '@/project/roof-system-element';
+import { roofPartOfRenderId, setPartOverride } from '@/project/roof-block';
 import { closeRoofDialog, stopRoofEdit, useRoofDialog } from '@/project/roof-dialog-store';
 
 export async function deleteRoofWithConfirm(ref: RoofSystemRef): Promise<boolean> {
@@ -27,4 +28,23 @@ export async function deleteRoofWithConfirm(ref: RoofSystemRef): Promise<boolean
   if (result.ok) toast.success(resolve('roof.deleted'));
   else toast.error(resolve('roof.problem', { reason: result.error }));
   return result.ok;
+}
+
+/**
+ * Delete what a renderer id stands for in a roof system: inside the roof
+ * being edited the part alone (an override), elsewhere the whole roof (asked
+ * first). False when the id is not part of a roof system.
+ */
+export function deleteRoofOrPart(renderId: number): boolean {
+  const part = roofPartOfRenderId(renderId);
+  if (part) {
+    const result = setPartOverride(part, { deleted: true });
+    if (result.ok) toast.info(resolve('roofBlock.partDeleted'));
+    else toast.error(result.error);
+    return true;
+  }
+  const roof = roofSystemOfRenderId(renderId);
+  if (!roof) return false;
+  void deleteRoofWithConfirm(roof);
+  return true;
 }

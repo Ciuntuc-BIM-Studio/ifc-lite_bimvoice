@@ -50,6 +50,7 @@ import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
 import { RoofPlanLayer } from '../roof/RoofPlanLayer';
+import { roofAtPoint } from '@/project/roof-plan';
 import { exportViewDxf } from './view-dxf';
 import { drawnBySymbol } from '@/project/view-symbols';
 import { planOverlays } from '@/project/plan-overlays';
@@ -127,11 +128,12 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   // An idle click on the drawing selects the model element under it (both selection channels, as the plan view does).
   useEffect(() => {
     setModelPicker((p, tolerance, additive) => {
-      const id = drawing && references ? pickModelElement(drawing, references, p, tolerance) : null;
+      // Nothing cut under the click: a roof whose outline holds it (roofs are drawn over the plan, not cut).
+      const id = (drawing && references ? pickModelElement(drawing, references, p, tolerance) : null) ?? (view.kind === 'plan' && plane ? roofAtPoint(view, plane, p) : null);
       if (id !== null || !additive) selectFromPlan(id, additive);
     });
     return () => setModelPicker(null);
-  }, [drawing, references]);
+  }, [drawing, references, view, plane]);
   // Commands that work on a model element (a door into a wall in elevation) ask what is under a point.
   useEffect(() => {
     setElementPicker((p) => (drawing && references ? pickModelElement(drawing, references, p, 6 / viewTransform.scale) : null));

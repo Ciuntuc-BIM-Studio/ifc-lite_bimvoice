@@ -32,6 +32,7 @@ import { LayersSection } from './LayersSection';
 import { TypeSection } from './TypeSection';
 import { CutPrioritySection } from './CutPrioritySection';
 import { GroupSection } from './GroupSection';
+import { RoofBlockCards } from '../roof/RoofBlockCards';
 import { renameElement } from './inspector-edits';
 import { useInspectorTarget, type InspectorSelection, type InspectorTarget } from './useInspectorTarget';
 
@@ -181,6 +182,7 @@ function SelectionBody({ selection }: { selection: InspectorSelection }) {
           <CommitField id={id} value={name} onCommit={rename} placeholder={t('modelInspector.name.placeholder')} />
         </InspectorRow>
       </div>
+      <div className="px-3 pt-3 empty:hidden"><RoofBlockCards modelId={modelId} expressId={expressId} /></div>
       {kind === null && !isStairSelection(selection) && <div className="px-3 py-3"><InspectorCaption>{t('modelInspector.noSections', { ifcClass: selection.ifcClass })}</InspectorCaption></div>}
       {kind !== null && <TypeSection modelId={modelId} live={live} kind={kind} elementId={expressId} />}
       {(kind !== null || isStairSelection(selection)) && <SelectionDimensions selection={selection} />}

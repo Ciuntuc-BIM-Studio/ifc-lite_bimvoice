@@ -68,6 +68,24 @@ function groupIndex() {
 
 const toRef = (modelId: string, g: ModelGroup): GroupRef => ({ modelId, groupId: g.id, name: g.name, members: g.members });
 
+/**
+ * Other things that select as one block, like a roof system and its parts:
+ * given a renderer id, every renderer id of its block (the one to inspect
+ * last), or null. A block being edited answers null for its parts.
+ */
+export type BlockResolver = (renderId: number) => { members: number[]; primary: number } | null;
+const blockResolvers: BlockResolver[] = [];
+export function registerBlockResolver(resolve: BlockResolver): void {
+  if (!blockResolvers.includes(resolve)) blockResolvers.push(resolve);
+}
+function blockOf(renderId: number): { members: number[]; primary: number } | null {
+  for (const resolve of blockResolvers) {
+    const block = resolve(renderId);
+    if (block) return block;
+  }
+  return null;
+}
+
 /** The group a renderer id belongs to, or null. */
 export function groupOfRenderId(renderId: number): GroupRef | null {
   const ref = useViewerStore.getState().resolveGlobalIdFromModels(renderId);
@@ -303,11 +321,20 @@ function onSelection(): void {
   for (const id of added) {
     const g = groupOfRenderId(id);
     if (g) for (const m of renderIds(g.modelId, g.members)) want.add(m);
+    else {
+      const block = blockOf(id);
+      if (block) {
+        for (const m of block.members) want.add(m);
+        want.add(block.primary);
+        last = block.primary;
+      }
+    }
   }
   for (const id of removed) {
     const g = groupOfRenderId(id);
-    if (!g) continue;
-    const ids = renderIds(g.modelId, g.members);
+    const block = g ? null : blockOf(id);
+    if (!g && !block) continue;
+    const ids = g ? renderIds(g.modelId, g.members) : [...block!.members, block!.primary];
     // One member let go of: the whole group goes (unless it was all cleared anyway).
     if (ids.some((m) => now.has(m))) ids.forEach((m) => want.delete(m));
     if (last !== undefined && !want.has(last)) last = undefined;

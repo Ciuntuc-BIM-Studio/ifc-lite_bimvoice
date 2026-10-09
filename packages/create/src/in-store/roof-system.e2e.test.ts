@@ -120,6 +120,40 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('roof system block, real
     for (const id of bare.removed) expect(view.isDeleted(id) || !view.getNewEntity(id)).toBe(true);
   });
 
+  it('keeps part overrides across regenerations: a deleted part, a plumb-cut and lengthened rafter that meshes, stale overrides dropped', async () => {
+    const source = readFileSync(new URL('../../../../apps/viewer/public/samples/hello-wall.ifc', import.meta.url));
+    const store = await parse(source);
+    const view = new MutablePropertyView(null, 'm');
+    const editor = new StoreEditor(store, view);
+    const storeyId = [...(store.spatialHierarchy?.storeyElevations.keys() ?? [])][0];
+    const anchor = resolveSpatialAnchor(store, storeyId, view);
+    const base = spec(30);
+    const made = roofs.addRoofSystemToStore(editor, anchor, base);
+    const tag = (id: number) => String(view.getNewEntity(id)?.attributes[7] ?? '');
+    const rafterKey = made.parts.map(tag).find((t) => t.startsWith('rafter:'))!;
+    const purlinKey = made.parts.map(tag).find((t) => t.startsWith('purlin:'))!;
+    const overrides = {
+      [rafterKey]: { startCut: 'plumb' as const, endCut: 'plumb' as const, extendStart: 0.4, color: '#ff0000' },
+      [purlinKey]: { deleted: true },
+      'rafter:99:99:0': { deleted: true },
+    };
+    const again = roofs.regenerateRoofSystemInStore(store, editor, anchor, made.roofId, { ...base, overrides });
+    expect(again.parts.map(tag)).not.toContain(purlinKey);
+    expect(again.removed.length).toBe(1);
+    // The stale override is gone, the others are stored.
+    expect(Object.keys(roofs.readRoofSystem(store, made.roofId, view)?.overrides ?? {}).sort()).toEqual([purlinKey, rafterKey].sort());
+    const rafterId = again.parts.find((id) => tag(id) === rafterKey)!;
+    const bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content;
+    const reparsed = await parse(bytes);
+    const r = meshZ(bytes, reparsed, rafterId);
+    expect(r.meshes).toBeGreaterThan(0);
+    // Lengthened 0.4 m down the slope at its eave end: lower than the eave line minus the overhang.
+    expect(r.min).toBeLessThan(3 - 0.5 * Math.tan(Math.PI / 6) - 0.2);
+    // A steeper roof keeps the overrides (same keys).
+    roofs.regenerateRoofSystemInStore(store, editor, anchor, made.roofId, { ...roofs.readRoofSystem(store, made.roofId, view)!, rules: spec(40).rules });
+    expect(roofs.readRoofSystem(store, made.roofId, view)?.overrides?.[purlinKey]).toEqual({ deleted: true });
+  });
+
   it('carries the covering build-up as a material layer set, rewritten on regeneration, and deletes the whole block', async () => {
     const source = readFileSync(new URL('../../../../apps/viewer/public/samples/hello-wall.ifc', import.meta.url));
     const store = await parse(source);

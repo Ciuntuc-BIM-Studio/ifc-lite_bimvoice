@@ -34,10 +34,10 @@ export interface StoreyContextSlice {
 function loadStoreyContextMode(): StoreyContextMode {
   try {
     const stored = globalThis.sessionStorage?.getItem(STORAGE_KEY);
-    return STOREY_CONTEXT_MODES.find((mode) => mode === stored) ?? 'hide';
+    return STOREY_CONTEXT_MODES.find((mode) => mode === stored) ?? 'all';
   } catch (err) {
     console.warn('[modeling] Could not read the storey context choice:', err);
-    return 'hide';
+    return 'all';
   }
 }
 

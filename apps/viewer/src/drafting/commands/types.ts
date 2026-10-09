@@ -64,6 +64,8 @@ export interface DraftSettings {
   roofKind: 'flat' | 'mono' | 'gable' | 'hip';
   /** Build a roof system (per-edge rules, covering and structure as parts) rather than one solid. */
   roofSystem: boolean;
+  /** ROOF picks an existing closed contour (PICK) rather than drawing the roof's own outline (DRAW, the default). */
+  roofPick: boolean;
   /** Degrees. */
   roofSlope: number;
   roofThickness: number;

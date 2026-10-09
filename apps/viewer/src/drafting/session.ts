@@ -64,7 +64,7 @@ export const useDraftingSession = create<SessionState>()(() => ({
 
 const HISTORY_LINES = 50;
 const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHeight: 0.25, hatchPattern: 'LINES45', hatchScale: 1, hatchAngle: 0, extrudeClass: 'IfcBuildingElementProxy', extrudeDepth: 1,
-  roofKind: 'gable', roofSystem: true, roofSlope: 30, roofThickness: 0.25, roofOverhang: 0.5,
+  roofKind: 'gable', roofSystem: true, roofPick: false, roofSlope: 30, roofThickness: 0.25, roofOverhang: 0.5,
   currentTextStyle: 'standard', currentDimStyle: 'standard' };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
