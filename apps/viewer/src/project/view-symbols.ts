@@ -24,7 +24,12 @@ export function viewOpeningSymbols(
   return openingSymbols(meshes, plane, flipsOf, joineryOfRenderId).filter((s) => !hidden.has(s.kind === 'door' ? 'IFCDOOR' : 'IFCWINDOW'));
 }
 
-/** Whether a plan draws element `id` from its configured type's symbol (so not from its cut). */
-export function drawnBySymbol(id: number, ifcType: string | undefined): boolean {
-  return /^IFC(DOOR|WINDOW)/i.test(ifcType ?? '') && joineryOfRenderId(id) !== null;
+/**
+ * Whether a plan draws element `id` from its symbol rather than its cut:
+ * every door and window — a configured one from its type's symbol, any
+ * other from the one read off its mesh (leaf open with its swing, frame and
+ * glazing) — so the closed leaf the model holds never shows across the gap.
+ */
+export function drawnBySymbol(_id: number, ifcType: string | undefined): boolean {
+  return /^IFC(DOOR|WINDOW)/i.test(ifcType ?? '');
 }

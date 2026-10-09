@@ -95,34 +95,45 @@ const at = (r: OpeningRect, su: number, sn: number): Pt => ({
   y: r.c.y + r.u.y * su + r.n.y * sn,
 });
 
+/** Above this width a door read from its mesh is drawn as a pair of leaves. */
+export const DOUBLE_LEAF_WIDTH = 1.4;
+
 /**
- * A door: leaf open at 90° and its swing arc. By default hinged on the −u
- * jamb and swinging to the +n side; `flips` bit 1 hinges it on the other
- * jamb, bit 2 swings it to the other side.
+ * A door as a plan draws it: each leaf open at 90° as a thin rectangle (its
+ * thickness, drawn heavy) and its swing arc from the leaf's tip back to the
+ * closed position (thin). By default hinged on the −u jamb and swinging to
+ * the +n side; `flips` bit 1 hinges it on the other jamb, bit 2 swings it to
+ * the other side. Wider than `DOUBLE_LEAF_WIDTH`: two leaves, one per jamb.
  */
-export function doorSymbol(r: OpeningRect, flips = 0): DraftShape[] {
+export function doorSymbol(r: OpeningRect, flips = 0): { thin: DraftShape[]; heavy: DraftShape[] } {
   const sh = flips & 1 ? 1 : -1;
   const sn = flips & 2 ? -1 : 1;
-  const hinge = at(r, sh * r.width / 2, sn * r.depth / 2);
-  const leaf = { x: r.n.x * sn, y: r.n.y * sn };
-  const jamb = { x: -r.u.x * sh, y: -r.u.y * sh };
-  const tip = { x: hinge.x + leaf.x * r.width, y: hinge.y + leaf.y * r.width };
-  const a = Math.atan2(jamb.y, jamb.x);
-  const b = Math.atan2(leaf.y, leaf.x);
-  // The quarter turn between the closed and the open leaf, counter-clockwise.
-  const ccw = jamb.x * leaf.y - jamb.y * leaf.x > 0;
-  return [
-    { type: 'line', a: hinge, b: tip },
-    { type: 'arc', c: hinge, r: r.width, start: ccw ? a : b, end: ccw ? b : a },
-  ];
+  const t = Math.min(0.05, Math.max(0.02, r.depth * 0.4));
+  const leaves = r.width > DOUBLE_LEAF_WIDTH ? [sh, -sh] : [sh];
+  const w = r.width / leaves.length;
+  const thin: DraftShape[] = [], heavy: DraftShape[] = [];
+  for (const side of leaves) {
+    const hinge = at(r, side * r.width / 2, sn * r.depth / 2);
+    const leaf = { x: r.n.x * sn, y: r.n.y * sn };
+    const jamb = { x: -r.u.x * side, y: -r.u.y * side };
+    const tip = { x: hinge.x + leaf.x * w, y: hinge.y + leaf.y * w };
+    heavy.push({ type: 'polyline', closed: true, pts: [hinge, tip, { x: tip.x + jamb.x * t, y: tip.y + jamb.y * t }, { x: hinge.x + jamb.x * t, y: hinge.y + jamb.y * t }] });
+    const a = Math.atan2(jamb.y, jamb.x);
+    const b = Math.atan2(leaf.y, leaf.x);
+    // The quarter turn between the closed and the open leaf, counter-clockwise.
+    const ccw = jamb.x * leaf.y - jamb.y * leaf.x > 0;
+    thin.push({ type: 'arc', c: hinge, r: w, start: ccw ? a : b, end: ccw ? b : a });
+  }
+  return { thin, heavy };
 }
 
-/** A window: its frame across the wall and the glazing line along the middle. */
+/** A window: its frame across the wall and the glazing as a double line along the middle. */
 export function windowSymbol(r: OpeningRect): DraftShape[] {
-  const w = r.width / 2, d = r.depth / 2;
+  const w = r.width / 2, d = r.depth / 2, g = Math.min(0.012, d / 3);
   return [
     { type: 'polyline', pts: [at(r, -w, -d), at(r, w, -d), at(r, w, d), at(r, -w, d)], closed: true },
-    { type: 'line', a: at(r, -w, 0), b: at(r, w, 0) },
+    { type: 'line', a: at(r, -w, -g), b: at(r, w, -g) },
+    { type: 'line', a: at(r, -w, g), b: at(r, w, g) },
   ];
 }
 
@@ -182,7 +193,10 @@ export function openingSymbols(
     }
     const rect = minAreaRect(entry.pts);
     if (!rect) continue;
-    out.push({ id, kind: entry.kind, shapes: entry.kind === 'door' ? doorSymbol(rect, flipsOf(id)) : windowSymbol(rect) });
+    if (entry.kind === 'door') {
+      const door = doorSymbol(rect, flipsOf(id));
+      out.push({ id, kind: 'door', shapes: door.thin, heavy: door.heavy });
+    } else out.push({ id, kind: 'window', shapes: windowSymbol(rect) });
   }
   return out;
 }
