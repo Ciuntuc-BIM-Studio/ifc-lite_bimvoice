@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import type { JoinerySpec, StructureProfile } from '@ifc-lite/create';
+import type { AssemblySpec, JoinerySpec, StructureProfile } from '@ifc-lite/create';
 import type { ElementTypeKind, ElementTypeSpec } from '@/element-types/spec';
 import type { DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
 
@@ -188,6 +188,13 @@ export interface ProjectCivilDrawing {
   halfWidth?: number;
 }
 
+/** A typical road cross-section (assembly) kept in the project's library. */
+export interface ProjectTypicalSection {
+  id: string;
+  name: string;
+  assembly: AssemblySpec;
+}
+
 export interface ProjectDocument {
   name: string;
   models: ProjectModelRef[];
@@ -217,4 +224,6 @@ export interface ProjectDocument {
   structureProfiles?: StructureProfile[];
   /** Road drawings: longitudinal profiles and cross-section sets. */
   civilDrawings?: ProjectCivilDrawing[];
+  /** Typical road cross-sections (assemblies) corridors take from. */
+  typicalSections?: ProjectTypicalSection[];
 }

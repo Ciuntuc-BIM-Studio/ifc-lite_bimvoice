@@ -14,6 +14,7 @@ import { useTranslation } from '@/i18n';
 import { IconButton } from '@/components/ui/icon-button';
 import { Section } from '../joinery/JoineryFields';
 import { CELL, Cell } from './CorridorFields';
+import { TypicalSectionBar } from './TypicalSectionBar';
 
 interface Props {
   spec: CorridorSpec;
@@ -29,6 +30,7 @@ export function AssemblyFields({ spec, onChange }: Props) {
   return (
     <>
       <Section title={t('civil.zone.assembly')}>
+        <TypicalSectionBar spec={spec} onChange={onChange} />
         <p className="text-xs text-zinc-500">{t('civil.field.lanes')}</p>
         <table className="w-full text-xs">
           <tbody>

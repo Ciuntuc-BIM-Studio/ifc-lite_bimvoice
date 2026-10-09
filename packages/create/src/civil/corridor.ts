@@ -33,6 +33,8 @@ export interface CorridorSpec {
   interval: number;
   /** GlobalId of the terrain element (IfcGeographicElement) the corridor daylights to, in the same model. */
   terrainGlobalId?: string | null;
+  /** The typical section (project library entry) the assembly was taken from, if any. */
+  typicalSectionId?: string;
   /** Library profiles swept over station ranges: walls, tunnels, decks, barriers… */
   components?: CorridorComponent[];
 }

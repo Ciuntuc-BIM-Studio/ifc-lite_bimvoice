@@ -50,14 +50,16 @@ export interface ViewDisplayOverrides {
 }
 
 /**
- * Projection follows the view's depth: a plan with no depth is cut-only, a
- * section / elevation with no depth projects with the automatic bands, and
- * an explicit depth always projects exactly that far.
+ * Projection follows the view's depth: a plan with no depth of its own sees
+ * down to its level's floor (as deep as its cut is high), a section /
+ * elevation with no depth projects with the automatic bands, and an
+ * explicit depth always projects exactly that far (0: the cut only).
  */
 export function viewDisplayOverrides(view: ProjectView): ViewDisplayOverrides {
   const depth = typeof view.viewDepth === 'number' && view.viewDepth >= 0 ? view.viewDepth : null;
   if (depth !== null) return { showConstructionProjection: depth > 0, constructionProjectionDepth: depth };
-  return { showConstructionProjection: view.kind !== 'plan', constructionProjectionDepth: null };
+  if (view.kind === 'plan') return { showConstructionProjection: view.cutHeight > 0, constructionProjectionDepth: view.cutHeight };
+  return { showConstructionProjection: true, constructionProjectionDepth: null };
 }
 
 /** A stable key for a resolved plane, so an unchanged view never regenerates. */

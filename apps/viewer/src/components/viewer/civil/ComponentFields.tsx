@@ -10,7 +10,8 @@
  * version of the profile in.
  */
 
-import { Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { BookOpen, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { PROFILE_PRESETS, buildAlignment, componentFromProfile, type ComponentAttach, type ComponentDaylight, type ComponentSide, type CorridorComponent, type CorridorSpec } from '@ifc-lite/create';
 import { useTranslation } from '@/i18n';
 import { IconButton } from '@/components/ui/icon-button';
@@ -19,6 +20,8 @@ import { freshProjectId } from '@/project/view-defaults';
 import { openProfileLibrary } from '@/civil/profile-library';
 import { INPUT, Section } from '../joinery/JoineryFields';
 import { Cell } from './CorridorFields';
+import { ProfileCanvas } from './ProfileCanvas';
+import { ComponentProfileEditor } from './ComponentProfileEditor';
 
 interface Props {
   spec: CorridorSpec;
@@ -33,6 +36,7 @@ export function ComponentFields({ spec, onChange }: Props) {
   const { t } = useTranslation();
   const library = useProjectStore((s) => s.structureProfiles) ?? [];
   const components = spec.components ?? [];
+  const [editing, setEditing] = useState<string | null>(null);
   const set = (next: CorridorComponent[]) => onChange({ ...spec, components: next });
   const patch = (i: number, p: Partial<CorridorComponent>) => set(components.map((c, k) => (k === i ? { ...c, ...p } : c)));
   const range = (): [number, number] => {
@@ -70,8 +74,14 @@ export function ComponentFields({ spec, onChange }: Props) {
                 {library.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <IconButton label={t('civil.components.refresh')} className="size-6" disabled={!inLibrary} onClick={() => choose(i, c.profileId)}><RefreshCw className="size-3" /></IconButton>
+              <IconButton label={t('civil.components.edit')} className="size-6" aria-pressed={editing === c.id} onClick={() => setEditing(editing === c.id ? null : c.id)}><Pencil className="size-3" /></IconButton>
               <IconButton label={t('civil.row.remove')} className="size-6" onClick={() => set(components.filter((_, k) => k !== i))}><Trash2 className="size-3" /></IconButton>
             </div>
+            {editing !== c.id ? (
+              <div className="flex justify-center"><ProfileCanvas profile={c.profile} width={260} height={90} /></div>
+            ) : (
+              <ComponentProfileEditor component={c} onChange={(next) => set(components.map((x, k) => (k === i ? next : x)))} />
+            )}
             <div className="grid grid-cols-3 gap-1">
               <select aria-label={t('civil.components.side')} className={INPUT} value={c.side} onChange={(e) => patch(i, { side: e.target.value as ComponentSide })}>
                 {SIDES.map((x) => <option key={x} value={x}>{t(`civil.components.side.${x}`)}</option>)}
@@ -102,9 +112,14 @@ export function ComponentFields({ spec, onChange }: Props) {
           </div>
         );
       })}
-      <button type="button" className="flex items-center gap-1 rounded-sm border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800" onClick={add}>
-        <Plus className="size-3" />{t('civil.components.add')}
-      </button>
+      <div className="flex gap-1">
+        <button type="button" className="flex items-center gap-1 rounded-sm border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800" onClick={add}>
+          <Plus className="size-3" />{t('civil.components.add')}
+        </button>
+        <button type="button" className="flex items-center gap-1 rounded-sm px-2 py-1 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={() => openProfileLibrary()}>
+          <BookOpen className="size-3" />{t('civil.components.openLibrary')}
+        </button>
+      </div>
     </Section>
   );
 }

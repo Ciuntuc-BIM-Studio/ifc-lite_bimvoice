@@ -31,7 +31,7 @@ export const DEFAULT_DRAFT_LAYER = { id: '0', name: '0', color: '#18181b', visib
 export const EMPTY_PROJECT: ProjectDocument = {
   name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }], hatchPatterns: '', symbolFlips: {},
   textStyles: [{ ...DEFAULT_TEXT_STYLE }], dimStyles: [{ ...DEFAULT_DIM_STYLE }], layerGroups: [],
-  joineryTypes: [], currentJoinery: {}, elementTypes: [], currentTypes: {}, schedules: [], structureProfiles: [], civilDrawings: [],
+  joineryTypes: [], currentJoinery: {}, elementTypes: [], currentTypes: {}, schedules: [], structureProfiles: [], civilDrawings: [], typicalSections: [],
 };
 
 export const useProjectStore = create<ProjectState>()(() => ({
@@ -52,6 +52,7 @@ export function projectDocument(state: ProjectState = useProjectStore.getState()
     elementTypes: state.elementTypes ?? [], currentTypes: state.currentTypes ?? {},
     structureProfiles: state.structureProfiles ?? [],
     civilDrawings: state.civilDrawings ?? [],
+    typicalSections: state.typicalSections ?? [],
   };
 }
 
@@ -71,6 +72,7 @@ export function loadProjectDocument(doc: ProjectDocument, options: { dirty?: boo
     schedules: doc.schedules ?? [],
     structureProfiles: doc.structureProfiles ?? [],
     civilDrawings: doc.civilDrawings ?? [],
+    typicalSections: doc.typicalSections ?? [],
     draftLayers: doc.draftLayers.length > 0 ? doc.draftLayers : [{ ...DEFAULT_DRAFT_LAYER }],
     views: [...syncDefaultViews(doc.views, levels)],
     activeItemId: null,

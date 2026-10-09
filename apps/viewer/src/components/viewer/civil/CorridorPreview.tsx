@@ -10,6 +10,7 @@
  */
 
 import { useMemo } from 'react';
+import { ZoomBox } from './ZoomBox';
 import { formatStation, Terrain, type CorridorModel, type Tin } from '@ifc-lite/create';
 
 type P = { x: number; y: number };
@@ -29,7 +30,9 @@ const path = (pts: readonly P[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toF
 function Frame({ width, height, label, children }: { width: number; height: number; label: string; children: React.ReactNode }) {
   return (
     <figure className="rounded-md border border-zinc-200 bg-white p-1 text-zinc-900 dark:border-zinc-700">
-      <svg width={width} height={height} aria-hidden="true">{children}</svg>
+      <ZoomBox width={width} height={height} label={label}>
+        <svg width={width} height={height} aria-hidden="true">{children}</svg>
+      </ZoomBox>
       <figcaption className="px-1 text-2xs text-zinc-500">{label}</figcaption>
     </figure>
   );

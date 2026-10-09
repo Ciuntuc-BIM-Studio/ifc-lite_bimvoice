@@ -11,7 +11,10 @@
  * style, static drafted entities) — the user picks either.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { Maximize, ZoomIn, ZoomOut } from 'lucide-react';
+import { IconButton } from '@/components/ui/icon-button';
+import { usePanZoom } from '@/lib/use-pan-zoom';
 import { useTranslation } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { useViewerStore } from '@/store';
@@ -38,7 +41,9 @@ export function CivilDrawingView({ drawing: d }: { drawing: ProjectCivilDrawing 
   const built = useMemo(() => { void mutationVersion; void models; return buildCivilDrawing(d); }, [d, mutationVersion, models]);
   const layout = 'prims' in built ? layoutCivilDrawing(built, d.scale) : null;
   const set = (patch: Partial<ProjectCivilDrawing>) => updateCivilDrawing(d.id, patch);
-  const pad = 15;
+  const host = useRef<HTMLDivElement>(null);
+  const size = useMemo(() => (layout ? { width: layout.width, height: layout.height } : null), [layout?.width, layout?.height]);
+  const { view, fit, zoomIn, zoomOut, handlers } = usePanZoom(host, size);
   return (
     <div className="flex h-full min-h-0 text-xs">
       <aside className="w-72 shrink-0 space-y-2 overflow-y-auto border-r border-zinc-200 p-3 dark:border-zinc-800">
@@ -71,13 +76,20 @@ export function CivilDrawingView({ drawing: d }: { drawing: ProjectCivilDrawing 
         </Section>
         {layout ? <p className="text-zinc-500">{t('civilDwg.size', { w: Math.round(layout.width), h: Math.round(layout.height) })}</p> : null}
       </aside>
-      <div className="min-w-0 flex-1 overflow-auto bg-zinc-100 p-4 dark:bg-zinc-900">
-        {'error' in built ? <p role="alert" className="rounded-sm bg-red-50 p-2 text-red-700 dark:bg-red-950 dark:text-red-300">{built.error}</p> : null}
+      <div ref={host} aria-label={t('civilDwg.canvas')} className="relative min-w-0 flex-1 cursor-grab touch-none overflow-hidden bg-zinc-100 outline-none active:cursor-grabbing dark:bg-zinc-900" {...handlers}>
+        {'error' in built ? <p role="alert" className="absolute left-4 top-4 rounded-sm bg-red-50 p-2 text-red-700 dark:bg-red-950 dark:text-red-300">{built.error}</p> : null}
         {layout ? (
-          <svg aria-hidden="true" className="h-full w-full bg-white" viewBox={`${-pad} ${-pad} ${layout.width + 2 * pad} ${layout.height + 2 * pad}`} preserveAspectRatio="xMidYMid meet">
+          <svg aria-hidden="true" className="absolute left-0 top-0 bg-white shadow" width={layout.width * view.k} height={layout.height * view.k}
+            viewBox={`0 0 ${layout.width} ${layout.height}`} style={{ transform: `translate(${view.x}px, ${view.y}px)` }}>
             <CivilDrawingGraphic layout={layout} />
           </svg>
         ) : null}
+        <div className="absolute right-3 top-3 flex gap-1 rounded-md border border-zinc-200 bg-white/90 p-0.5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/90" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+          <IconButton label={t('civilDwg.zoomIn')} className="size-7" onClick={zoomIn}><ZoomIn className="size-3.5" /></IconButton>
+          <IconButton label={t('civilDwg.zoomOut')} className="size-7" onClick={zoomOut}><ZoomOut className="size-3.5" /></IconButton>
+          <IconButton label={t('civilDwg.fit')} className="size-7" onClick={fit}><Maximize className="size-3.5" /></IconButton>
+        </div>
+        <span className="pointer-events-none absolute bottom-2 left-3 text-2xs text-zinc-500">{t('civilDwg.navHint', { zoom: Math.round(view.k * 100) })}</span>
       </div>
     </div>
   );

@@ -19,8 +19,10 @@ const elevation: ProjectView = { ...base, kind: 'elevation', direction: 'south' 
 beforeEach(() => useViewDrawings.setState({ byView: {} }));
 
 describe('viewDisplayOverrides', () => {
-  it('cuts a plan only, and projects a section / elevation automatically, by default', () => {
-    assert.deepEqual(viewDisplayOverrides(plan), { showConstructionProjection: false, constructionProjectionDepth: null });
+  it('sees a plan down to its floor (as deep as its cut), and projects a section / elevation automatically, by default', () => {
+    assert.deepEqual(viewDisplayOverrides(plan), { showConstructionProjection: true, constructionProjectionDepth: 1.2 });
+    assert.deepEqual(viewDisplayOverrides({ ...plan, cutHeight: 1.5 }), { showConstructionProjection: true, constructionProjectionDepth: 1.5 });
+    assert.deepEqual(viewDisplayOverrides({ ...plan, viewDepth: 0 }), { showConstructionProjection: false, constructionProjectionDepth: 0 });
     assert.deepEqual(viewDisplayOverrides(elevation), { showConstructionProjection: true, constructionProjectionDepth: null });
   });
 
