@@ -31,7 +31,8 @@ import { EMPTY_VIEW_DRAWING, useViewDrawings } from '@/project/view-drawings';
 import type { ProjectView } from '@/project/types';
 import { pickModelElement, referenceSet, referencesIn } from '@/drafting/references';
 import { selectFromPlan } from '@/components/viewer/plan/PlanPointer';
-import { draftsOfView, redoDrafts, undoDrafts } from '@/drafting/draft-store';
+import { draftsOfView } from '@/drafting/draft-store';
+import { redoEarliest, undoLatest } from '@/project/unified-undo';
 import {
   attachDraftingView, currentLayerId, setElementPicker, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelPicker, setWorkPlaneProvider, submitCommandLine,
   toggleOrtho, toggleSnap, useDraftingSession, pickEntity, setDraftSelection,
@@ -227,8 +228,8 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           {layers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
         <IconButton label={t('standards.open')} className="size-7" onClick={() => openStandards('layers')}><Layers className="size-4" /></IconButton>
-        <IconButton label={t('drafting.undo')} className="size-7" onClick={() => undoDrafts()}><Undo2 className="size-4" /></IconButton>
-        <IconButton label={t('drafting.redo')} className="size-7" onClick={() => redoDrafts()}><Redo2 className="size-4" /></IconButton>
+        <IconButton label={t('drafting.undo')} className="size-7" onClick={undoLatest}><Undo2 className="size-4" /></IconButton>
+        <IconButton label={t('drafting.redo')} className="size-7" onClick={redoEarliest}><Redo2 className="size-4" /></IconButton>
         <IconButton label={t('drafting.fit')} className="size-7" onClick={fitToView}><Maximize2 className="size-4" /></IconButton>
         <IconButton label={t('drafting.exportDxf')} className="size-7" onClick={exportDxf}><FileDown className="size-4" /></IconButton>
       </div>

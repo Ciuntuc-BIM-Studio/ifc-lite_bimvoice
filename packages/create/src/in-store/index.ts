@@ -64,6 +64,7 @@ export { hipRoofFaces, weightedSkeletonFaces } from './straight-skeleton.js';
 export { offsetEdges, orientRoof, roofGeometry, roofProblem, type RoofEdgeKind, type RoofEdgeRule, type RoofGeometry, type RoofLine, type RoofPlane } from './roof-system.js';
 export { defaultRoofStructure, defaultTruss, roofStructure, type MemberRole, type MemberSection, type RoofMember, type RoofStructureSpec, type TrussSpec } from './roof-structure.js';
 export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
+export { deletionClosure, type DeletionPlan } from './element-deletion.js';
 export { END_CUTS, memberSolidFaces, pruneOverrides, shapeMembers, type EndCut, type RoofOverrides, type RoofPartOverride, type ShapedMember } from './roof-overrides.js';
 export { coveringLayers, coveringThickness, layerColour, type RoofCovering, type RoofLayer } from './roof-system-material.js';
 export { revolveFaces, sweepFaces } from './sweep-revolve.js';

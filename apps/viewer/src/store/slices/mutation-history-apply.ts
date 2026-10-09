@@ -266,17 +266,19 @@ export function applyRedoToView(get: Get, set: Set, modelId: string, view: Mutab
     syncAuthoredTreeEntry(get(), modelId, mutation.entityId, overlay, false);
     view.deleteEntity(mutation.entityId);
     get().mirrorEntityRemove(modelId, mutation.entityId);
-    // Drop the mesh back out, inverse of the undo handler's restore (#4925).
-    stashAndPruneEntityMesh(get, set, modelId, mutation.entityId);
-    // Re-hide the mesh — symmetric with the menu's delete handler
-    // and with the undo path above.
-    const cross = get() as unknown as {
-      toGlobalId?: (modelId: string, expressId: number) => number;
-      hideEntity?: (id: number) => void;
-    };
-    if (cross.toGlobalId && cross.hideEntity) {
-      const globalId = cross.toGlobalId(modelId, mutation.entityId);
-      cross.hideEntity(globalId);
+    // Drop the mesh back out, inverse of the undo handler's restore (#4925);
+    // hide it only when it lives inside a shared (colour-merged) mesh that
+    // cannot be pruned — a record with no mesh has nothing to hide.
+    if (!stashAndPruneEntityMesh(get, set, modelId, mutation.entityId)) {
+      const cross = get() as unknown as {
+        toGlobalId?: (modelId: string, expressId: number) => number;
+        hideEntity?: (id: number) => void;
+      };
+      if (cross.toGlobalId && cross.hideEntity) {
+        const globalId = cross.toGlobalId(modelId, mutation.entityId);
+        const drawn = (get().models.get(modelId)?.geometryResult?.meshes ?? []).some((m) => m.expressId === globalId || m.entityIds?.includes(globalId));
+        if (drawn) cross.hideEntity(globalId);
+      }
     }
   } else if (mutation.type === 'UPDATE_ENTITY_TYPE') {
     const newType = mutation.entityType ?? (typeof mutation.newValue === 'string' ? mutation.newValue : undefined);

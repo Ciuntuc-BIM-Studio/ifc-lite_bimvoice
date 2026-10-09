@@ -3,6 +3,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /** Live global and tool actions for the canonical keyboard table (#5841). */
+import { deleteElements, selectedRenderIds } from '@/project/element-delete';
+import { reportDelete } from '@/project/element-delete-report';
 import { useEffect } from 'react';
 import { replayWorkspaceHistory } from '@/lib/model-placement/history';
 import { registerKeyboardCommand, type CommandRun } from '@/lib/commands/dispatcher';
@@ -97,6 +99,14 @@ function hideSelected(event: KeyboardEvent): boolean {
   return hideSelectionFromStore();
 }
 
+/** Delete: the selection leaves the model (nothing selected lets the key through). */
+function deleteSelected(): boolean {
+  const ids = selectedRenderIds();
+  if (ids.length === 0) return false;
+  reportDelete(deleteElements(ids));
+  return true;
+}
+
 function walkOwns(event: KeyboardEvent): boolean {
   const key = eventKey(event);
   return useViewerStore.getState().activeTool === 'walk' && key !== null && WALK_MOVEMENT_KEYS.has(key);
@@ -132,6 +142,7 @@ const RUNNERS: readonly [KeyCommandId, CommandRun][] = [
     void executeBasketSaveView().catch((error: unknown) => console.error('[keyboard] Could not save basket view:', error));
   }],
   ['visibility.hideSelection', hideSelected],
+  ['selection.delete', deleteSelected],
   ['visibility.showAll', (event) => {
     if (walkOwns(event)) return false;
     showAllFromStore('a');

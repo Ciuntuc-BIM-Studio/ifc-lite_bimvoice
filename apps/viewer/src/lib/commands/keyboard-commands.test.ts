@@ -115,7 +115,9 @@ describe('platform key glyphs (#5836)', () => {
 
   it('lists every chord of a multi-key command', () => {
     assert.equal(shortcutLabel('basket.add', false), '=, +');
-    assert.equal(shortcutLabel('visibility.hideSelection', false), 'Del, Backspace, Space');
+    // Delete and Backspace delete from the model; Space hides.
+    assert.equal(shortcutLabel('selection.delete', false), 'Del, Backspace');
+    assert.equal(shortcutLabel('visibility.hideSelection', false), 'Space');
     assert.equal(shortcutLabel('ui.closeAllPanels', false), 'Esc Esc');
     assert.equal(formatChord({ key: 'n', shift: true }, false), 'Shift+N');
   });

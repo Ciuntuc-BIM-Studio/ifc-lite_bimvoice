@@ -160,9 +160,11 @@ export const KEY_COMMANDS = [
 
   // ── Selection ─────────────────────────────────────────────────────────
   { id: 'selection.escape', labelKey: 'commands.selection.escape', category: 'selection', when: 'global', keys: [k('escape')] },
+  // Delete removes the selected elements from the model (every view), with what depends on them; Space hides.
+  { id: 'selection.delete', labelKey: 'commands.selection.delete', category: 'selection', when: 'global', keys: [k('delete'), k('backspace')] },
 
   // ── Visibility ────────────────────────────────────────────────────────
-  { id: 'visibility.hideSelection', labelKey: 'commands.visibility.hideSelection', category: 'visibility', when: 'global', keys: [k('delete'), k('backspace'), k(' ')] },
+  { id: 'visibility.hideSelection', labelKey: 'commands.visibility.hideSelection', category: 'visibility', when: 'global', keys: [k(' ')] },
   { id: 'visibility.showAll', labelKey: ACTION_NAME_KEYS.showAll, category: 'visibility', when: 'global', keys: [k('a')] },
   { id: 'basket.isolate', labelKey: 'commands.basket.isolate', category: 'visibility', when: 'global', keys: [k('i')] },
   { id: 'basket.add', labelKey: 'commands.basket.add', category: 'visibility', when: 'global', keys: [k('='), k('+')] },

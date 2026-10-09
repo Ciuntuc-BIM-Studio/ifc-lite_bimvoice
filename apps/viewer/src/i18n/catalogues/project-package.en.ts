@@ -4,6 +4,8 @@
 import type { TranslationValue } from '../types';
 export const projectPackageEn = {
   'projectPackage.open': 'Open project',
+  'elementDelete.done': '{count} element(s) deleted from the model — undo to restore',
+  'elementDelete.refused': 'Not deleted: {reasons}',
   'projectPackage.save': 'Save project',
   'projectPackage.saveAs': 'Save project as…',
   'projectPackage.link': 'Link model',

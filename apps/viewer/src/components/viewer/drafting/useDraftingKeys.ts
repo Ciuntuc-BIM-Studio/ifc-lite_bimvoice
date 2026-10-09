@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { redoDrafts, undoDrafts } from '@/drafting/draft-store';
+import { redoEarliest, undoLatest } from '@/project/unified-undo';
 import { getCommandRuntime } from '@/lib/commands/modeling/runtime';
 import { pressEnter, pressEscape, startDraftCommand, toggleOrtho, toggleSnap, useDraftingSession } from '@/drafting/session';
 
@@ -39,13 +39,13 @@ export function useDraftingKeys({ inputRef, setText, submit }: Params): void {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
-        if (e.shiftKey) redoDrafts();
-        else undoDrafts();
+        if (e.shiftKey) redoEarliest();
+        else undoLatest();
         return;
       }
       if (mod && e.key.toLowerCase() === 'y') {
         e.preventDefault();
-        redoDrafts();
+        redoEarliest();
         return;
       }
       if (e.key === 'F3') {

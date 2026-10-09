@@ -78,6 +78,7 @@ export const commandsEn = {
 
   // Visibility
   'commands.visibility.hideSelection': 'Hide selection',
+  'commands.selection.delete': 'Delete the selected elements from the model (with their openings, doors and windows, or parts)',
   'commands.visibility.showAll': 'Show all',
   'commands.basket.isolate': 'Isolate current context (set collection)',
   'commands.basket.add': 'Add current context to collection',

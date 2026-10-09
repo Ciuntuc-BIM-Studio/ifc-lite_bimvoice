@@ -17,13 +17,23 @@ const HISTORY_LIMIT = 200;
 
 let past: DraftEntity[][] = [];
 let future: DraftEntity[][] = [];
+/** When each step was made (ms), so a plan's undo can interleave drafting and model steps in the order they happened. */
+let pastAt: number[] = [];
+let futureAt: number[] = [];
+
+/** When the step Undo would revert was made, or null when there is none. */
+export const lastDraftStepAt = (): number | null => pastAt.at(-1) ?? null;
+/** When the step Redo would restore was made, or null when there is none. */
+export const nextDraftRedoAt = (): number | null => futureAt.at(-1) ?? null;
 
 /** Replace the drafts with `next`, as one undoable step. */
 export function commitDrafts(next: DraftEntity[]): void {
   const current = useProjectStore.getState().drafts;
   if (next === current) return;
   past = [...past.slice(-(HISTORY_LIMIT - 1)), current];
+  pastAt = [...pastAt.slice(-(HISTORY_LIMIT - 1)), Date.now()];
   future = [];
+  futureAt = [];
   useProjectStore.setState({ drafts: next, dirty: true });
 }
 
@@ -32,6 +42,8 @@ export function undoDrafts(): boolean {
   if (!previous) return false;
   past = past.slice(0, -1);
   future = [...future, useProjectStore.getState().drafts];
+  futureAt = [...futureAt, pastAt.at(-1) ?? Date.now()];
+  pastAt = pastAt.slice(0, -1);
   useProjectStore.setState({ drafts: previous, dirty: true });
   return true;
 }
@@ -41,12 +53,16 @@ export function redoDrafts(): boolean {
   if (!next) return false;
   future = future.slice(0, -1);
   past = [...past, useProjectStore.getState().drafts];
+  pastAt = [...pastAt, futureAt.at(-1) ?? Date.now()];
+  futureAt = futureAt.slice(0, -1);
   useProjectStore.setState({ drafts: next, dirty: true });
   return true;
 }
 
 /** Forget the history (another project was loaded). */
 export function clearDraftHistory(): void {
+  pastAt = [];
+  futureAt = [];
   past = [];
   future = [];
 }

@@ -31,10 +31,10 @@ import { effectiveContextType, sameEffectiveTypeIds } from './EntityContextMenu.
 import { sameEffectiveStoreyIds } from './EntityContextMenu.effective-storey';
 import { surfaceCommand, type SurfaceCommandId } from './surface-commands';
 import { runSurfaceCommand } from './surface-command-run';
-import { deleteRoofOrPart } from './roof/delete-roof';
 import { corridorOfRenderId } from '@/civil/corridor-element';
 import { deleteCorridorWithConfirm } from './civil/delete-corridor';
-import { removeElementWithOrphans } from '@/project/element-removal';
+import { deleteElements, selectedRenderIds } from '@/project/element-delete';
+import { reportDelete } from '@/project/element-delete-report';
 import { flipElements } from '@/project/element-flip';
 
 export function EntityContextMenu() {
@@ -267,11 +267,6 @@ export function EntityContextMenu() {
       closeContextMenu();
       return;
     }
-    // A roof system part: on its own inside the roof being edited, else with the whole roof.
-    if (deleteRoofOrPart(contextMenu.entityId)) {
-      closeContextMenu();
-      return;
-    }
     // A course or slope of a corridor goes with its whole block.
     const corridor = corridorOfRenderId(contextMenu.entityId);
     if (corridor) {
@@ -279,19 +274,10 @@ export function EntityContextMenu() {
       void deleteCorridorWithConfirm(corridor);
       return;
     }
-    const ok = removeElementWithOrphans(contextEntityRef.modelId, contextEntityRef.expressId);
-    if (ok) {
-      // Tombstoning only affects export — the mesh is still in the GPU buffers.
-      // Hide it via the existing visibility system so it disappears from the scene
-      // and stops being pickable. `Show all` (empty-space menu) restores it, with undo bringing back the overlay.
-      hideEntity(contextMenu.entityId);
-      // Drop the selection so the right panel doesn't cling to a tombstoned id.
-      setSelectedEntityId(null);
-      toast.success(`${entityType || 'Entity'} #${contextEntityRef.expressId} deleted — undo to restore`);
-    } else {
-      toast.error('Delete failed — entity not found in store overlay');
-    }
+    // The element — with the rest of the selection when it is part of it — leaves the model and every view.
+    const selection = selectedRenderIds();
     closeContextMenu();
+    reportDelete(deleteElements(selection.includes(contextMenu.entityId) ? selection : [contextMenu.entityId]));
   }, [contextEntityRef, canEdit, entityType, contextMenu.entityId, hideEntity, setSelectedEntityId, closeContextMenu]);
 
   const handleFlip = useCallback((axis: 'x' | 'y') => {

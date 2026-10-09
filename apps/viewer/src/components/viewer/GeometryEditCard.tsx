@@ -13,7 +13,7 @@
  *   - Duplicate — clone the entity along a picked axis (reuses
  *     `MutationSlice.duplicateEntity` so the new geometry shares the
  *     existing representation reference).
- *   - Delete — tombstone the entity (`removeElementWithOrphans`),
+ *   - Delete — remove the element with its dependants (`deleteModelElements`),
  *     undoable from the same model's history stack.
  *
  * Move reads the entity's existing IfcCartesianPoint coordinates via
@@ -39,7 +39,7 @@ import { GeometryAxisRow } from './GeometryAxisRow';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/components/ui/toast';
 import { useViewerStore } from '@/store';
-import { removeElementWithOrphans } from '@/project/element-removal';
+import { deleteModelElements } from '@/project/element-delete';
 import { useTranslation } from '@/i18n';
 
 interface GeometryEditCardProps {
@@ -198,9 +198,9 @@ export function GeometryEditCard({ modelId, entityId, entityLabel }: GeometryEdi
   }, [modelId, entityId, duplicateEntity, setSelectedEntityId, t]);
 
   const onDelete = useCallback(() => {
-    const ok = removeElementWithOrphans(modelId, entityId);
-    if (!ok) {
-      toast.error(t('geometryExport.editCard.deleteFailedError'));
+    const out = deleteModelElements(modelId, [entityId]);
+    if (out.deleted === 0) {
+      toast.error(out.refused[0] ?? t('geometryExport.editCard.deleteFailedError'));
       return;
     }
     toast.success(t('geometryExport.editCard.deletedSuccess', { entityLabel: entityLabel ?? `#${entityId}` }));

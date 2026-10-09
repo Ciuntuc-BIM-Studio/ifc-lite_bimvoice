@@ -31,7 +31,12 @@ type Set = (partial: Partial<ViewerState> | ((s: ViewerState) => Partial<ViewerS
 export function completeEntityRemoval(get: Get, set: Set, modelId: string, expressId: number, record: NewEntity | null | undefined): void {
   syncAuthoredTreeEntry(get(), modelId, expressId, record, false);
   if (!stashAndPruneEntityMesh(get, set, modelId, expressId)) {
-    get().hideEntities([toGlobalIdFromModels(get().models, modelId, expressId)]);
+    // Only what is drawn inside a shared (colour-merged) mesh is hidden; a
+    // record with no mesh at all (a point, a profile, a relationship) has
+    // nothing to hide and would only crowd the hidden set.
+    const globalId = toGlobalIdFromModels(get().models, modelId, expressId);
+    const drawn = (get().models.get(modelId)?.geometryResult?.meshes ?? []).some((m) => m.expressId === globalId || m.entityIds?.includes(globalId));
+    if (drawn) get().hideEntities([globalId]);
   }
 }
 
