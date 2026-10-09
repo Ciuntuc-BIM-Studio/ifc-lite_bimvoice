@@ -49,10 +49,13 @@ import { screenToDrawing } from '@/drafting/frame';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
+import { MembraneLayer } from './MembraneLayer';
 import { RoofPlanLayer } from '../roof/RoofPlanLayer';
 import { exportViewDxf } from './view-dxf';
 import { drawnBySymbol } from '@/project/view-symbols';
 import { planOverlays } from '@/project/plan-overlays';
+import { viewMaterials } from '@/project/material-resolver';
+import { membraneOverlays } from '@/project/membrane-overlays';
 import { partHostType } from '@/project/part-host';
 import { cutHatches, hiddenClasses, DEFAULT_VIEW_PRESET, styledDrawing, viewOverrideRules } from '@/project/view-graphics';
 import { capturePointer } from '@/lib/pointer-capture';
@@ -107,7 +110,12 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const entityShapes = useMemo(() => entities.flatMap((e) => (isGeometry(e.shape) ? [e.shape] : [])), [entities]);
   // The view's own graphics (preset + category overrides), applied to its drawing.
   const graphics = view.graphics;
-  const shown = useMemo(() => (drawing ? styledDrawing(drawing, graphics, partHostType, view.kind === 'plan' ? drawnBySymbol : undefined) : null), [drawing, graphics, view.kind]);
+  const materialsTable = useProjectStore((st) => st.materials);
+  const mutationVersionForMaterials = useViewerStore((st) => st.mutationVersion);
+  const shown = useMemo(() => {
+    void materialsTable; void mutationVersionForMaterials;
+    return drawing ? styledDrawing(drawing, graphics, partHostType, view.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(drawing)) : null;
+  }, [drawing, graphics, view.kind, materialsTable, mutationVersionForMaterials]);
   const overrideRules = useMemo(() => viewOverrideRules(graphics), [graphics]);
   const overrideEngine = useMemo(() => new GraphicOverrideEngine(overrideRules), [overrideRules]);
   const useIfcMaterials = (graphics?.presetId === undefined ? DEFAULT_VIEW_PRESET : graphics.presetId) === DEFAULT_VIEW_PRESET;
@@ -193,7 +201,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
 
   const exportDxf = () => exportViewDxf({
     view, drawing: shown, axis, drafts: entities, layers, extraPatterns,
-    overlays: plane ? planOverlays(view, plane, runtimeGeometry?.meshes, useProjectStore.getState().symbolFlips, hidden) : [],
+    overlays: [...(plane ? planOverlays(view, plane, runtimeGeometry?.meshes, useProjectStore.getState().symbolFlips, hidden) : []), ...membraneOverlays(shown)],
   });
 
   const command = runningCommand();
@@ -250,6 +258,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           />
         ) : null}
         <CutHatchLayer hatches={hatches} extraPatterns={extraPatterns} transform={viewTransform} axis={axis} />
+        <MembraneLayer shapes={shown?.membranes} transform={viewTransform} axis={axis} />
         {status === 'generating' ? (
           <div className="absolute inset-x-0 top-2 flex justify-center pointer-events-none">
             <div className="flex items-center gap-2 rounded-md bg-background/90 px-3 py-1 text-xs shadow">

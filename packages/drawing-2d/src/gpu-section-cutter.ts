@@ -396,7 +396,7 @@ export class GPUSectionCutter {
   private collectTriangles(meshes: MeshData[]): {
     buffer: Float32Array;
     count: number;
-    entityMap: Map<number, { entityId: number; ifcType: string; modelIndex: number; color?: [number, number, number, number] }>;
+    entityMap: Map<number, { entityId: number; ifcType: string; modelIndex: number; color?: [number, number, number, number]; materialId?: number }>;
   } {
     // Count total triangles
     let totalTriangles = 0;
@@ -408,7 +408,7 @@ export class GPUSectionCutter {
     // each vec3<f32> is 16-byte aligned, so v0=0..2, v1=4..6, v2=8..10, with
     // floats 3 and 7 as vec3 alignment padding and entityId (u32) in float 11.
     const buffer = new Float32Array(totalTriangles * 12);
-    const entityMap = new Map<number, { entityId: number; ifcType: string; modelIndex: number; color?: [number, number, number, number] }>();
+    const entityMap = new Map<number, { entityId: number; ifcType: string; modelIndex: number; color?: [number, number, number, number]; materialId?: number }>();
 
     let triIdx = 0;
     let entityCounter = 0;
@@ -431,7 +431,7 @@ export class GPUSectionCutter {
         entityId: expressId,
         ifcType: ifcType || 'Unknown',
         modelIndex: modelIndex || 0,
-        color: mesh.color,
+        color: mesh.color, materialId: mesh.materialId,
       });
 
       for (let t = 0; t < triangleCount; t++) {
@@ -505,7 +505,7 @@ export class GPUSectionCutter {
   private parseSegments(
     data: Float32Array,
     count: number,
-    entityMap: Map<number, { entityId: number; ifcType: string; modelIndex: number; color?: [number, number, number, number] }>
+    entityMap: Map<number, { entityId: number; ifcType: string; modelIndex: number; color?: [number, number, number, number]; materialId?: number }>
   ): CutSegment[] {
     const segments: CutSegment[] = [];
 
@@ -530,7 +530,7 @@ export class GPUSectionCutter {
         entityId: entityInfo.entityId,
         ifcType: entityInfo.ifcType,
         modelIndex: entityInfo.modelIndex,
-        color: entityInfo.color,
+        color: entityInfo.color, ...(entityInfo.materialId !== undefined ? { materialId: entityInfo.materialId } : {}),
       });
     }
 

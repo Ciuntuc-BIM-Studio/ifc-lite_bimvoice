@@ -183,7 +183,7 @@ export class PolygonBuilder {
 
     const byColor = new Map<string, CutSegment[]>();
     for (const seg of segments) {
-      const key = colorKey(seg.color);
+      const key = `${colorKey(seg.color)}|${seg.materialId ?? ''}`; // two layers of one colour stay apart
       let bucket = byColor.get(key);
       if (!bucket) {
         bucket = [];
@@ -199,7 +199,7 @@ export class PolygonBuilder {
     const out: DrawingPolygon[] = [];
     for (const groupSegments of byColor.values()) {
       const groupColor = multiMaterial ? groupSegments[0].color : undefined;
-      out.push(...this.buildColorGroupPolygons(groupSegments, groupColor));
+      out.push(...this.buildColorGroupPolygons(groupSegments, groupColor).map((p) => (groupSegments[0].materialId === undefined ? p : { ...p, materialId: groupSegments[0].materialId })));
     }
     return out;
   }

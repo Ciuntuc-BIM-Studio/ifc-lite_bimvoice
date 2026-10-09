@@ -115,7 +115,7 @@ export class SectionCutter {
    */
   cutSingleMesh(mesh: MeshData): MeshCutResult {
     const segments: CutSegment[] = [];
-    const { positions, indices, expressId, ifcType, modelIndex, origin, color } = mesh;
+    const { positions, indices, expressId, ifcType, modelIndex, origin, color, materialId } = mesh;
 
     const triangleCount = indices.length / 3;
     let intersectedCount = 0;
@@ -191,7 +191,7 @@ export class SectionCutter {
           modelIndex: modelIndex || 0,
           // Per-sub-mesh colour so material-layer walls/slabs split per layer
           // in the polygon builder. One MeshData == one layer == one colour.
-          color,
+          color, ...(materialId !== undefined ? { materialId } : {}),
           // LOCAL (pre-origin) magnitude — lets the polygon builder size its
           // scale-aware weld tolerance off the element's own extent instead
           // of `p0_2d`/`p1_2d`'s world-frame magnitude. See the field's

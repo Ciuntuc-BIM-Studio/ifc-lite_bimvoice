@@ -1,0 +1,36 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+import type { TranslationValue } from '../types';
+export const materialsEn = {
+  'materials.cmd': 'Materials',
+  'materials.title': 'Building materials',
+  'materials.hint': 'How each material draws where a plan or section cuts it: its hatch, the fill behind it and the hatch pen. A membrane (a vapour barrier, a foil — and any layer under 2 mm, which is not cut into a band of its own) draws as a heavy dashed line. Where two elements\' bands of one material meet, the line between them goes, so the material reads as one. Applies to every view, sheet and DXF.',
+  'materials.none': 'No materials in the loaded models yet. Give walls and slabs layers (Element types, or the Model inspector), or add one below.',
+  'materials.col.swatch': 'Swatch',
+  'materials.col.name': 'Material',
+  'materials.col.hatch': 'Cut hatch',
+  'materials.col.scale': 'Scale',
+  'materials.col.fill': 'Fill',
+  'materials.col.pen': 'Hatch pen',
+  'materials.col.membrane': 'Membrane',
+  'materials.auto': '(auto)',
+  'materials.noHatch': 'None',
+  'materials.hatchOf': 'Cut hatch of {name}',
+  'materials.scaleOf': 'Hatch scale of {name}',
+  'materials.fillOf': 'Fill colour of {name}',
+  'materials.penOf': 'Hatch pen of {name}',
+  'materials.membraneOf': '{name} draws as a membrane',
+  'materials.fillModeOf': 'Fill of {name}',
+  'materials.fill.ifc': 'IFC colour',
+  'materials.fill.none': 'None (white)',
+  'materials.fill.own': 'Colour',
+  'materials.pen.hairline': 'Hairline',
+  'materials.pen.light': 'Light',
+  'materials.pen.medium': 'Medium',
+  'materials.pen.heavy': 'Heavy',
+  'materials.reset': 'Back to the defaults its name suggests',
+  'materials.newName': 'New material name',
+  'materials.add': 'Add',
+  'materials.close': 'Close',
+} as const satisfies Record<string, TranslationValue>;

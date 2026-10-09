@@ -16,7 +16,7 @@ import { readStandards } from './standards-file';
 import { readJoineryList } from '@/joinery/spec-file';
 import { readCurrentTypes, readElementTypeList } from '@/element-types/spec';
 import { readStructureProfileList } from '@ifc-lite/create';
-import type { ProjectCivilDrawing, ProjectTypicalSection, CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
+import type { ProjectCivilDrawing, ProjectMaterial, ProjectTypicalSection, CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
 export const PROJECT_FILE_FORMAT = 'ifclite-project';
@@ -131,6 +131,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     structureProfiles: readStructureProfileList(raw.structureProfiles),
     civilDrawings: list('civilDrawings').flatMap((v) => readCivilDrawing(v)),
     typicalSections: list('typicalSections').flatMap((v) => readTypicalSection(v)),
+    materials: list('materials').flatMap((v) => readMaterial(v)),
   };
 }
 
@@ -179,6 +180,17 @@ function readCurrentJoinery(raw: unknown): { door?: string; window?: string } {
     ...(isString(raw.door) ? { door: raw.door } : {}),
     ...(isString(raw.window) ? { window: raw.window } : {}),
   };
+}
+
+function readMaterial(raw: unknown): ProjectMaterial[] {
+  if (!isObject(raw) || !isString(raw.id) || !isString(raw.name) || !raw.name.trim()) return [];
+  const out: ProjectMaterial = { id: raw.id, name: raw.name };
+  if (raw.hatch === null || isString(raw.hatch)) out.hatch = raw.hatch;
+  if (isNumber(raw.hatchScale) && raw.hatchScale > 0) out.hatchScale = raw.hatchScale;
+  if (raw.fill === null || (isString(raw.fill) && HEX.test(raw.fill))) out.fill = raw.fill;
+  if (isString(raw.hatchPen) && WEIGHTS.has(raw.hatchPen)) out.hatchPen = raw.hatchPen as ProjectMaterial['hatchPen'];
+  if (raw.membrane === true) out.membrane = true;
+  return [out];
 }
 
 function readTypicalSection(raw: unknown): ProjectTypicalSection[] {

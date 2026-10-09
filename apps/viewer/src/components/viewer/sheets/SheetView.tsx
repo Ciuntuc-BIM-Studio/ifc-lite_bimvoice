@@ -23,6 +23,8 @@ import type { DraftShape } from '@/drafting/types';
 import { hiddenClasses, styledDrawing } from '@/project/view-graphics';
 import { partHostType } from '@/project/part-host';
 import { drawnBySymbol } from '@/project/view-symbols';
+import { viewMaterials } from '@/project/material-resolver';
+import { membraneOverlays } from '@/project/membrane-overlays';
 import { planOverlays, type PlanOverlay } from '@/project/plan-overlays';
 import { useDrawingRuntime } from '@/lib/drawing/drawing-runtime';
 import { VIEW_DRAG_TYPE } from '../project/ProjectTreeRow';
@@ -65,6 +67,7 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
 
   // Each placed view as its own graphics style it: styled drawing and (plans) door / window symbols and roofs.
   const flips = useProjectStore((s) => s.symbolFlips);
+  const materialsTable = useProjectStore((s) => s.materials);
   const mutationVersion = useViewerStore((s) => s.mutationVersion);
   const { geometryResult } = useDrawingRuntime();
   const styled = useMemo(() => {
@@ -73,12 +76,12 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
       if (out.has(vp.viewId)) continue;
       const view = views.find((v) => v.id === vp.viewId);
       const raw = (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing;
-      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined) : null;
-      const overlays = view && raw ? planOverlays(view, raw.config.plane, geometryResult?.meshes, flips, hiddenClasses(view.graphics)) : [];
+      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(raw)) : null;
+      const overlays = [...(view && raw ? planOverlays(view, raw.config.plane, geometryResult?.meshes, flips, hiddenClasses(view.graphics)) : []), ...membraneOverlays(drawing)];
       out.set(vp.viewId, { drawing, overlays });
     }
     return out;
-  }, [sheet.viewports, views, byView, geometryResult, flips, mutationVersion]);
+  }, [sheet.viewports, views, byView, geometryResult, flips, mutationVersion, materialsTable]);
   const placedSchedules = useSheetSchedules(sheet);
   const placedCivil = useSheetCivilDrawings(sheet);
   const content = useCallback((vp: SheetViewport): ViewportContent => ({
