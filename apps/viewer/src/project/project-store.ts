@@ -12,6 +12,7 @@
  * lives in `open-view.ts` / `project-sync.ts`.
  */
 
+import { DEFAULT_JOINERY_MAPPING } from '@/joinery/symbol-mapping';
 import { DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE } from '@/drafting/styles';
 import { create } from 'zustand';
 import { defaultViews, freshProjectId, levelsFromStoreys, syncDefaultViews, uniqueViewName, type StoreyInput } from './view-defaults';
@@ -31,7 +32,7 @@ export const DEFAULT_DRAFT_LAYER = { id: '0', name: '0', color: '#18181b', visib
 export const EMPTY_PROJECT: ProjectDocument = {
   name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }], hatchPatterns: '', symbolFlips: {},
   textStyles: [{ ...DEFAULT_TEXT_STYLE }], dimStyles: [{ ...DEFAULT_DIM_STYLE }], layerGroups: [],
-  joineryTypes: [], currentJoinery: {}, elementTypes: [], currentTypes: {}, schedules: [], structureProfiles: [], civilDrawings: [], typicalSections: [], materials: [],
+  joineryTypes: [], currentJoinery: {}, joineryMapping: { ...DEFAULT_JOINERY_MAPPING }, elementTypes: [], currentTypes: {}, schedules: [], structureProfiles: [], civilDrawings: [], typicalSections: [], materials: [],
 };
 
 export const useProjectStore = create<ProjectState>()(() => ({
@@ -49,6 +50,7 @@ export function projectDocument(state: ProjectState = useProjectStore.getState()
     symbolFlips: state.symbolFlips ?? {}, openingLines: state.openingLines ?? 'handle',
     textStyles: state.textStyles ?? [], dimStyles: state.dimStyles ?? [], layerGroups: state.layerGroups ?? [],
     joineryTypes: state.joineryTypes ?? [], currentJoinery: state.currentJoinery ?? {}, schedules: state.schedules ?? [],
+    joineryMapping: state.joineryMapping ?? { ...DEFAULT_JOINERY_MAPPING },
     elementTypes: state.elementTypes ?? [], currentTypes: state.currentTypes ?? {},
     structureProfiles: state.structureProfiles ?? [],
     civilDrawings: state.civilDrawings ?? [],
@@ -69,6 +71,7 @@ export function loadProjectDocument(doc: ProjectDocument, options: { dirty?: boo
     layerGroups: doc.layerGroups ?? [],
     joineryTypes: doc.joineryTypes ?? [],
     currentJoinery: doc.currentJoinery ?? {},
+    joineryMapping: doc.joineryMapping ?? { ...DEFAULT_JOINERY_MAPPING },
     elementTypes: doc.elementTypes ?? [],
     currentTypes: doc.currentTypes ?? {},
     schedules: doc.schedules ?? [],

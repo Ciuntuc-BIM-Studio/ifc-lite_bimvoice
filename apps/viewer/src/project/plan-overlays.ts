@@ -18,7 +18,8 @@ import type { DraftShape, Pt } from '@/drafting/types';
 import { PEN } from '@/components/viewer/sheets/viewport-pens';
 import type { ProjectView } from './types';
 import { planRoofs } from './roof-plan';
-import { viewOpeningSymbols } from './view-symbols';
+import { viewElevationSymbols, viewOpeningSymbols, visibleEntities } from './view-symbols';
+import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import { corridorOverlays } from '@/civil/civil-plan';
 
 export interface PlanOverlay {
@@ -66,10 +67,13 @@ export function roofOverlays(view: ProjectView, plane: SectionPlaneConfig, hidde
   return [...byPen.values()].filter((o) => o.shapes.length);
 }
 
-/** The door and window symbols of a plan as overlays, by weight. */
-export function symbolOverlays(meshes: readonly MeshData[], plane: SectionPlaneConfig, flips: Record<string, number> | undefined, hidden: ReadonlySet<string>): PlanOverlay[] {
+/** The door and window symbols of a plan (or, given its drawing, an elevation / section) as overlays, by weight. */
+export function symbolOverlays(
+  meshes: readonly MeshData[], plane: SectionPlaneConfig, flips: Record<string, number> | undefined, hidden: ReadonlySet<string>, drawing?: Drawing2D | null,
+): PlanOverlay[] {
   const thin: DraftShape[] = [], heavy: DraftShape[] = [], dashed: DraftShape[] = [];
-  for (const s of viewOpeningSymbols(meshes, plane, flips, hidden)) {
+  const symbols = plane.axis === 'y' ? viewOpeningSymbols(meshes, plane, flips, hidden) : viewElevationSymbols(meshes, plane, visibleEntities(drawing), hidden);
+  for (const s of symbols) {
     thin.push(...s.shapes);
     if (s.heavy) heavy.push(...s.heavy);
     if (s.dashed) dashed.push(...s.dashed);
@@ -81,10 +85,12 @@ export function symbolOverlays(meshes: readonly MeshData[], plane: SectionPlaneC
   ].filter((o) => o.shapes.length);
 }
 
-/** Everything a plan view overlays: its symbols and its roofs. */
+/** Everything a plan view overlays: its symbols and its roofs; an elevation or section, its door and window symbols. */
 export function planOverlays(
   view: ProjectView, plane: SectionPlaneConfig, meshes: readonly MeshData[] | undefined, flips: Record<string, number> | undefined, hidden: ReadonlySet<string>,
+  drawing?: Drawing2D | null,
 ): PlanOverlay[] {
+  if (view.kind === 'elevation' || view.kind === 'section') return meshes && drawing ? symbolOverlays(meshes, plane, flips, hidden, drawing) : [];
   if (view.kind !== 'plan') return [];
   return [...(meshes ? symbolOverlays(meshes, plane, flips, hidden) : []), ...roofOverlays(view, plane, hidden), ...corridorOverlays(view, plane, hidden)];
 }

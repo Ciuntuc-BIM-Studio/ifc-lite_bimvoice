@@ -67,6 +67,9 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
 
   // Each placed view as its own graphics style it: styled drawing and (plans) door / window symbols and roofs.
   const flips = useProjectStore((s) => s.symbolFlips);
+  // Door and window symbols follow the catalogue and the symbol mapping.
+  const joineryTypes = useProjectStore((s) => s.joineryTypes);
+  const joineryMapping = useProjectStore((s) => s.joineryMapping);
   const materialsTable = useProjectStore((s) => s.materials);
   const mutationVersion = useViewerStore((s) => s.mutationVersion);
   const { geometryResult } = useDrawingRuntime();
@@ -77,11 +80,11 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
       const view = views.find((v) => v.id === vp.viewId);
       const raw = (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing;
       const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(raw)) : null;
-      const overlays = [...(view && raw ? planOverlays(view, raw.config.plane, geometryResult?.meshes, flips, hiddenClasses(view.graphics)) : []), ...membraneOverlays(drawing)];
+      const overlays = [...(view && raw ? planOverlays(view, raw.config.plane, geometryResult?.meshes, flips, hiddenClasses(view.graphics), raw) : []), ...membraneOverlays(drawing)];
       out.set(vp.viewId, { drawing, overlays });
     }
     return out;
-  }, [sheet.viewports, views, byView, geometryResult, flips, mutationVersion, materialsTable]);
+  }, [sheet.viewports, views, byView, geometryResult, flips, mutationVersion, materialsTable, joineryTypes, joineryMapping]);
   const placedSchedules = useSheetSchedules(sheet);
   const placedCivil = useSheetCivilDrawings(sheet);
   const content = useCallback((vp: SheetViewport): ViewportContent => ({

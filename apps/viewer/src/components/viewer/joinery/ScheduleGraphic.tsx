@@ -36,13 +36,14 @@ export function useScheduleLayout(schedule: ProjectSchedule | undefined): { data
   const mutationVersion = useViewerStore((s) => s.mutationVersion);
   const models = useViewerStore((s) => s.models);
   const catalogue = useProjectStore((s) => s.joineryTypes);
+  const mapping = useProjectStore((s) => s.joineryMapping);
   const labels = useScheduleLabels(schedule?.name ?? '');
   return useMemo(() => {
     if (!schedule) return null;
     const data = scheduleData(schedule.kind);
     return { data, layout: layoutSchedule(data, labels, { scale: schedule.scale ?? 50 }) };
-    // mutationVersion / models / catalogue: the inputs `scheduleData` reads from the stores.
-  }, [schedule, labels, mutationVersion, models, catalogue]);
+    // mutationVersion / models / catalogue / mapping: the inputs `scheduleData` reads from the stores.
+  }, [schedule, labels, mutationVersion, models, catalogue, mapping]);
 }
 
 /** The layouts of the schedules placed on `sheet`, by schedule id. */
@@ -51,6 +52,7 @@ export function useSheetSchedules(sheet: ProjectSheet): Map<string, ScheduleLayo
   const mutationVersion = useViewerStore((s) => s.mutationVersion);
   const models = useViewerStore((s) => s.models);
   const catalogue = useProjectStore((s) => s.joineryTypes);
+  const mapping = useProjectStore((s) => s.joineryMapping);
   const labels = useScheduleLabels('');
   return useMemo(() => {
     const out = new Map<string, ScheduleLayout>();
@@ -60,8 +62,8 @@ export function useSheetSchedules(sheet: ProjectSheet): Map<string, ScheduleLayo
       out.set(schedule.id, layoutSchedule(scheduleData(schedule.kind), { ...labels, title: schedule.name }, { scale: schedule.scale ?? 50 }));
     }
     return out;
-    // mutationVersion / models / catalogue: the inputs `scheduleData` reads from the stores.
-  }, [sheet.viewports, schedules, labels, mutationVersion, models, catalogue]);
+    // mutationVersion / models / catalogue / mapping: the inputs `scheduleData` reads from the stores.
+  }, [sheet.viewports, schedules, labels, mutationVersion, models, catalogue, mapping]);
 }
 
 function Prim({ p }: { p: SchedulePrim }) {

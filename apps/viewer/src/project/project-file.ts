@@ -9,6 +9,7 @@
  * hand-edited or truncated file fails loudly instead of half-loading.
  */
 
+import { readJoineryMapping } from '@/joinery/symbol-mapping';
 import { downloadFile, sanitizeFilename } from '@/lib/export/download.js';
 import { readDraft, readDraftLayer } from '@/drafting/draft-file';
 import { readSheetLayout } from './sheet-file';
@@ -126,6 +127,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     ...readStandards(raw),
     joineryTypes: readJoineryList(raw.joineryTypes),
     currentJoinery: readCurrentJoinery(raw.currentJoinery),
+    ...(raw.joineryMapping !== undefined ? { joineryMapping: readJoineryMapping(raw.joineryMapping) } : {}),
     elementTypes: readElementTypeList(raw.elementTypes),
     currentTypes: readCurrentTypes(raw.currentTypes),
     schedules: list('schedules').flatMap((v) => readSchedule(v)),

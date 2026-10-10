@@ -6,8 +6,10 @@
  * The door and window configurator: the project's catalogue on the left,
  * the selected type's fields in the middle, its drawings live on the right.
  * Edits stay a draft until Save, which updates the catalogue and every
- * element of that type already placed (`pushJoinery`). From here a type is
- * made the one the Door / Window tool places, or applied to the selection.
+ * element of that type already placed (`pushJoinery`; the docs edition keeps
+ * models as they are). From here a type is made the one the Door / Window
+ * tool places, applied to the selection, or mapped as the symbol of doors and
+ * windows the model does not type (`JoineryMappingFields`).
  */
 
 import { can } from '@/edition';
@@ -31,6 +33,7 @@ import { elevationSymbol, planSymbol, sectionSymbol } from '@/joinery/symbols';
 import { FinishFields, GeneralFields, ProfileFields, PropertyFields } from './JoineryFields';
 import { JoineryGrid, type Cell } from './JoineryGrid';
 import { JoineryDrawing, JoineryElevation, JoineryIso } from './JoineryPreview';
+import { EntryMapping, MappingRules } from './JoineryMappingFields';
 
 type Filter = 'all' | JoineryKind;
 
@@ -76,6 +79,8 @@ export function JoineryDialog() {
   const save = () => {
     if (!draft || problem) return;
     updateJoinery(draft);
+    // The docs edition documents models as they are: the catalogue (and so the symbols) changes, the IFC does not.
+    if (!can('modelling')) { toast.success(t('joinery.savedNone')); return; }
     const result = pushJoinery(draft);
     if (result.refused.length) toast.error(t('joinery.refused', { reasons: result.refused.join('; ') }));
     else toast.success(result.updated ? t('joinery.saved', { count: result.updated }) : t('joinery.savedNone'));
@@ -151,6 +156,7 @@ export function JoineryDialog() {
                 <option value="hinge">{t('joinery.openingLines.hinge')}</option>
               </select>
             </label>
+            <MappingRules />
           </aside>
 
           {draft && saved ? (
@@ -162,6 +168,7 @@ export function JoineryDialog() {
                   <IconButton label={t('joinery.delete', { name: saved.name })} className="size-7" onClick={() => { if (saved.id) removeJoinery(saved.id); select(null); }}><Trash2 className="size-3.5" /></IconButton>
                 </div>
                 <GeneralFields spec={draft} onChange={setDraft} />
+                <EntryMapping entry={saved} />
                 <JoineryGrid spec={draft} onChange={setDraft} selected={cell} onSelect={setCell} />
                 <ProfileFields spec={draft} onChange={setDraft} />
                 <FinishFields spec={draft} onChange={setDraft} />

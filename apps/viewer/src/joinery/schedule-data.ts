@@ -5,8 +5,9 @@
 /**
  * What a joinery schedule lists, read live from every loaded model: each
  * configured type (one row per catalogue entry, merged across models) with
- * its occurrences counted per level, and the doors / windows without a
- * configured type grouped by class and size. Levels are merged by name and
+ * its occurrences counted per level — with the doors / windows the
+ * project's symbol mapping assigns to it — and the rest grouped by class and
+ * size. Levels are merged by name and
  * ordered by elevation, top floor last. Every occurrence is numbered within
  * its type, level by level (`occurrenceMark`: W1.3), the numbering a plan
  * tag, the Elements sheet and `schedule-numbering.ts` share.
@@ -19,6 +20,7 @@ import { useViewerStore } from '@/store';
 import { entityName } from '@/lib/commands/modeling/authored-kinds';
 import { getModelLengthUnitScale } from '@/lib/length-unit-scale';
 import { catalogue } from './catalog';
+import { drawnJoinery } from './mapped-joinery';
 
 export type ScheduleKind = 'door' | 'window' | 'all';
 
@@ -124,6 +126,15 @@ export function scheduleData(kind: ScheduleKind): ScheduleData {
       if (!wanted(k)) continue;
       const attrs = attributes(live, id);
       if (!attrs) continue;
+      // Mapped to a catalogue entry by the project (`symbol-mapping.ts`): listed with that entry.
+      const mapped = drawnJoinery(modelId, id)?.entry;
+      const mappedSpec = mapped?.id ? fromCatalogue.get(mapped.id) : undefined;
+      if (mappedSpec?.id) {
+        const entry = byKey.get(mappedSpec.id) ?? { key: mappedSpec.id, kind: mappedSpec.kind, spec: mappedSpec, mark: mappedSpec.mark, name: mappedSpec.name, width: mappedSpec.width, height: mappedSpec.height, counts: {}, total: 0, occurrences: [] };
+        byKey.set(mappedSpec.id, entry);
+        count(entry, id);
+        continue;
+      }
       const height = real(attrs[8]) * unit, width = real(attrs[9]) * unit;
       const size = Number.isFinite(width) && Number.isFinite(height) ? `${Math.round(width * 1000)}×${Math.round(height * 1000)}` : '?';
       const key = `untyped:${k}:${size}`;

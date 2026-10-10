@@ -206,7 +206,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
 
   const exportDxf = () => exportViewDxf({
     view, drawing: shown, axis, drafts: entities, layers, extraPatterns,
-    overlays: [...(plane ? planOverlays(view, plane, runtimeGeometry?.meshes, useProjectStore.getState().symbolFlips, hidden) : []), ...membraneOverlays(shown)],
+    overlays: [...(plane ? planOverlays(view, plane, runtimeGeometry?.meshes, useProjectStore.getState().symbolFlips, hidden, shown) : []), ...membraneOverlays(shown)],
   });
 
   const command = runningCommand();
@@ -278,7 +278,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         {status === 'error' && entry.error ? (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-destructive pointer-events-none">{entry.error}</div>
         ) : null}
-        <OpeningSymbolsLayer plane={view.kind === 'plan' ? plane ?? null : null} hidden={hidden} transform={viewTransform} axis={axis} />
+        <OpeningSymbolsLayer plane={view.kind === 'plan' || view.kind === 'elevation' || view.kind === 'section' ? plane ?? null : null} drawing={view.kind === 'plan' ? null : shown} hidden={hidden} transform={viewTransform} axis={axis} />
         <RoofPlanLayer view={view} plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
         <DraftOverlay
           entities={entities}
