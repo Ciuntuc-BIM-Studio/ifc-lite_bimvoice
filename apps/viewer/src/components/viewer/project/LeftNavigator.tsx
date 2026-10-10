@@ -95,16 +95,21 @@ export function LeftNavigator() {
       <NewProjectHost />
       <ProjectPackageHost />
       <ProjectVersionsHost />
-      <RoofEditBar />
       <DraftingStandardsDialog />
       <JoineryDialog />
-      <ElementTypesDialog />
-      <RoofSystemDialog />
-      <CorridorDialog />
-      <GroupEditBar />
-      <ProfileLibraryDialog />
-      <MaterialsDialog />
-      <MoveToStoreyDialog />
+      {/* Modelling editors: left out of the docs edition's bundle (`__DOCS_BUILD__`). */}
+      {!__DOCS_BUILD__ && (
+        <>
+          <RoofEditBar />
+          <ElementTypesDialog />
+          <RoofSystemDialog />
+          <CorridorDialog />
+          <GroupEditBar />
+          <ProfileLibraryDialog />
+          <MaterialsDialog />
+          <MoveToStoreyDialog />
+        </>
+      )}
     </div>
   );
 }

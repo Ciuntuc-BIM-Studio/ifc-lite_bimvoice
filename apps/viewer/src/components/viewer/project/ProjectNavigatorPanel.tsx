@@ -152,7 +152,7 @@ export function ProjectNavigatorPanel() {
     '3d': <AddButton label={t('projectNavigator.action.save3d')} onClick={save3d} icon={<Camera className="size-3.5" />} />,
     sheets: <AddButton label={t('projectNavigator.action.newSheet')} onClick={newSheet} />,
     schedules: <AddButton label={t('schedule.new')} onClick={() => setRenamingId(addSchedule('all', t('schedule.newName')))} />,
-    civil: <AddButton label={t('civilDwg.newProfileAction')} onClick={() => newCivilDrawing('profile')} />,
+    civil: <AddButton label={t('civilDwg.newProfileAction')} onClick={() => { if (!__DOCS_BUILD__) newCivilDrawing('profile'); }} />,
     plan: <AddButton label={t('projectNavigator.action.newPlan')} onClick={() => dialogs.open('plan')} />,
     elevation: <AddButton label={t('projectNavigator.action.newElevation')} onClick={() => dialogs.open('elevation')} />,
   };

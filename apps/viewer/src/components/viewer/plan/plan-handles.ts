@@ -66,7 +66,8 @@ function storeyToPlan(s: ViewerState, modelId: string, storeyId: number, plane: 
  */
 export function selectedPlanHandles(s: ViewerState, plane: Workplane | null, outlineCentre: Vec2 | null = null): PlanHandle[] {
   const session = s.session;
-  if (!plane || !session || session.storeyId === null || s.activeTool !== 'select') return [];
+  // The docs edition has no model session: no handles (and none of the move commands they start).
+  if (__DOCS_BUILD__ || !plane || !session || session.storeyId === null || s.activeTool !== 'select') return [];
   const ref = singleSelection(s);
   if (!ref || ref.modelId !== session.modelId || !s.models.has(ref.modelId) || !canMutate(s, ref.modelId)) return [];
   const { modelId, expressId } = ref;

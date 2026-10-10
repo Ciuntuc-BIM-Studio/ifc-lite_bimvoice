@@ -48,3 +48,5 @@ declare const __RELEASE_HISTORY__: Array<{
   }>;
 }>;
 declare const __PACKAGE_VERSIONS__: Array<{ name: string; version: string }>;
+/** True in a docs-edition build (`src/edition.ts`); code under `!__DOCS_BUILD__` is left out of its bundle. */
+declare const __DOCS_BUILD__: boolean;

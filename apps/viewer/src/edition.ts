@@ -19,6 +19,14 @@ declare const __EDITION__: 'full' | 'docs' | undefined;
 export type Edition = 'full' | 'docs';
 
 /** The edition this bundle was built as (a constant: branches on it are folded at build time). */
+/*
+ * Runtime checks use `can()` (tests switch it with `setEditionForTests`). To
+ * leave code out of the docs bundle altogether, reach it only under
+ * `!__DOCS_BUILD__` — a literal the build defines at each use, so the bundler
+ * drops the branch and what only it imports (`vite-plugins/edition-bundle.ts`
+ * checks that it did).
+ */
+
 export const BUILD_EDITION: Edition = typeof __EDITION__ === 'string' && __EDITION__ === 'docs' ? 'docs' : 'full';
 
 let override: Edition | null = null;

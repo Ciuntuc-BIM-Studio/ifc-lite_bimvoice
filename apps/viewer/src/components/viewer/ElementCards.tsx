@@ -18,8 +18,8 @@ export function ElementCards({ modelId, expressId }: { modelId: string; expressI
   // Retyping and roof blocks change the model: the docs edition maps symbols only.
   return (
     <>
-      {can('modelling') && <RoofBlockCards modelId={modelId} expressId={expressId} />}
-      {can('modelling') && <ElementTypeCard modelId={modelId} expressId={expressId} />}
+      {!__DOCS_BUILD__ && can('modelling') && <RoofBlockCards modelId={modelId} expressId={expressId} />}
+      {!__DOCS_BUILD__ && can('modelling') && <ElementTypeCard modelId={modelId} expressId={expressId} />}
       <JoinerySymbolCard modelId={modelId} expressId={expressId} />
     </>
   );

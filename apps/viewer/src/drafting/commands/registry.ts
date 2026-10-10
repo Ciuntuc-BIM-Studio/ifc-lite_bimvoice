@@ -19,7 +19,10 @@ import { HOSTED_COMMANDS } from './hosted';
 import { tagCommand } from './tag';
 import type { DraftCommandDef } from './types';
 
-export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand, roofCommand, roadCommand, bridgeCommand, civilDrawingCommand, sweepCommand, revolveCommand, ...HOSTED_COMMANDS, tagCommand];
+/** Commands that build model elements: not in the docs edition, nor its bundle. */
+const MODELLING_COMMANDS: readonly DraftCommandDef[] = __DOCS_BUILD__ ? [] : [extrudeCommand, roofCommand, roadCommand, bridgeCommand, civilDrawingCommand, sweepCommand, revolveCommand, ...HOSTED_COMMANDS];
+
+export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, ...MODELLING_COMMANDS, tagCommand];
 
 const BY_ID = new Map(DRAFT_COMMANDS.map((c) => [c.id, c]));
 const BY_ALIAS = new Map(DRAFT_COMMANDS.flatMap((c) => c.aliases.map((a) => [a, c] as const)));

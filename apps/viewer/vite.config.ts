@@ -17,6 +17,7 @@ import { oauthCallbackRoutes } from './vite-plugins/oauth-callback';
 // Same allowlist the production relay uses, so dev and prod cannot disagree
 // about which Dalux node a request reaches (#2792).
 import { daluxRelayRoute } from './vite-plugins/dalux-relay';
+import { docsModuleSideEffects, editionBundle } from './vite-plugins/edition-bundle';
 import { deploymentAssetsDir } from '../../scripts/lib/deployment-assets-dir.mjs';
 
 // --- Build-time changelog parser ---
@@ -244,6 +245,8 @@ export default defineConfig({
     // relay. Dev runs the SAME handler production does (#2792), rather than a
     // second proxy config that can drift from it.
     daluxRelayRoute(),
+    // The docs edition must not ship what it leaves out (modelling, infrastructure, analysis).
+    editionBundle(process.env.VITE_EDITION === 'docs' ? 'docs' : 'full'),
   ],
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
@@ -254,6 +257,8 @@ export default defineConfig({
     CESIUM_BASE_URL: JSON.stringify('/cesium'),
     // The app edition (`src/edition.ts`): 'docs' builds the documentation-only app.
     __EDITION__: JSON.stringify(process.env.VITE_EDITION === 'docs' ? 'docs' : 'full'),
+    // A literal at each use, so `!__DOCS_BUILD__ && …` is dropped from the docs bundle at tree-shaking (`vite-plugins/edition-bundle.ts`).
+    __DOCS_BUILD__: JSON.stringify(process.env.VITE_EDITION === 'docs'),
   },
   resolve: {
     alias: viewerAliases,
@@ -306,6 +311,8 @@ export default defineConfig({
       // longer ships a desktop app; downstream desktop builders supply
       // @tauri-apps in their own host layer.
       external: ['@tauri-apps/api/event'],
+      // The docs edition: modules it leaves out are kept only for what is used from them (`vite-plugins/edition-bundle.ts`).
+      ...(process.env.VITE_EDITION === 'docs' ? { treeshake: { moduleSideEffects: docsModuleSideEffects } } : {}),
       input: {
         main: path.resolve(__dirname, 'index.html'),
         // E2E-only, not linked from the app UI: reads the laz-perf wasm

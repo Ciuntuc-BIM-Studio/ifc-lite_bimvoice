@@ -183,10 +183,12 @@ registerCatalogDefaults((kind, modelId) => {
 });
 
 // A bare opening starts at the current opening type's size.
-registerOpeningDefault(() => {
-  const spec = currentType('opening');
-  return spec ? { Width: spec.width, Height: spec.height, Sill: spec.sill } : null;
-});
+if (!__DOCS_BUILD__) {
+  registerOpeningDefault(() => {
+    const spec = currentType('opening');
+    return spec ? { Width: spec.width, Height: spec.height, Sill: spec.sill } : null;
+  });
+}
 
 const OCCURRENCE: Partial<Record<ElementTypeKind, AuthoredElementKind>> = { wall: 'wall', slab: 'slab', column: 'column', beam: 'beam' };
 

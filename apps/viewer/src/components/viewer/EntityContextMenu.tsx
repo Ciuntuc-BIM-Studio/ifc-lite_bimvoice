@@ -268,8 +268,8 @@ export function EntityContextMenu() {
       closeContextMenu();
       return;
     }
-    // A course or slope of a corridor goes with its whole block.
-    const corridor = corridorOfRenderId(contextMenu.entityId);
+    // A course or slope of a corridor goes with its whole block (the docs edition has no corridors to edit).
+    const corridor = __DOCS_BUILD__ ? null : corridorOfRenderId(contextMenu.entityId);
     if (corridor) {
       closeContextMenu();
       void deleteCorridorWithConfirm(corridor);
