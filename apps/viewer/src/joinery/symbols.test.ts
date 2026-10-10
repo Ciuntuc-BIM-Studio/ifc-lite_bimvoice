@@ -9,23 +9,48 @@ import { elevationSymbol, openingMarks, planSymbol, sectionSymbol, strokeBounds 
 
 const R = { x0: 0, x1: 1, z0: 0, z1: 2 };
 
-describe('opening marks (DIN / SR: lines meet at the hinges)', () => {
-  it('points a side-hung sash at its hinge side', () => {
+describe('opening marks, window makers\' convention (default): apex at the handle, base on the hinges', () => {
+  it('points a side-hung sash at its handle, the base on its hinges', () => {
     const [left] = openingMarks('side-left', R, false);
+    assert.deepEqual(left.pts[1], { x: 1, y: 1 });
+    assert.deepEqual([left.pts[0].x, left.pts[2].x], [0, 0]);
+    assert.deepEqual(openingMarks('side-right', R, false)[0].pts[1], { x: 0, y: 1 });
+  });
+
+  it('tilt (bottom-hung) points up; tilt-and-turn has both; top-hung points down', () => {
+    assert.deepEqual(openingMarks('bottom-hung', R, false)[0].pts[1], { x: 0.5, y: 2 });
+    const marks = openingMarks('tilt-turn-right', R, false);
+    assert.deepEqual(marks.map((m) => m.pts[1]), [{ x: 0, y: 1 }, { x: 0.5, y: 2 }]);
+    assert.deepEqual(openingMarks('top-hung', R, false)[0].pts[1], { x: 0.5, y: 0 });
+  });
+
+  it('crosses a fixed pane', () => {
+    assert.equal(openingMarks('fixed', R, false).length, 2);
+  });
+
+  it('the elevation follows the convention asked for', () => {
+    const apex = (strokes: ReturnType<typeof elevationSymbol>) => strokes.filter((s) => s.pts.length === 3)[0].pts[1].x;
+    assert.notEqual(apex(elevationSymbol(defaultWindowSpec())), apex(elevationSymbol(defaultWindowSpec(), { convention: 'hinge' })));
+  });
+});
+
+describe('opening marks (DIN 1356: lines meet at the hinges)', () => {
+  it('points a side-hung sash at its hinge side', () => {
+    const [left] = openingMarks('side-left', R, false, 'hinge');
     assert.deepEqual(left.pts[1], { x: 0, y: 1 });
-    const [right] = openingMarks('side-right', R, false);
+    const [right] = openingMarks('side-right', R, false, 'hinge');
     assert.deepEqual(right.pts[1], { x: 1, y: 1 });
   });
 
   it('draws tilt-and-turn as two triangles and bottom-hung pointing down', () => {
-    const marks = openingMarks('tilt-turn-left', R, false);
+    const marks = openingMarks('tilt-turn-left', R, false, 'hinge');
     assert.equal(marks.length, 2);
     assert.deepEqual(marks[1].pts[1], { x: 0.5, y: 0 });
-    assert.deepEqual(openingMarks('top-hung', R, false)[0].pts[1], { x: 0.5, y: 2 });
+    assert.deepEqual(openingMarks('top-hung', R, false, 'hinge')[0].pts[1], { x: 0.5, y: 2 });
   });
 
   it('draws nothing for fixed glazing and an arrow for sliding', () => {
-    assert.deepEqual(openingMarks('fixed', R, false), []);
+    assert.deepEqual(openingMarks('fixed', R, false, 'hinge'), []);
     const [shaft] = openingMarks('sliding-left', R, false);
     assert.ok(shaft.pts[1].x < shaft.pts[0].x);
   });

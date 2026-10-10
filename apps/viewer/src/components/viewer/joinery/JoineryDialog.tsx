@@ -11,6 +11,8 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { setOpeningConvention, useOpeningConvention } from '@/joinery/opening-convention';
+import type { OpeningConvention } from '@/joinery/symbols';
 import { Copy, DoorOpen, Download, PanelsTopLeft, Trash2, Upload } from 'lucide-react';
 import { joineryProblem, type JoineryKind, type JoinerySpec } from '@ifc-lite/create';
 import { useTranslation } from '@/i18n';
@@ -32,7 +34,7 @@ import { JoineryDrawing, JoineryElevation, JoineryIso } from './JoineryPreview';
 type Filter = 'all' | JoineryKind;
 
 function Thumb({ spec }: { spec: JoinerySpec }) {
-  return <JoineryDrawing strokes={elevationSymbol(spec)} label="" width={36} height={44} />;
+  return <JoineryDrawing strokes={elevationSymbol(spec, { convention: useOpeningConvention() })} label="" width={36} height={44} />;
 }
 
 function download(name: string, text: string): void {
@@ -65,9 +67,10 @@ export function JoineryDialog() {
   const select = (id: string | null) => useJoineryDialog.setState({ selectedId: id });
   const dirty = !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved);
   const problem = draft ? joineryProblem(draft) : null;
+  const convention = useOpeningConvention();
   const strokes = useMemo(() => (draft && !problem ? {
-    exterior: elevationSymbol(draft, { side: 'exterior' }), plan: planSymbol(draft), section: sectionSymbol(draft),
-  } : null), [draft, problem]);
+    exterior: elevationSymbol(draft, { side: 'exterior', convention }), plan: planSymbol(draft), section: sectionSymbol(draft),
+  } : null), [draft, problem, convention]);
 
   const save = () => {
     if (!draft || problem) return;
@@ -139,6 +142,14 @@ export function JoineryDialog() {
                 <Download className="mr-1 size-3.5" />{t('joinery.export')}
               </Button>
             </div>
+            <label className="space-y-0.5 text-2xs text-zinc-500">
+              <span className="block">{t('joinery.openingLines')}</span>
+              <select aria-label={t('joinery.openingLines')} className="h-7 w-full rounded-sm border border-zinc-300 bg-transparent px-1 text-xs dark:border-zinc-700"
+                value={convention} onChange={(e) => setOpeningConvention(e.target.value as OpeningConvention)}>
+                <option value="handle">{t('joinery.openingLines.handle')}</option>
+                <option value="hinge">{t('joinery.openingLines.hinge')}</option>
+              </select>
+            </label>
           </aside>
 
           {draft && saved ? (

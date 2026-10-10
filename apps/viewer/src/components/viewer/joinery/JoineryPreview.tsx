@@ -11,6 +11,7 @@
  */
 
 import { useMemo } from 'react';
+import { useOpeningConvention } from '@/joinery/opening-convention';
 import { joineryBoxes, normalisedPanels, panelRect, type JoineryBox, type JoinerySpec } from '@ifc-lite/create';
 import { elevationSymbol, planSymbol, sectionSymbol, strokeBounds, type JoineryStroke } from '@/joinery/symbols';
 
@@ -71,7 +72,8 @@ interface ElevationProps {
 
 /** The interior elevation, its panels clickable. */
 export function JoineryElevation({ spec, label, selected, onSelect, width, height }: ElevationProps) {
-  const strokes = useMemo(() => elevationSymbol(spec, { hardware: true }), [spec]);
+  const convention = useOpeningConvention();
+  const strokes = useMemo(() => elevationSymbol(spec, { hardware: true, convention }), [spec, convention]);
   const f = useMemo(() => fit(strokeBounds(strokes), width, height), [strokes, width, height]);
   const panels = useMemo(() => normalisedPanels(spec), [spec]);
   return (

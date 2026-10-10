@@ -228,6 +228,8 @@ export interface ProjectDocument {
   textStyles?: TextStyle[];
   dimStyles?: DimStyle[];
   layerGroups?: LayerGroup[];
+  /** Door and window opening symbols in elevation: apex at the handle (default, window makers' sketches) or at the hinges (DIN 1356). */
+  openingLines?: 'handle' | 'hinge';
   /** Plan symbol overrides by element GlobalId: bit 1 hinges a door on its other jamb, bit 2 swings it to the other side. */
   symbolFlips?: Record<string, number>;
   /** The project's door and window types (the configurator's catalogue); each is one IFC type per model it is placed in. */

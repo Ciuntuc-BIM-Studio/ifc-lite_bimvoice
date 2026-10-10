@@ -4,6 +4,9 @@
 import type { TranslationValue } from '../types';
 export const joineryEn = {
   'joinery.open': 'Doors & windows',
+  'joinery.openingLines': 'Opening symbols in elevation',
+  'joinery.openingLines.handle': 'Apex at the handle, base on the hinges; fixed panes crossed',
+  'joinery.openingLines.hinge': 'Apex at the hinges (DIN 1356)',
   'joinery.title': 'Doors & windows',
   'joinery.newWindow': 'New window',
   'joinery.newDoor': 'New door',

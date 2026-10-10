@@ -11,6 +11,7 @@
  */
 
 import { ArrowRight, ArrowUp, Minus, Plus, Ungroup } from 'lucide-react';
+import { useOpeningConvention } from '@/joinery/opening-convention';
 import {
   DOOR_OPERATIONS, WINDOW_OPERATIONS, gridExtents, isDoorLeaf, normalisedPanels,
   type JoineryPanel, type JoinerySpec, type PanelOperation,
@@ -41,7 +42,7 @@ function resized(weights: readonly number[], extents: readonly [number, number][
 
 function OperationIcon({ op }: { op: PanelOperation }) {
   const r = { x0: 2, x1: 22, z0: 2, z1: 26 };
-  const marks = openingMarks(op, r, false);
+  const marks = openingMarks(op, r, false, useOpeningConvention());
   return (
     <svg width={24} height={28} viewBox="0 0 24 28" aria-hidden="true">
       <rect x={2} y={2} width={20} height={24} fill="none" stroke="currentColor" strokeWidth={1.2} />

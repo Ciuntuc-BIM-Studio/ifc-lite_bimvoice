@@ -13,6 +13,7 @@
  */
 
 import { normalisedPanels, type PanelOperation } from '@ifc-lite/create';
+import { openingConvention } from './opening-convention';
 import { elevationSymbol, strokeBounds } from './symbols';
 import type { ScheduleData, ScheduleEntry } from './schedule-data';
 
@@ -128,7 +129,7 @@ export function layoutSchedule(data: ScheduleData, labels: ScheduleLabels, optio
       const base = top + MARK_ROW + drawingH - 7;
       const x0 = cx - (e.width * k) / 2, x1 = cx + (e.width * k) / 2;
       if (e.spec) {
-        const strokes = elevationSymbol(e.spec, { hardware: true });
+        const strokes = elevationSymbol(e.spec, { hardware: true, convention: openingConvention() });
         const b = strokeBounds(strokes);
         const ox = cx - ((b.min.x + b.max.x) / 2) * k;
         for (const s of strokes) {

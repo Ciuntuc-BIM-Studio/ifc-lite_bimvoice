@@ -122,6 +122,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     draftLayers: list('draftLayers').map((l, i) => readDraftLayer(l, `/draftLayers/${i}`)),
     hatchPatterns: isString(raw.hatchPatterns) ? raw.hatchPatterns : '',
     symbolFlips: readFlips(raw.symbolFlips),
+    ...(raw.openingLines === 'hinge' || raw.openingLines === 'handle' ? { openingLines: raw.openingLines } : {}),
     ...readStandards(raw),
     joineryTypes: readJoineryList(raw.joineryTypes),
     currentJoinery: readCurrentJoinery(raw.currentJoinery),

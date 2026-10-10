@@ -14,10 +14,16 @@
  *   glass thin), the window boards seen below it, and each door leaf drawn
  *   open at 90° to the interior with its swing arc (a double-acting leaf's
  *   other swing dashed; a sliding leaf beside the opening with an arrow).
- * - Elevation: frame and panel outlines and the opening symbols, DIN 1356 /
- *   SR convention: lines meet at the hinge side (a tilt-and-turn sash has two
- *   triangles: side and bottom), solid where the panel opens towards the
- *   viewer, dashed where it opens away; sliding is an arrow, fixed nothing.
+ * - Elevation: frame and panel outlines and the opening symbols, solid
+ *   where the panel opens towards the viewer, dashed where it opens away;
+ *   sliding is an arrow. Two conventions (`OpeningConvention`, a project
+ *   setting):
+ *   - 'handle' (default, the window makers' sketches): the triangle's apex
+ *     points to the handle, its base lies on the hinges; a bottom-hung
+ *     (tilt) sash's apex points up; a tilt-and-turn sash has both; a fixed
+ *     pane is crossed by a thin X;
+ *   - 'hinge' (DIN 1356, ISO 7519): the lines meet at the hinges; fixed
+ *     panes are left plain.
  *   With `hardware`, hinges and handles too (the schedule's hardware scheme).
  * - Section: the body sliced at `cutX`, cut parts heavy, glass thin.
  */
@@ -143,25 +149,40 @@ export function planSymbol(spec: JoinerySpec, options: PlanOptions = {}): Joiner
   return out;
 }
 
+/** Where an opening symbol's triangle points: to the handle (window makers' sketches) or to the hinges (DIN 1356). */
+export type OpeningConvention = 'handle' | 'hinge';
+
 export interface ElevationOptions {
   /** Seen from the interior (default) or the exterior (mirrored, inward-opening symbols dashed). */
   side?: 'interior' | 'exterior';
   /** Hinges and handles: the hardware scheme. */
   hardware?: boolean;
+  /** Default 'handle'. */
+  convention?: OpeningConvention;
 }
 
 /** The opening symbol of one panel, in its rectangle (interior view, x as seen from inside). */
-export function openingMarks(op: PanelOperation, r: CellRect, dashed: boolean): JoineryStroke[] {
+export function openingMarks(op: PanelOperation, r: CellRect, dashed: boolean, convention: OpeningConvention = 'handle'): JoineryStroke[] {
   const xm = (r.x0 + r.x1) / 2, zm = (r.z0 + r.z1) / 2;
   const P = (x: number, y: number) => ({ x, y });
-  const triangleSide = (hingeAtLeft: boolean): JoineryStroke => hingeAtLeft
+  const toHandle = convention === 'handle';
+  /** A side triangle with its apex on the left (true) or right jamb. */
+  const apexSide = (atLeft: boolean): JoineryStroke => atLeft
     ? { pts: [P(r.x1, r.z1), P(r.x0, zm), P(r.x1, r.z0)], weight: 'thin', dashed }
     : { pts: [P(r.x0, r.z1), P(r.x1, zm), P(r.x0, r.z0)], weight: 'thin', dashed };
-  const bottom: JoineryStroke = { pts: [P(r.x0, r.z1), P(xm, r.z0), P(r.x1, r.z1)], weight: 'thin', dashed };
-  const top: JoineryStroke = { pts: [P(r.x0, r.z0), P(xm, r.z1), P(r.x1, r.z0)], weight: 'thin', dashed };
+  const apexDown: JoineryStroke = { pts: [P(r.x0, r.z1), P(xm, r.z0), P(r.x1, r.z1)], weight: 'thin', dashed };
+  const apexUp: JoineryStroke = { pts: [P(r.x0, r.z0), P(xm, r.z1), P(r.x1, r.z0)], weight: 'thin', dashed };
+  // Hinged on the left: the apex at the hinges (DIN), or across at the handle.
+  const triangleSide = (hingeAtLeft: boolean) => apexSide(toHandle ? !hingeAtLeft : hingeAtLeft);
+  // Hinged at the bottom (tilt) or the top.
+  const bottom = toHandle ? apexUp : apexDown;
+  const top = toHandle ? apexDown : apexUp;
   const w = r.x1 - r.x0, h = r.z1 - r.z0;
   switch (op) {
-    case 'fixed': return [];
+    case 'fixed': return toHandle ? [
+      { pts: [P(r.x0, r.z0), P(r.x1, r.z1)], weight: 'thin', dashed: false },
+      { pts: [P(r.x0, r.z1), P(r.x1, r.z0)], weight: 'thin', dashed: false },
+    ] : [];
     case 'side-left': case 'swing-left': case 'double-acting-left': return [triangleSide(true)];
     case 'side-right': case 'swing-right': case 'double-acting-right': return [triangleSide(false)];
     case 'tilt-turn-left': return [triangleSide(true), bottom];
@@ -181,11 +202,11 @@ export function openingMarks(op: PanelOperation, r: CellRect, dashed: boolean): 
     case 'sliding-left': case 'door-sliding-left': return arrow(P(xm + w / 4, zm), P(xm - w / 4, zm), 'thin');
     case 'sliding-right': case 'door-sliding-right': return arrow(P(xm - w / 4, zm), P(xm + w / 4, zm), 'thin');
     case 'sliding-vertical': return arrow(P(xm, zm - h / 4), P(xm, zm + h / 4), 'thin');
-    case 'folding-left': return [
+    case 'folding-left': return toHandle ? openingMarks('folding-right', r, dashed, 'hinge') : [
       { pts: [P(r.x1, r.z1), P(xm, zm), P(r.x1, r.z0)], weight: 'thin', dashed },
       { pts: [P(xm, r.z1), P(r.x0, zm), P(xm, r.z0)], weight: 'thin', dashed },
     ];
-    case 'folding-right': return [
+    case 'folding-right': return toHandle ? openingMarks('folding-left', r, dashed, 'hinge') : [
       { pts: [P(r.x0, r.z1), P(xm, zm), P(r.x0, r.z0)], weight: 'thin', dashed },
       { pts: [P(xm, r.z1), P(r.x1, zm), P(xm, r.z0)], weight: 'thin', dashed },
     ];
@@ -226,7 +247,7 @@ export function elevationSymbol(spec: JoinerySpec, options: ElevationOptions = {
     const sash = p.operation !== 'fixed' && (!isDoorLeaf(p.operation) || p.glazed);
     const inner = sash ? { x0: r.x0 + spec.sash.width, x1: r.x1 - spec.sash.width, z0: r.z0 + spec.sash.width, z1: r.z1 - spec.sash.width } : r;
     if (sash) out.push(rect(inner.x0, inner.z0, inner.x1, inner.z1, 'thin'));
-    out.push(...openingMarks(p.operation, r, options.side === 'exterior'));
+    out.push(...openingMarks(p.operation, r, options.side === 'exterior', options.convention));
     if (options.hardware) out.push(...hardware(spec, p, r));
   }
   if (spec.kind === 'window' && spec.board.exterior > 0 && options.side === 'exterior') {
