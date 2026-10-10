@@ -180,6 +180,34 @@ describe('annotation commands', () => {
     assert.ok(level.type === 'level' && level.value === 12.5);
   });
 
+  it('AXIS draws labelled axes that count on, with the typed bubble, ends and label', () => {
+    startDraftCommand('axis');
+    submitCommandLine('L', null);
+    submitCommandLine('A', null);
+    submitCommandLine('S', null);
+    submitCommandLine('START', null);
+    clickDrawing({ x: 0, y: 0 }, TOL, false);
+    clickDrawing({ x: 0, y: 10 }, TOL, false);
+    clickDrawing({ x: 5, y: 0 }, TOL, false);
+    clickDrawing({ x: 5, y: 10 }, TOL, false);
+    // Enter drops a started axis, the second ends the command.
+    clickDrawing({ x: 9, y: 0 }, TOL, false);
+    pressEnter();
+    pressEnter();
+    const axes = shapes();
+    assert.equal(axes.length, 2);
+    assert.ok(axes.every((a) => a.type === 'axis' && a.bubble === 'square' && a.ends === 'start' && a.lineType === 'dashdot'));
+    assert.deepEqual(axes.map((a) => (a.type === 'axis' ? a.label : '')), ['A', 'B']);
+    assert.equal(useDraftingSession.getState().commandId, null);
+    // Back to the defaults for the tests after.
+    startDraftCommand('axis');
+    submitCommandLine('C', null);
+    submitCommandLine('BOTH', null);
+    submitCommandLine('L', null);
+    submitCommandLine('1', null);
+    pressEnter();
+  });
+
   it('HATCH fills the closed region around the picked point, with its islands', () => {
     const outer = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }];
     const island = [{ x: 4, y: 4 }, { x: 6, y: 4 }, { x: 6, y: 6 }, { x: 4, y: 6 }];

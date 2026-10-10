@@ -50,6 +50,14 @@ function readAnnotation(v: Json, path: string): AnnotationShape | null {
     case 'level':
       if (!isNumber(v.value)) fail(`${path}.value`, 'must be a number');
       return { type: 'level', p: pt('p'), value: v.value, height: readHeight(v, path) };
+    case 'axis':
+      if (!isString(v.label)) fail(`${path}.label`, 'must be a string');
+      return {
+        type: 'axis', a: pt('a'), b: pt('b'), label: v.label, bubble: v.bubble === 'square' ? 'square' : 'circle',
+        ends: v.ends === 'start' || v.ends === 'end' || v.ends === 'none' ? v.ends : 'both',
+        size: isNumber(v.size) && v.size > 0 ? v.size : 1, height: readHeight(v, path),
+        lineType: v.lineType === 'continuous' || v.lineType === 'dashed' || v.lineType === 'dotted' ? v.lineType : 'dashdot',
+      };
     case 'hatch': {
       if (!Array.isArray(v.loops) || v.loops.length === 0 || !isString(v.pattern)) fail(path, 'must be a hatch { loops, pattern }');
       const loops = v.loops.map((loop, i) => {

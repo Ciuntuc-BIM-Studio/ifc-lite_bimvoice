@@ -10,6 +10,7 @@
  *    (`text`: moving it sets the dimension's own text position, `textAt`);
  *  - radial / angular: the line / arc position; text, level: the insertion
  *    point; leader: every vertex;
+ *  - axis: its two ends (the bubbles follow);
  *  - line, polyline: every vertex; circle, arc: the centre.
  */
 
@@ -26,7 +27,8 @@ export interface Grip {
 export function gripsOf(id: string, shape: EntityShape): Grip[] {
   const g = (key: string, at: Pt): Grip => ({ id, key, at });
   switch (shape.type) {
-    case 'line': return [g('a', shape.a), g('b', shape.b)];
+    case 'line':
+    case 'axis': return [g('a', shape.a), g('b', shape.b)];
     case 'polyline': return shape.pts.map((p, i) => g(`pt${i}`, p));
     case 'circle':
     case 'arc': return [g('c', shape.c)];
@@ -44,7 +46,8 @@ export function gripsOf(id: string, shape: EntityShape): Grip[] {
 export function moveGrip(shape: EntityShape, key: string, p: Pt): EntityShape {
   const vertex = /^pt(\d+)$/.exec(key);
   switch (shape.type) {
-    case 'line': return key === 'a' ? { ...shape, a: p } : key === 'b' ? { ...shape, b: p } : shape;
+    case 'line':
+    case 'axis': return key === 'a' ? { ...shape, a: p } : key === 'b' ? { ...shape, b: p } : shape;
     case 'polyline':
     case 'leader':
       if (!vertex) return shape;

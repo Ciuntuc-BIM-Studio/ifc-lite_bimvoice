@@ -4,15 +4,15 @@
 
 /**
  * Editable fields of one selected annotation: its text, text height, a
- * dimension's text override, a level mark's value, a hatch's pattern /
- * scale / angle. Each change is one undoable drafting edit.
+ * dimension's text override, a level mark's value, a grid axis's label,
+ * bubble, ends, size and line type, a hatch's pattern / scale / angle. Each change is one undoable drafting edit.
  */
 
 import { useTranslation } from '@/i18n';
 import { editDrafts } from '@/drafting/draft-store';
 import { builtInPatterns } from '@/drafting/hatch/library';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
-import type { AnnotationShape, DraftEntity } from '@/drafting/types';
+import type { AnnotationShape, AxisShape, DraftEntity } from '@/drafting/types';
 
 const INPUT = 'w-32 h-6 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1';
 
@@ -98,6 +98,8 @@ export function AnnotationFields({ entity, shape, extraPatterns }: { entity: Dra
           {height}
         </>
       );
+    case 'axis':
+      return <AxisFields entity={entity} shape={shape} />;
     case 'level':
       return (
         <>
@@ -108,4 +110,32 @@ export function AnnotationFields({ entity, shape, extraPatterns }: { entity: Dra
     default:
       return height;
   }
+}
+
+function Choice<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly { value: T; label: string }[]; onChange: (v: T) => void }) {
+  return (
+    <label className="flex items-center justify-between gap-2">
+      <span className="shrink-0 text-zinc-500">{label}</span>
+      <select aria-label={label} className={INPUT} value={value} onChange={(e) => onChange(e.target.value as T)}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+const BUBBLES = ['circle', 'square'] as const;
+const ENDS = ['both', 'start', 'end', 'none'] as const;
+const LINE_TYPES = ['dashdot', 'dashed', 'dotted', 'continuous'] as const;
+
+function AxisFields({ entity, shape }: { entity: DraftEntity; shape: AxisShape }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field label={t('drafting.props.axisLabel')} value={shape.label} onCommit={(v) => update(entity, { ...shape, label: v.trim() || shape.label })} />
+      <Choice label={t('drafting.props.axisBubble')} value={shape.bubble} options={BUBBLES.map((v) => ({ value: v, label: t(`drafting.props.axisBubble.${v}`) }))} onChange={(bubble) => update(entity, { ...shape, bubble })} />
+      <Choice label={t('drafting.props.axisEnds')} value={shape.ends} options={ENDS.map((v) => ({ value: v, label: t(`drafting.props.axisEnds.${v}`) }))} onChange={(ends) => update(entity, { ...shape, ends })} />
+      <Field label={t('drafting.props.axisSize')} value={String(shape.size)} numeric onCommit={(v) => update(entity, { ...shape, size: positive(v, shape.size) })} />
+      <Choice label={t('drafting.props.lineType')} value={shape.lineType} options={LINE_TYPES.map((v) => ({ value: v, label: t(`drafting.props.lineType.${v}`) }))} onChange={(lineType) => update(entity, { ...shape, lineType })} />
+    </>
+  );
 }

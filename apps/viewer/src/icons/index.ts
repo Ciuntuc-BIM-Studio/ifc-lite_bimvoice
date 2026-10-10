@@ -110,6 +110,7 @@ export { default as AnnoDimLinear } from '~icons/viewer/anno-dim-linear';
 export { default as AnnoDimRadius } from '~icons/viewer/anno-dim-radius';
 export { default as AnnoDimAngular } from '~icons/viewer/anno-dim-angular';
 export { default as AnnoLevel } from '~icons/viewer/anno-level';
+export { default as AnnoAxis } from '~icons/viewer/anno-axis';
 export { default as AnnoHatch } from '~icons/viewer/anno-hatch';
 export { default as AnnoLoadPattern } from '~icons/viewer/anno-load-pattern';
 export { default as NewProject } from '~icons/viewer/new-project';

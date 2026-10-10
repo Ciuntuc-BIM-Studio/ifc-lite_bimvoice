@@ -11,7 +11,7 @@
 
 import { can } from '@/edition';
 import {
-  DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
+  AnnoAxis, DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
   BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
@@ -47,6 +47,7 @@ export function DesignTab() {
         <RibbonCommandLargeButton commandId="design:rectangle" icon={DraftRectangle} active={on('rectangle')} />
         <RibbonCommandLargeButton commandId="design:circle" icon={DraftCircle} active={on('circle')} />
         <RibbonCommandLargeButton commandId="design:arc" icon={DraftArc} active={on('arc')} />
+        <RibbonCommandLargeButton commandId="annotate:axis" icon={AnnoAxis} active={on('axis')} />
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.modify')}>

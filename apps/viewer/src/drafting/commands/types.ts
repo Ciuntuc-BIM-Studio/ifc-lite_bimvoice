@@ -70,6 +70,12 @@ export interface DraftSettings {
   roofSlope: number;
   roofThickness: number;
   roofOverhang: number;
+  /** AXIS: the next axis's label (it counts on: 1, 2… / A, B…), bubble, ends, bubble size (model metres; null: four text heights) and line type. */
+  axisLabel: string;
+  axisBubble: 'circle' | 'square';
+  axisEnds: 'both' | 'start' | 'end' | 'none';
+  axisSize: number | null;
+  axisLineType: 'continuous' | 'dashed' | 'dotted' | 'dashdot';
   /** The styles new annotations take. */
   currentTextStyle: string;
   currentDimStyle: string;

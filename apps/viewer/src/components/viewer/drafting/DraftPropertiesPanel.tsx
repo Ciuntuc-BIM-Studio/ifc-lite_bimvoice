@@ -31,6 +31,7 @@ const TYPE_KEYS = {
   radial: 'drafting.props.typeRadial',
   angular: 'drafting.props.typeAngular',
   level: 'drafting.props.typeLevel',
+  axis: 'drafting.props.typeAxis',
   hatch: 'drafting.props.typeHatch',
 } as const;
 

@@ -39,7 +39,29 @@ export type AnnotationShape =
   | { type: 'radial'; c: Pt; r: number; at: Pt; diameter: boolean; height: number }
   | { type: 'angular'; c: Pt; a: Pt; b: Pt; at: Pt; height: number }
   | { type: 'level'; p: Pt; value: number; height: number }
+  | AxisShape
   | { type: 'hatch'; loops: Pt[][]; pattern: string; scale: number; angle: number; color?: string };
+
+/** Which ends of an axis carry a bubble. */
+export type AxisEnds = 'both' | 'start' | 'end' | 'none';
+
+/**
+ * A grid axis line from `a` to `b`, dash-dot by default, with its label in a
+ * bubble (circle or square) past the chosen ends. `size` is the bubble's
+ * smallest diameter / side (model metres); a longer label widens it so the
+ * bubble always holds its text.
+ */
+export interface AxisShape {
+  type: 'axis';
+  a: Pt;
+  b: Pt;
+  label: string;
+  bubble: 'circle' | 'square';
+  ends: AxisEnds;
+  size: number;
+  height: number;
+  lineType: 'continuous' | 'dashed' | 'dotted' | 'dashdot';
+}
 
 /** Anything an entity can be: geometry or an annotation. */
 export type EntityShape = DraftShape | AnnotationShape;

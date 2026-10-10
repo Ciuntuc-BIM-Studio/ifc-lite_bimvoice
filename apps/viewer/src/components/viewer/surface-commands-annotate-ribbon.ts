@@ -4,13 +4,13 @@
 
 /**
  * Annotations tab commands (phase 4d): text, leaders, dimensions, level
- * marks, hatches, and loading `.pat` hatch patterns into the project. Each
+ * marks, grid axes, hatches, and loading `.pat` hatch patterns into the project. Each
  * runs the drafting command the command line does, on the drawing tab in
  * front.
  */
 
 import {
-  AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftingStandards,
+  AnnoAxis, AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftingStandards,
 } from '@/icons';
 import { resolve } from '@/i18n/registry';
 import { toast } from '@/components/ui/toast';
@@ -44,6 +44,7 @@ export const RIBBON_ANNOTATE_SURFACE_COMMANDS = [
   { id: 'annotate:dim-diameter', labelKey: 'drafting.tool.dimDiameter', keywords: 'dimension diameter', category: 'Tools', icon: AnnoDimRadius, surfaces: ribbonOnly, enabled: always, run: draft('dimdiameter') },
   { id: 'annotate:dim-angular', labelKey: 'drafting.tool.dimAngular', keywords: 'dimension angle angular', category: 'Tools', icon: AnnoDimAngular, surfaces: ribbonOnly, enabled: always, run: draft('dimangular') },
   { id: 'annotate:level', labelKey: 'drafting.tool.level', keywords: 'level mark spot elevation cota', category: 'Tools', icon: AnnoLevel, surfaces: ribbonOnly, enabled: always, run: draft('level') },
+  { id: 'annotate:axis', labelKey: 'drafting.tool.axis', keywords: 'axis axes grid gridline bubble ax', category: 'Tools', icon: AnnoAxis, surfaces: ribbonOnly, enabled: always, run: draft('axis') },
   { id: 'annotate:hatch', labelKey: 'drafting.tool.hatch', keywords: 'hatch fill pattern pat', category: 'Tools', icon: AnnoHatch, surfaces: ribbonOnly, enabled: always, run: draft('hatch') },
   { id: 'annotate:load-pattern', labelKey: 'drafting.tool.loadPattern', keywords: 'load import hatch pattern pat file', category: 'Tools', icon: AnnoLoadPattern, surfaces: ribbonOnly, enabled: always, run: () => { void importHatchPatternFile(); } },
 ] as const satisfies readonly SurfaceCommandDefinition[];

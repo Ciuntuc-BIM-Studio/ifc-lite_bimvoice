@@ -4,12 +4,12 @@
 
 /**
  * Ribbon · Annotations tab — notation on the view in front: text and
- * leaders, dimensions, level marks and CAD hatches (built-in patterns plus
+ * leaders, dimensions, level marks, grid axes and CAD hatches (built-in patterns plus
  * the project's own `.pat` files). The buttons are the registered
  * `annotate:*` commands (`surface-commands-annotate-ribbon.ts`).
  */
 
-import { AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftingStandards } from '@/icons';
+import { AnnoAxis, AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftingStandards } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -36,6 +36,10 @@ export function AnnotationsTab() {
           <RibbonCommandSmallButton commandId="annotate:dim-angular" icon={AnnoDimAngular} active={on('dimangular')} />
         </RibbonSmallStack>
         <RibbonCommandLargeButton commandId="annotate:level" icon={AnnoLevel} active={on('level')} />
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('drafting.group.axes')}>
+        <RibbonCommandLargeButton commandId="annotate:axis" icon={AnnoAxis} active={on('axis')} />
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.fill')}>

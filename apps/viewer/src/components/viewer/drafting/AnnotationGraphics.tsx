@@ -4,7 +4,7 @@
 
 /**
  * One annotation, drawn in screen space over the drawing: text, leader,
- * dimensions, level marks and hatches (pattern lines clipped to the
+ * dimensions, level marks, grid axes and hatches (pattern lines clipped to the
  * boundary, even-odd, so islands stay open) — as its styles say
  * (`drafting/styles.ts`: font, arrow, placement, precision…, with the
  * element's own overrides).
@@ -16,12 +16,12 @@
  */
 
 import { memo, useId, useMemo } from 'react';
-import { dimensionLayout, formatLevel, HATCH_UNIT_M } from '@/drafting/annotation';
+import { axisLayout, dimensionLayout, formatLevel, HATCH_UNIT_M } from '@/drafting/annotation';
 import { drawingToScreen, screenSigns, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
 import { findPattern } from '@/drafting/hatch/library';
 import { hatchSegments } from '@/drafting/hatch/fill';
 import {
-  DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, fontFamily, formatDimension, readableDeg,
+  DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, dashOf, fontFamily, formatDimension, readableDeg,
   type DimStyle, type TextStyle,
 } from '@/drafting/styles';
 import type { AnnotationShape, Pt } from '@/drafting/types';
@@ -181,6 +181,30 @@ export const AnnotationGraphics = memo(function AnnotationGraphics({
             <path d={`M${p.x - h} ${p.y}L${p.x + h * 5} ${p.y}`} />
           </g>
           <Label at={{ x: p.x + h * 1.3, y: p.y - h * 1.15 }} text={formatLevel(shape.value)} px={px} deg={0} color={textColor} style={look.text} anchor="start" />
+        </g>
+      );
+    }
+    case 'axis': {
+      // The line in its line type (dash-dot by default, paper millimetres), the label upright in each bubble.
+      const lineColor = selected ? '#2563eb' : base;
+      const a = s(shape.a), b = s(shape.b);
+      const { bubbles, r } = axisLayout(shape);
+      const rp = r * t.scale;
+      const dash = dashOf(shape.lineType).map(mm).join(' ');
+      return (
+        <g>
+          <path d={`M${a.x} ${a.y}L${b.x} ${b.y}`} stroke={lineColor} strokeWidth={0.75 * k} strokeDasharray={dash || undefined} fill="none" />
+          {bubbles.map((c, i) => {
+            const p = s(c);
+            return (
+              <g key={i}>
+                {shape.bubble === 'circle'
+                  ? <circle cx={p.x} cy={p.y} r={rp} stroke={lineColor} strokeWidth={k} fill="#fff" fillOpacity={0} />
+                  : <rect x={p.x - rp} y={p.y - rp} width={rp * 2} height={rp * 2} stroke={lineColor} strokeWidth={k} fill="#fff" fillOpacity={0} />}
+                <Label at={p} text={shape.label} px={px} deg={0} color={textColor} style={look.text} shift={px * 0.35} />
+              </g>
+            );
+          })}
         </g>
       );
     }

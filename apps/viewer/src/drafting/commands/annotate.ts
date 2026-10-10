@@ -4,17 +4,17 @@
 
 /**
  * Annotation commands: TEXT, LEADER, DIMALIGNED, DIMLINEAR, DIMRADIUS,
- * DIMDIAMETER, DIMANGULAR, LEVEL and HATCH. Annotations are entities like
+ * DIMDIAMETER, DIMANGULAR, LEVEL, AXIS and HATCH. Annotations are entities like
  * any drafted geometry, so selection, move / copy / rotate / mirror / erase
  * and undo work on them unchanged.
  */
 
 import { editDrafts, newDraft } from '../draft-store';
 import { styledParams } from '@/project/drafting-standards';
-import { dimensionLayout, entitySkeleton } from '../annotation';
+import { dimensionLayout, entitySkeleton, nextAxisLabel } from '../annotation';
 import { findPattern } from '../hatch/library';
 import { regionAt } from '../hatch/region';
-import type { AnnotationShape, DraftShape, Pt } from '../types';
+import type { AnnotationShape, AxisShape, DraftShape, Pt } from '../types';
 import type { DraftCommandDef, DraftContext, StepResult } from './types';
 
 function add(ctx: DraftContext, shape: AnnotationShape): void {
@@ -197,6 +197,82 @@ export const levelCommand: DraftCommandDef = {
   },
 };
 
+const AXIS_KEYWORDS: Record<string, (s: DraftContext['settings']) => void> = {
+  C: (s) => { s.axisBubble = 'circle'; }, CIRCLE: (s) => { s.axisBubble = 'circle'; },
+  S: (s) => { s.axisBubble = 'square'; }, SQUARE: (s) => { s.axisBubble = 'square'; },
+  BOTH: (s) => { s.axisEnds = 'both'; }, START: (s) => { s.axisEnds = 'start'; }, END: (s) => { s.axisEnds = 'end'; }, NONE: (s) => { s.axisEnds = 'none'; },
+  DASHDOT: (s) => { s.axisLineType = 'dashdot'; }, DASHED: (s) => { s.axisLineType = 'dashed'; },
+  DOTTED: (s) => { s.axisLineType = 'dotted'; }, CONTINUOUS: (s) => { s.axisLineType = 'continuous'; },
+};
+
+/**
+ * AXIS: grid axis lines — two points each, the label in a bubble (circle or
+ * square) at the chosen ends, dash-dot by default. Labels count on from one
+ * axis to the next (1, 2, 3… or A, B, C…); L types the next label, SIZE a
+ * bubble size, C / S the bubble, BOTH / START / END / NONE its ends,
+ * DASHDOT / DASHED / DOTTED / CONTINUOUS the line.
+ */
+export const axisCommand: DraftCommandDef = {
+  id: 'axis',
+  aliases: ['AXIS', 'AX', 'GRIDLINE'],
+  labelKey: 'drafting.cmd.axis',
+  create(ctx) {
+    const s = ctx.settings;
+    let start: Pt | null = null;
+    let pending: 'label' | 'size' | null = null;
+    const shape = (a: Pt, b: Pt): AxisShape => ({
+      type: 'axis', a, b, label: s.axisLabel, bubble: s.axisBubble, ends: s.axisEnds,
+      size: s.axisSize ?? s.textHeight * 4, height: s.textHeight, lineType: s.axisLineType,
+    });
+    return {
+      prompt: () => ({
+        key: pending === 'label' ? 'drafting.prompt.axisLabel' : pending === 'size' ? 'drafting.prompt.axisSize' : start ? 'drafting.prompt.axisEnd' : 'drafting.prompt.axisStart',
+        params: { label: s.axisLabel, bubble: s.axisBubble.toUpperCase(), ends: s.axisEnds.toUpperCase() },
+      }),
+      input: () => 'point',
+      basePoint: () => start,
+      onPoint(p) {
+        if (!start) {
+          start = p;
+          return 'continue';
+        }
+        if (Math.hypot(p.x - start.x, p.y - start.y) < 1e-6) return 'continue';
+        add(ctx, shape(start, p));
+        s.axisLabel = nextAxisLabel(s.axisLabel);
+        start = null;
+        return 'continue';
+      },
+      wantsText: () => pending === 'label',
+      onText(text) {
+        if (text.trim()) s.axisLabel = text.trim();
+        pending = null;
+        return 'continue';
+      },
+      wantsValue: () => pending === 'size',
+      onValue(v) {
+        if (v > 0) s.axisSize = v;
+        pending = null;
+        return 'continue';
+      },
+      onKeyword(word) {
+        if (word === 'L' || word === 'LABEL') { pending = 'label'; return 'continue'; }
+        if (word === 'SIZE' || word === 'D') { pending = 'size'; return 'continue'; }
+        const set = AXIS_KEYWORDS[word];
+        if (!set) return undefined;
+        set(s);
+        return 'continue';
+      },
+      onEnter() {
+        // Enter drops a started axis; a second Enter ends the command.
+        if (!start) return 'done';
+        start = null;
+        return 'continue';
+      },
+      preview: (cursor) => (start ? skeleton(shape(start, cursor)) : []),
+    };
+  },
+};
+
 export const hatchCommand: DraftCommandDef = {
   id: 'hatch',
   aliases: ['HATCH', 'H', 'BHATCH'],
@@ -245,5 +321,5 @@ export const hatchCommand: DraftCommandDef = {
 
 export const ANNOTATE_COMMANDS: readonly DraftCommandDef[] = [
   textCommand, leaderCommand, dimAlignedCommand, dimLinearCommand, dimRadiusCommand, dimDiameterCommand,
-  dimAngularCommand, levelCommand, hatchCommand,
+  dimAngularCommand, levelCommand, axisCommand, hatchCommand,
 ];

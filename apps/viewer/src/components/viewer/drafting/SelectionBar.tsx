@@ -32,11 +32,13 @@ const SELECT = 'h-7 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-tr
 export function editableText(shape: AnnotationShape): string | null {
   if (shape.type === 'text' || shape.type === 'leader') return shape.text;
   if (shape.type === 'dimension') return shape.text ?? '';
+  if (shape.type === 'axis') return shape.label;
   return null;
 }
 
 function withText(shape: AnnotationShape, text: string): AnnotationShape {
   if (shape.type === 'text' || shape.type === 'leader') return { ...shape, text };
+  if (shape.type === 'axis') return text.trim() ? { ...shape, label: text.trim() } : shape;
   if (shape.type === 'dimension') {
     const { text: _old, ...rest } = shape;
     return text.trim() ? { ...rest, text } : rest;

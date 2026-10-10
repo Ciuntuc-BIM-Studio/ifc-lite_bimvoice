@@ -12,7 +12,7 @@
 import { nearestOnShape, shapeBounds } from './curves';
 import { mirrorShape, rotateShape, translateShape } from './transform';
 import { add, dist, mirrorPt, rotatePt, scale, sub } from './vec';
-import { isGeometry, type AnnotationShape, type DraftShape, type EntityShape, type Pt } from './types';
+import { isGeometry, type AnnotationShape, type AxisShape, type DraftShape, type EntityShape, type Pt } from './types';
 
 export interface DimensionLayout {
   /** Extension and dimension lines. */
@@ -140,6 +140,36 @@ export function textBox(p: Pt, text: string, height: number, rotation: number): 
   return corners.map((c) => rotatePt(add(p, c), p, rotation));
 }
 
+/** Where an axis's bubbles sit: centres just past its ends (along the line), and their radius / half side. */
+export function axisLayout(shape: AxisShape): { bubbles: Pt[]; r: number } {
+  // The bubble holds the label: at least `size`, wider for a long label.
+  const textHalf = (Math.max(1, shape.label.length) * shape.height * 0.62) / 2;
+  const r = Math.max(shape.size / 2, textHalf + shape.height * 0.45, shape.height * 0.9);
+  const dir = unit(sub(shape.b, shape.a));
+  const bubbles: Pt[] = [];
+  if (shape.ends === 'both' || shape.ends === 'start') bubbles.push(add(shape.a, scale(dir, -r)));
+  if (shape.ends === 'both' || shape.ends === 'end') bubbles.push(add(shape.b, scale(dir, r)));
+  return { bubbles, r };
+}
+
+/** The next label in a series: 1 → 2, A → B, Z → AA, A1 → A2, B' → C'. */
+export function nextAxisLabel(label: string): string {
+  const num = /^(.*?)(\d+)(\D*)$/.exec(label);
+  if (num) return `${num[1]}${String(Number(num[2]) + 1).padStart(num[2].length, '0')}${num[3]}`;
+  const letters = /^(.*?)([A-Za-z]+)([^A-Za-z]*)$/.exec(label);
+  if (!letters) return label;
+  const chars = letters[2].split('');
+  let i = chars.length - 1;
+  for (; i >= 0; i--) {
+    const c = chars[i];
+    if (c === 'z' || c === 'Z') { chars[i] = c === 'z' ? 'a' : 'A'; continue; }
+    chars[i] = String.fromCharCode(c.charCodeAt(0) + 1);
+    break;
+  }
+  if (i < 0) chars.unshift(letters[2][0] === letters[2][0].toLowerCase() ? 'a' : 'A');
+  return `${letters[1]}${chars.join('')}${letters[3]}`;
+}
+
 /** The lines an entity is picked, bounded and snapped by. */
 export function entitySkeleton(shape: EntityShape): DraftShape[] {
   if (isGeometry(shape)) return [shape];
@@ -159,6 +189,13 @@ export function entitySkeleton(shape: EntityShape): DraftShape[] {
     }
     case 'hatch':
       return shape.loops.filter((l) => l.length >= 3).map((pts) => ({ type: 'polyline', pts, closed: true }));
+    case 'axis': {
+      const { bubbles, r } = axisLayout(shape);
+      const rims: DraftShape[] = bubbles.map((c) => (shape.bubble === 'circle'
+        ? { type: 'circle', c, r }
+        : { type: 'polyline', pts: [{ x: c.x - r, y: c.y - r }, { x: c.x + r, y: c.y - r }, { x: c.x + r, y: c.y + r }, { x: c.x - r, y: c.y + r }], closed: true }));
+      return [{ type: 'line', a: shape.a, b: shape.b }, ...rims];
+    }
     default:
       return dimensionLayout(shape).lines.map((l) => ({ type: 'line', a: l.a, b: l.b }));
   }
@@ -210,6 +247,8 @@ function mapAnnotation(shape: AnnotationShape, f: (p: Pt) => Pt): AnnotationShap
       return { ...shape, c: f(shape.c), a: f(shape.a), b: f(shape.b), at: f(shape.at) };
     case 'level':
       return { ...shape, p: f(shape.p) };
+    case 'axis':
+      return { ...shape, a: f(shape.a), b: f(shape.b) };
     case 'hatch':
       return { ...shape, loops: shape.loops.map((l) => l.map(f)) };
   }
