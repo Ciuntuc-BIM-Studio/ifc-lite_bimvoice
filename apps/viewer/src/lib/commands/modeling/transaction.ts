@@ -25,7 +25,7 @@
 
 import type { StoreApi } from 'zustand';
 import type { ViewerState } from '@/store';
-import { mutationDenial } from '@/store/mutation-permission';
+import { modelChangeDenial } from '@/store/mutation-permission';
 import { toGlobalIdFromModels } from '@/store/globalId';
 import { mutationsSince, newMutationBatchId, undoStackLengths } from '@/store/slices/mutation-batch-tags';
 import { remeshAfterCommit } from '@/lib/remesh/remesh-registry';
@@ -83,7 +83,7 @@ export function runTransaction(
 ): TransactionOutcome {
   const { modelId, storeyId, workplane } = ctx;
   const get = store.getState;
-  const denial = mutationDenial(get(), modelId);
+  const denial = modelChangeDenial(get(), modelId);
   if (denial) return { ok: false, reason: denial };
 
   const before = undoStackLengths(get().undoStacks);

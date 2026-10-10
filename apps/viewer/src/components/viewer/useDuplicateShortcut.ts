@@ -14,6 +14,7 @@
  * editable model, live mutation view — #6233).
  */
 
+import { keyCommandAllowed } from '@/edition-policy';
 import { useEffect } from 'react';
 import { useViewerStore, resolveEntityRef } from '@/store';
 import { toast } from '@/components/ui/toast';
@@ -27,6 +28,8 @@ export function useDuplicateShortcut() {
   const { t } = useTranslation();
 
   useEffect(() => {
+    // The docs edition does not duplicate model elements.
+    if (!keyCommandAllowed('edit.duplicate')) return;
     const unregister = registerKeyboardCommand('edit.duplicate', (e) => {
       const selectedId = useViewerStore.getState().selectedEntityId;
       if (selectedId === null) return false;

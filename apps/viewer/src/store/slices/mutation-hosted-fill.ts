@@ -28,7 +28,7 @@ import {
   type HostedElementInStoreSpec,
 } from '@ifc-lite/create';
 import type { ViewerState } from '../index.js';
-import { mutationDenial } from '../mutation-permission.js';
+import { modelChangeDenial } from '../mutation-permission.js';
 import { registerAuthoredElement } from '@/utils/spatialHierarchy.js';
 import { remeshAfterCommit } from '@/lib/remesh/remesh-registry';
 import { modelEditTarget, recordModellingEdit, type ModellingStore } from './mutation-modelling-records.js';
@@ -67,7 +67,7 @@ export function addHostedFillIn(
   options: HostedFillOptions = {},
 ): HostedFillOutcome {
   const get = store.getState;
-  const refusal = mutationDenial(get(), modelId) ?? hostedFillRefusal(get(), modelId);
+  const refusal = modelChangeDenial(get(), modelId) ?? hostedFillRefusal(get(), modelId);
   if (refusal) return { error: refusal };
   const undoBefore = get().undoStacks.get(modelId)?.length ?? 0;
   let expressId: number;
@@ -126,7 +126,7 @@ export function moveHostedFillIn(store: ModellingStore, modelId: string, express
 /** Thin history adapter for the shared hosted params-to-commit core. The
  * outer command transaction tags these records and re-meshes the real cut. */
 export function editHostedFillIn(store: ModellingStore, modelId: string, expressId: number, patch: HostedElementEdit): HostedFillMoveOutcome {
-  const refusal = mutationDenial(store.getState(), modelId) ?? hostedFillRefusal(store.getState(), modelId);
+  const refusal = modelChangeDenial(store.getState(), modelId) ?? hostedFillRefusal(store.getState(), modelId);
   if (refusal) return { ok: false, reason: refusal };
   const target = modelEditTarget(store.getState(), modelId);
   if (!target) return { ok: false, reason: `No model loaded for id "${modelId}"` };

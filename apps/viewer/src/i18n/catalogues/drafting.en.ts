@@ -193,6 +193,7 @@ export const draftingEn = {
   'drafting.msg.extruded': '{ifcClass} created ({guid}). Editing the contour updates it.',
   'drafting.tool.extrude': 'Extrude',
   'drafting.group.model': 'Model',
+  'drafting.group.symbols': 'Symbols',
   'drafting.group.bim': 'BIM objects',
   'drafting.bim.wall': 'Wall',
   'drafting.bim.slab': 'Slab',

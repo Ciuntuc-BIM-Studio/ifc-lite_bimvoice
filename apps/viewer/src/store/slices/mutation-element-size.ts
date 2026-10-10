@@ -4,7 +4,7 @@
 
 
 
-import { mutationDenial } from '../mutation-permission.js';
+import { modelChangeDenial } from '../mutation-permission.js';
 import type { ViewerState } from '../index.js';
 import { readElementSizeInStore, setElementSizeInStore, type ElementSize, type ElementSizePatch, type ElementSizeOutcome } from '../../../../../packages/create/src/in-store/element-size-edit.js';
 import { modelEditTarget, recordModellingEdit, type ModellingStore } from './mutation-modelling-records.js';
@@ -16,7 +16,7 @@ export function readElementSize(state: ViewerState, modelId: string, expressId: 
 }
 
 export function setElementSize(store: ModellingStore, modelId: string, expressId: number, patch: ElementSizePatch): ElementSizeOutcome {
-  const denial = mutationDenial(store.getState(), modelId);
+  const denial = modelChangeDenial(store.getState(), modelId);
   if (denial) return { ok: false, reason: denial };
   const target = modelEditTarget(store.getState(), modelId);
   if (!target) return { ok: false, reason: `No model loaded for id "${modelId}"` };

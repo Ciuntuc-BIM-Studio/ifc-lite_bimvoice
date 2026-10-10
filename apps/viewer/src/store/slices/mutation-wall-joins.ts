@@ -29,7 +29,7 @@ import {
   type WallReshapeOptions,
 } from '@ifc-lite/create';
 import type { ViewerState } from '../index.js';
-import { mutationDenial } from '../mutation-permission.js';
+import { modelChangeDenial } from '../mutation-permission.js';
 import { getModelLengthUnitScale } from '@/lib/length-unit-scale.js';
 import { storeyWallAxes } from '@/lib/snap/sources/semantic-walls.js';
 import { defaultWallJoinStyle } from '@/lib/wall-join-prefs.js';
@@ -85,7 +85,7 @@ export function joinPlacedWallIn(
   chain: readonly number[],
 ): WallJoinOutcome {
   const state = store.getState();
-  const refusal = mutationDenial(state, modelId) ?? wallJoinRefusal(state, modelId);
+  const refusal = modelChangeDenial(state, modelId) ?? wallJoinRefusal(state, modelId);
   if (refusal) return { ok: false, reason: refusal };
   const target = modelEditTarget(state, modelId);
   if (!target) return { ok: false, reason: `No model loaded for id "${modelId}"` };
@@ -145,7 +145,7 @@ export function reshapeWallsIn(
   batchId?: string,
 ): WallReshapeOutcome {
   const state = store.getState();
-  const denial = mutationDenial(state, modelId);
+  const denial = modelChangeDenial(state, modelId);
   if (denial) return { ok: false, reason: denial };
   const target = modelEditTarget(state, modelId);
   if (!target) return { ok: false, reason: `No model loaded for id "${modelId}"` };

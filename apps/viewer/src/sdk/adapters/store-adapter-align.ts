@@ -9,7 +9,7 @@ import { normalizeMutationModelId } from './mutation-view.js';
 import { trackBackendWrite } from './backend-write-capture.js';
 import { completePhysicalEdit } from './store-adapter-physical.js';
 import { modelEditTarget, recordModellingCommit } from '@/store/slices/mutation-modelling-records';
-import { mutationDenial } from '@/store/mutation-permission';
+import { modelChangeDenial } from '@/store/mutation-permission';
 import { undoHead } from '@/lib/rooms/room-layout';
 import { modelMeshes } from '@/lib/commands/modeling/align-boxes';
 import { toGlobalIdFromModels } from '@/store/globalId';
@@ -19,7 +19,7 @@ import { requestRemesh } from '@/lib/remesh/remesh-service';
 /** Fresh owning-model geometry, collab gate, one shared history record. */
 export function alignMutationTracking(store: StoreApi): Pick<ReturnType<typeof createModellingStoreBackend>, 'alignElements'> {
   const resolve = (modelId: string) => {
-    const denial = mutationDenial(store.getState(), modelId);
+    const denial = modelChangeDenial(store.getState(), modelId);
     if (denial) throw new Error(denial);
     const target = modelEditTarget(store.getState(), modelId);
     if (!target) throw new Error('Align requires an editable loaded model');

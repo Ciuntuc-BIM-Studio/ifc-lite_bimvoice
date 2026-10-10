@@ -16,6 +16,7 @@
  * for existing call sites and tests.
  */
 
+import { can } from '@/edition';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { X, Trash2, PenLine, Undo, Redo, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -313,7 +314,8 @@ interface EditToolbarProps {
 export function EditToolbar({ modelId, entityId, entityType, existingPsets, existingQtos, schemaVersion, inheritedFrom }: EditToolbarProps) {
   // Reassign is only meaningful for occurrence building elements — not type
   // entities, spaces, or materials.
-  const canReassign = isReassignableElement(resolveReassignSchema(schemaVersion), entityType);
+  // Changing an element's IFC class is structural: not in the docs edition.
+  const canReassign = can('modelling') && isReassignableElement(resolveReassignSchema(schemaVersion), entityType);
   return (
     <div className="panel-container relative -mx-3 -mt-3 mb-3 flex flex-col gap-2 border-b border-zinc-200 bg-gradient-to-b from-zinc-50/80 to-transparent px-3 pb-2.5 pt-3 dark:border-zinc-800 dark:from-zinc-900/50">
       {/* live-edit accent hairline */}

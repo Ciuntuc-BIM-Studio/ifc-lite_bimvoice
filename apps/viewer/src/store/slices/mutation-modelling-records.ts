@@ -20,6 +20,7 @@
  * In a shared room the overlay delta is published like the script path does.
  */
 
+import { modellingDenial } from '../../edition-policy';
 import type { StoreApi } from 'zustand';
 import { MutablePropertyView, StoreEditor, type Mutation, type NewEntity } from '@ifc-lite/mutations';
 import type { IfcDataStore } from '@ifc-lite/parser';
@@ -106,6 +107,9 @@ export function recordResolvedModellingCommit<T>(
   batchId?: string,
   appendOnly = false,
 ): T {
+  // Every authoring commit passes here: the docs edition never changes the model's geometry or structure.
+  const editionDenial = modellingDenial();
+  if (editionDenial) throw new Error(editionDenial);
   const state = store.getState();
   const { modelId } = target;
   const { dataStore, view, editor } = target;

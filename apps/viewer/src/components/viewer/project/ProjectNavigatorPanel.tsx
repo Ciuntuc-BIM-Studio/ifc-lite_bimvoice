@@ -10,6 +10,7 @@
  * `.ifclite-project.json` sidecar.
  */
 
+import { can } from '@/edition';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Spline, Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed, Table2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
@@ -255,7 +256,8 @@ export function ProjectNavigatorPanel() {
   };
 
   const activeView = views.find((v) => v.id === activeItemId);
-  const folders = FOLDER_ORDER.map((id) => ({ id, ...folderBody(id) })).filter((f) => !q || f.count > 0);
+  // Road drawings come from corridors, which only the full edition models.
+  const folders = FOLDER_ORDER.filter((id) => id !== 'civil' || can('infrastructure')).map((id) => ({ id, ...folderBody(id) })).filter((f) => !q || f.count > 0);
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-black">

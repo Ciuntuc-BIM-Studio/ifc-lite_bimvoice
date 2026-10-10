@@ -31,7 +31,7 @@ import {
 } from '@ifc-lite/create';
 import type { StoreEditor } from '@ifc-lite/mutations';
 import { registerAuthoredElement } from '@/utils/spatialHierarchy.js';
-import { mutationDenial } from '../mutation-permission.js';
+import { modelChangeDenial } from '../mutation-permission.js';
 import { modelEditTarget, recordModellingEdit, type ModellingStore } from './mutation-modelling-records.js';
 import { ensureStoreyPlacement } from './storeyPlacement.js';
 
@@ -54,7 +54,7 @@ function writeOnStorey<T>(
   build: (editor: StoreEditor, anchor: ReturnType<typeof resolveSpatialAnchor>) => T,
 ): T | { error: string } {
   const get = store.getState;
-  const denial = mutationDenial(get(), modelId);
+  const denial = modelChangeDenial(get(), modelId);
   if (denial) return { error: denial };
   const target = modelEditTarget(get(), modelId);
   if (!target) return { error: `No model loaded for id "${modelId}"` };

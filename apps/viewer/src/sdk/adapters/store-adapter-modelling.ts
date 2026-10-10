@@ -29,7 +29,7 @@ import { normalizeMutationModelId } from './mutation-view.js';
 import { editHostedFillIn, type HostedFillSpec } from '@/store/slices/mutation-hosted-fill';
 import type { StoreApi } from './types.js';
 import { recordModellingEdit } from '@/store/slices/mutation-modelling-records';
-import { mutationDenial } from '@/store/mutation-permission';
+import { modelChangeDenial } from '@/store/mutation-permission';
 import { remeshAfterCommit } from '@/lib/remesh/remesh-registry';
 import { addCurtainWallIn, addGridIn } from '@/store/slices/mutation-curtain-grid';
 import { addGridColumnIn } from '@/store/slices/mutation-grid-column';
@@ -118,7 +118,7 @@ export function withModellingMutationTracking(
     },
     removeStair(ref) {
       const normalized = normalizeMutationModelId(store.getState(), ref.modelId);
-      const denial = mutationDenial(store.getState(), normalized);
+      const denial = modelChangeDenial(store.getState(), normalized);
       if (denial) throw new Error(`bim.store.removeStair: ${denial}`);
       const setState = store.setState;
       if (!setState) throw new Error('bim.store.removeStair: the adapter requires a writable store');
@@ -150,7 +150,7 @@ export function withModellingMutationTracking(
     },
     joinWalls(modelId, aExpressId, bExpressId, options) {
       const normalized = normalizeMutationModelId(store.getState(), modelId);
-      const denial = mutationDenial(store.getState(), normalized);
+      const denial = modelChangeDenial(store.getState(), normalized);
       if (denial) throw new Error(`bim.store.joinWalls: ${denial}`);
       const setState = store.setState;
       if (!setState) throw new Error('bim.store.joinWalls: the adapter requires a writable store');

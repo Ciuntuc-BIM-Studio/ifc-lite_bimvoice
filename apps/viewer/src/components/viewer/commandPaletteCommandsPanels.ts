@@ -17,6 +17,7 @@
  * `payload.title` sourced from the extension registry at runtime).
  */
 
+import { can } from '@/edition';
 import { Play, GraduationCap } from 'lucide-react';
 import { isCollabEnabled } from '@/lib/collab/config';
 import { useViewerStore } from '@/store';
@@ -44,13 +45,13 @@ export function buildPanelCommands(p: CommandPaletteBuildParams): Command[] {
   c.push(...shared.filter((command) => command.id.startsWith('extensions:') || command.id.startsWith('sidebar:')));
 
   // ── Schedule / 4D (Tools) ─────────────────────────────
-  c.push(...shared.filter((command) => command.id.startsWith('schedule:')));
+  if (can('analysis')) c.push(...shared.filter((command) => command.id.startsWith('schedule:')));
 
   // ── Export ── (built from the toolbar registry, #5601)
   c.push(...buildExportCommands(p.runExport, p.extensionExporters));
 
-  // ── Automation (scripts — last, power-user feature) ──
-  for (const t of SCRIPT_TEMPLATES) {
+  // ── Automation (scripts — last, power-user feature; not in the docs edition) ──
+  for (const t of can('analysis') ? SCRIPT_TEMPLATES : []) {
     c.push({
       id: `auto:${t.name}`, label: t.name, keywords: `script run ${t.description}`,
       runtimeSource: 'script-template',
@@ -80,8 +81,8 @@ export function buildPanelCommands(p: CommandPaletteBuildParams): Command[] {
   }
   c.push(...shared.filter((command) => command.id === 'learn:hub'));
 
-  // ── Extension contributions ──
-  for (const contribution of p.extensionCommands) {
+  // ── Extension contributions (not in the docs edition) ──
+  for (const contribution of can('analysis') ? p.extensionCommands : []) {
     const payload = contribution.payload;
     if (!payload?.id || !payload.title) continue;
     c.push({

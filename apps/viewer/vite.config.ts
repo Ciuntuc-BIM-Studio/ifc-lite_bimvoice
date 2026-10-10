@@ -252,6 +252,8 @@ export default defineConfig({
     __RELEASE_HISTORY__: JSON.stringify(parseChangelogs()),
     __PACKAGE_VERSIONS__: JSON.stringify(collectPackageVersions()),
     CESIUM_BASE_URL: JSON.stringify('/cesium'),
+    // The app edition (`src/edition.ts`): 'docs' builds the documentation-only app.
+    __EDITION__: JSON.stringify(process.env.VITE_EDITION === 'docs' ? 'docs' : 'full'),
   },
   resolve: {
     alias: viewerAliases,

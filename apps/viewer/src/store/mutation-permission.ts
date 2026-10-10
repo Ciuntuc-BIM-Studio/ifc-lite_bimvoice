@@ -5,6 +5,7 @@
 import { areWorkflowModelsReadLocked } from '../lib/flow/run-session.js';
 import type { ViewerState } from './index.js';
 import { getModelForRef } from '../sdk/adapters/model-compat.js';
+import { modellingDenial } from '../edition-policy.js';
 
 type MutationPermissionState = Pick<ViewerState, 'editEnabled' | 'canCollabEdit' | 'models' | 'ifcDataStore'>;
 
@@ -65,4 +66,14 @@ export function mutationDenialMessage(reason: MutationDenialReason): string {
 export function mutationDenial(state: MutationPermissionState, modelId?: string): string | null {
   const permission = mutationPermission(state, modelId);
   return permission.allowed ? null : mutationDenialMessage(permission.reason);
+}
+
+/**
+ * The gate for changes to a model's geometry or structure (placing, moving,
+ * resizing, splitting, joining, replacing elements): the edition must model
+ * (`modellingDenial`) and the model must be writable. Property and attribute
+ * edits use `mutationDenial` alone.
+ */
+export function modelChangeDenial(state: MutationPermissionState, modelId?: string): string | null {
+  return modellingDenial() ?? mutationDenial(state, modelId);
 }

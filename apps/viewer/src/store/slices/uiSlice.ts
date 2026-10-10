@@ -6,6 +6,7 @@
  * UI state slice
  */
 
+import { can } from '../../edition';
 import type { StateCreator } from 'zustand';
 import {
   RIBBON_COLLAPSED_STORAGE_KEY,
@@ -230,6 +231,8 @@ export const createUISlice: StateCreator<UISlice & UICrossSliceState, [], [], UI
     // "in-progress gesture" means (see measurementSlice.ts's measureMode doc).
     const leavingMeasure = get().activeTool === 'measure' && activeTool !== 'measure';
     if (AUTHORING_TOOLS.has(activeTool)) {
+      // The docs edition has no authoring tools (it never changes the model's geometry).
+      if (!can('modelling')) return;
       // Collab role gate: in a shared session only editor/admin may
       // unlock authoring. Viewers/commenters can still pick read-only
       // tools, so we only block the authoring branch.
@@ -254,6 +257,8 @@ export const createUISlice: StateCreator<UISlice & UICrossSliceState, [], [], UI
       // Collab role gate: only editor/admin (or single-user, role===null)
       // may enter edit mode — the single chokepoint for every authoring surface.
       if (cross.canCollabEdit && !cross.canCollabEdit()) return;
+      // The docs edition edits properties only: edit mode without the Model workspace.
+      if (!can('modelling')) { set({ editEnabled: true }); return; }
       if (cross.enterModelWorkspace) cross.enterModelWorkspace();
       else set({ editEnabled: true });
       return;

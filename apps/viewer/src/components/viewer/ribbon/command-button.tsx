@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /** Registry-backed ribbon controls. Callers supply host inputs; the table owns execution. */
+import { surfaceCommandAllowed } from '@/edition-policy';
 import { forwardRef, type MouseEvent } from 'react';
 import { useTranslation } from '@/i18n';
 import { surfaceCommand, type SurfaceCommandContext, type SurfaceCommandDefinition, type SurfaceCommandId } from '../surface-commands';
@@ -86,6 +87,8 @@ export const RibbonCommandLargeButton = forwardRef<HTMLButtonElement, RibbonComm
   function RibbonCommandLargeButton({ commandId, icon, triggerOnly, commandContext, ...props }, ref) {
     const { command, label, tooltip } = useRibbonCommandPresentation(commandId);
     const handlers = commandHandlers(command, props, triggerOnly, commandContext);
+    // A command this edition leaves out shows no button.
+    if (!surfaceCommandAllowed(commandId)) return null;
     return <RibbonContentLargeButton {...props} ref={ref} data-command-id={command.id}
       data-command-trigger={triggerOnly || undefined}
       icon={icon ?? command.icon} contentLabel={label} contentSource="registered" contentId={command.id} aria-label={label}
@@ -97,6 +100,7 @@ export const RibbonCommandSmallButton = forwardRef<HTMLButtonElement, RibbonComm
   function RibbonCommandSmallButton({ commandId, icon, triggerOnly, commandContext, ...props }, ref) {
     const { command, label, tooltip } = useRibbonCommandPresentation(commandId);
     const handlers = commandHandlers(command, props, triggerOnly, commandContext);
+    if (!surfaceCommandAllowed(commandId)) return null;
     return <RibbonContentSmallButton {...props} ref={ref} data-command-id={command.id}
       data-command-trigger={triggerOnly || undefined}
       icon={icon ?? command.icon} contentLabel={label} contentSource="registered" contentId={command.id} aria-label={label}

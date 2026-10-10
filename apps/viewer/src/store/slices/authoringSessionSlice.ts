@@ -16,6 +16,7 @@
  * the `command` key context); the session only names the profile.
  */
 
+import { can } from '../../edition';
 import type { StateCreator, StoreApi } from 'zustand';
 import type { ViewerState } from '../index.js';
 import { defineSliceTeardown } from '../teardown.js';
@@ -156,6 +157,8 @@ export const createAuthoringSessionSlice: StateCreator<ViewerState, [], [], Auth
     },
 
     enterModelWorkspace: (opts = {}) => {
+      // The docs edition has no Model workspace (it never changes the model's geometry).
+      if (!can('modelling')) return false;
       const s = get();
       if (!s.canCollabEdit()) return false;
       if (s.session && opts.modelId === undefined && opts.storeyId === undefined) {

@@ -12,6 +12,8 @@
  * without growing it. Living here it is also testable on its own.
  */
 
+import { can } from '@/edition';
+import { panelAllowed } from '@/edition-policy';
 import { useEffect, useState } from 'react';
 import { Upload, Clock3, Sparkles, ArrowUpRight, PackagePlus, Cloud, ShieldCheck, Building2, GitMerge } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
@@ -199,7 +201,7 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
           so they read as siblings, with the file-open CTA above
           staying visually dominant. */}
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <button
+        {can('modelling') && <button
           type="button"
           onClick={onStartBlank}
           disabled={actionsDisabled}
@@ -211,8 +213,8 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
         >
           <PackagePlus className="h-3 w-3 transition-transform group-enabled:group-hover:-translate-y-0.5" />
           <span>{t('viewportLighting.container.emptyState.startBlank')}</span>
-        </button>
-        <button
+        </button>}
+        {panelAllowed('sources') && <button
           type="button"
           onClick={() => useViewerStore.getState().openPanelInHome('sources')}
           disabled={actionsDisabled}
@@ -227,7 +229,7 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
               lists every registered provider. Naming one vendor on the
               front door stopped being accurate at the second provider. */}
           <span>{t('viewportLighting.container.emptyState.openFromCloud')}</span>
-        </button>
+        </button>}
         <a
           href="/mcp"
           className="group inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-2xs border border-dashed border-zinc-300 dark:border-[#3b4261] text-zinc-500 dark:text-[#7a82a5] hover:border-primary hover:text-primary transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

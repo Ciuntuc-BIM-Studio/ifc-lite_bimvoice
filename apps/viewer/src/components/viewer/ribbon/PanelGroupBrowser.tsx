@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /** Ribbon panel browser generated from the same task groups as the rail (#5873). */
+import { panelAllowed } from '@/edition-policy';
 import { BrowsePanels } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { isCollabEnabled } from '@/lib/collab/config';
@@ -47,7 +48,7 @@ export function PanelGroupBrowser() {
         <DropdownMenuContent align="start" className="max-h-[70vh] w-72 overflow-y-auto">
           {PANEL_GROUPS.map((group, index) => {
             const panels = WORKSPACE_PANELS.filter((panel) =>
-              panel.group === group.id && (panel.id !== 'collab' || isCollabEnabled()));
+              panel.group === group.id && (panel.id !== 'collab' || isCollabEnabled()) && panelAllowed(panel.id));
             if (panels.length === 0) return null;
             return (
               <DropdownMenuGroup key={group.id}>

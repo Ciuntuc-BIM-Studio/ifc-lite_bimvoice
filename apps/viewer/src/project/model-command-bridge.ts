@@ -17,6 +17,7 @@
  * plan layer and snap glyph come out through `toScreen`.
  */
 
+import { can } from '@/edition';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import type { CommandId, Workplane } from '@/lib/commands/modeling/types';
 import type { Vec2 } from '@/lib/snap/types';
@@ -93,6 +94,7 @@ export function aimSessionAtPlan(view: ProjectView): boolean {
  * have no storey plane to draw on yet.
  */
 export function startBimTool(id: CommandId): void {
+  if (!can('modelling')) return; // the docs edition has no BIM tools
   ensureEditMode();
   const view = frontView();
   if (view) {

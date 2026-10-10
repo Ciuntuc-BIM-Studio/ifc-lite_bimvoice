@@ -6,6 +6,8 @@
 /// <reference types="unplugin-icons/types/react" />
 
 interface ImportMetaEnv {
+  /** 'docs' builds the documentation-only edition (`src/edition.ts`); anything else, the full app. */
+  readonly VITE_EDITION?: string;
   /** Same-origin cookie-backed Dropbox and Microsoft cloud sign-in. */
   readonly VITE_CLOUD_HOSTED?: string;
   readonly VITE_AUTODESK_CLIENT_ID?: string;

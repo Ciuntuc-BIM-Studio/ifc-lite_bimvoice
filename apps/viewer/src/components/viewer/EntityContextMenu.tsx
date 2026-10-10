@@ -6,6 +6,7 @@
  * Context menu for entity interactions
  */
 
+import { can } from '@/edition';
 import { useCallback, useEffect, useLayoutEffect, useRef, useMemo, useState } from 'react';
 import { useViewerStore, resolveEntityRef, resolveGlobalId, toGlobalIdFromModels } from '@/store';
 import type { DuplicateDirection } from '@/store/slices/mutationSlice';
@@ -353,7 +354,7 @@ export function EntityContextMenu() {
 
           {/* Keep denied actions visible with their reason; an editable view
               is created on demand when the menu opens in Edit mode. */}
-          {showMutationActions && (
+          {showMutationActions && can('modelling') && (
             <>
               <ContextMenuSeparator />
               <DuplicateItems onDuplicate={handleDuplicate} canEdit={canEdit} reason={editReason} />

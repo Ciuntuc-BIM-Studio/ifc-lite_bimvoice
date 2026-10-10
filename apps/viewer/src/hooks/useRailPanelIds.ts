@@ -13,6 +13,7 @@
  * and shows an empty state (#5873).
  */
 
+import { panelAllowed } from '@/edition-policy';
 import { useMemo } from 'react';
 import { useViewerStore } from '@/store';
 import { isCollabEnabled } from '@/lib/collab/config';
@@ -26,7 +27,8 @@ export function useRailPanelIds(): WorkspacePanelId[] {
     return order.filter(
       (id) =>
         (!hidden.has(id) || id === 'properties') &&
-        (id !== 'collab' || isCollabEnabled()),
+        (id !== 'collab' || isCollabEnabled()) &&
+        panelAllowed(id),
     );
   }, [order, hiddenIds]);
 }

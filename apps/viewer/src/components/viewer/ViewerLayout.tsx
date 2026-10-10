@@ -47,6 +47,7 @@ import { useOverlayCompositor } from './schedule/useOverlayCompositor';
 import { CommandPalette } from './CommandPalette';
 import { SearchModal } from './SearchModal';
 import { FlowStartupPrompt } from './flow/FlowStartupPrompt';
+import { can } from '@/edition';
 import { TourHost } from '@/components/tours/TourHost';
 import { SidebarDock } from './sidebar/SidebarDock';
 import { FloatingPanelHost } from './dock/FloatingPanelHost';
@@ -250,7 +251,7 @@ export function ViewerLayout() {
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex flex-col h-screen h-[100dvh] w-screen overflow-hidden bg-background text-foreground">
-        <ExtensionKeyboardBindings />
+        {can('analysis') && <ExtensionKeyboardBindings />}
         <ShellStoreEffects />
         {safeMode && (
           <div className="flex items-center gap-2 border-b border-amber-500/40 bg-amber-500/10 px-3 py-1 text-2xs text-amber-700 dark:text-amber-300">
@@ -271,7 +272,7 @@ export function ViewerLayout() {
         <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
         <SearchModal />
         <TourHost />
-        <FlowStartupPrompt />
+        {can('analysis') && <FlowStartupPrompt />}
         {/* Trigger-less: this instance exists so the entity context menu's
             "Export anonymized…" (which only sets `anonymizedExportRequested`,
             no trigger of its own) has a mounted dialog regardless of whether the export toolbar
@@ -308,7 +309,7 @@ export function ViewerLayout() {
                       <div className="flex-1 min-h-0 overflow-hidden"><LeftNavigator /></div>
                       {/* Extension dock.left — collapses when no extension
                           contributes. Sits beneath the hierarchy panel. */}
-                      <ExtensionDockHost slot="dock.left" className="max-h-[40%] border-t" />
+                      {can('analysis') && <ExtensionDockHost slot="dock.left" className="max-h-[40%] border-t" />}
                     </div>
                   </Panel>
 
@@ -442,7 +443,7 @@ export function ViewerLayout() {
             extension contributes here. */}
         {!isMobile && (
           <div className="max-h-[40vh]">
-            <ExtensionDockHost slot="dock.bottom" />
+            {can('analysis') && <ExtensionDockHost slot="dock.bottom" />}
           </div>
         )}
 

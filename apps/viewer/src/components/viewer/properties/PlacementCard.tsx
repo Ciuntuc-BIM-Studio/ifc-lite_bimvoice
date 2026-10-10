@@ -13,6 +13,7 @@
  *   (the storey's, or its host's for a door in a wall), applied together.
  */
 
+import { can } from '@/edition';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from '@/i18n';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,12 @@ type Key = (typeof KEYS)[number];
 
 const show = (k: Key, v: number) => (k.startsWith('r') ? (Math.round(v * 1000) / 1000) : (Math.round(v * 10000) / 10000)).toString();
 
-export function PlacementCard({ modelId, expressId }: { modelId: string; expressId: number }) {
+/** An element's placement is modelling: the docs edition shows no card. */
+export function PlacementCard(props: { modelId: string; expressId: number }) {
+  return can('modelling') ? <PlacementCardBody {...props} /> : null;
+}
+
+function PlacementCardBody({ modelId, expressId }: { modelId: string; expressId: number }) {
   const { t } = useTranslation();
   const mutationVersion = useViewerStore((s) => s.mutationVersion);
   const placement = useMemo(() => elementPlacement(modelId, expressId), [modelId, expressId, mutationVersion]);

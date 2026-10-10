@@ -20,7 +20,7 @@ import { addExtrusionToStore, replaceExtrusionGeometryInStore, resolveSpatialAnc
 import { useViewerStore } from '@/store';
 import { modelEditTarget, recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 import { ensureStoreyPlacement } from '@/store/slices/storeyPlacement';
-import { mutationDenial } from '@/store/mutation-permission';
+import { modelChangeDenial } from '@/store/mutation-permission';
 import { buildStoreyWorkplane } from '@/lib/commands/modeling/workplane';
 import { requestRemesh } from '@/lib/remesh/remesh-service';
 import { registerAuthoredElement } from '@/utils/spatialHierarchy';
@@ -142,7 +142,7 @@ export function prepareTarget(view: ProjectView, worldMinY: number): Prepared {
   const target = resolveTarget(view, worldMinY);
   if (!target) return { ok: false, error: 'No loaded model has a storey for this view. Load or create a model first.' };
   const state = useViewerStore.getState();
-  const denial = mutationDenial(state, target.modelId);
+  const denial = modelChangeDenial(state, target.modelId);
   if (denial) return { ok: false, error: denial };
   const workplane = buildStoreyWorkplane(state, target.modelId, target.storeyId, 0);
   if ('refused' in workplane) return { ok: false, error: workplane.refused };

@@ -10,6 +10,7 @@
  * made the one the Door / Window tool places, or applied to the selection.
  */
 
+import { can } from '@/edition';
 import { useEffect, useMemo, useState } from 'react';
 import { setOpeningConvention, useOpeningConvention } from '@/joinery/opening-convention';
 import type { OpeningConvention } from '@/joinery/symbols';
@@ -183,7 +184,8 @@ export function JoineryDialog() {
         </div>
         <DialogFooter className="items-center gap-2 sm:justify-between">
           <div className="flex items-center gap-2 text-xs">
-            {saved ? (
+            {/* Placing and retyping change the model: the full edition only. */}
+            {saved && can('modelling') ? (
               <>
                 <label className="flex items-center gap-1.5">
                   <input type="checkbox" checked={isCurrent} onChange={(e) => setCurrentJoinery(saved.kind, e.target.checked ? saved.id ?? null : null)} />

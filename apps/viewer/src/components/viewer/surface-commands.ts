@@ -4,6 +4,7 @@
 
 /** Static commands shared by palette, ribbon, context menu and mobile (#5870). */
 
+import { surfaceCommandAllowed } from '@/edition-policy';
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Building2, ChevronsUpDown,
   Crosshair, FolderOpen, Home, Layers3, Maximize2, Orbit, Save,
@@ -244,7 +245,7 @@ export function paletteSurfaceCommands(
   context: Pick<SurfaceCommandContext, 'activateRightPanel' | 'activateBottomPanel'> = {},
 ): Command[] {
   return SURFACE_COMMANDS
-    .filter((command) => command.surfaces.some((surface) => surface === 'palette') && command.enabled(state))
+    .filter((command) => command.surfaces.some((surface) => surface === 'palette') && command.enabled(state) && surfaceCommandAllowed(command.id))
     .map((command) => commandRowFromDefinition(command, { ...context, surface: 'palette', execute }));
 }
 

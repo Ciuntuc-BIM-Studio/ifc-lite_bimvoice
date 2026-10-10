@@ -34,7 +34,7 @@ import {
 import type { StoreEditor } from '@ifc-lite/mutations';
 import { registerAuthoredElement } from '@/utils/spatialHierarchy.js';
 import { remeshAfterCommit } from '@/lib/remesh/remesh-registry';
-import { mutationDenial } from '../mutation-permission.js';
+import { modelChangeDenial } from '../mutation-permission.js';
 import type { ViewerState } from '../index.js';
 import { modelEditTarget, recordModellingEdit, type ModellingStore } from './mutation-modelling-records.js';
 import { ensureStoreyPlacement } from './storeyPlacement.js';
@@ -70,7 +70,7 @@ function write(
   build: (draft: StoreEditor, anchor: ReturnType<typeof resolveSpatialAnchor>) => Written,
 ): StairRailingOutcome {
   const get = store.getState;
-  const refusal = mutationDenial(get(), modelId) ?? stairRailingRefusal(get(), modelId);
+  const refusal = modelChangeDenial(get(), modelId) ?? stairRailingRefusal(get(), modelId);
   if (refusal) return { error: refusal };
   const undoBefore = get().undoStacks.get(modelId)?.length ?? 0;
   let written: Written;

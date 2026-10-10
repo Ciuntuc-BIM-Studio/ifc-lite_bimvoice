@@ -4,7 +4,7 @@
 
 /** #6232: canonical replacement plus one viewer history/room/mesh completion. */
 import { replaceElementInStore, resolveSpatialAnchor, type InStoreReplacementElement } from '@ifc-lite/create';
-import { mutationDenial } from '../mutation-permission.js';
+import { modelChangeDenial } from '../mutation-permission.js';
 import { recordModellingCommit, type ModellingStore } from './mutation-modelling-records.js';
 import { ensureStoreyPlacement } from './storeyPlacement.js';
 import { completeEntityRemoval } from './mutation-mesh-stash.js';
@@ -16,7 +16,7 @@ export function replaceElementIn(
   store: ModellingStore, modelId: string, oldId: number,
   storeyId: number, element: InStoreReplacementElement,
 ): number {
-  const denial = mutationDenial(store.getState(), modelId);
+  const denial = modelChangeDenial(store.getState(), modelId);
   if (denial) throw new Error(`bim.store.replaceElement: ${denial}`);
   const undoBefore = store.getState().undoStacks.get(modelId)?.length ?? 0;
   const built = recordModellingCommit(store, modelId, (editor, dataStore) =>

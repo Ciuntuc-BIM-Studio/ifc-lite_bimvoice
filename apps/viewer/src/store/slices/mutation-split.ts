@@ -17,7 +17,7 @@ import type { IfcAttributeValue, MutablePropertyView, StoreEditor } from '@ifc-l
 import type { IfcDataStore } from '@ifc-lite/parser';
 import type { ViewerState } from '../index.js';
 import { toGlobalIdFromModels } from '../globalId.js';
-import { mutationDenial } from '../mutation-permission.js';
+import { modelChangeDenial } from '../mutation-permission.js';
 import { mutationsSince, newMutationBatchId, undoStackLengths } from './mutation-batch-tags.js';
 import { getModelLengthUnitScale } from '@/lib/length-unit-scale.js';
 import { resolveSplitTarget, splitChainOfKind } from '@/lib/split-target.js';
@@ -58,7 +58,7 @@ export function openSplit<K extends SplitKind>(
   expressId: number,
   kind: K,
 ) {
-  const denial = mutationDenial(get(), modelId);
+  const denial = modelChangeDenial(get(), modelId);
   if (denial) return { ok: false as const, reason: denial };
   const view = get().mutationViews.get(modelId);
   const editor = view ? editorFor(modelId) : null;
