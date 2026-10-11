@@ -22,7 +22,7 @@ import { ribbonToolbarEn } from '@/i18n/catalogues/ribbon-toolbar.en';
 import { useViewerStore, type RibbonTabId } from '@/store';
 import { RibbonToolbar } from './RibbonToolbar.js';
 
-const TABS: RibbonTabId[] = ['file', 'home', 'view', 'elements', 'analyze', 'author', 'design', 'annotations', 'infrastructure'];
+const TABS: RibbonTabId[] = ['file', 'home', 'design', 'annotations', 'view', 'elements', 'analyze', 'author', 'infrastructure'];
 type RibbonKey = keyof typeof ribbonToolbarEn;
 const RIBBON_KEYS = Object.keys(ribbonToolbarEn) as RibbonKey[];
 
@@ -137,14 +137,14 @@ afterEach(() => {
 });
 
 describe('RibbonToolbar localization (#4785)', () => {
-  it('#5815 ArrowRight selects View and labels the command band', async () => {
+  it('#5815 ArrowRight selects the next tab (Design) and labels the command band', async () => {
     const container = render(<RibbonToolbar />);
     const tabs = [...container.querySelectorAll<HTMLElement>('[role="tab"]')];
     assert.equal(tabs.length, TABS.length);
     tabs[1].focus(); // Home is the initial tab.
     press(tabs[1], 'ArrowRight');
     await advance(5);
-    assert.equal(useViewerStore.getState().ribbonTab, 'view');
+    assert.equal(useViewerStore.getState().ribbonTab, 'design');
     assert.equal(document.activeElement, tabs[2]);
     const panel = container.querySelector('[role="tabpanel"]');
     assert.ok(panel);

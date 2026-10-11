@@ -23,7 +23,7 @@ import { TOOLBAR_STYLE_STORAGE_KEY } from '@/store/constants';
 import { useViewerStore, type RibbonTabId } from '@/store';
 import { RibbonToolbar } from './RibbonToolbar.js';
 
-const TABS: RibbonTabId[] = ['file', 'home', 'view', 'elements', 'analyze', 'author'];
+const TABS: RibbonTabId[] = ['file', 'home', 'design', 'annotations', 'view', 'elements', 'analyze', 'author'];
 
 function showTab(container: HTMLElement, tab: RibbonTabId): void {
   const target = container.querySelectorAll('[role="tab"]')[TABS.indexOf(tab)];

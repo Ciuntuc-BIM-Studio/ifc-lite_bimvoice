@@ -46,12 +46,13 @@ import { emitOpenCommandPalette } from '@/lib/tours/events';
 const RIBBON_TABS: { id: RibbonTabId; labelKey: TranslationKey }[] = [
   { id: 'file', labelKey: 'ribbon.tab.file' },
   { id: 'home', labelKey: 'ribbon.tab.home' },
+  // Drawing and annotating come first, right after Home.
+  { id: 'design', labelKey: 'ribbon.tab.design' },
+  { id: 'annotations', labelKey: 'ribbon.tab.annotations' },
   { id: 'view', labelKey: 'ribbon.tab.view' },
   { id: 'elements', labelKey: 'ribbon.tab.elements' },
   { id: 'analyze', labelKey: 'ribbon.tab.analyze' },
   { id: 'author', labelKey: 'ribbon.tab.author' },
-  { id: 'design', labelKey: 'ribbon.tab.design' },
-  { id: 'annotations', labelKey: 'ribbon.tab.annotations' },
   { id: 'infrastructure', labelKey: 'ribbon.tab.infrastructure' },
 ];
 

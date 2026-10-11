@@ -18,7 +18,7 @@ import type { FileCommands } from '../toolbar/useFileCommands.js';
 import { RibbonToolbar } from './RibbonToolbar.js';
 import { FileTab } from './tabs/FileTab.js';
 
-const TABS: RibbonTabId[] = ['file', 'home', 'view', 'elements', 'analyze', 'author', 'design', 'annotations', 'infrastructure'];
+const TABS: RibbonTabId[] = ['file', 'home', 'design', 'annotations', 'view', 'elements', 'analyze', 'author', 'infrastructure'];
 const initialState = useViewerStore.getState();
 
 afterEach(() => {
