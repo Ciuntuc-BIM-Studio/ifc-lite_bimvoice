@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-name: BIMVoice test deploy (Vercel, prebuilt)
+name: Lapin deploy (Vercel, prebuilt)
 
 # Builds the viewer on a GitHub runner (16 GB RAM — Vercel's free 8 GB builder
 # runs out of memory bundling it) and uploads the finished output to Vercel
@@ -23,12 +23,12 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: bimvoice-vercel-deploy
+  group: lapin-vercel-deploy
   cancel-in-progress: true
 
 jobs:
   deploy:
-    if: github.repository == 'Ciuntuc-BIM-Studio/ifc-lite_bimvoice'
+    if: github.repository == 'Ciuntuc-BIM-Studio/lapin'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -57,8 +57,8 @@ jobs:
       - name: Setup WASM build toolchain
         uses: ./.github/actions/setup-wasm-build
         with:
-          cache-prefix: bimvoice-deploy
-          shared-key: bimvoice
+          cache-prefix: lapin-deploy
+          shared-key: lapin
           save-if: 'true'
 
       - name: Vercel CLI
