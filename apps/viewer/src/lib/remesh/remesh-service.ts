@@ -29,7 +29,8 @@ import type { MutablePropertyView } from '@ifc-lite/mutations';
 import { serializeEntitySubgraph } from '@ifc-lite/export';
 import { hostsOtherEntities } from '@ifc-lite/renderer';
 import type { MeshData } from '@ifc-lite/geometry';
-import { overlayStyleWire, withOverlayStyles } from './overlay-style-wire';
+import { materialColourWire, overlayMaterialColours, overlayStyleWire, withOverlayStyles } from './overlay-style-wire';
+import { materialIdsByElement } from '@ifc-lite/create';
 import { RemeshClient, filterStyleWire, type RemeshConfig, type RemeshRequest, type RemeshResult, type StyleWire } from '@ifc-lite/geometry/remesh';
 import type { ViewerState } from '@/store';
 import type { FederatedModel } from '@/store/types';
@@ -43,12 +44,19 @@ import { expandAffectedSet, type RemeshCause } from './affected-set';
 import { loadRtcFrame, toRenderFrame } from './render-frame';
 
 
-/** The model's style wire with this session's styled items added (`overlay-style-wire.ts`), as filterStyleWire's first two arguments. */
-function stylesWithOverlay(wire: { styleIds: Uint32Array; styleColors: Uint8Array }, store: IfcDataStore, view: MutablePropertyView | null): [Uint32Array, Uint8Array] {
+/**
+ * The model's style wire with this session's styled items added
+ * (`overlay-style-wire.ts`), and the material colours it gave (by material,
+ * and by first material for the elements re-meshed), as filterStyleWire's
+ * first two arguments.
+ */
+function stylesWithOverlay(
+  wire: { styleIds: Uint32Array; styleColors: Uint8Array }, store: IfcDataStore, view: MutablePropertyView | null, targets: ReadonlySet<number>,
+): [Uint32Array, Uint8Array] {
   if (!view) return [wire.styleIds, wire.styleColors];
-  const merged = withOverlayStyles(wire, overlayStyleWire({
+  const src = {
     entities: () => view.getNewEntities().filter((e) => !view.isDeleted(e.expressId)),
-    attributes: (id) => {
+    attributes: (id: number) => {
       if (view.isDeleted(id)) return null;
       const base = view.getNewEntity(id)?.attributes ?? store.getEntity(id)?.attributes;
       if (!base) return null;
@@ -58,7 +66,10 @@ function stylesWithOverlay(wire: { styleIds: Uint32Array; styleColors: Uint8Arra
       for (const [index, value] of edits) attrs[index] = value;
       return attrs;
     },
-  }));
+  };
+  let merged = withOverlayStyles(wire, overlayStyleWire(src));
+  const materials = overlayMaterialColours(src);
+  if (materials.size) merged = withOverlayStyles(merged, materialColourWire(materials, materialIdsByElement(store, view, targets)));
   return [merged.styleIds, merged.styleColors];
 }
 export type { RemeshCause } from './affected-set';
@@ -335,7 +346,7 @@ async function remesh(
       buffer: sub.bytes,
       targets: Uint32Array.from(targets),
       frame,
-      ...filterStyleWire(...stylesWithOverlay(wire, store, view), sub.ids),
+      ...filterStyleWire(...stylesWithOverlay(wire, store, view, targets), sub.ids),
       materialElementIds: wire.materialElementIds,
       materialColorCounts: wire.materialColorCounts,
       materialColors: wire.materialColors,

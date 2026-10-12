@@ -31,7 +31,7 @@ export interface LayerRef {
 }
 
 export interface MaterialResolver {
-  /** The graphics of a polygon's material, or null when it has none. */
+  /** The graphics of a polygon's material (its layer's, else its element's single one), or null when it has none. */
   graphics(polygon: DrawingPolygon): (ProjectMaterial & { auto: boolean }) | null;
   /** The element's layers in order, when it has a layer set. */
   layers(entityId: number, modelIndex: number): LayerRef[] | null;
@@ -124,7 +124,7 @@ function midline(poly: DrawingPolygon): DraftShape | null {
 
 export function materialDrawing(drawing: Drawing2D, r: MaterialResolver): MaterialDrawing {
   const out: MaterialDrawing = { hatches: [], dropLines: new Set(), fills: new Map(), hidePolygons: new Set(), membranes: [] };
-  const named = drawing.cutPolygons.map((p) => ({ p, g: p.materialId !== undefined ? r.graphics(p) : null }));
+  const named = drawing.cutPolygons.map((p) => ({ p, g: r.graphics(p) }));
 
   // Bands: hatch and fill, or (a membrane's own band) a line along its middle.
   for (const { p, g } of named) {

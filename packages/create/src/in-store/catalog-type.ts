@@ -31,6 +31,7 @@ import { pruneOrphanOverlay } from './overlay-prune.js';
 import { AnchorEntityReader } from './resolve-anchor.js';
 import { readRelatedLists } from './resolve-relations.js';
 import { colourMaterial } from './roof-system-material.js';
+import { emitMaterialAppearance, type MaterialAppearance } from './material-appearance.js';
 
 type Attr = Parameters<StoreEditor['addEntity']>[1][number];
 
@@ -47,6 +48,8 @@ export interface CatalogTypeLayer {
   thickness: number;
   /** #rrggbb. */
   color?: string;
+  /** Its material's full appearance (surface colour, drafting hatches), when the project defines one. */
+  appearance?: MaterialAppearance;
 }
 
 export interface CatalogTypeInput {
@@ -159,7 +162,9 @@ function emitLayerSet(editor: StoreEditor, anchor: CatalogAnchor, input: Catalog
   const layers = input.layers ?? [];
   const materials = layers.map((l, i) => {
     const materialId = addMaterialToStore(editor, anchor, { Name: l.name }).materialId;
-    colourMaterial(editor, anchor, materialId, catalogLayerColour(layers, i), l.name);
+    // The project's material (colour and hatches) when it has one, else the layer's colour.
+    if (l.appearance) emitMaterialAppearance(editor, String(anchor.schema ?? 'IFC4'), anchor.bodyContextId, materialId, l.name, { ...l.appearance, color: l.appearance.color ?? catalogLayerColour(layers, i) });
+    else colourMaterial(editor, anchor, materialId, catalogLayerColour(layers, i), l.name);
     return materialId;
   });
   return addMaterialLayerSetToStore(editor, anchor, {

@@ -197,17 +197,32 @@ export interface ProjectCivilDrawing {
  * absent takes the default its name suggests; a membrane (or any layer under
  * 2 mm) draws as a heavy dashed line instead of a band.
  */
-export interface ProjectMaterial {
-  id: string;
-  name: string;
+/** The kinds of view a material draws differently in: plans (top view), elevations (front view), sections. */
+export type MaterialViewKind = 'plan' | 'elevation' | 'section';
+
+/** How a material draws in one kind of view. */
+export interface MaterialViewGraphics {
   hatch?: string | null;
   /** 1 = the pattern's own size. */
   hatchScale?: number;
-  /** Cut fill colour; null: none (white), absent: the material's IFC colour. */
+  /** Fill colour; null: none (white), absent: the material's colour. */
   fill?: string | null;
   /** Pen of the hatch lines. */
   hatchPen?: CategoryLineWeight;
+}
+
+/**
+ * A building material. Its own fields are its section graphics (where a
+ * section cuts it); `views` overrides them for plans and gives its front
+ * view (the faces an elevation sees). `color` is its surface colour: the
+ * colour of its elements and layers in 3D, written into the IFC models.
+ */
+export interface ProjectMaterial extends MaterialViewGraphics {
+  id: string;
+  name: string;
   membrane?: boolean;
+  color?: string;
+  views?: Partial<Record<Exclude<MaterialViewKind, 'section'>, MaterialViewGraphics>>;
 }
 
 /** A typical road cross-section (assembly) kept in the project's library. */

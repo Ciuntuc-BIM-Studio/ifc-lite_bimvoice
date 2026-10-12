@@ -17,7 +17,7 @@ import { readStandards } from './standards-file';
 import { readJoineryList } from '@/joinery/spec-file';
 import { readCurrentTypes, readElementTypeList } from '@/element-types/spec';
 import { readStructureProfileList } from '@ifc-lite/create';
-import type { ProjectCivilDrawing, ProjectMaterial, ProjectTypicalSection, CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
+import type { MaterialViewGraphics, ProjectCivilDrawing, ProjectMaterial, ProjectTypicalSection, CategoryGraphics, ElevationDirection, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSchedule, ProjectSheet, ProjectView, ProjectViewKind, ViewGraphics } from './types';
 
 export const PROJECT_FILE_SUFFIX = '.ifclite-project.json';
 export const PROJECT_FILE_FORMAT = 'ifclite-project';
@@ -190,13 +190,24 @@ function readCurrentJoinery(raw: unknown): { door?: string; window?: string } {
 
 function readMaterial(raw: unknown): ProjectMaterial[] {
   if (!isObject(raw) || !isString(raw.id) || !isString(raw.name) || !raw.name.trim()) return [];
-  const out: ProjectMaterial = { id: raw.id, name: raw.name };
+  const out: ProjectMaterial = { id: raw.id, name: raw.name, ...readMaterialView(raw) };
+  if (raw.membrane === true) out.membrane = true;
+  if (isString(raw.color) && HEX.test(raw.color)) out.color = raw.color;
+  if (isObject(raw.views)) {
+    const views: NonNullable<ProjectMaterial['views']> = {};
+    for (const kind of ['plan', 'elevation'] as const) if (isObject(raw.views[kind])) views[kind] = readMaterialView(raw.views[kind]);
+    if (Object.keys(views).length) out.views = views;
+  }
+  return [out];
+}
+
+function readMaterialView(raw: Record<string, unknown>): MaterialViewGraphics {
+  const out: MaterialViewGraphics = {};
   if (raw.hatch === null || isString(raw.hatch)) out.hatch = raw.hatch;
   if (isNumber(raw.hatchScale) && raw.hatchScale > 0) out.hatchScale = raw.hatchScale;
   if (raw.fill === null || (isString(raw.fill) && HEX.test(raw.fill))) out.fill = raw.fill;
-  if (isString(raw.hatchPen) && WEIGHTS.has(raw.hatchPen)) out.hatchPen = raw.hatchPen as ProjectMaterial['hatchPen'];
-  if (raw.membrane === true) out.membrane = true;
-  return [out];
+  if (isString(raw.hatchPen) && WEIGHTS.has(raw.hatchPen)) out.hatchPen = raw.hatchPen as MaterialViewGraphics['hatchPen'];
+  return out;
 }
 
 function readTypicalSection(raw: unknown): ProjectTypicalSection[] {

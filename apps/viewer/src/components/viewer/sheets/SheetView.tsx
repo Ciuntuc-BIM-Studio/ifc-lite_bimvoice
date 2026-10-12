@@ -79,7 +79,7 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
       if (out.has(vp.viewId)) continue;
       const view = views.find((v) => v.id === vp.viewId);
       const raw = (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing;
-      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(raw)) : null;
+      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(raw, view?.kind)) : null;
       const overlays = [...(view && raw ? planOverlays(view, raw.config.plane, geometryResult?.meshes, flips, hiddenClasses(view.graphics), raw) : []), ...membraneOverlays(drawing)];
       out.set(vp.viewId, { drawing, overlays });
     }

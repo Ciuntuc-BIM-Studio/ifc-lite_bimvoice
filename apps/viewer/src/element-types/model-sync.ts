@@ -37,12 +37,19 @@ import { authoredKindOf } from '@/lib/commands/modeling/authored-kinds';
 import { currentType, elementType } from './catalog';
 import { TYPE_CLASS, layersThickness, type ElementTypeKind, type ElementTypeSpec, type RoofTypeSpec } from './spec';
 import { ensureEditMode } from '@/project/edit-mode';
+import { projectMaterialAppearance } from '@/project/material-ifc-sync';
 
 /** The entry as a type object: class, name, mark, layers, and itself as the stored spec. */
 export function catalogInput(spec: ElementTypeSpec): CatalogTypeInput | null {
   const ifcClass = TYPE_CLASS[spec.kind];
   if (!ifcClass) return null;
-  const layers = spec.kind === 'wall' || spec.kind === 'slab' ? spec.layers : undefined;
+  // Each layer's material as the project defines it (colour and hatches), so the type writes what the drawings show.
+  const layers = spec.kind === 'wall' || spec.kind === 'slab'
+    ? spec.layers.map((l) => {
+      const appearance = projectMaterialAppearance(l.name);
+      return appearance ? { ...l, appearance } : l;
+    })
+    : undefined;
   return { id: spec.id, ifcClass, name: spec.name, mark: spec.mark || undefined, layers, spec };
 }
 

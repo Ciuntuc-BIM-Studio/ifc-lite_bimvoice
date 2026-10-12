@@ -122,7 +122,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const mutationVersionForMaterials = useViewerStore((st) => st.mutationVersion);
   const shown = useMemo(() => {
     void materialsTable; void mutationVersionForMaterials;
-    return drawing ? styledDrawing(drawing, graphics, partHostType, view.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(drawing)) : null;
+    return drawing ? styledDrawing(drawing, graphics, partHostType, view.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(drawing, view.kind)) : null;
   }, [drawing, graphics, view.kind, materialsTable, mutationVersionForMaterials]);
   const overrideRules = useMemo(() => viewOverrideRules(graphics), [graphics]);
   const overrideEngine = useMemo(() => new GraphicOverrideEngine(overrideRules), [overrideRules]);

@@ -74,6 +74,10 @@ export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, remo
 export { deletionClosure, type DeletionPlan } from './element-deletion.js';
 export { END_CUTS, memberSolidFaces, pruneOverrides, shapeMembers, type EndCut, type RoofOverrides, type RoofPartOverride, type ShapedMember } from './roof-overrides.js';
 export { coveringLayers, coveringThickness, layerColour, type RoofCovering, type RoofLayer } from './roof-system-material.js';
+export {
+  MATERIAL_VIEW_KINDS, elementsWithMaterials, emitMaterialAppearance, materialIdsByElement, materialsNamed, readMaterialAppearance, viewOfFillStyle, writeMaterialAppearance,
+  type MaterialAppearance, type MaterialHatchStyle, type MaterialViewKind,
+} from './material-appearance.js';
 export { revolveFaces, sweepFaces } from './sweep-revolve.js';
 export { addDoorToStore, type DoorInStoreParams, type DoorBuildResult } from './door.js';
 export { addWindowToStore, type WindowInStoreParams, type WindowBuildResult } from './window.js';

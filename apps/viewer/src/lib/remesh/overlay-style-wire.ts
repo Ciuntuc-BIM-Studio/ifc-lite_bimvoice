@@ -88,3 +88,45 @@ export function withOverlayStyles(
   colors.set(overlay.styleColors, wire.styleColors.length);
   return { styleIds: ids, styleColors: colors };
 }
+
+/** The material colours this session gave: its live IfcMaterialDefinitionRepresentations, followed to their surface colour. */
+export function overlayMaterialColours(src: OverlayEntitySource): Map<number, [number, number, number, number]> {
+  const out = new Map<number, [number, number, number, number]>();
+  for (const e of src.entities()) {
+    if (e.type.toUpperCase() !== 'IFCMATERIALDEFINITIONREPRESENTATION') continue;
+    const material = ref(e.attributes[3]);
+    if (material === null) continue;
+    const reps = Array.isArray(e.attributes[2]) ? e.attributes[2] : [];
+    find: for (const r of reps) {
+      const items = src.attributes(ref(r) ?? -1)?.[3];
+      for (const i of Array.isArray(items) ? items : []) {
+        const styles = src.attributes(ref(i) ?? -1)?.[1];
+        for (const s of Array.isArray(styles) ? styles : []) {
+          const c = styleColour(src, ref(s) ?? -1);
+          if (c) { out.set(material, c); break find; }
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Style wire entries for the session's material colours, as the engine's
+ * prepass writes them: material id → colour (layer slices are keyed by
+ * their material) and element id → its first material's colour (the
+ * per-element fallback), for the elements given with their materials.
+ */
+export function materialColourWire(
+  colours: ReadonlyMap<number, [number, number, number, number]>,
+  materialsOf: ReadonlyMap<number, readonly number[]>,
+): { styleIds: Uint32Array; styleColors: Uint8Array } {
+  const ids: number[] = [];
+  const rgba: number[] = [];
+  for (const [id, c] of colours) { ids.push(id); rgba.push(...c); }
+  for (const [element, materials] of materialsOf) {
+    const c = materials.length ? colours.get(materials[0]) : undefined;
+    if (c) { ids.push(element); rgba.push(...c); }
+  }
+  return { styleIds: Uint32Array.from(ids), styleColors: Uint8Array.from(rgba) };
+}

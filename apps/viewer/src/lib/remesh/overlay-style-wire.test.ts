@@ -6,7 +6,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { overlayStyleWire, withOverlayStyles } from './overlay-style-wire';
+import { materialColourWire, overlayMaterialColours, overlayStyleWire, withOverlayStyles } from './overlay-style-wire';
 
 const entity = (expressId: number, type: string, attributes: unknown[]) => ({ expressId, type, attributes });
 
@@ -30,5 +30,24 @@ describe('overlay style wire', () => {
     const merged = withOverlayStyles({ styleIds: Uint32Array.of(5), styleColors: Uint8Array.of(1, 2, 3, 4) }, wire);
     assert.deepEqual([...merged.styleIds], [5, 100, 200]);
     assert.equal(merged.styleColors.length, 12);
+  });
+
+  it('reads the session\'s material colours and keys them by material and by element (first material)', () => {
+    const all = [
+      entity(10, 'IfcColourRgb', [null, { real: 0.8 }, { real: 0.2 }, { real: 0.1 }]),
+      entity(11, 'IfcSurfaceStyleShading', ['#10', { real: 0 }]),
+      entity(12, 'IfcSurfaceStyle', ['Concrete', '.BOTH.', ['#11']]),
+      // A hatch first, in its own styled item: skipped for the colour.
+      entity(13, 'IfcFillAreaStyle', ['Section', ['#10'], '.T.']),
+      entity(14, 'IfcStyledItem', [null, ['#13'], null]),
+      entity(15, 'IfcStyledItem', [null, ['#12'], null]),
+      entity(16, 'IfcStyledRepresentation', ['#1', 'Style', 'Material', ['#14', '#15']]),
+      entity(17, 'IfcMaterialDefinitionRepresentation', [null, null, ['#16'], '#259']),
+    ];
+    const byId = new Map(all.map((e) => [e.expressId, e.attributes]));
+    const colours = overlayMaterialColours({ entities: () => all, attributes: (id) => byId.get(id) ?? null });
+    assert.deepEqual([...colours], [[259, [204, 51, 26, 255]]]);
+    const wire = materialColourWire(colours, new Map([[1222, [259, 300]], [1300, [300, 259]]]));
+    assert.deepEqual([...wire.styleIds], [259, 1222]);
   });
 });
