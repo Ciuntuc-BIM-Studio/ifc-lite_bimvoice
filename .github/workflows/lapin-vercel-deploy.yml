@@ -8,8 +8,8 @@ name: Lapin deploy (Vercel, prebuilt)
 # runs out of memory bundling it) and uploads the finished output to Vercel
 # with `vercel deploy --prebuilt`, so Vercel compiles nothing.
 #
-# It publishes the docs edition (VITE_EDITION=docs: documentation of existing
-# models, no modelling); the full edition is built and run locally.
+# It publishes Lapin, the full edition (VITE_EDITION=full), at lapinbim.vercel.app.
+# The docs edition (IfcSheet) lives in its own repository, BIMvoice/ifcsheet.
 #
 # Needs three repository secrets (Settings → Secrets and variables → Actions):
 #   VERCEL_TOKEN       a token from https://vercel.com/account/tokens
@@ -72,7 +72,7 @@ jobs:
       - name: Build
         env:
           VERCEL_NODE_MAX_OLD_SPACE_MB: '8192'
-          VITE_EDITION: docs
+          VITE_EDITION: full
         run: |
           set -o pipefail
           vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tee build.log
