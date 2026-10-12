@@ -9,7 +9,8 @@
  * a configured type's cut parts heavy, its exterior-seen parts dashed) and
  * the roof systems (ridges heavy; hips, eaves and verges seen; valleys
  * dashed; a downslope arrow with the pitch on every plane) and the road
- * corridors (`civil/civil-plan.ts`). Honours the view's hidden categories.
+ * corridors (`civil/civil-plan.ts`) and the section marks (`section-marks.ts`).
+ * Honours the view's hidden categories.
  */
 
 import type { MeshData } from '@ifc-lite/geometry';
@@ -21,6 +22,8 @@ import { planRoofs } from './roof-plan';
 import { viewElevationSymbols, viewOpeningSymbols, visibleEntities } from './view-symbols';
 import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import { corridorOverlays } from '@/civil/civil-plan';
+import { sectionMarkOverlays } from './section-marks';
+import { useProjectStore } from './project-store';
 
 export interface PlanOverlay {
   /** The DXF layer. */
@@ -92,5 +95,8 @@ export function planOverlays(
 ): PlanOverlay[] {
   if (view.kind === 'elevation' || view.kind === 'section') return meshes && drawing ? symbolOverlays(meshes, plane, flips, hidden, drawing) : [];
   if (view.kind !== 'plan') return [];
-  return [...(meshes ? symbolOverlays(meshes, plane, flips, hidden) : []), ...roofOverlays(view, plane, hidden), ...corridorOverlays(view, plane, hidden)];
+  return [
+    ...(meshes ? symbolOverlays(meshes, plane, flips, hidden) : []), ...roofOverlays(view, plane, hidden), ...corridorOverlays(view, plane, hidden),
+    ...sectionMarkOverlays(view, plane, useProjectStore.getState().views),
+  ];
 }

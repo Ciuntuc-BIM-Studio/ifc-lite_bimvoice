@@ -21,6 +21,7 @@ import { toast } from '@/components/ui/toast';
 import { useViewerStore } from '@/store';
 import { elementPlacement, moveToStorey, selectionByModel, setPlacement, storeysOf } from '@/project/element-relocate';
 import type { PlacementTransform } from '@ifc-lite/create';
+import { GeometryEditCard } from '../GeometryEditCard';
 
 const CELL = 'h-7 w-full rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1.5 text-xs tabular-nums';
 const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz'] as const;
@@ -29,6 +30,16 @@ type Key = (typeof KEYS)[number];
 const show = (k: Key, v: number) => (k.startsWith('r') ? (Math.round(v * 1000) / 1000) : (Math.round(v * 10000) / 10000)).toString();
 
 /** An element's placement is modelling: the docs edition shows no card. */
+/** The edit-mode geometry cards of the properties panel: ifc-lite's position card, then this one. */
+export function GeometryCards({ modelId, entityId, entityLabel }: { modelId: string; entityId: number; entityLabel: string }) {
+  return (
+    <>
+      <GeometryEditCard modelId={modelId} entityId={entityId} entityLabel={entityLabel} />
+      <PlacementCard modelId={modelId} expressId={entityId} />
+    </>
+  );
+}
+
 export function PlacementCard(props: { modelId: string; expressId: number }) {
   return can('modelling') ? <PlacementCardBody {...props} /> : null;
 }

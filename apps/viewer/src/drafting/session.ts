@@ -42,6 +42,8 @@ interface SessionState {
   history: HistoryLine[];
   selection: ReadonlySet<string>;
   ortho: boolean;
+  /** Ctrl held down while drawing: ortho for as long as it is held. */
+  orthoHeld: boolean;
   snap: boolean;
   lastCommandId: string | null;
   /** Bumped whenever the running command's internal state changes (preview refresh). */
@@ -57,6 +59,7 @@ export const useDraftingSession = create<SessionState>()(() => ({
   history: [],
   selection: new Set(),
   ortho: false,
+  orthoHeld: false,
   snap: true,
   lastCommandId: null,
   revision: 0,
@@ -259,14 +262,18 @@ export function pickEntity(p: Pt, tolerance: number): DraftEntity | null {
   return best;
 }
 
-/** Ortho constrains a point against the command's base point. */
+/** Ortho (the toggle, or Ctrl held) constrains a point against the command's base point. */
 export function constrainPoint(p: Pt): Pt {
   const base = command?.basePoint() ?? null;
-  return base && get().ortho ? applyOrtho(base, p) : p;
+  return base && (get().ortho || get().orthoHeld) ? applyOrtho(base, p) : p;
 }
 
-/** A click on the drawing (already snapped), with the pick tolerance in drawing units. */
-export function clickDrawing(p: Pt, tolerance: number, additive: boolean): void {
+/**
+ * A click on the drawing, with the pick tolerance in drawing units. A point
+ * that snapped to something stays where it snapped (object snap wins over
+ * ortho); any other is constrained by ortho.
+ */
+export function clickDrawing(p: Pt, tolerance: number, additive: boolean, snapped = false): void {
   const { viewId, selecting } = get();
   if (!viewId) return;
   if (selecting || !command) {
@@ -292,7 +299,7 @@ export function clickDrawing(p: Pt, tolerance: number, additive: boolean): void 
     if (hit && command.onPick) finish(command.onPick(hit, p));
     return;
   }
-  if (command.onPoint) finish(command.onPoint(constrainPoint(p)));
+  if (command.onPoint) finish(command.onPoint(snapped ? p : constrainPoint(p)));
 }
 
 /** Window (fully inside) or crossing (touching) selection of a drawn rectangle. */
@@ -388,14 +395,4 @@ export function submitCommandLine(text: string, cursor: Pt | null): void {
   say({ key: 'drafting.msg.invalidInput' });
 }
 
-export function toggleOrtho(): void {
-  set({ ortho: !get().ortho });
-}
-
-export function toggleSnap(): void {
-  set({ snap: !get().snap });
-}
-
-export function setDraftSelection(ids: ReadonlySet<string>): void {
-  set({ selection: ids });
-}
+export { setDraftSelection, setOrthoHeld, toggleOrtho, toggleSnap } from './session-aids';

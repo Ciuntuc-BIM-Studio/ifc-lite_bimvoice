@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { screenToDrawing, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
-import { clickDrawing, constrainPoint, pickEntity, runningCommand, useDraftingSession, windowSelect } from '@/drafting/session';
+import { clickDrawing, constrainPoint, pickEntity, runningCommand, setOrthoHeld, useDraftingSession, windowSelect } from '@/drafting/session';
 import { findSnap } from '@/drafting/snaps';
 import { capturePointer } from '@/lib/pointer-capture';
 import { referencesIn, type ReferenceSet } from '@/drafting/references';
@@ -97,6 +97,7 @@ export function useDraftingPointer({ containerRef, transform, setTransform, axis
       setState({ cursor: at, snap: hit, hoverId: null, window: null, gripDrag: { grip: d.grip, at } });
       return;
     }
+    setOrthoHeld(e.ctrlKey);
     const { point, snap } = resolve(raw);
     const command = runningCommand();
     const hoverId = !command || command.input() === 'pick' ? pickEntity(raw, PICK_PX / transform.scale)?.id ?? null : null;
@@ -116,7 +117,9 @@ export function useDraftingPointer({ containerRef, transform, setTransform, axis
     const raw = screenToDrawing(s, transform, axis);
     const command = runningCommand();
     if (command && command.input() === 'point') {
-      clickDrawing(resolve(raw).point, PICK_PX / transform.scale, e.shiftKey);
+      setOrthoHeld(e.ctrlKey);
+      const hit = resolve(raw);
+      clickDrawing(hit.point, PICK_PX / transform.scale, e.shiftKey, hit.snap !== null);
       return;
     }
     if (command) {

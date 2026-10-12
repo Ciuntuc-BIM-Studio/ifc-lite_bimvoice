@@ -93,6 +93,8 @@ export interface SectionProjectPlane {
 export interface SectionProjectView extends ProjectViewBase {
   kind: 'section';
   plane: SectionProjectPlane;
+  /** The section line drawn on a plan, world metres (viewer frame): plans show it as the section's mark. */
+  marker?: { a: [number, number, number]; b: [number, number, number] };
 }
 
 export interface ElevationProjectView extends ProjectViewBase {

@@ -14,6 +14,7 @@ import { styledParams } from '@/project/drafting-standards';
 import { dimensionLayout, entitySkeleton, nextAxisLabel } from '../annotation';
 import { findPattern } from '../hatch/library';
 import { regionAt } from '../hatch/region';
+import { applyOrtho } from '../input';
 import type { AnnotationShape, AxisShape, DraftShape, Pt } from '../types';
 import type { DraftCommandDef, DraftContext, StepResult } from './types';
 
@@ -54,6 +55,13 @@ export const textCommand: DraftCommandDef = {
   },
 };
 
+/**
+ * LEADER: the arrow point, then the elbow (the inclined segment, any
+ * direction), then the landing — held horizontal or vertical from the elbow,
+ * with both directions shown as guides — and the text. Enter after the elbow
+ * writes the text there (a single segment); F (free) before the landing lets
+ * it take any direction.
+ */
 export const leaderCommand: DraftCommandDef = {
   id: 'leader',
   aliases: ['LEADER', 'LE', 'MLEADER'],
@@ -61,13 +69,21 @@ export const leaderCommand: DraftCommandDef = {
   create(ctx) {
     const pts: Pt[] = [];
     let asking = false;
+    let free = false;
+    const landing = (p: Pt): Pt => (pts.length === 2 && !free ? applyOrtho(pts[1], p) : p);
     return {
-      prompt: () => ({ key: asking ? 'drafting.prompt.enterText' : pts.length === 0 ? 'drafting.prompt.leaderTip' : 'drafting.prompt.leaderNext' }),
+      prompt: () => ({ key: asking ? 'drafting.prompt.enterText' : pts.length === 0 ? 'drafting.prompt.leaderTip' : pts.length === 1 ? 'drafting.prompt.leaderElbow' : 'drafting.prompt.leaderLanding' }),
       input: () => 'point',
       basePoint: () => pts.at(-1) ?? null,
       onPoint(p) {
-        if (!asking) pts.push(p);
+        if (asking) return 'continue';
+        pts.push(landing(p));
+        if (pts.length === 3) asking = true;
         return 'continue';
+      },
+      onKeyword(word) {
+        if (word === 'F' && pts.length === 2) { free = true; return 'continue'; }
+        return undefined;
       },
       onEnter() {
         if (pts.length < 2) return 'done';
@@ -79,12 +95,26 @@ export const leaderCommand: DraftCommandDef = {
         if (pts.length >= 2) add(ctx, { type: 'leader', pts: [...pts], text, height: ctx.settings.textHeight });
         return 'done';
       },
-      preview: (cursor) => (pts.length && !asking ? [{ type: 'polyline', pts: [...pts, cursor], closed: false }] : []),
+      preview(cursor) {
+        if (!pts.length || asking) return [];
+        const shapes: DraftShape[] = [{ type: 'polyline', pts: [...pts, landing(cursor)], closed: false }];
+        if (pts.length === 2 && !free) {
+          // The landing's two directions through the elbow.
+          const e = pts[1], r = ctx.settings.textHeight * 30;
+          shapes.push({ type: 'line', a: { x: e.x - r, y: e.y }, b: { x: e.x + r, y: e.y } }, { type: 'line', a: { x: e.x, y: e.y - r }, b: { x: e.x, y: e.y + r } });
+        }
+        return shapes;
+      },
     };
   },
 };
 
-/** DIMALIGNED / DIMLINEAR: two points, then where the dimension line goes. */
+/**
+ * DIMALIGNED / DIMLINEAR: two points, then where the dimension line goes —
+ * and then, continued by default, each further point adds the next
+ * dimension on the same line, measured the same way (Enter ends). S at the
+ * start makes a single dimension.
+ */
 function linearDim(variant: 'aligned' | 'linear'): DraftCommandDef {
   return {
     id: variant === 'aligned' ? 'dimaligned' : 'dimlinear',
@@ -92,20 +122,44 @@ function linearDim(variant: 'aligned' | 'linear'): DraftCommandDef {
     labelKey: variant === 'aligned' ? 'drafting.cmd.dimAligned' : 'drafting.cmd.dimLinear',
     create(ctx) {
       const pts: Pt[] = [];
+      let single = false;
+      // Once the first dimension is placed: its line, its direction, the last point.
+      let chain: { at: Pt; dir: Pt; last: Pt } | null = null;
       const shape = (at: Pt): AnnotationShape => ({ type: 'dimension', variant, a: pts[0], b: pts[1], at, height: ctx.settings.textHeight });
+      const next = (p: Pt): AnnotationShape => ({ type: 'dimension', variant, a: chain!.last, b: p, at: chain!.at, dir: chain!.dir, height: ctx.settings.textHeight });
       return {
-        prompt: () => ({ key: pts.length === 0 ? 'drafting.prompt.dimFirst' : pts.length === 1 ? 'drafting.prompt.dimSecond' : 'drafting.prompt.dimLine' }),
+        prompt: () => ({ key: chain ? 'drafting.prompt.dimNext' : pts.length === 0 ? 'drafting.prompt.dimFirst' : pts.length === 1 ? 'drafting.prompt.dimSecond' : 'drafting.prompt.dimLine' }),
         input: () => 'point',
-        basePoint: () => pts.at(-1) ?? null,
+        basePoint: () => chain?.last ?? pts.at(-1) ?? null,
         onPoint(p) {
+          if (chain) {
+            if (Math.hypot(p.x - chain.last.x, p.y - chain.last.y) < 1e-9) return 'continue';
+            add(ctx, next(p));
+            chain.last = p;
+            return 'continue';
+          }
           if (pts.length < 2) {
             pts.push(p);
             return 'continue';
           }
-          add(ctx, shape(p));
-          return 'done';
+          const first = shape(p);
+          add(ctx, first);
+          if (single) return 'done';
+          // The next dimensions keep this one's line and direction.
+          const line = dimensionLayout(first as Extract<AnnotationShape, { type: 'dimension' }>).lines[2];
+          const d = { x: line.b.x - line.a.x, y: line.b.y - line.a.y };
+          const len = Math.hypot(d.x, d.y);
+          const dir = len > 1e-9 ? { x: d.x / len, y: d.y / len } : { x: 1, y: 0 };
+          chain = { at: p, dir, last: pts[1] };
+          return 'continue';
         },
+        onKeyword(word) {
+          if (word === 'S' && pts.length === 0 && !chain) { single = true; return 'continue'; }
+          return undefined;
+        },
+        onEnter: () => 'done',
         preview(cursor) {
+          if (chain) return skeleton(next(cursor));
           if (pts.length === 1) return [{ type: 'line', a: pts[0], b: cursor }];
           if (pts.length === 2) return skeleton(shape(cursor));
           return [];
@@ -178,21 +232,36 @@ export const dimAngularCommand: DraftCommandDef = {
   },
 };
 
+/**
+ * LEVEL: the reference point (what is measured — snap to the floor line),
+ * then where the symbol sits: anywhere, on any horizontal line, linked to
+ * its reference; Enter puts it on the reference. The mark is parametric:
+ * moving its reference, the storey or the section re-measures it.
+ */
 export const levelCommand: DraftCommandDef = {
   id: 'level',
   aliases: ['LEVEL', 'LV', 'SPOTELEVATION'],
   labelKey: 'drafting.cmd.level',
   create(ctx) {
+    let ref: Pt | null = null;
+    const mark = (p: Pt, r: Pt): AnnotationShape => ({ type: 'level', p, ref: r, value: ctx.levelAt(r), height: ctx.settings.textHeight });
     return {
-      prompt: () => ({ key: 'drafting.prompt.levelPoint' }),
+      prompt: () => ({ key: ref ? 'drafting.prompt.levelSymbol' : 'drafting.prompt.levelPoint' }),
       input: () => 'point',
-      basePoint: () => null,
+      basePoint: () => ref,
       onPoint(p) {
-        add(ctx, { type: 'level', p, value: ctx.levelAt(p), height: ctx.settings.textHeight });
+        if (!ref) { ref = p; return 'continue'; }
+        add(ctx, mark(p, ref));
+        ref = null;
         return 'continue';
       },
-      onEnter: () => 'done',
-      preview: (cursor) => skeleton({ type: 'level', p: cursor, value: 0, height: ctx.settings.textHeight }),
+      onEnter() {
+        if (!ref) return 'done';
+        add(ctx, mark(ref, ref));
+        ref = null;
+        return 'continue';
+      },
+      preview: (cursor) => skeleton(ref ? mark(cursor, ref) : { type: 'level', p: cursor, value: 0, height: ctx.settings.textHeight }),
     };
   },
 };

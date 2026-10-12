@@ -177,6 +177,9 @@ export const AnnotationGraphics = memo(function AnnotationGraphics({
       return (
         <g>
           <g stroke={lineColor} fill="none" strokeWidth={k}>
+            {shape.ref && Math.hypot(shape.ref.x - shape.p.x, shape.ref.y - shape.p.y) > 1e-9
+              ? <path d={`M${s(shape.ref).x} ${s(shape.ref).y}L${p.x} ${p.y}`} strokeWidth={k * 0.6} strokeDasharray={`${3 * k} ${2 * k}`} />
+              : null}
             <path d={`M${p.x} ${p.y}L${p.x - h} ${p.y - h}L${p.x + h} ${p.y - h}Z`} fill={lineColor} fillOpacity={0.25} />
             <path d={`M${p.x - h} ${p.y}L${p.x + h * 5} ${p.y}`} />
           </g>

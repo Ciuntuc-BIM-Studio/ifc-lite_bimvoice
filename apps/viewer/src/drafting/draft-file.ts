@@ -41,6 +41,7 @@ function readAnnotation(v: Json, path: string): AnnotationShape | null {
       return {
         type: 'dimension', variant: v.variant === 'linear' ? 'linear' : 'aligned', a: pt('a'), b: pt('b'), at: pt('at'),
         height: readHeight(v, path), ...(isString(v.text) ? { text: v.text } : {}),
+        ...(v.textAt !== undefined ? { textAt: pt('textAt') } : {}), ...(v.dir !== undefined ? { dir: pt('dir') } : {}),
       };
     case 'radial':
       if (!isNumber(v.r) || v.r <= 0) fail(`${path}.r`, 'must be a positive radius');
@@ -49,7 +50,7 @@ function readAnnotation(v: Json, path: string): AnnotationShape | null {
       return { type: 'angular', c: pt('c'), a: pt('a'), b: pt('b'), at: pt('at'), height: readHeight(v, path) };
     case 'level':
       if (!isNumber(v.value)) fail(`${path}.value`, 'must be a number');
-      return { type: 'level', p: pt('p'), value: v.value, height: readHeight(v, path) };
+      return { type: 'level', p: pt('p'), value: v.value, height: readHeight(v, path), ...(v.ref !== undefined ? { ref: pt('ref') } : {}) };
     case 'axis':
       if (!isString(v.label)) fail(`${path}.label`, 'must be a string');
       return {

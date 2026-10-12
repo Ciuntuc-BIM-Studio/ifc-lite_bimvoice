@@ -103,7 +103,9 @@ export function AnnotationFields({ entity, shape, extraPatterns }: { entity: Dra
     case 'level':
       return (
         <>
-          <Field label={t('drafting.props.value')} value={String(shape.value)} numeric onCommit={(v) => update(entity, { ...shape, value: finite(v, shape.value) })} />
+          {/* Typing a value detaches a parametric mark from its reference. */}
+          <Field label={t('drafting.props.value')} value={String(shape.value)} numeric onCommit={(v) => { const { ref: _ref, ...fixed } = shape; void _ref; update(entity, { ...fixed, value: finite(v, shape.value) }); }} />
+          {shape.ref ? <p className="text-2xs text-zinc-500">{t('drafting.props.levelLinked')}</p> : null}
           {height}
         </>
       );

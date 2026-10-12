@@ -11,7 +11,7 @@
 
 import { useProjectStore } from '@/project/project-store';
 import { freshProjectId } from '@/project/view-defaults';
-import type { DraftEntity, DraftParamValue, EntityShape } from './types';
+import type { DraftEntity, DraftParamValue, EntityShape, Pt } from './types';
 
 const HISTORY_LIMIT = 200;
 
@@ -26,10 +26,43 @@ export const lastDraftStepAt = (): number | null => pastAt.at(-1) ?? null;
 /** When the step Redo would restore was made, or null when there is none. */
 export const nextDraftRedoAt = (): number | null => futureAt.at(-1) ?? null;
 
-/** Replace the drafts with `next`, as one undoable step. */
-export function commitDrafts(next: DraftEntity[]): void {
+/** A view's height at a drawing point (its level on a plan, the point's elevation on a section / elevation). */
+export type LevelResolver = (p: Pt) => number;
+const levelResolvers = new Map<string, LevelResolver>();
+
+/** Parametric level marks take their value from their reference: the drafts with every resolvable one up to date. */
+function withLevels(drafts: DraftEntity[]): DraftEntity[] {
+  let changed = false;
+  const out = drafts.map((d) => {
+    const s = d.shape;
+    const resolve = s.type === 'level' && s.ref ? levelResolvers.get(d.viewId) : undefined;
+    if (s.type !== 'level' || !s.ref || !resolve) return d;
+    const value = Math.round(resolve(s.ref) * 10000) / 10000;
+    if (!Number.isFinite(value) || Math.abs(value - s.value) < 1e-9) return d;
+    changed = true;
+    return { ...d, shape: { ...s, value } };
+  });
+  return changed ? out : drafts;
+}
+
+/**
+ * The level resolver of a view (set by the view while it is open; null when it closes). Its
+ * level marks are brought up to date at once — a storey moved, a section re-cut — without an
+ * undo step of their own.
+ */
+export function setLevelResolver(viewId: string, resolve: LevelResolver | null): void {
+  if (!resolve) { levelResolvers.delete(viewId); return; }
+  levelResolvers.set(viewId, resolve);
   const current = useProjectStore.getState().drafts;
-  if (next === current) return;
+  const next = withLevels(current);
+  if (next !== current) useProjectStore.setState({ drafts: next, dirty: true });
+}
+
+/** Replace the drafts with `next`, as one undoable step. */
+export function commitDrafts(input: DraftEntity[]): void {
+  const current = useProjectStore.getState().drafts;
+  if (input === current) return;
+  const next = withLevels(input);
   past = [...past.slice(-(HISTORY_LIMIT - 1)), current];
   pastAt = [...pastAt.slice(-(HISTORY_LIMIT - 1)), Date.now()];
   future = [];

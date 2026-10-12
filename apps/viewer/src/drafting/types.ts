@@ -35,10 +35,16 @@ export type DraftShape =
 export type AnnotationShape =
   | { type: 'text'; p: Pt; text: string; height: number; rotation: number }
   | { type: 'leader'; pts: Pt[]; text: string; height: number }
-  | { type: 'dimension'; variant: 'aligned' | 'linear'; a: Pt; b: Pt; at: Pt; height: number; text?: string; textAt?: Pt }
+  /** `dir`: the measuring direction held fixed (a continued dimension keeps the first one's); absent: from the points / the pull. */
+  | { type: 'dimension'; variant: 'aligned' | 'linear'; a: Pt; b: Pt; at: Pt; height: number; text?: string; textAt?: Pt; dir?: Pt }
   | { type: 'radial'; c: Pt; r: number; at: Pt; diameter: boolean; height: number }
   | { type: 'angular'; c: Pt; a: Pt; b: Pt; at: Pt; height: number }
-  | { type: 'level'; p: Pt; value: number; height: number }
+  /**
+   * A level mark: the symbol at `p`. With `ref`, it is parametric — `value` is the view's height at
+   * `ref` (kept up to date by the draft store), and the symbol can sit anywhere, on any line, linked
+   * to its reference by a thin line. Without `ref`, `value` is as typed.
+   */
+  | { type: 'level'; p: Pt; value: number; height: number; ref?: Pt }
   | AxisShape
   | { type: 'hatch'; loops: Pt[][]; pattern: string; scale: number; angle: number; color?: string };
 

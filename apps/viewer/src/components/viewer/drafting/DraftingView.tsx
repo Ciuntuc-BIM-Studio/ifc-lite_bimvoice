@@ -8,6 +8,7 @@
  * drafted entities and command previews over it, and the command line.
  */
 
+import { snapShapes } from '@/drafting/annotation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GraphicOverrideEngine, type Drawing2D } from '@ifc-lite/drawing-2d';
 import { isGeometry, type DraftEntity, type DraftShape, type Pt } from '@/drafting/types';
@@ -52,6 +53,8 @@ import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
 import { MembraneLayer } from './MembraneLayer';
 import { RoofPlanLayer } from '../roof/RoofPlanLayer';
+import { SectionMarksLayer } from './SectionMarksLayer';
+import { setLevelResolver } from '@/drafting/draft-store';
 import { roofAtPoint } from '@/project/roof-plan';
 import { editRoofBlock } from '@/project/roof-block';
 import { useRoofDialog } from '@/project/roof-dialog-store';
@@ -111,7 +114,8 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
 
   const references = useMemo(() => (drawing ? referenceSet(drawing, false) : null), [drawing]);
   const entities = useMemo(() => draftsOfView(view.id, allDrafts), [allDrafts, view.id]);
-  const entityShapes = useMemo(() => entities.flatMap((e) => (isGeometry(e.shape) ? [e.shape] : [])), [entities]);
+  // Geometry, plus dimension lines and axes: new dimensions align to existing ones.
+  const entityShapes = useMemo(() => entities.flatMap((e) => snapShapes(e.shape)), [entities]);
   // The view's own graphics (preset + category overrides), applied to its drawing.
   const graphics = view.graphics;
   const materialsTable = useProjectStore((st) => st.materials);
@@ -153,14 +157,19 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   // Hatch boundaries: drafted closed shapes and the drawing's cut outlines. Level marks: the
   // plan's level, or the point's height on a section / elevation.
   useEffect(() => {
-    setAnnotationProviders(
-      () => closedLoopsOf(entities, drawing),
-      (p) => {
-        if (view.kind === 'plan') return (resolvePlanLevel(view, levels) ?? view.level).elevation;
-        return plane ? drawingToWorld(plane, p).y : 0;
-      },
-    );
+    const levelAt = (p: Pt) => {
+      if (view.kind === 'plan') return (resolvePlanLevel(view, levels) ?? view.level).elevation;
+      return plane ? drawingToWorld(plane, p).y : 0;
+    };
+    setAnnotationProviders(() => closedLoopsOf(entities, drawing), levelAt);
   }, [entities, drawing, view, levels, plane]);
+  // Parametric level marks re-measure while the view is open (a section's height needs its plane first).
+  useEffect(() => {
+    if (view.kind !== 'plan' && !plane) return undefined;
+    const elevation = view.kind === 'plan' ? (resolvePlanLevel(view, levels) ?? view.level).elevation : null;
+    setLevelResolver(view.id, (p) => (elevation !== null ? elevation : plane ? drawingToWorld(plane, p).y : 0));
+    return () => setLevelResolver(view.id, null);
+  }, [view, levels, plane]);
   useEffect(() => {
     setWorkPlaneProvider(() => viewWorkPlane(view, plane ?? null, levels), () => view);
   }, [plane, view, levels]);
@@ -197,6 +206,8 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
       if (e.button === 0) bim.feed('up', e);
       handlers.onPointerUp(e);
     },
+    // Ctrl+click (ortho while drawing) must not open the macOS context menu.
+    onContextMenu: (e: React.MouseEvent) => { if (e.ctrlKey && runningCommand()) e.preventDefault(); },
   };
   const submit = () => {
     submitCommandLine(text, state.cursor);
@@ -280,6 +291,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         ) : null}
         <OpeningSymbolsLayer plane={view.kind === 'plan' || view.kind === 'elevation' || view.kind === 'section' ? plane ?? null : null} drawing={view.kind === 'plan' ? null : shown} hidden={hidden} transform={viewTransform} axis={axis} />
         <RoofPlanLayer view={view} plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
+        <SectionMarksLayer view={view} plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
         <DraftOverlay
           entities={entities}
           layers={layers}

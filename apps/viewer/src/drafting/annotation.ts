@@ -50,10 +50,12 @@ export interface LayoutOptions {
 }
 
 /** A linear / aligned dimension: extension lines from the points to the dimension line through `at`. */
-function linearLayout(a: Pt, b: Pt, at: Pt, variant: 'aligned' | 'linear', text: string | undefined, o: LayoutOptions): DimensionLayout {
+function linearLayout(a: Pt, b: Pt, at: Pt, variant: 'aligned' | 'linear', text: string | undefined, o: LayoutOptions, fixed?: Pt): DimensionLayout {
   const gap = o.extGap ?? EXT_GAP, over = o.extOver ?? EXT_OVER, format = o.format ?? formatLength;
   let dir: Pt;
-  if (variant === 'aligned') {
+  if (fixed && Math.hypot(fixed.x, fixed.y) > 1e-12) {
+    dir = unit(fixed);
+  } else if (variant === 'aligned') {
     dir = unit(sub(b, a));
   } else {
     // Linear: horizontal or vertical, whichever way the line was pulled.
@@ -81,7 +83,7 @@ function linearLayout(a: Pt, b: Pt, at: Pt, variant: 'aligned' | 'linear', text:
 export function dimensionLayout(shape: Extract<AnnotationShape, { type: 'dimension' | 'radial' | 'angular' }>, o: LayoutOptions = {}): DimensionLayout {
   const format = o.format ?? formatLength;
   if (shape.type === 'dimension') {
-    const layout = linearLayout(shape.a, shape.b, shape.at, shape.variant, shape.text, o);
+    const layout = linearLayout(shape.a, shape.b, shape.at, shape.variant, shape.text, o, shape.dir);
     return shape.textAt ? { ...layout, textAt: shape.textAt } : layout;
   }
   if (shape.type === 'radial') {
@@ -170,6 +172,21 @@ export function nextAxisLabel(label: string): string {
   return `${letters[1]}${chars.join('')}${letters[3]}`;
 }
 
+/**
+ * What a drawn entity offers object snaps: geometry itself; a dimension its
+ * dimension line (so a new dimension can sit on it, or continue from its
+ * ends) and an axis its line. Other annotations offer nothing.
+ */
+export function snapShapes(shape: EntityShape): DraftShape[] {
+  if (isGeometry(shape)) return [shape];
+  if (shape.type === 'dimension') {
+    const line = dimensionLayout(shape).lines[2];
+    return [{ type: 'line', a: line.a, b: line.b }];
+  }
+  if (shape.type === 'axis') return [{ type: 'line', a: shape.a, b: shape.b }];
+  return [];
+}
+
 /** The lines an entity is picked, bounded and snapped by. */
 export function entitySkeleton(shape: EntityShape): DraftShape[] {
   if (isGeometry(shape)) return [shape];
@@ -185,6 +202,7 @@ export function entitySkeleton(shape: EntityShape): DraftShape[] {
       return [
         { type: 'polyline', pts: [shape.p, { x: shape.p.x - shape.height, y: shape.p.y + h }, { x: shape.p.x + shape.height, y: shape.p.y + h }], closed: true },
         { type: 'line', a: shape.p, b: { x: shape.p.x + shape.height * 5, y: shape.p.y } },
+        ...(shape.ref && Math.hypot(shape.ref.x - shape.p.x, shape.ref.y - shape.p.y) > 1e-9 ? [{ type: 'line' as const, a: shape.ref, b: shape.p }] : []),
       ];
     }
     case 'hatch':
@@ -240,13 +258,17 @@ function mapAnnotation(shape: AnnotationShape, f: (p: Pt) => Pt): AnnotationShap
     case 'leader':
       return { ...shape, pts: shape.pts.map(f) };
     case 'dimension':
-      return { ...shape, a: f(shape.a), b: f(shape.b), at: f(shape.at), ...(shape.textAt ? { textAt: f(shape.textAt) } : {}) };
+      // A held direction is a vector: it turns and mirrors, never moves.
+      return {
+        ...shape, a: f(shape.a), b: f(shape.b), at: f(shape.at), ...(shape.textAt ? { textAt: f(shape.textAt) } : {}),
+        ...(shape.dir ? { dir: sub(f(shape.dir), f({ x: 0, y: 0 })) } : {}),
+      };
     case 'radial':
       return { ...shape, c: f(shape.c), at: f(shape.at) };
     case 'angular':
       return { ...shape, c: f(shape.c), a: f(shape.a), b: f(shape.b), at: f(shape.at) };
     case 'level':
-      return { ...shape, p: f(shape.p) };
+      return { ...shape, p: f(shape.p), ...(shape.ref ? { ref: f(shape.ref) } : {}) };
     case 'axis':
       return { ...shape, a: f(shape.a), b: f(shape.b) };
     case 'hatch':

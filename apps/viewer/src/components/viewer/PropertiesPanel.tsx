@@ -8,8 +8,7 @@ import { useTranslation } from '@/i18n';
 import { Copy, Check, Building2, Layers, Layers2, FileText, Calculator, Tag, MousePointer2, PenLine, Crosshair, Box, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { EditToolbar } from './PropertyEditor';
-import { GeometryEditCard } from './GeometryEditCard';
-import { PlacementCard } from './properties/PlacementCard';
+import { GeometryCards } from './properties/PlacementCard';
 import { ElementCards } from './ElementCards';
 import { ModelBadge } from './ModelBadge';
 import { IconButton } from '@/components/ui/icon-button';
@@ -1568,12 +1567,11 @@ export function PropertiesPanel() {
             {selectedEntity && <ElementCards modelId={selectedEntity.modelId} expressId={selectedEntity.expressId} />}
             {editMode && selectedEntity && (
               <>
-                <GeometryEditCard
+                <GeometryCards
                   modelId={selectedEntity.modelId}
                   entityId={selectedEntity.expressId}
                   entityLabel={entityType ? `${entityType} #${selectedEntity.expressId}` : `#${selectedEntity.expressId}`}
                 />
-                <PlacementCard modelId={selectedEntity.modelId} expressId={selectedEntity.expressId} />
                 <EditToolbar
                   modelId={selectedEntity.modelId}
                   entityId={selectedEntity.expressId}

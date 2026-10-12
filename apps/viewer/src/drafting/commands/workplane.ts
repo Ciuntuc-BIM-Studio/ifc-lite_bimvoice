@@ -75,7 +75,12 @@ export const sectionLineCommand: DraftCommandDef = {
           ctx.say('drafting.msg.sectionFailed');
           return 'done';
         }
-        addProjectView({ kind: 'section', name: 'Section', plane: { axis: 'front', offset: custom.distance, flipped: false, custom } });
+        // The line stays on the plans as the section's mark (`project/section-marks.ts`).
+        const wa = drawingToWorld(plan!, pts[0]), wb = drawingToWorld(plan!, pts[1]);
+        addProjectView({
+          kind: 'section', name: 'Section', plane: { axis: 'front', offset: custom.distance, flipped: false, custom },
+          marker: { a: [wa.x, wa.y, wa.z], b: [wb.x, wb.y, wb.z] },
+        });
         ctx.say('drafting.msg.sectionCreated');
         return 'done';
       },

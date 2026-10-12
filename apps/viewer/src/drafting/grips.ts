@@ -32,8 +32,8 @@ export function gripsOf(id: string, shape: EntityShape): Grip[] {
     case 'polyline': return shape.pts.map((p, i) => g(`pt${i}`, p));
     case 'circle':
     case 'arc': return [g('c', shape.c)];
-    case 'text':
-    case 'level': return [g('p', shape.p)];
+    case 'text': return [g('p', shape.p)];
+    case 'level': return shape.ref ? [g('p', shape.p), g('ref', shape.ref)] : [g('p', shape.p)];
     case 'leader': return shape.pts.map((p, i) => g(`pt${i}`, p));
     case 'dimension': return [g('a', shape.a), g('b', shape.b), g('at', shape.at), g('text', dimensionLayout(shape).textAt)];
     case 'radial':
@@ -54,8 +54,9 @@ export function moveGrip(shape: EntityShape, key: string, p: Pt): EntityShape {
       return { ...shape, pts: shape.pts.map((q, i) => (i === Number(vertex[1]) ? p : q)) };
     case 'circle':
     case 'arc': return key === 'c' ? { ...shape, c: p } : shape;
-    case 'text':
-    case 'level': return key === 'p' ? { ...shape, p } : shape;
+    case 'text': return key === 'p' ? { ...shape, p } : shape;
+    // The symbol moves on its own (its value stays its reference's); the reference re-measures.
+    case 'level': return key === 'p' ? { ...shape, p } : key === 'ref' && shape.ref ? { ...shape, ref: p } : shape;
     case 'dimension':
       if (key === 'text') return { ...shape, textAt: p };
       // Moving the line takes a moved value along (it stays where it was relative to the line).

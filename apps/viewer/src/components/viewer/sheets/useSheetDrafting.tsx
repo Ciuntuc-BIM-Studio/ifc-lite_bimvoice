@@ -12,6 +12,7 @@
  * (preview, snap, cursor, selection).
  */
 
+import { snapShapes } from '@/drafting/annotation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useProjectStore } from '@/project/project-store';
 import { draftsOfView } from '@/drafting/draft-store';
@@ -20,7 +21,7 @@ import {
   attachDraftingView, clickDrawing, constrainPoint, pickEntity, runningCommand, setAnnotationProviders, setDraftSelection,
   setWorkPlaneProvider, useDraftingSession,
 } from '@/drafting/session';
-import { isGeometry, type Pt, type SnapHit, type SnapMode } from '@/drafting/types';
+import type { Pt, SnapHit, SnapMode } from '@/drafting/types';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
 import { DraftOverlay } from '../drafting/DraftOverlay';
 
@@ -40,7 +41,7 @@ export function useSheetDrafting(sheetId: string, pan: Pan, extraPatterns: reado
   const snapOn = useDraftingSession((s) => s.snap);
   useDraftingSession((s) => s.revision);
   const entities = useMemo(() => draftsOfView(sheetId, drafts), [drafts, sheetId]);
-  const shapes = useMemo(() => entities.flatMap((e) => (isGeometry(e.shape) ? [e.shape] : [])), [entities]);
+  const shapes = useMemo(() => entities.flatMap((e) => snapShapes(e.shape)), [entities]);
   const [cursor, setCursor] = useState<{ p: Pt; snap: SnapHit | null } | null>(null);
 
   useEffect(() => {
@@ -63,7 +64,8 @@ export function useSheetDrafting(sheetId: string, pan: Pan, extraPatterns: reado
   const down = (p: Pt, additive: boolean): boolean => {
     const tolerance = PICK_PX / pan.k;
     if (runningCommand()) {
-      clickDrawing(resolve(p).p, tolerance, additive);
+      const hit = resolve(p);
+      clickDrawing(hit.p, tolerance, additive, hit.snap !== null);
       return true;
     }
     if (pickEntity(p, tolerance)) {

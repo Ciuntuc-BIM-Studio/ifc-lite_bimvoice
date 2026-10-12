@@ -5,11 +5,11 @@
 /**
  * Ribbon · Annotations tab — notation on the view in front: text and
  * leaders, dimensions, level marks, grid axes and CAD hatches (built-in patterns plus
- * the project's own `.pat` files). The buttons are the registered
+ * the project's own `.pat` files), and the drawing aids (Snap, Ortho). The buttons are the registered
  * `annotate:*` commands (`surface-commands-annotate-ribbon.ts`).
  */
 
-import { AnnoAxis, AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftingStandards } from '@/icons';
+import { AnnoAxis, AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftOrtho, DraftSnap, DraftingStandards } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -19,6 +19,8 @@ export function AnnotationsTab() {
   const { t } = useTranslation();
   const commandId = useDraftingSession((s) => s.commandId);
   const on = (id: string) => commandId === id;
+  const snap = useDraftingSession((s) => s.snap);
+  const ortho = useDraftingSession((s) => s.ortho);
   return (
     <>
       <RibbonGroup label={t('drafting.group.text')}>
@@ -49,6 +51,14 @@ export function AnnotationsTab() {
       <RibbonGroupDivider />
       <RibbonGroup label={t('standards.title')}>
         <RibbonCommandLargeButton commandId="annotate:standards" icon={DraftingStandards} />
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      {/* Snap (F3) and Ortho (F8; or hold Ctrl while drawing), as on the Design tab. */}
+      <RibbonGroup label={t('drafting.group.aids')}>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:snap" icon={DraftSnap} active={snap} />
+          <RibbonCommandSmallButton commandId="design:ortho" icon={DraftOrtho} active={ortho} />
+        </RibbonSmallStack>
       </RibbonGroup>
     </>
   );

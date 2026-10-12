@@ -164,6 +164,6 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:sweep', labelKey: 'drafting.tool.sweep', keywords: 'sweep profile path rail cornice solid', category: 'Tools', icon: DraftSweep, surfaces: ribbonOnly, enabled: always, run: draft('sweep') },
   { id: 'design:revolve', labelKey: 'drafting.tool.revolve', keywords: 'revolve rotate lathe profile axis solid', category: 'Tools', icon: DraftRevolve, surfaces: ribbonOnly, enabled: always, run: draft('revolve') },
   { id: 'design:snap', labelKey: 'drafting.snap', keywords: 'object snap osnap toggle F3', category: 'Tools', icon: DraftSnap, surfaces: ribbonOnly, enabled: always, run: () => toggleSnap() },
-  { id: 'design:ortho', labelKey: 'drafting.ortho', keywords: 'ortho orthogonal toggle F8', category: 'Tools', icon: DraftOrtho, surfaces: ribbonOnly, enabled: always, run: () => toggleOrtho() },
+  { id: 'design:ortho', labelKey: 'drafting.ortho', keywords: 'ortho orthogonal toggle F8 ctrl hold', category: 'Tools', icon: DraftOrtho, surfaces: ribbonOnly, enabled: always, run: () => toggleOrtho() },
   { id: 'design:drafting-3d', labelKey: 'drafting.in3d', keywords: 'drafting lines 3d show hide model overlay', category: 'Tools', icon: DraftLine, surfaces: ribbonOnly, enabled: always, run: () => toggleDraftingIn3d() },
 ] as const satisfies readonly SurfaceCommandDefinition[];

@@ -12,7 +12,7 @@
 import { useEffect, useRef } from 'react';
 import { redoEarliest, undoLatest } from '@/project/unified-undo';
 import { getCommandRuntime } from '@/lib/commands/modeling/runtime';
-import { pressEnter, pressEscape, startDraftCommand, toggleOrtho, toggleSnap, useDraftingSession } from '@/drafting/session';
+import { pressEnter, pressEscape, setOrthoHeld, startDraftCommand, toggleOrtho, toggleSnap, useDraftingSession } from '@/drafting/session';
 
 interface Params {
   inputRef: React.RefObject<HTMLInputElement | null>;
@@ -82,9 +82,20 @@ export function useDraftingKeys({ inputRef, setText, submit }: Params): void {
         setText((prev) => prev + e.key);
       }
     };
+    // Ctrl held while drawing: ortho until it is released (or the window loses focus).
+    const onCtrl = (e: KeyboardEvent) => { if (e.key === 'Control') setOrthoHeld(e.type === 'keydown'); };
+    const onBlur = () => setOrthoHeld(false);
+    window.addEventListener('keydown', onCtrl, true);
+    window.addEventListener('keyup', onCtrl, true);
+    window.addEventListener('blur', onBlur);
     // Capture phase: the command line claims its keys before the viewer's global shortcuts
     // (which skip a prevented event) — typing "DIM" must not toggle panels.
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('keydown', onCtrl, true);
+      window.removeEventListener('keyup', onCtrl, true);
+      window.removeEventListener('blur', onBlur);
+    };
   }, [inputRef, setText]);
 }
