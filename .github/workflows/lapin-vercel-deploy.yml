@@ -19,7 +19,7 @@ name: Lapin deploy (Vercel, prebuilt)
 
 on:
   push:
-    branches: [feat/project-navigator]
+    branches: [lapin]
   workflow_dispatch:
 
 concurrency:
