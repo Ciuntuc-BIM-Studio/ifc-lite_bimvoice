@@ -14,7 +14,7 @@ import { toast } from '@/components/ui/toast';
 import { resolve } from '@/i18n/registry';
 import { sanitizeFilename } from '@/lib/export/download';
 import { projectDocument, useProjectStore } from '../project-store';
-import { canWriteInPlace, downloadPackage, pickSaveTarget, writeToHandle } from './file-access';
+import { canWriteInPlace, downloadPackage, pickSaveTarget, withPackageSuffix, writeToHandle } from './file-access';
 import { PACKAGE_SUFFIX, type PackageVersionInfo } from './format';
 import { packageCurrentProject, type PackagedProject } from './project-save';
 import { clearRecovery } from './recovery';
@@ -32,7 +32,7 @@ export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo,
     const name = sanitizeFilename(useProjectStore.getState().name || 'project', { fallback: 'project' });
     let handle = as ? null : session.handle;
     if (!handle && canWriteInPlace()) {
-      handle = await pickSaveTarget(session.fileName ?? `${name}${PACKAGE_SUFFIX}`);
+      handle = await pickSaveTarget(session.fileName ? withPackageSuffix(session.fileName) : `${name}${PACKAGE_SUFFIX}`);
       if (!handle) return null;
     }
     const projectId = session.projectId ?? newProjectId();
@@ -41,7 +41,8 @@ export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo,
       const packaged = await packageCurrentProject(projectId, {
         versionInfo, analytics: options.analytics, onProgress: (label) => usePackageSession.setState({ progress: resolve('projectPackage.savingModel', { name: label }) }),
       });
-      const fileName = handle?.name ?? session.fileName ?? `${name}${PACKAGE_SUFFIX}`;
+      // Written in place, a file keeps its name; downloaded, an earlier `.bvproj` comes out as `.lapin`.
+      const fileName = handle?.name ?? (session.fileName ? withPackageSuffix(session.fileName) : `${name}${PACKAGE_SUFFIX}`);
       if (handle) await writeToHandle(handle, packaged.bytes);
       else downloadPackage(packaged.bytes, fileName);
       usePackageSession.setState({

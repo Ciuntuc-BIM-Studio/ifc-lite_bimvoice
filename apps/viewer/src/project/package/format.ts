@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * The project package (`.bvproj`): one format for a project wherever it is
+ * The project package (`.lapin`; `.bvproj` before, still opened): one format for a project wherever it is
  * kept — a ZIP on disk, the browser's own storage, later an object store. A
  * manifest lists every part with its SHA-256 and size; the project document
  * is split into parts (so a save rewrites only what changed), the native
@@ -23,7 +23,11 @@
  * ```
  */
 
-export const PACKAGE_SUFFIX = '.bvproj';
+export const PACKAGE_SUFFIX = '.lapin';
+/** Earlier names of the same package, still opened. */
+export const LEGACY_PACKAGE_SUFFIXES: readonly string[] = ['.bvproj'];
+/** Every suffix Open accepts. */
+export const OPEN_PACKAGE_SUFFIXES: readonly string[] = [PACKAGE_SUFFIX, ...LEGACY_PACKAGE_SUFFIXES];
 export const PACKAGE_FORMAT = 'bimvoice-project';
 /** Bumped on a change older readers cannot read; readers migrate anything older. */
 export const PACKAGE_VERSION = 1;

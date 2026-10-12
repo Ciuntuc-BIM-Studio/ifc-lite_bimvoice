@@ -4,7 +4,7 @@
 
 /**
  * Project-level File commands: New Project (a configured blank IFC model),
- * and the project package (`.bvproj`): Open, Save, Save as, and Link model
+ * and the project package (`.lapin`, earlier `.bvproj`): Open, Save, Save as, and Link model
  * (a read-only coordination model). The package commands are handled by
  * `ProjectPackageHost`.
  */
@@ -22,19 +22,19 @@ export const RIBBON_PROJECT_SURFACE_COMMANDS = [
   },
   {
     id: 'file:open-project', labelKey: 'projectPackage.open',
-    keywords: 'open project package bvproj zip load', category: 'File', icon: ProjectOpen,
+    keywords: 'open project package lapin bvproj zip load', category: 'File', icon: ProjectOpen,
     surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
     run: () => { requestPackageAction('open'); },
   },
   {
     id: 'file:save-project', labelKey: 'projectPackage.save',
-    keywords: 'save project package bvproj models views sheets drawings', category: 'File', icon: ProjectSave,
+    keywords: 'save project package lapin models views sheets drawings', category: 'File', icon: ProjectSave,
     surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
     run: () => { requestPackageAction('save'); },
   },
   {
     id: 'file:save-project-as', labelKey: 'projectPackage.saveAs',
-    keywords: 'save project as copy package bvproj', category: 'File', icon: ProjectSave,
+    keywords: 'save project as copy package lapin', category: 'File', icon: ProjectSave,
     surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
     run: () => { requestPackageAction('save-as'); },
   },
