@@ -62,19 +62,18 @@ describe('Hide selection is one command on every surface (#5852)', () => {
     useViewerStore.setState(initialState, true);
   });
 
-  for (const key of ['Delete', 'Backspace', ' ']) {
-    it(`keyboard ${JSON.stringify(key)}`, () => {
-      render(<KeyboardHarness />);
-      press(window, key);
-      assertBothHiddenAndSelectionCleared(`key ${JSON.stringify(key)}`);
-    });
-  }
+  // Space hides; Delete and Backspace delete the selection from the model (`selection.delete`).
+  it('keyboard " "', () => {
+    render(<KeyboardHarness />);
+    press(window, ' ');
+    assertBothHiddenAndSelectionCleared('key " "');
+  });
 
-  it('keyboard Delete with only a multi-selection (no primary) still hides it', () => {
+  it('keyboard Space with only a multi-selection (no primary) still hides it', () => {
     useViewerStore.setState({ selectedEntityId: null });
     render(<KeyboardHarness />);
-    press(window, 'Delete');
-    assertBothHiddenAndSelectionCleared('Delete, multi-selection only');
+    press(window, ' ');
+    assertBothHiddenAndSelectionCleared('Space, multi-selection only');
   });
 
   it('ribbon Elements tab', () => {

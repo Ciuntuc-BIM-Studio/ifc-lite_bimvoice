@@ -12,7 +12,6 @@
  * `useRibbonContextualTab`), which the user can turn off in View.
  */
 
-import { ribbonTabAllowed } from '@/edition-policy';
 import React from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, Search } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
@@ -64,9 +63,7 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
   // The active tab lives in the store so the contextual driver and the
   // walkthrough can open one; it starts on Home and is never persisted.
   const { t } = useTranslation();
-  // A tab this edition leaves out (remembered from another build, or opened by a contextual switch) shows Home.
-  const storedTab = useViewerStore((s) => s.ribbonTab);
-  const activeTab = ribbonTabAllowed(storedTab) ? storedTab : 'home';
+  const activeTab = useViewerStore((s) => s.ribbonTab);
   const setActiveTab = useViewerStore((s) => s.setRibbonTab);
   const ribbonCollapsed = useViewerStore((s) => s.ribbonCollapsed);
   const setRibbonCollapsed = useViewerStore((s) => s.setRibbonCollapsed);
@@ -101,7 +98,7 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
           className="flex h-full items-end justify-start gap-0.5 rounded-none bg-transparent p-0"
           {...tourAnchor(TOUR_ANCHORS.ribbonTabs)}
         >
-          {RIBBON_TABS.filter((tab) => ribbonTabAllowed(tab.id)).map((tab) => {
+          {RIBBON_TABS.map((tab) => {
             const isActive = tab.id === activeTab;
             return (
               <TabsTrigger
@@ -245,7 +242,7 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
           {activeTab === 'author' && <AuthorTab />}
           {activeTab === 'design' && <DesignTab />}
           {activeTab === 'annotations' && <AnnotationsTab />}
-          {activeTab === 'infrastructure' && ribbonTabAllowed('infrastructure') && <InfrastructureTab />}
+          {activeTab === 'infrastructure' && <InfrastructureTab />}
         </TabsContent>
       )}
 

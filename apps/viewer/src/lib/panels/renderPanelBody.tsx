@@ -57,8 +57,7 @@ const PointCloudPanel = lazy(() => import('@/components/viewer/PointCloudPanel')
 const ChartsPanel = lazy(() => import('@/components/viewer/charts/ChartsPanel').then((m) => ({ default: m.ChartsPanel })));
 const DocumentPanel = lazy(() => import('@/components/viewer/document/DocumentPanel').then((m) => ({ default: m.DocumentPanel })));
 // Lazy: the Flow panel pulls in React Flow; it stays out of the first-paint bundle.
-// Not in the docs edition's bundle (analysis workflows).
-const FlowPanel = __DOCS_BUILD__ ? null : lazy(() => import('@/components/viewer/flow/FlowPanel').then((m) => ({ default: m.FlowPanel })));
+const FlowPanel = lazy(() => import('@/components/viewer/flow/FlowPanel').then((m) => ({ default: m.FlowPanel })));
 // Lazy: the drawing view pulls in its canvas, export and underlay code; its runtime
 // (generation, persistence) is DrawingRuntimeHost, mounted eagerly in ViewportContainer.
 const DrawingPanel = lazy(() => import('@/components/viewer/drawing/DrawingPanel').then((m) => ({ default: m.DrawingPanel })));
@@ -84,7 +83,6 @@ function DocumentPanelBody() {
   return <ChunkErrorBoundary label="Document panel"><Suspense fallback={null}><DocumentPanel /></Suspense></ChunkErrorBoundary>;
 }
 function FlowPanelBody() {
-  if (!FlowPanel) return null;
   return <ChunkErrorBoundary label="Flow panel"><Suspense fallback={null}><FlowPanel /></Suspense></ChunkErrorBoundary>;
 }
 
@@ -167,7 +165,7 @@ function panelBody(id: WorkspacePanelId, onClose: () => void): ReactNode {
     case 'validation': return <ValidationPanel onClose={onClose} />;
     case 'lens': return <LensPanel onClose={onClose} />;
     case 'clash': return <ClashPanel onClose={onClose} />;
-    case 'extensions': return __DOCS_BUILD__ ? null : <ExtensionsPanel onClose={onClose} />;
+    case 'extensions': return <ExtensionsPanel onClose={onClose} />;
     case 'script': return <ScriptPanel />;
     case 'gantt': return <GanttPanel />;
     case 'lists': return <ListPanel />;

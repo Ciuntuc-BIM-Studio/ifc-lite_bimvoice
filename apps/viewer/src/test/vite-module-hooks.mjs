@@ -45,9 +45,6 @@ register('./vite-module-hooks-impl.mjs', import.meta.url);
 // `localStorage.getItem` warning, which check-test-revert-oracle.mjs's load
 // error heuristic misreads as a dead import (#4925). Stub it once, main
 // thread, before any test module loads.
-// The viewer's build-edition constant (a Vite define): tests run the full edition.
-globalThis.__DOCS_BUILD__ ??= false;
-
 if (typeof globalThis.localStorage === 'undefined') {
   const backing = new Map();
   globalThis.localStorage = {

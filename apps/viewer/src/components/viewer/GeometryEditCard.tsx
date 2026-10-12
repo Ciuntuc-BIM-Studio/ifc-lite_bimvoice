@@ -30,7 +30,6 @@
  * surface on `!isNativeLazySelection`.
  */
 
-import { can } from '@/edition';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Move as MoveIcon, RotateCw, Slice as KnifeIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -86,12 +85,7 @@ export function formatMetres(value: number): string {
   return String(Number(value.toFixed(3)) || 0);
 }
 
-/** Moving, rotating, splitting, duplicating and deleting are modelling: the docs edition shows no card. */
-export function GeometryEditCard(props: GeometryEditCardProps) {
-  return can('modelling') ? <GeometryEditCardBody {...props} /> : null;
-}
-
-function GeometryEditCardBody({ modelId, entityId, entityLabel }: GeometryEditCardProps) {
+export function GeometryEditCard({ modelId, entityId, entityLabel }: GeometryEditCardProps) {
   const { t } = useTranslation();
   const setEntityPosition = useViewerStore((s) => s.setEntityPosition);
   const translateEntity = useViewerStore((s) => s.translateEntity);

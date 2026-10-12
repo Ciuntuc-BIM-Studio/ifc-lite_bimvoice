@@ -18,31 +18,28 @@ import { registerHostedJoinery } from '@/lib/commands/modeling/commands/hosted-p
 import { currentJoinery } from './catalog';
 import { invalidateJoineryReads } from './element-spec';
 
-// The Door / Window tools place the current entry (full edition; the docs edition places nothing).
-if (!__DOCS_BUILD__) {
-  registerHostedJoinery((kind) => {
-    const spec = currentJoinery(kind);
-    if (!spec?.id) return null;
-    const id = spec.id;
-    return {
-      name: spec.name,
-      mark: spec.mark,
-      width: spec.width,
-      height: spec.height,
-      ensureMap(modelId, batchId) {
-        const schema = String(useViewerStore.getState().models.get(modelId)?.ifcDataStore?.schemaVersion ?? 'IFC4').toUpperCase();
-        if (schema === 'IFC2X3') throw new Error('Configured door and window types need an IFC4 or IFC4X3 model: pick "No type" to place a plain one');
-        return recordModellingCommit(useViewerStore, modelId, (editor, ds) => ensureJoineryTypeInStore(ds, editor, spec).mapId, batchId);
-      },
-      assign(modelId, expressId, batchId) {
-        recordModellingCommit(useViewerStore, modelId, (editor, ds) => {
-          const view = editor.getMutationView();
-          const type = findJoineryTypeInStore(ds, id, view);
-          if (!type) return;
-          assignTypeInStore(editor, resolveJoineryAnchor(ds, view), type.typeId, [expressId], readRelatedLists(ds, 'IfcRelDefinesByType', view));
-        }, batchId);
-        invalidateJoineryReads(modelId);
-      },
-    };
-  });
-}
+registerHostedJoinery((kind) => {
+  const spec = currentJoinery(kind);
+  if (!spec?.id) return null;
+  const id = spec.id;
+  return {
+    name: spec.name,
+    mark: spec.mark,
+    width: spec.width,
+    height: spec.height,
+    ensureMap(modelId, batchId) {
+      const schema = String(useViewerStore.getState().models.get(modelId)?.ifcDataStore?.schemaVersion ?? 'IFC4').toUpperCase();
+      if (schema === 'IFC2X3') throw new Error('Configured door and window types need an IFC4 or IFC4X3 model: pick "No type" to place a plain one');
+      return recordModellingCommit(useViewerStore, modelId, (editor, ds) => ensureJoineryTypeInStore(ds, editor, spec).mapId, batchId);
+    },
+    assign(modelId, expressId, batchId) {
+      recordModellingCommit(useViewerStore, modelId, (editor, ds) => {
+        const view = editor.getMutationView();
+        const type = findJoineryTypeInStore(ds, id, view);
+        if (!type) return;
+        assignTypeInStore(editor, resolveJoineryAnchor(ds, view), type.typeId, [expressId], readRelatedLists(ds, 'IfcRelDefinesByType', view));
+      }, batchId);
+      invalidateJoineryReads(modelId);
+    },
+  };
+});

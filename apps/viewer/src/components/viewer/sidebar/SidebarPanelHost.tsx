@@ -321,7 +321,7 @@ export function SidebarPanelHost() {
           <div className="flex-1 min-h-0 overflow-hidden">
             {shown === 'properties' && renderPanelBody('properties', () => {})}
           </div>
-          {!__DOCS_BUILD__ && <ExtensionDockHost slot="dock.right" className="max-h-[40%] border-t" />}
+          <ExtensionDockHost slot="dock.right" className="max-h-[40%] border-t" />
         </div>
       );
     }

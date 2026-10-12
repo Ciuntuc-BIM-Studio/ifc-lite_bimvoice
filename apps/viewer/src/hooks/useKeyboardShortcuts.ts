@@ -3,8 +3,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /** Live global and tool actions for the canonical keyboard table (#5841). */
-import { can } from '@/edition';
-import { keyCommandAllowed } from '@/edition-policy';
 import { deleteElements, selectedRenderIds } from '@/project/element-delete';
 import { reportDelete } from '@/project/element-delete-report';
 import { useEffect } from 'react';
@@ -169,12 +167,11 @@ const HISTORY_COMMANDS: ReadonlySet<KeyCommandId> = new Set(['edit.undo', 'edit.
 export function useKeyboardShortcuts({ enabled = true }: KeyboardShortcutsOptions = {}): void {
   useEffect(() => {
     if (!enabled) return;
-    // Keys that change the model's geometry or structure are not bound in the docs edition.
-    const dispose = RUNNERS.filter(([id]) => keyCommandAllowed(id)).map(([id, run]) => registerKeyboardCommand(id, run, {
+    const dispose = RUNNERS.map(([id, run]) => registerKeyboardCommand(id, run, {
       active: TOOL_CONTEXT[id] ? () => useViewerStore.getState().activeTool === TOOL_CONTEXT[id] : undefined,
       allowInTextEntry: HISTORY_COMMANDS.has(id) ? (event: KeyboardEvent) => !isTextEditingElement(event.target) : undefined,
     }));
-    if (can('modelling')) dispose.push(bindModelWorkspaceKeys());
+    dispose.push(bindModelWorkspaceKeys());
     return () => { for (const remove of dispose) remove(); };
   }, [enabled]);
 }

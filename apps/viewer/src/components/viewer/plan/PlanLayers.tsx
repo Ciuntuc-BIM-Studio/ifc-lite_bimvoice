@@ -106,8 +106,7 @@ export function GhostLayer({ fit, footprints }: { fit: Fit; footprints: readonly
 
 /** The snap glyph and guides: the 3D snap HUD's own shapes (#6390), painted through the plan's `Fit`. */
 export function SnapLayer({ fit, snap }: { fit: Fit; snap: SnapResult | null }) {
-  // Snapping a model command: nothing to show in the docs edition (which models nothing).
-  if (__DOCS_BUILD__ || !snap) return null;
+  if (!snap) return null;
   return (
     <g data-plan-layer="snap" pointerEvents="none">
       <SnapHudShapes snap={snap} screen={(p) => ({ x: sX(fit, p[0]), y: sY(fit, p[1]) })} />

@@ -4,22 +4,20 @@
 
 /**
  * The editable cards at the top of the properties for one element: its type
- * from the libraries and its roof system when it has one (full edition), and
- * the symbol a door or window is drawn with (both editions).
+ * from the libraries, its roof system when it has one, and the symbol a door
+ * or window is drawn with.
  */
 
-import { can } from '@/edition';
 import { ElementTypeCard } from './ElementTypeCard';
 import { RoofBlockCards } from './roof/RoofBlockCards';
 import { JoinerySymbolCard } from './JoinerySymbolCard';
 
 export function ElementCards({ modelId, expressId }: { modelId: string; expressId: number }) {
   if (modelId === 'legacy') return null;
-  // Retyping and roof blocks change the model: the docs edition maps symbols only.
   return (
     <>
-      {!__DOCS_BUILD__ && can('modelling') && <RoofBlockCards modelId={modelId} expressId={expressId} />}
-      {!__DOCS_BUILD__ && can('modelling') && <ElementTypeCard modelId={modelId} expressId={expressId} />}
+      <RoofBlockCards modelId={modelId} expressId={expressId} />
+      <ElementTypeCard modelId={modelId} expressId={expressId} />
       <JoinerySymbolCard modelId={modelId} expressId={expressId} />
     </>
   );

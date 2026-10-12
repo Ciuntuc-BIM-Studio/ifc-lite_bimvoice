@@ -105,7 +105,7 @@ describe('KeyboardShortcutsDialog localization (#4918)', () => {
     assert.match(aboutText(), /Learn/);
     assert.match(aboutText(), /Drive from any LLM/);
     assert.match(aboutText(), /to toggle this panel/);
-    assert.match(aboutText(), /Lapin/); // the full edition's product name
+    assert.match(aboutText(), /Lapin/); // the product name
     assert.match(aboutText(), /v0\.0\.0-test/);
     assert.match(aboutText(), /GitHub/);
     assert.match(aboutText(), /Report issue/);

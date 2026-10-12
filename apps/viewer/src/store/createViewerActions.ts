@@ -4,7 +4,6 @@
 
 /** Cross-slice viewer actions. Domain state stays in its owning slice; this
  * composition seam preserves reset side effects and workspace routing. */
-import { panelAllowed } from '../edition-policy';
 import type { StateCreator } from 'zustand';
 import type { ViewerState } from './index.js';
 import type { WorkspacePanelId } from '@/lib/panels/registry';
@@ -129,7 +128,6 @@ export const createViewerActions: StateCreator<ViewerState, [], [], ViewerAction
   },
 
   openWorkspacePanel: (panel, surface) => {
-    if (!panelAllowed(panel)) return; // a panel this edition leaves out
     const [set, get] = args;
     trackPanelOpened(panel, surface, isBottomPanel(panel) || get().sidebarMode !== 'expanded' ? undefined : get().sidebarActivePanel);
     // Docking into the sidebar: if the panel was floating or popped out, re-dock
@@ -171,7 +169,6 @@ export const createViewerActions: StateCreator<ViewerState, [], [], ViewerAction
   },
 
   showWorkspacePanel: (panel, surface) => {
-    if (!panelAllowed(panel)) return; // a panel this edition leaves out
     const [set, get] = args;
     const alreadyDocked = isBottomPanel(panel) && isBottomPanelDocked(get(), panel);
     // If the panel was floating / popped out, bring it back to the docked slot.
@@ -209,7 +206,6 @@ export const createViewerActions: StateCreator<ViewerState, [], [], ViewerAction
   },
 
   toggleWorkspacePanel: (panel, surface) => {
-    if (!panelAllowed(panel)) return; // a panel this edition leaves out
     const [, get] = args;
     // "Active" means it owns the docked slot right now. A floating / popped-out
     // panel reads as open too, so toggling it re-docks rather than no-ops.
@@ -222,7 +218,6 @@ export const createViewerActions: StateCreator<ViewerState, [], [], ViewerAction
   },
 
   toggleBottomPanel: (panel, surface) => {
-    if (!panelAllowed(panel)) return; // a panel this edition leaves out
     const [set, get] = args;
     const docked = isBottomPanelDocked(get(), panel);
     // Re-dock any float / OS window for it first.
@@ -238,7 +233,6 @@ export const createViewerActions: StateCreator<ViewerState, [], [], ViewerAction
   },
 
   openPanelInHome: (panel, surface) => {
-    if (!panelAllowed(panel)) return; // a panel this edition leaves out
     const [, get] = args;
     get().showWorkspacePanel(panel, surface);
   },

@@ -182,7 +182,7 @@ function SelectionBody({ selection }: { selection: InspectorSelection }) {
           <CommitField id={id} value={name} onCommit={rename} placeholder={t('modelInspector.name.placeholder')} />
         </InspectorRow>
       </div>
-      {!__DOCS_BUILD__ && <div className="px-3 pt-3 empty:hidden"><RoofBlockCards modelId={modelId} expressId={expressId} /></div>}
+      <div className="px-3 pt-3 empty:hidden"><RoofBlockCards modelId={modelId} expressId={expressId} /></div>
       {kind === null && !isStairSelection(selection) && <div className="px-3 py-3"><InspectorCaption>{t('modelInspector.noSections', { ifcClass: selection.ifcClass })}</InspectorCaption></div>}
       {kind !== null && <TypeSection modelId={modelId} live={live} kind={kind} elementId={expressId} />}
       {(kind !== null || isStairSelection(selection)) && <SelectionDimensions selection={selection} />}

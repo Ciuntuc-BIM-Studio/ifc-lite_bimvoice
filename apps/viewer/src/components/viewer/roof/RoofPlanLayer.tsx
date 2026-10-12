@@ -116,8 +116,7 @@ export const RoofPlanLayer = memo(function RoofPlanLayer({ view, plane, transfor
           </g>
         ))}
       </svg>
-      {/* Reshaping grips: the full edition only (not in the docs bundle). */}
-      {plane && !__DOCS_BUILD__ ? reshapable.filter((r) => !active(r)).map((r) => (
+      {plane ? reshapable.filter((r) => !active(r)).map((r) => (
         <RoofOutlineGrips key={`grips${r.roofId}`} roof={r} view={view} plane={plane} transform={transform} axis={axis} />
       )) : null}
       {roofs.filter(active).map((r) => (

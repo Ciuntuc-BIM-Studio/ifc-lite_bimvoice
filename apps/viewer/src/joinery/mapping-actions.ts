@@ -5,8 +5,7 @@
 /**
  * Changing the project's symbol mapping (`symbol-mapping.ts`): the automatic
  * rules, an entry's aliases, and the manual choice for elements or for every
- * element of an IFC type. Only the project changes — never a model — so the
- * docs edition can map what it documents.
+ * element of an IFC type. Only the project changes — never a model.
  */
 
 import { useViewerStore } from '@/store';

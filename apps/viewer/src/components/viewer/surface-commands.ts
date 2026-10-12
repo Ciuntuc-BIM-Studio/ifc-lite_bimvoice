@@ -4,7 +4,6 @@
 
 /** Static commands shared by palette, ribbon, context menu and mobile (#5870). */
 
-import { surfaceCommandAllowed } from '@/edition-policy';
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Building2, ChevronsUpDown,
   Crosshair, FolderOpen, Home, Layers3, Maximize2, Orbit, Save,
@@ -220,8 +219,7 @@ export const SURFACE_COMMANDS: readonly (SurfaceCommandDefinition & { id: Surfac
   ...RIBBON_ELEMENTS_SURFACE_COMMANDS,
   ...RIBBON_AUTHOR_SURFACE_COMMANDS,
   ...RIBBON_DESIGN_SURFACE_COMMANDS,
-  // Road and bridge modelling: left out of the docs edition's bundle.
-  ...(__DOCS_BUILD__ ? [] : RIBBON_INFRA_SURFACE_COMMANDS),
+  ...RIBBON_INFRA_SURFACE_COMMANDS,
   ...RIBBON_ANNOTATE_SURFACE_COMMANDS,
   ...RIBBON_PROJECT_SURFACE_COMMANDS,
   ...MOBILE_SURFACE_COMMANDS,
@@ -246,7 +244,7 @@ export function paletteSurfaceCommands(
   context: Pick<SurfaceCommandContext, 'activateRightPanel' | 'activateBottomPanel'> = {},
 ): Command[] {
   return SURFACE_COMMANDS
-    .filter((command) => command.surfaces.some((surface) => surface === 'palette') && command.enabled(state) && surfaceCommandAllowed(command.id))
+    .filter((command) => command.surfaces.some((surface) => surface === 'palette') && command.enabled(state))
     .map((command) => commandRowFromDefinition(command, { ...context, surface: 'palette', execute }));
 }
 

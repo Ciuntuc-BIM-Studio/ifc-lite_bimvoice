@@ -6,13 +6,12 @@
  * The door and window configurator: the project's catalogue on the left,
  * the selected type's fields in the middle, its drawings live on the right.
  * Edits stay a draft until Save, which updates the catalogue and every
- * element of that type already placed (`pushJoinery`; the docs edition keeps
- * models as they are). From here a type is made the one the Door / Window
- * tool places, applied to the selection, or mapped as the symbol of doors and
- * windows the model does not type (`JoineryMappingFields`).
+ * element of that type already placed (`pushJoinery`). From here a type is
+ * made the one the Door / Window tool places, applied to the selection, or
+ * mapped as the symbol of doors and windows the model does not type
+ * (`JoineryMappingFields`).
  */
 
-import { can } from '@/edition';
 import { useEffect, useMemo, useState } from 'react';
 import { setOpeningConvention, useOpeningConvention } from '@/joinery/opening-convention';
 import type { OpeningConvention } from '@/joinery/symbols';
@@ -79,8 +78,6 @@ export function JoineryDialog() {
   const save = () => {
     if (!draft || problem) return;
     updateJoinery(draft);
-    // The docs edition documents models as they are: the catalogue (and so the symbols) changes, the IFC does not.
-    if (!can('modelling')) { toast.success(t('joinery.savedNone')); return; }
     const result = pushJoinery(draft);
     if (result.refused.length) toast.error(t('joinery.refused', { reasons: result.refused.join('; ') }));
     else toast.success(result.updated ? t('joinery.saved', { count: result.updated }) : t('joinery.savedNone'));
@@ -191,8 +188,7 @@ export function JoineryDialog() {
         </div>
         <DialogFooter className="items-center gap-2 sm:justify-between">
           <div className="flex items-center gap-2 text-xs">
-            {/* Placing and retyping change the model: the full edition only. */}
-            {saved && can('modelling') ? (
+            {saved ? (
               <>
                 <label className="flex items-center gap-1.5">
                   <input type="checkbox" checked={isCurrent} onChange={(e) => setCurrentJoinery(saved.kind, e.target.checked ? saved.id ?? null : null)} />

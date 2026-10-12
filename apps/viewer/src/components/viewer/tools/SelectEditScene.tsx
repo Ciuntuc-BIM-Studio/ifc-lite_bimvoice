@@ -20,14 +20,9 @@ export function SelectEditScene() {
   return (
     <>
       <GizmoOverlay />
-      {/* Moving, resizing and push-pull change the model: not in the docs edition (nor its bundle). */}
-      {!__DOCS_BUILD__ && (
-        <>
-          <TransformHandles />
-          <WallEndpointOverlay />
-          <PushPullHandles />
-        </>
-      )}
+      <TransformHandles />
+      <WallEndpointOverlay />
+      <PushPullHandles />
     </>
   );
 }

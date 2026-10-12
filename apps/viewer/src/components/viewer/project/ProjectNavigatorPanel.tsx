@@ -10,7 +10,6 @@
  * `.ifclite-project.json` sidecar.
  */
 
-import { can } from '@/edition';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Spline, Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed, Table2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
@@ -152,7 +151,7 @@ export function ProjectNavigatorPanel() {
     '3d': <AddButton label={t('projectNavigator.action.save3d')} onClick={save3d} icon={<Camera className="size-3.5" />} />,
     sheets: <AddButton label={t('projectNavigator.action.newSheet')} onClick={newSheet} />,
     schedules: <AddButton label={t('schedule.new')} onClick={() => setRenamingId(addSchedule('all', t('schedule.newName')))} />,
-    civil: <AddButton label={t('civilDwg.newProfileAction')} onClick={() => { if (!__DOCS_BUILD__) newCivilDrawing('profile'); }} />,
+    civil: <AddButton label={t('civilDwg.newProfileAction')} onClick={() => newCivilDrawing('profile')} />,
     plan: <AddButton label={t('projectNavigator.action.newPlan')} onClick={() => dialogs.open('plan')} />,
     elevation: <AddButton label={t('projectNavigator.action.newElevation')} onClick={() => dialogs.open('elevation')} />,
   };
@@ -256,8 +255,7 @@ export function ProjectNavigatorPanel() {
   };
 
   const activeView = views.find((v) => v.id === activeItemId);
-  // Road drawings come from corridors, which only the full edition models.
-  const folders = FOLDER_ORDER.filter((id) => id !== 'civil' || can('infrastructure')).map((id) => ({ id, ...folderBody(id) })).filter((f) => !q || f.count > 0);
+  const folders = FOLDER_ORDER.map((id) => ({ id, ...folderBody(id) })).filter((f) => !q || f.count > 0);
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-black">

@@ -60,8 +60,6 @@ function retype(modelId: string, globalId: string, ifcClass: string): void {
 
 export function useLinkedElementSync(): void {
   useEffect(() => useProjectStore.subscribe((state, prev) => {
-    // Drafts drive model elements only where the app models (not the docs edition, nor its bundle).
-    if (__DOCS_BUILD__) return;
     if (state.drafts === prev.drafts) return;
     const before = new Map(prev.drafts.map((d) => [d.id, d]));
     for (const draft of state.drafts) {

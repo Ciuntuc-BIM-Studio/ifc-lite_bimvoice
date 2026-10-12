@@ -90,6 +90,6 @@ export const TOOL_HUD: Record<ToolId, ToolHudEntry> = {
   walk: {},
   // The running modeling command's HUD (#6232): bar, scene and hint come
   // from `ModelingCommand.hud`; the bar also renders the hint.
-  command: __DOCS_BUILD__ ? {} : { Bar: CommandBar, Scene: CommandScene },
+  command: { Bar: CommandBar, Scene: CommandScene },
   none: {},
 };

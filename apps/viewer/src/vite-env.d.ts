@@ -6,8 +6,6 @@
 /// <reference types="unplugin-icons/types/react" />
 
 interface ImportMetaEnv {
-  /** 'docs' builds the documentation-only edition (`src/edition.ts`); anything else, the full app. */
-  readonly VITE_EDITION?: string;
   /** Same-origin cookie-backed Dropbox and Microsoft cloud sign-in. */
   readonly VITE_CLOUD_HOSTED?: string;
   readonly VITE_AUTODESK_CLIENT_ID?: string;
@@ -48,5 +46,3 @@ declare const __RELEASE_HISTORY__: Array<{
   }>;
 }>;
 declare const __PACKAGE_VERSIONS__: Array<{ name: string; version: string }>;
-/** True in a docs-edition build (`src/edition.ts`); code under `!__DOCS_BUILD__` is left out of its bundle. */
-declare const __DOCS_BUILD__: boolean;

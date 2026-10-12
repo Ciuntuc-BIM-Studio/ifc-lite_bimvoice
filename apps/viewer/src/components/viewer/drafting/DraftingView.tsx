@@ -313,7 +313,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         {selected.length === 1 && !state.gripDrag ? (
           <SelectionBar entity={selected[0]} transform={viewTransform} axis={axis} editing={editingText} onEditingChange={setEditingText} areaWidth={containerRef.current?.clientWidth ?? 800} />
         ) : null}
-        {!__DOCS_BUILD__ && <ModelCommandLayer map={bim.map} />}
+        <ModelCommandLayer map={bim.map} />
         <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} extraPatterns={extraPatterns} />
       </div>
       <CommandLine ref={inputRef} value={text} onChange={setText} onSubmit={submit} onEscape={() => { setText(''); pressEscape(); }} />

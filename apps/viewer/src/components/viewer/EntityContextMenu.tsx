@@ -6,7 +6,6 @@
  * Context menu for entity interactions
  */
 
-import { can } from '@/edition';
 import { useCallback, useEffect, useLayoutEffect, useRef, useMemo, useState } from 'react';
 import { useViewerStore, resolveEntityRef, resolveGlobalId, toGlobalIdFromModels } from '@/store';
 import type { DuplicateDirection } from '@/store/slices/mutationSlice';
@@ -268,8 +267,8 @@ export function EntityContextMenu() {
       closeContextMenu();
       return;
     }
-    // A course or slope of a corridor goes with its whole block (the docs edition has no corridors to edit).
-    const corridor = __DOCS_BUILD__ ? null : corridorOfRenderId(contextMenu.entityId);
+    // A course or slope of a corridor goes with its whole block.
+    const corridor = corridorOfRenderId(contextMenu.entityId);
     if (corridor) {
       closeContextMenu();
       void deleteCorridorWithConfirm(corridor);
@@ -354,7 +353,7 @@ export function EntityContextMenu() {
 
           {/* Keep denied actions visible with their reason; an editable view
               is created on demand when the menu opens in Edit mode. */}
-          {showMutationActions && can('modelling') && (
+          {showMutationActions && (
             <>
               <ContextMenuSeparator />
               <DuplicateItems onDuplicate={handleDuplicate} canEdit={canEdit} reason={editReason} />

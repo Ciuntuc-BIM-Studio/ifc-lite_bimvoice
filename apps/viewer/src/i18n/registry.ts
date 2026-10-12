@@ -14,7 +14,7 @@
  * it separate means converting a component to translated strings never
  * has to touch the (already large) viewer store.
  */
-import { appName } from '../edition';
+import { APP_NAME } from '../brand';
 import { en, type TranslationKey } from './en';
 import { formatLocaleNumber } from './intlFormat';
 import type { PluralTranslation, TranslationParameters, TranslationValue } from './types';
@@ -98,8 +98,8 @@ function pluralForm(value: PluralTranslation, params: TranslationParameters, loc
 
 function interpolate(template: string, params: TranslationParameters): string {
   return template.replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (placeholder, name: string) => {
-    // `{app}`: the product name of the running edition, unless the caller passes one.
-    const value = Object.hasOwn(params, name) ? params[name] : name === 'app' ? appName() : undefined;
+    // `{app}`: the product name, unless the caller passes one.
+    const value = Object.hasOwn(params, name) ? params[name] : name === 'app' ? APP_NAME : undefined;
     return value === undefined ? placeholder : String(value);
   });
 }

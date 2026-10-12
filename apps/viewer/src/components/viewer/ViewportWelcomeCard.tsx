@@ -12,8 +12,6 @@
  * without growing it. Living here it is also testable on its own.
  */
 
-import { can, isDocsEdition } from '@/edition';
-import { panelAllowed } from '@/edition-policy';
 import { useEffect, useState } from 'react';
 import { Upload, Clock3, Sparkles, ArrowUpRight, PackagePlus, Cloud, ShieldCheck, Building2, GitMerge } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
@@ -114,11 +112,11 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
 
         {/* Logo Container */}
         <div className="relative z-10 animate-float-slow transition-transform duration-300 group-hover/logo:scale-110">
-          {/* Lapin's own mark in the full edition (dark navy, lightened on dark themes). */}
+          {/* Lapin's mark (dark navy, lightened on dark themes). */}
           <img
-            src={isDocsEdition() ? '/logo.png' : '/brand/lapin/mark.png'}
+            src="/brand/lapin/mark.png"
             alt={t('viewportLighting.container.emptyState.logoAlt')}
-            className={isDocsEdition() ? 'h-28 w-auto drop-shadow-lg' : 'h-28 w-auto drop-shadow-lg dark:invert'}
+            className="h-28 w-auto drop-shadow-lg dark:invert"
           />
         </div>
       </div>
@@ -127,7 +125,7 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
         {t('viewportLighting.container.emptyState.title')}
       </h2>
       <p className="text-zinc-500 dark:text-[#565f89] font-mono text-sm text-center mb-8 border-b border-zinc-200 dark:border-[#3b4261] pb-4 w-full">
-        {t(isDocsEdition() ? 'viewportLighting.container.emptyState.taglineDocs' : 'viewportLighting.container.emptyState.tagline')}
+        {t('viewportLighting.container.emptyState.tagline')}
       </p>
 
       {/*
@@ -202,7 +200,7 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
           so they read as siblings, with the file-open CTA above
           staying visually dominant. */}
       <div className="flex flex-wrap items-center justify-center gap-2">
-        {can('modelling') && <button
+        <button
           type="button"
           onClick={onStartBlank}
           disabled={actionsDisabled}
@@ -214,8 +212,8 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
         >
           <PackagePlus className="h-3 w-3 transition-transform group-enabled:group-hover:-translate-y-0.5" />
           <span>{t('viewportLighting.container.emptyState.startBlank')}</span>
-        </button>}
-        {panelAllowed('sources') && <button
+        </button>
+        <button
           type="button"
           onClick={() => useViewerStore.getState().openPanelInHome('sources')}
           disabled={actionsDisabled}
@@ -230,7 +228,7 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
               lists every registered provider. Naming one vendor on the
               front door stopped being accurate at the second provider. */}
           <span>{t('viewportLighting.container.emptyState.openFromCloud')}</span>
-        </button>}
+        </button>
         <a
           href="/mcp"
           className="group inline-flex items-center gap-1.5 px-3 py-1.5 font-mono text-2xs border border-dashed border-zinc-300 dark:border-[#3b4261] text-zinc-500 dark:text-[#7a82a5] hover:border-primary hover:text-primary transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

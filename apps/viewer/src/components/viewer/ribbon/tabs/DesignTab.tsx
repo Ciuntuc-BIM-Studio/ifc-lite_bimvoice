@@ -9,7 +9,6 @@
  * (`surface-commands-design-ribbon.ts`).
  */
 
-import { can } from '@/edition';
 import {
   AnnoAxis, DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
@@ -38,7 +37,6 @@ export function DesignTab() {
   const selectGroups = useGroupPrefs((s) => s.selectGroups);
   const groupEditing = useGroupEdit((s) => s.editing !== null);
 
-  const modelling = can('modelling');
   return (
     <>
       <RibbonGroup label={t('drafting.group.draw')}>
@@ -69,8 +67,6 @@ export function DesignTab() {
         </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />
-      {modelling ? (
-        <>
       <RibbonGroup label={t('drafting.group.bim')}>
         <RibbonCommandLargeButton commandId="design:bim-wall" icon={BimWall} active={bim('wall.place')} />
         <RibbonCommandLargeButton commandId="design:bim-slab" icon={BimSlab} active={bim('slab.place')} />
@@ -133,16 +129,6 @@ export function DesignTab() {
         </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />
-        </>
-      ) : (
-        <>
-          {/* The docs edition: the joinery configurator as the symbol library for the model's doors and windows. */}
-          <RibbonGroup label={t('drafting.group.symbols')}>
-            <RibbonCommandLargeButton commandId="design:joinery" icon={JoineryTypes} />
-          </RibbonGroup>
-          <RibbonGroupDivider />
-        </>
-      )}
       <RibbonGroup label={t('drafting.group.workplane')}>
         <RibbonCommandLargeButton commandId="design:section-line" icon={DraftSectionLine} active={on('sectionline')} />
         <RibbonCommandLargeButton commandId="design:workplane-face" icon={DraftWorkplane} />

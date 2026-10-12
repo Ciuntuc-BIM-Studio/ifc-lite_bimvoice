@@ -88,8 +88,6 @@ export function selectFromPlan(globalId: number | null, toggle: boolean): void {
  * True when the command started.
  */
 export function beginPlanHandleDrag(handle: PlanHandle): boolean {
-  // The docs edition moves nothing (and ships none of the commands).
-  if (__DOCS_BUILD__) return false;
   if (handle.kind === 'wallEnd') beginWallEndpointDrag(handle.which);
   else if (handle.kind === 'slide') beginHostedSlide();
   else beginPlanMove(handle.at);

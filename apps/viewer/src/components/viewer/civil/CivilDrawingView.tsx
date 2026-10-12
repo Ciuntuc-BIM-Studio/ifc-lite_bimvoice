@@ -71,7 +71,7 @@ export function CivilDrawingView({ drawing: d }: { drawing: ProjectCivilDrawing 
         </Section>
         <Section title={t('civilDwg.zone.place')}>
           <p className="text-zinc-500">{t('civilDwg.placeSheet')}</p>
-          {!__DOCS_BUILD__ && <Button size="sm" variant="outline" onClick={() => drawCivilOnPlan(d.id)}>{t('civilDwg.drawOnPlan')}</Button>}
+          <Button size="sm" variant="outline" onClick={() => drawCivilOnPlan(d.id)}>{t('civilDwg.drawOnPlan')}</Button>
           <p className="text-zinc-500">{t('civilDwg.placePlan')}</p>
         </Section>
         {layout ? <p className="text-zinc-500">{t('civilDwg.size', { w: Math.round(layout.width), h: Math.round(layout.height) })}</p> : null}

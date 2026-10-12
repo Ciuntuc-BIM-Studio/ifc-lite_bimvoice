@@ -40,34 +40,31 @@ function registerOnce<G>(command: ModelingCommand<G>): void {
   if (!getModelingCommand(command.id)) registerModelingCommand(command);
 }
 
-// The docs edition models nothing: none of the commands (nor their code) ships in its bundle.
-if (!__DOCS_BUILD__) {
-  registerOnce(ELEMENT_SPLIT);
-  registerOnce(WALL_PLACE);
-  registerOnce(WALL_MOVE_ENDPOINT);
-  registerOnce(SLAB_PLACE);
-  registerOnce(COLUMN_PLACE);
-  registerOnce(BEAM_PLACE);
-  registerOnce(ROOM_PLACE);
-  registerOnce(SPACE_ENVELOPE);
-  registerOnce(OPENING_PLACE);
-  registerOnce(DOOR_PLACE);
-  registerOnce(WINDOW_PLACE);
-  registerOnce(HOSTED_SLIDE);
-  registerOnce(PLAN_MOVE);
-  registerOnce(ELEMENT_PASTE);
-  registerOnce(ELEMENT_ARRAY);
-  registerOnce(ELEMENT_MOVE);
-  registerOnce(ELEMENT_ROTATE);
-  registerOnce(STAIR_PLACE);
-  registerOnce(RAILING_PLACE);
-  registerOnce(SPLIT_MULTI);
-  registerOnce(ELEMENT_PUSH_PULL);
-  registerOnce(ELEMENT_ALIGN);
-  registerOnce(CURTAINWALL_PLACE);
-  registerOnce(GRID_PLACE);
-  registerOnce(ELEMENT_TRIM_EXTEND);
-}
+registerOnce(ELEMENT_SPLIT);
+registerOnce(WALL_PLACE);
+registerOnce(WALL_MOVE_ENDPOINT);
+registerOnce(SLAB_PLACE);
+registerOnce(COLUMN_PLACE);
+registerOnce(BEAM_PLACE);
+registerOnce(ROOM_PLACE);
+registerOnce(SPACE_ENVELOPE);
+registerOnce(OPENING_PLACE);
+registerOnce(DOOR_PLACE);
+registerOnce(WINDOW_PLACE);
+registerOnce(HOSTED_SLIDE);
+registerOnce(PLAN_MOVE);
+registerOnce(ELEMENT_PASTE);
+registerOnce(ELEMENT_ARRAY);
+registerOnce(ELEMENT_MOVE);
+registerOnce(ELEMENT_ROTATE);
+registerOnce(STAIR_PLACE);
+registerOnce(RAILING_PLACE);
+registerOnce(SPLIT_MULTI);
+registerOnce(ELEMENT_PUSH_PULL);
+registerOnce(ELEMENT_ALIGN);
+registerOnce(CURTAINWALL_PLACE);
+registerOnce(GRID_PLACE);
+registerOnce(ELEMENT_TRIM_EXTEND);
 
 setWorkplaneResolver((s, modelId, spec) => (spec.kind === 'storey'
   ? buildStoreyWorkplane(s, modelId, spec.storeyId, spec.offset)

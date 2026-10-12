@@ -97,8 +97,6 @@ function hostedGhost(state: ViewerState, batch: ModelAuthoringBatch, preview: Mo
 }
 
 function transformGhosts(state: ViewerState, batch: ModelAuthoringBatch, row: AuthoringRow, id: number): MeshData[] {
-  // The docs edition previews no model edits (and ships none of the transform code).
-  if (__DOCS_BUILD__) return [];
   const reader = authoringReader(state, row.modelId!);
   const target = row.resolved.target!;
   if (!reader) return [];

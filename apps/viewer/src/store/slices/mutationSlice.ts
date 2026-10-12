@@ -6,7 +6,6 @@
  * Mutation slice - manages property/quantity mutations for IFC export
  */
 
-import { modellingDenial } from '../../edition-policy';
 import { type StateCreator } from 'zustand';
 import type { ViewerState } from '../index.js';
 import type { MutablePropertyView, NewEntity, IfcAttributeValue } from '@ifc-lite/mutations';
@@ -80,7 +79,7 @@ import { splitSlab } from './mutation-split-slab.js';
 import type { Point2D } from '@/lib/polygon-clip.js';
 import { registerAuthoredElement } from '@/utils/spatialHierarchy.js';
 import { withMutationBatchTags } from './mutation-batch-tags.js';
-import { canMutate, mutationDenialKey, mutationPermission, modelChangeDenial } from '../mutation-permission.js';
+import { canMutate, mutationDenial, mutationDenialKey, mutationPermission } from '../mutation-permission.js';
 import { syncTypeOverride } from './mutation-history-apply.js';
 import { recordMutationBatch, replayHistory } from './mutation-history-replay.js';
 import { dropFromChangeSets, newChangeSet, parseChangeSetFile, recordHistory } from './mutation-history-record.js';
@@ -829,7 +828,7 @@ function runInStoreElementBuilder(
   storeyExpressId: number,
   element: AuthoredElement,
 ): { expressId: number } | { error: string } {
-  const denial = modelChangeDenial(get(), modelId);
+  const denial = mutationDenial(get(), modelId);
   if (denial) return { error: denial };
   const state = get();
   const model = state.models.get(modelId);
@@ -1198,7 +1197,7 @@ export const createMutationSlice: StateCreator<
   setEntityType: (modelId, entityId, newType, predefinedType) => {
     // Shared mutation gate before the local commit — see setProperty. Reclassing an
     // entity is an attribute write like any other, and `setAttribute` is gated.
-    if (!canMutate(get(), modelId) || modellingDenial()) return null;
+    if (!canMutate(get(), modelId)) return null;
     const view = get().mutationViews.get(modelId);
     if (!view) return null;
 
@@ -1270,7 +1269,7 @@ export const createMutationSlice: StateCreator<
 
   translateEntity: (modelId, expressId, delta, batchId) => {
     // Shared mutation gate also protects geometry writes.
-    const denial = modelChangeDenial(get(), modelId);
+    const denial = mutationDenial(get(), modelId);
     if (denial) return { ok: false, reason: denial };
     // Read the existing placement chain WITHOUT committing the edit
     // yet — we'll route the actual write through `setPositionalAttribute`
@@ -1341,7 +1340,7 @@ export const createMutationSlice: StateCreator<
   },
 
   setEntityPosition: (modelId, expressId, position) => {
-    const denial = modelChangeDenial(get(), modelId);
+    const denial = mutationDenial(get(), modelId);
     if (denial) return { ok: false, reason: denial };
     const view = get().mutationViews.get(modelId);
     if (!view) return { ok: false, reason: 'Model has no editable mutation view yet' };
@@ -1399,7 +1398,7 @@ export const createMutationSlice: StateCreator<
   },
 
   rotateEntity: (modelId, expressId, deltaYaw) => {
-    const denial = modelChangeDenial(get(), modelId);
+    const denial = mutationDenial(get(), modelId);
     if (denial) return { ok: false, reason: denial };
     const view = get().mutationViews.get(modelId);
     const dataStore = get().models.get(modelId)?.ifcDataStore;
@@ -1504,7 +1503,7 @@ export const createMutationSlice: StateCreator<
   },
 
   resizeWall: (modelId, expressId, newStart, newEnd, batchId) => {
-    const denial = modelChangeDenial(get(), modelId);
+    const denial = mutationDenial(get(), modelId);
     if (denial) return { ok: false, reason: denial };
     const view = get().mutationViews.get(modelId);
     if (!view) return { ok: false, reason: 'Model has no editable mutation view yet' };
@@ -1582,7 +1581,7 @@ export const createMutationSlice: StateCreator<
     splitSlab(get, (id) => getOrCreateStoreEditor(get, set, id), modelId, expressId, cutA, cutB, api),
 
   removeEntity: (modelId, expressId, opts) => {
-    if (!canMutate(get(), modelId) || modellingDenial()) return false;
+    if (!canMutate(get(), modelId)) return false;
     const view = get().mutationViews.get(modelId);
     if (!view) return false;
     const editor = getOrCreateStoreEditor(get, set, modelId);
@@ -1660,7 +1659,7 @@ export const createMutationSlice: StateCreator<
 
   generateSpacesFromWalls: (modelId, storeyExpressId, options) => {
     if (!options?.dryRun) {
-      const denial = modelChangeDenial(get(), modelId);
+      const denial = mutationDenial(get(), modelId);
       if (denial) return { error: denial };
     }
     const state = get();
@@ -1715,7 +1714,7 @@ export const createMutationSlice: StateCreator<
 
   duplicateEntity: (modelId, sourceExpressId, direction = DUPLICATE_DEFAULT_DIRECTION, options) => {
     // Gate before the local commit, as addElementViaBuilder does for creates.
-    const denial = modelChangeDenial(get(), modelId);
+    const denial = mutationDenial(get(), modelId);
     if (denial) return { error: denial };
     const state = get();
     const model = state.models.get(modelId);

@@ -3,8 +3,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /** Ribbon Analyze tab. Panel shortcuts and the browser share registry groups (#5873). */
-import { can } from '@/edition';
-import { panelAllowed } from '@/edition-policy';
 import type { ElementType } from 'react';
 import { Issue, List, Compare, Layer, Clash, Check, Script, Schedule, Coloring, Zones, LoadReport, Chart, Document, Cost, Flow, Drawing } from '@/icons';
 import { useViewerStore } from '@/store';
@@ -68,7 +66,7 @@ export function AnalyzeTab() {
     { id: 'flow', commandId: 'panel:flow', icon: Flow, tooltipKey: 'ribbon.analyze.flowTooltip' },
     { id: 'lens', commandId: 'panel:lens', icon: Coloring, tooltipKey: 'ribbon.analyze.lensTooltip' },
   ];
-  const analysisExtensions = can('analysis') ? [...rightAnalysisExtensions, ...bottomAnalysisExtensions] : [];
+  const analysisExtensions = [...rightAnalysisExtensions, ...bottomAnalysisExtensions];
   const commandContext: Omit<SurfaceCommandContext, 'surface'> = {
     activateRightPanel: (panel) => {
       if (panel === 'bcf' || panel === 'validation' || panel === 'clash' || panel === 'compare' || panel === 'lens') {
@@ -84,7 +82,7 @@ export function AnalyzeTab() {
     <>
       <PanelGroupBrowser />
       {PANEL_GROUPS.map((group) => {
-        const panels = featuredPanels.filter((panel) => panelGroupFor(panel.id) === group.id && panelAllowed(panel.id));
+        const panels = featuredPanels.filter((panel) => panelGroupFor(panel.id) === group.id);
         if (panels.length === 0) return null;
         return (
           <div key={group.id} className="contents">
