@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useViewerStore, type RibbonTabId } from '@/store';
 import { cn } from '@/lib/utils';
-import { useTranslation, type TranslationKey } from '@/i18n';
+import { useTranslation } from '@/i18n';
 import { TOUR_ANCHORS, tourAnchor } from '@/lib/tours/anchors';
 import { ThemeSwitch } from '../ThemeSwitch';
 import { SearchInline } from '../SearchInline';
@@ -41,19 +41,10 @@ import { InfrastructureTab } from './tabs/InfrastructureTab';
 import { RibbonSwitchNotice } from './RibbonSwitchNotice';
 import { useRibbonContextualTab } from './useRibbonContextualTab';
 import { emitOpenCommandPalette } from '@/lib/tours/events';
+import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { useRibbonLayout, visibleRibbonTabs } from './ribbon-layout';
+import { RibbonCustomizeDialog, RibbonTabsMenu } from './RibbonCustomizeDialog';
 
-const RIBBON_TABS: { id: RibbonTabId; labelKey: TranslationKey }[] = [
-  { id: 'file', labelKey: 'ribbon.tab.file' },
-  { id: 'home', labelKey: 'ribbon.tab.home' },
-  // Drawing and annotating come first, right after Home.
-  { id: 'design', labelKey: 'ribbon.tab.design' },
-  { id: 'annotations', labelKey: 'ribbon.tab.annotations' },
-  { id: 'view', labelKey: 'ribbon.tab.view' },
-  { id: 'elements', labelKey: 'ribbon.tab.elements' },
-  { id: 'analyze', labelKey: 'ribbon.tab.analyze' },
-  { id: 'author', labelKey: 'ribbon.tab.author' },
-  { id: 'infrastructure', labelKey: 'ribbon.tab.infrastructure' },
-];
 
 interface RibbonToolbarProps {
   onShowShortcuts?: () => void;
@@ -69,6 +60,11 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
   const setRibbonCollapsed = useViewerStore((s) => s.setRibbonCollapsed);
 
   useRibbonContextualTab();
+  const order = useRibbonLayout((s) => s.order);
+  const hidden = useRibbonLayout((s) => s.hidden);
+  const tabs = visibleRibbonTabs({ order, hidden }, activeTab);
+  // The tab a right-click landed on (null: the strip's empty part).
+  const [menuTab, setMenuTab] = React.useState<RibbonTabId | null>(null);
 
   // Shared command surface — registers the global load listeners and the
   // hidden file inputs exactly once for this toolbar style.
@@ -93,40 +89,48 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
 
       {/* ── Tab strip ── */}
       <div className="flex h-10 items-center gap-0.5 border-b border-zinc-200/70 px-2 dark:border-zinc-800/70">
-        <TabsList
-          aria-label={t('ribbon.tabsAriaLabel')}
-          className="flex h-full items-end justify-start gap-0.5 rounded-none bg-transparent p-0"
-          {...tourAnchor(TOUR_ANCHORS.ribbonTabs)}
-        >
-          {RIBBON_TABS.map((tab) => {
-            const isActive = tab.id === activeTab;
-            return (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                onClick={() => { if (isActive && ribbonCollapsed) setRibbonCollapsed(false); }}
-                onDoubleClick={() => {
-                  if (isActive) setRibbonCollapsed(!ribbonCollapsed);
-                }}
-                className={cn(
-                  'relative flex h-8 select-none items-center rounded-t-md px-3 text-xs font-medium tracking-wide transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                  'bg-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none',
-                  isActive
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                )}
-              >
-                {t(tab.labelKey)}
-                {/* Drafting-pen underline for the active tab — reads in
-                    every theme without a filled pill. */}
-                {isActive && (
-                  <span aria-hidden="true" className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />
-                )}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <TabsList
+              aria-label={t('ribbon.tabsAriaLabel')}
+              onContextMenuCapture={() => setMenuTab(null)}
+              className="flex h-full items-end justify-start gap-0.5 rounded-none bg-transparent p-0"
+              {...tourAnchor(TOUR_ANCHORS.ribbonTabs)}
+            >
+              {tabs.map((tab) => {
+                const isActive = tab.id === activeTab;
+                return (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    onContextMenu={() => setMenuTab(tab.id)}
+                    onClick={() => { if (isActive && ribbonCollapsed) setRibbonCollapsed(false); }}
+                    onDoubleClick={() => {
+                      if (isActive) setRibbonCollapsed(!ribbonCollapsed);
+                    }}
+                    className={cn(
+                      'relative flex h-8 select-none items-center rounded-t-md px-3 text-xs font-medium tracking-wide transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                      'bg-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none',
+                      isActive
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                    )}
+                  >
+                    {t(tab.labelKey)}
+                    {/* Drafting-pen underline for the active tab — reads in
+                        every theme without a filled pill. */}
+                    {isActive && (
+                      <span aria-hidden="true" className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />
+                    )}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </ContextMenuTrigger>
+          <RibbonTabsMenu tab={menuTab} />
+        </ContextMenu>
+        <RibbonCustomizeDialog />
 
         {/* Loading progress — lives in the strip so it survives collapse.
             Left of the spacer, next to the tabs: anything to the RIGHT of

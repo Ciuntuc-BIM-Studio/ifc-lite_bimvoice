@@ -116,6 +116,7 @@ import { roofEn } from './catalogues/roof.en';
 import { civilEn } from './catalogues/civil.en';
 import { groupsEn } from './catalogues/groups.en';
 import { relocateEn } from './catalogues/relocate.en';
+import { ribbonLayoutEn } from './catalogues/ribbon-layout.en';
 import { profilesEn } from './catalogues/profiles.en';
 import { civilDrawingsEn } from './catalogues/civil-drawings.en';
 import { materialsEn } from './catalogues/materials.en';
@@ -187,6 +188,7 @@ export const en = {
   ...civilEn,
   ...groupsEn,
   ...relocateEn,
+  ...ribbonLayoutEn,
   ...profilesEn,
   ...civilDrawingsEn,
   ...materialsEn,
