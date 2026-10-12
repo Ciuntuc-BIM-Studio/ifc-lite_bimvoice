@@ -5,7 +5,9 @@
 /**
  * The edition's product name (`src/edition.ts`: Lapin, IfcSheet) where the
  * app cannot read it at run time: the page title in index.html and the web
- * app manifest (`public/manifest.json`), in builds and on the dev server.
+ * app manifest (`public/manifest.json`), in builds and on the dev server —
+ * and, for Lapin, its own icons (`public/brand/lapin/`) in place of the
+ * inherited favicons.
  */
 
 import fs from 'fs';
@@ -14,13 +16,23 @@ import type { Plugin } from 'vite';
 import { APP_NAMES, type Edition } from '../src/edition';
 
 const DESCRIPTIONS: Record<Edition, string> = {
-  full: 'BIM modelling and documentation for IFC models',
+  full: 'BIM authoring tools on IFC-lite',
   docs: 'Drawings, sheets, annotations and schedules from IFC models',
 };
 
+/** An inherited icon path → Lapin's (`/favicon-32x32-cropped.png` → `/brand/lapin/favicon-32.png`). */
+function lapinIcon(href: string): string {
+  if (href === '/favicon.ico') return '/brand/lapin/favicon.ico';
+  if (href === '/favicon.svg') return '/brand/lapin/favicon-512.png';
+  if (href === '/apple-touch-icon.png') return '/brand/lapin/favicon-180.png';
+  const sized = /^\/favicon-(\d+)x\d+-cropped\.png$/.exec(href);
+  return sized ? `/brand/lapin/favicon-${sized[1]}.png` : href;
+}
+
 function manifest(raw: string, edition: Edition): string {
-  const json = JSON.parse(raw) as Record<string, unknown>;
-  return `${JSON.stringify({ ...json, name: APP_NAMES[edition], short_name: APP_NAMES[edition], description: DESCRIPTIONS[edition] }, null, 2)}\n`;
+  const json = JSON.parse(raw) as { icons?: { src: string; type?: string }[] } & Record<string, unknown>;
+  const icons = edition === 'full' ? json.icons?.map((icon) => ({ ...icon, src: lapinIcon(icon.src), type: 'image/png' })) : json.icons;
+  return `${JSON.stringify({ ...json, name: APP_NAMES[edition], short_name: APP_NAMES[edition], description: DESCRIPTIONS[edition], icons }, null, 2)}\n`;
 }
 
 export function editionBranding(edition: Edition, publicDir: string): Plugin {
@@ -32,7 +44,12 @@ export function editionBranding(edition: Edition, publicDir: string): Plugin {
       outDir = path.resolve(config.root, config.build.outDir);
     },
     transformIndexHtml(html) {
-      return html.replace(/<title>[^<]*<\/title>/, `<title>${name}</title>`);
+      const titled = html.replace(/<title>[^<]*<\/title>/, `<title>${name}</title>`);
+      if (edition !== 'full') return titled;
+      return titled
+        .replace(/(<link rel="(?:shortcut )?icon"[^>]*?href=")([^"]+)(")/g, (_m, a: string, href: string, b: string) => `${a}${lapinIcon(href)}${b}`)
+        .replace(/(<link rel="apple-touch-icon"[^>]*?href=")([^"]+)(")/g, (_m, a: string, href: string, b: string) => `${a}${lapinIcon(href)}${b}`)
+        .replace('type="image/svg+xml" href="/brand/lapin/favicon-512.png"', 'type="image/png" href="/brand/lapin/favicon-512.png"');
     },
     configureServer(server) {
       server.middlewares.use('/manifest.json', (_req, res) => {

@@ -114,10 +114,11 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
 
         {/* Logo Container */}
         <div className="relative z-10 animate-float-slow transition-transform duration-300 group-hover/logo:scale-110">
+          {/* Lapin's own mark in the full edition (dark navy, lightened on dark themes). */}
           <img
-            src="/logo.png"
+            src={isDocsEdition() ? '/logo.png' : '/brand/lapin/mark.png'}
             alt={t('viewportLighting.container.emptyState.logoAlt')}
-            className="h-28 w-auto drop-shadow-lg"
+            className={isDocsEdition() ? 'h-28 w-auto drop-shadow-lg' : 'h-28 w-auto drop-shadow-lg dark:invert'}
           />
         </div>
       </div>

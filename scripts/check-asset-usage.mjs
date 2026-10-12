@@ -62,6 +62,11 @@ const SCAN_DIR = 'apps/viewer/public';
 // Convention-fetched paths (relative to SCAN_DIR) that legitimately have no
 // in-repo reference. Each row needs a reason a reviewer can check.
 const ALLOWLIST = [
+  // Lapin's favicons: vite-plugins/edition-branding.ts builds their paths from the
+  // inherited ones (`/favicon-<n>x<n>-cropped.png` → `/brand/lapin/favicon-<n>.png`)
+  // in index.html and the web app manifest, so no file names them literally.
+  'brand/lapin/favicon-16.png', 'brand/lapin/favicon-48.png', 'brand/lapin/favicon-64.png',
+  'brand/lapin/favicon-96.png', 'brand/lapin/favicon-192.png',
   // Browsers request /favicon.ico directly, with no <link> tag required.
   // This repo's index.html happens to link it too, but that is not
   // guaranteed to stay true, and the request happens either way.

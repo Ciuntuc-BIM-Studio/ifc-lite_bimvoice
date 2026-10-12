@@ -39,7 +39,7 @@ export const viewportLightingEn = {
   'viewportLighting.container.emptyState.webgpuBanner.showTroubleshooting': 'Show Troubleshooting',
   'viewportLighting.container.emptyState.logoAlt': '{app} logo',
   'viewportLighting.container.emptyState.title': '{app}',
-  'viewportLighting.container.emptyState.tagline': 'BIM modelling and documentation for IFC',
+  'viewportLighting.container.emptyState.tagline': 'BIM authoring tools on IFC-lite',
   'viewportLighting.container.emptyState.taglineDocs': 'Drawings, sheets and schedules from IFC models',
   'viewportLighting.container.emptyState.openButton.checking': 'Checking WebGPU...',
   'viewportLighting.container.emptyState.openButton.open': 'Open model file',

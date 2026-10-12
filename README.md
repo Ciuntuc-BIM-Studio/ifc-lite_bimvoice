@@ -1,3 +1,12 @@
+<p align="center"><img src="apps/viewer/public/brand/lapin/logo-full.png" alt="Lapin — BIM authoring tools on IFC-lite" width="360"></p>
+
+**Lapin** extends [IFClite](https://github.com/LTplus-AG/ifc-lite) into a BIM authoring app: project navigator,
+views and sheets, 2D drafting and annotations, element and door/window type libraries, roofs, infrastructure,
+project files with versions. Licensed, like IFClite, under the Mozilla Public License 2.0. The rest of this
+README is IFClite's own.
+
+---
+
 <table align="center">
 <tr>
 <td valign="top">
