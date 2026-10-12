@@ -226,13 +226,13 @@ export const extensionsPanelsEn = {
   'extensionsPanels.privacyPanel.title': 'Privacy',
   'extensionsPanels.privacyPanel.helpLabel': 'Privacy',
   'extensionsPanels.privacyPanel.helpIntro':
-    'IFClite keeps a content-free action log of intents you perform (model loads, lens applies, exports) — used by the pattern miner to suggest one-click tools. The log never records model content, chat content, file names, or API keys.',
+    '{app} keeps a content-free action log of intents you perform (model loads, lens applies, exports) — used by the pattern miner to suggest one-click tools. The log never records model content, chat content, file names, or API keys.',
   'extensionsPanels.privacyPanel.helpOverlay':
     'The prompt overlay on the active profile is appended to every chat system prompt — use it for stable preferences. Extract from chat scans the current session for explicit preferences and proposes them.',
   'extensionsPanels.privacyPanel.extractFromChat': 'Extract from chat',
   'extensionsPanels.privacyPanel.storeHeading': 'What we store locally',
   'extensionsPanels.privacyPanel.storeBody1':
-    'ifc-lite keeps a content-free action log of the high-level intents you perform (model loads, lens applies, exports). We use it to mine recurring patterns and surface one-click tool suggestions. The log never records model content, chat content, file names, or API keys.',
+    '{app} keeps a content-free action log of the high-level intents you perform (model loads, lens applies, exports). We use it to mine recurring patterns and surface one-click tool suggestions. The log never records model content, chat content, file names, or API keys.',
   'extensionsPanels.privacyPanel.storeBody2':
     "Suggestions, the audit log, the prompt overlay, and your profile library are all stored in your browser's IndexedDB — nothing here is sent off device unless you explicitly export.",
   'extensionsPanels.privacyPanel.actionLogHeading': 'Action log',

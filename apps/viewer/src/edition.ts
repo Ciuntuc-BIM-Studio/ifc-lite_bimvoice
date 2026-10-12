@@ -6,8 +6,8 @@
  * The app's two editions, chosen at build time (`VITE_EDITION`, folded into
  * the `__EDITION__` constant so the bundler drops what an edition leaves
  * out):
- *   - `full` — everything, BIM modelling included (the default, local);
- *   - `docs` — documentation from existing IFC files: views, sheets, 2D
+ *   - `full` — Lapin: everything, BIM modelling included (the default, local);
+ *   - `docs` — IfcSheet: documentation from existing IFC files: views, sheets, 2D
  *     drafting and annotations, exports, schedules and reports, and editing
  *     of properties; the model's geometry and structure are never changed,
  *     and analysis tools (IDS, BCF, clashes, charts, scripts, extensions,
@@ -37,6 +37,12 @@ export function edition(): Edition {
 }
 
 export const isDocsEdition = (): boolean => edition() === 'docs';
+
+/** Each edition's product name. */
+export const APP_NAMES: Readonly<Record<Edition, string>> = { full: 'Lapin', docs: 'IfcSheet' };
+
+/** The product name shown to users (title, welcome screen, notices): `{app}` in any message. */
+export const appName = (): string => APP_NAMES[edition()];
 
 /** What each edition can do. */
 export const capabilities = {

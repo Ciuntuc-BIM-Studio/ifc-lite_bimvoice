@@ -137,8 +137,8 @@ export const shellChromeEn = {
   'shellChrome.statusBar.webgpuLabel': 'WebGPU',
   'shellChrome.statusBar.noWebgpuLabel': 'No WebGPU',
   'shellChrome.statusBar.appVersion': 'v{version}',
-  'shellChrome.statusBar.ifcliteAriaLabel': 'Visit ifclite.dev — about, docs, and packages',
-  'shellChrome.statusBar.ifcliteLinkLabel': 'ifclite.dev →',
+  'shellChrome.statusBar.ifcliteAriaLabel': 'Built on IFClite — visit ifclite.dev for its docs and packages',
+  'shellChrome.statusBar.ifcliteLinkLabel': 'Built on IFClite →',
 
   // MobileToolbar.tsx
   'shellChrome.mobileToolbar.openFileAriaLabel': 'Open file',

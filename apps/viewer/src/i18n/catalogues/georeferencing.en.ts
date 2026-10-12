@@ -46,9 +46,9 @@ export const georeferencingEn = {
   'properties.georef.unsupportedSchemaNotice': 'Georeferencing editing requires IFC4 or newer. IFC2X3 does not support IfcProjectedCRS or IfcMapConversion.',
   'properties.georef.noProjectedCrs': 'No projected CRS',
   'properties.georef.epsgButton': 'EPSG',
-  'properties.georef.doubleGeorefHeading': 'This model is georeferenced twice. ifc-lite corrected it.',
+  'properties.georef.doubleGeorefHeading': 'This model is georeferenced twice. {app} corrected it.',
   'properties.georef.doubleGeorefBody':
-    'The geometry already sits at map coordinates (E {eastingValue} N {northingValue}), and this IfcMapConversion repeats the same offset. ifc-lite places the geometry where it already is; a tool that applied the conversion on top would put the model {displacement} away.',
+    'The geometry already sits at map coordinates (E {eastingValue} N {northingValue}), and this IfcMapConversion repeats the same offset. {app} places the geometry where it already is; a tool that applied the conversion on top would put the model {displacement} away.',
   'properties.georef.rotationOverrideNote':
     'This file also authors a map rotation that cannot be reconciled with its own coordinates, so the model is placed grid-aligned. Check the orientation, and set Model rotation in map coordinates by hand if it looks wrong.',
   'properties.georef.distanceUnknown': 'an unknown distance',
@@ -69,8 +69,8 @@ export const georeferencingEn = {
   'properties.georef.rawValuesCorrection':
     "The file's own values are shown below exactly as authored. The export is worth fixing at source; to bake the correction in here, {edits}, then use Export IFC (with changes).",
   'properties.georef.rawValuesCorrectionFactor': {
-    one: "The file's own values are shown below exactly as authored. The export is worth fixing at source; to bake the correction in here, {edits}, then use Export IFC (with changes). {factors} is not editable in ifc-lite; set it to 1 in the authoring tool, or the exported file is still scaled by it.",
-    other: "The file's own values are shown below exactly as authored. The export is worth fixing at source; to bake the correction in here, {edits}, then use Export IFC (with changes). {factors} are not editable in ifc-lite; set them to 1 in the authoring tool, or the exported file is still scaled by them.",
+    one: "The file's own values are shown below exactly as authored. The export is worth fixing at source; to bake the correction in here, {edits}, then use Export IFC (with changes). {factors} is not editable in {app}; set it to 1 in the authoring tool, or the exported file is still scaled by it.",
+    other: "The file's own values are shown below exactly as authored. The export is worth fixing at source; to bake the correction in here, {edits}, then use Export IFC (with changes). {factors} are not editable in {app}; set them to 1 in the authoring tool, or the exported file is still scaled by them.",
   },
   'properties.georef.projectedCrsHeading': 'Projected CRS',
   'properties.georef.missingCrsNotice': 'Coordinate operation exists, but projected CRS is missing.',
@@ -83,7 +83,7 @@ export const georeferencingEn = {
   'properties.georef.scaleCompensatedNote':
     'Per IFC schema, IfcMapConversion.Scale (times the IfcMapConversionScaled factor on each axis) should bridge the unit difference between the project length unit and map CRS unit. Current {attribute} = {authoredValue}; expected ≈ {expectedValue}.',
   'properties.georef.scaleCompensatedDetail':
-    'ifc-lite compensates and places the geometry at 1× — no action needed here, but a tool that follows the schema strictly will render this file at {specEffectiveScale}× its physical size.',
+    '{app} compensates and places the geometry at 1× — no action needed here, but a tool that follows the schema strictly will render this file at {specEffectiveScale}× its physical size.',
   'properties.georef.scaleUncompensatedDetail':
     'Geometry is being placed at {effectiveScale}× its physical size — adjust {fixAttribute} to fix.',
   'properties.georef.scaleFixAttributeScale': 'Scale (or MapUnit)',

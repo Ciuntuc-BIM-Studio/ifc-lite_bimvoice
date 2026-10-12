@@ -116,8 +116,8 @@ describe('ViewportContainer localization (#4918 viewport/lighting slice)', () =>
     // A representative set that MUST have rendered in the no-model empty
     // state, so a regression that stops mounting this branch fails loudly
     // instead of the loop above silently skipping everything.
+    // The title is the edition's product name (`{app}`), not a translatable phrase.
     const mustRender: Key[] = [
-      'viewportLighting.container.emptyState.title',
       'viewportLighting.container.emptyState.tagline',
       'viewportLighting.container.emptyState.startBlank',
       'viewportLighting.container.emptyState.openFromCloud',

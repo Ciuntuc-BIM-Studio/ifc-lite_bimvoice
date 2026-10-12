@@ -74,12 +74,12 @@ export const bcfEn = {
   'bcf.serverConnect.accessTokenLabel': 'Access token',
   'bcf.serverConnect.accessTokenPlaceholder': 'Paste an access token',
   'bcf.serverConnect.vendorAppNotice':
-    'Signs you in with your {vendor} account through the {vendor} app registered to IFClite. No client id to enter.',
+    'Signs you in with your {vendor} account through the {vendor} app registered to {app}. No client id to enter.',
   'bcf.serverConnect.clientIdLabel': 'Client ID',
   'bcf.serverConnect.clientIdPlaceholderVendorOnly': 'Issued by the vendor to application developers',
   'bcf.serverConnect.clientIdPlaceholderAutoRegister': 'Leave empty to auto-register when supported',
   'bcf.serverConnect.clientIdHelpVendorOnly':
-    '{vendor} issues client ids to application vendors, not to space users. Ask whoever runs this IFClite deployment to configure its {vendor} app.',
+    '{vendor} issues client ids to application vendors, not to space users. Ask whoever runs this {app} deployment to configure its {vendor} app.',
   'bcf.serverConnect.clientIdHelpDefault':
     'From an OAuth app registered with the vendor. Servers offering dynamic client registration need no ID; leave it empty.',
   'bcf.serverConnect.clientSecretOptionalLabel': 'Client secret (optional)',
@@ -91,7 +91,7 @@ export const bcfEn = {
     "Credentials are kept in this browser's local storage, unencrypted. Treat them as revocable, not secret.",
   'bcf.serverConnect.connect': 'Connect',
   'bcf.serverConnect.missingClientId':
-    '{vendor} issues client ids to application vendors, not to space users, and this IFClite deployment has no {vendor} app configured ({envPrefix}_CLIENT_ID). Sign in via browser is unavailable here.',
+    '{vendor} issues client ids to application vendors, not to space users, and this {app} deployment has no {vendor} app configured ({envPrefix}_CLIENT_ID). Sign in via browser is unavailable here.',
   'bcf.serverConnect.popupBlocked': 'Sign-in popup was blocked. Allow popups for this site and try again.',
   'bcf.serverConnect.oauthTimeout': 'The BCF server sign-in was not completed within 5 minutes.',
 

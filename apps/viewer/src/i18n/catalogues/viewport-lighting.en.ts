@@ -37,9 +37,10 @@ export const viewportLightingEn = {
     'Chrome 113+ / Edge 113+ / Firefox 141+ / Safari 18+',
   'viewportLighting.container.emptyState.webgpuBanner.hideTroubleshooting': 'Hide Troubleshooting',
   'viewportLighting.container.emptyState.webgpuBanner.showTroubleshooting': 'Show Troubleshooting',
-  'viewportLighting.container.emptyState.logoAlt': 'IFClite Logo',
-  'viewportLighting.container.emptyState.title': 'IFClite',
-  'viewportLighting.container.emptyState.tagline': 'IFC toolkit for the open web',
+  'viewportLighting.container.emptyState.logoAlt': '{app} logo',
+  'viewportLighting.container.emptyState.title': '{app}',
+  'viewportLighting.container.emptyState.tagline': 'BIM modelling and documentation for IFC',
+  'viewportLighting.container.emptyState.taglineDocs': 'Drawings, sheets and schedules from IFC models',
   'viewportLighting.container.emptyState.openButton.checking': 'Checking WebGPU...',
   'viewportLighting.container.emptyState.openButton.open': 'Open model file',
   'viewportLighting.container.emptyState.openButton.required': 'WebGPU Required',
@@ -61,7 +62,7 @@ export const viewportLightingEn = {
   'viewportLighting.container.emptyState.loadDemo.failed': 'The demo project could not be loaded. Check your connection and try again.',
   'viewportLighting.container.emptyState.layersDemo': 'Try the Layers demo',
   'viewportLighting.container.emptyState.footer.discoverPrompt': 'New here?',
-  'viewportLighting.container.emptyState.footer.discoverLink': 'ifclite.dev →',
+  'viewportLighting.container.emptyState.footer.discoverLink': 'Built on IFClite →',
   'viewportLighting.container.emptyState.footer.shortcutsLabel': 'SHORTCUTS',
   // ── ViewportContainer.tsx — loaded-model "Add Model" drop overlay ────
   // ── ViewportLoadingCard.tsx — in-viewport load progress + Cancel (#5849) ─

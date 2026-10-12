@@ -112,7 +112,7 @@ export const webgpuTroubleshootingEn = {
   'webgpuTroubleshooting.restOfToolkit.introNoGpu':
     'If none of the above helped, this is likely a hardware or driver limit (blocklisted GPU, a VM/remote session with no GPU passthrough, or missing Vulkan/Metal/D3D12 drivers) — no browser flag fixes that.',
   'webgpuTroubleshooting.restOfToolkit.introOther':
-    "Even once that's sorted, the 3D viewport is the only part of ifc-lite that needs WebGPU.",
+    "Even once that's sorted, the 3D viewport is the only part of {app} that needs WebGPU.",
   'webgpuTroubleshooting.restOfToolkit.cpuLine':
     'The rest of the toolkit runs on the CPU with no browser at all:',
   'webgpuTroubleshooting.restOfToolkit.cliCommand':

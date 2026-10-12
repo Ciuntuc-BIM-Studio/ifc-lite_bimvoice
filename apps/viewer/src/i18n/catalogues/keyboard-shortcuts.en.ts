@@ -42,7 +42,7 @@ export const keyboardShortcutsEn = {
   'keyboardShortcuts.privacy.verifyOutro': '→ Network tab → inspect requests from enabled features.',
 
   // About tab — links, license, packages
-  'keyboardShortcuts.about.appName': 'ifc-lite',
+  'keyboardShortcuts.about.appName': '{app}',
   'keyboardShortcuts.about.versionLabel': 'v{version}',
   'keyboardShortcuts.about.homepageLink': 'ifclite.dev',
   'keyboardShortcuts.about.docsLink': 'Docs',

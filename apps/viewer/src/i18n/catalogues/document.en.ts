@@ -42,7 +42,7 @@ export const documentEn = {
   'document.pageFooter.resetColor': 'Reset page footer colour',
   'document.pageFooter.reset': 'Reset page footer',
   // Canonical paper labels are formatted before preview/PDF pagination (#6610).
-  'document.print.footer': 'Generated {timestamp} · ifc-lite',
+  'document.print.footer': 'Generated {timestamp} · {app}',
   'document.print.pageCounter': 'Page {page} / {total}',
   'document.print.passPercent': '{percent}% passed',
   'document.print.partialCounts': 'Checked {checked} · Passed/failed unavailable (partial report)',

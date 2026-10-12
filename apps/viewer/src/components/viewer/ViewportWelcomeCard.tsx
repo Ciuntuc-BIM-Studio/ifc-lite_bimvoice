@@ -12,7 +12,7 @@
  * without growing it. Living here it is also testable on its own.
  */
 
-import { can } from '@/edition';
+import { can, isDocsEdition } from '@/edition';
 import { panelAllowed } from '@/edition-policy';
 import { useEffect, useState } from 'react';
 import { Upload, Clock3, Sparkles, ArrowUpRight, PackagePlus, Cloud, ShieldCheck, Building2, GitMerge } from 'lucide-react';
@@ -126,7 +126,7 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
         {t('viewportLighting.container.emptyState.title')}
       </h2>
       <p className="text-zinc-500 dark:text-[#565f89] font-mono text-sm text-center mb-8 border-b border-zinc-200 dark:border-[#3b4261] pb-4 w-full">
-        {t('viewportLighting.container.emptyState.tagline')}
+        {t(isDocsEdition() ? 'viewportLighting.container.emptyState.taglineDocs' : 'viewportLighting.container.emptyState.tagline')}
       </p>
 
       {/*

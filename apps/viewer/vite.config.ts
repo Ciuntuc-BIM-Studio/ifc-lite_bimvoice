@@ -18,6 +18,7 @@ import { oauthCallbackRoutes } from './vite-plugins/oauth-callback';
 // about which Dalux node a request reaches (#2792).
 import { daluxRelayRoute } from './vite-plugins/dalux-relay';
 import { docsModuleSideEffects, editionBundle } from './vite-plugins/edition-bundle';
+import { editionBranding } from './vite-plugins/edition-branding';
 import { deploymentAssetsDir } from '../../scripts/lib/deployment-assets-dir.mjs';
 
 // --- Build-time changelog parser ---
@@ -247,6 +248,8 @@ export default defineConfig({
     daluxRelayRoute(),
     // The docs edition must not ship what it leaves out (modelling, infrastructure, analysis).
     editionBundle(process.env.VITE_EDITION === 'docs' ? 'docs' : 'full'),
+    // The edition's product name in the page title and the web app manifest (Lapin / IfcSheet).
+    editionBranding(process.env.VITE_EDITION === 'docs' ? 'docs' : 'full', path.resolve(__dirname, 'public')),
   ],
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
