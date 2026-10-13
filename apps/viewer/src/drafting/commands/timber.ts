@@ -21,6 +21,7 @@ import { createTimberMember, timberSettings, type TimberSettings } from '@/proje
 import type { TranslationKey } from '@/i18n';
 import type { Pt } from '../types';
 import type { DraftCommandDef } from './types';
+import { trussCommand } from './truss';
 
 type Field = 'width' | 'depth' | 'beamTop' | 'postBase' | 'postTop' | 'braceFrom' | 'braceTo';
 
@@ -103,4 +104,4 @@ export const timberBeamCommand = timberCommand('beam', 'tbeam', ['TBEAM', 'TB'],
 export const timberPostCommand = timberCommand('post', 'tpost', ['TPOST', 'TP'], 'drafting.cmd.tpost');
 export const timberBraceCommand = timberCommand('brace', 'tbrace', ['TBRACE', 'BRACE'], 'drafting.cmd.tbrace');
 
-export const TIMBER_COMMANDS: readonly DraftCommandDef[] = [timberBeamCommand, timberPostCommand, timberBraceCommand];
+export const TIMBER_COMMANDS: readonly DraftCommandDef[] = [timberBeamCommand, timberPostCommand, timberBraceCommand, trussCommand];

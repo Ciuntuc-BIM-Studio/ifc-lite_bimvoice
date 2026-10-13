@@ -8,6 +8,7 @@
  * project follows model loads even while the Model tab is showing.
  */
 
+import { TrussDialog } from '@/components/viewer/timber/TrussDialog';
 import { useState } from 'react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -107,6 +108,7 @@ export function LeftNavigator() {
       <JoineryDialog />
       <ElementTypesDialog />
       <RoofSystemDialog />
+      <TrussDialog />
       <CorridorDialog />
       <GroupEditBar />
       <ProfileLibraryDialog />
