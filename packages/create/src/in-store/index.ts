@@ -72,6 +72,9 @@ export { offsetEdges, orientRoof, roofGeometry, roofProblem, type RoofEdgeKind, 
 export { defaultRoofStructure, defaultTruss, roofStructure, type MemberRole, type MemberSection, type RoofMember, type RoofStructureSpec, type TrussSpec } from './roof-structure.js';
 export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type GableWallSpec, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
 export {
+  addTimberMemberToStore, TIMBER_GRADES, TIMBER_PSET, timberMaterialInStore, timberMaterialName, type TimberMemberKind, type TimberMemberParams, type TimberMemberResult,
+} from './timber-member.js';
+export {
   bakeBooleanInStore, readSubtractions, removeSubtractionsInStore, subtractElementsInStore, SUBTRACT_NAME, type BakeOutcome, type Subtraction,
 } from './element-boolean.js';
 export {

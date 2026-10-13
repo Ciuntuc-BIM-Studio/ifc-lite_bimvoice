@@ -16,9 +16,10 @@ import { civilDrawingCommand } from './civil-drawing';
 import { revolveCommand, sweepCommand } from './solids';
 import { HOSTED_COMMANDS } from './hosted';
 import { tagCommand } from './tag';
+import { TIMBER_COMMANDS } from './timber';
 import type { DraftCommandDef } from './types';
 
-export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand, roofCommand, roadCommand, bridgeCommand, civilDrawingCommand, sweepCommand, revolveCommand, ...HOSTED_COMMANDS, tagCommand];
+export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand, roofCommand, roadCommand, bridgeCommand, civilDrawingCommand, sweepCommand, revolveCommand, ...HOSTED_COMMANDS, tagCommand, ...TIMBER_COMMANDS];
 
 const BY_ID = new Map(DRAFT_COMMANDS.map((c) => [c.id, c]));
 const BY_ALIAS = new Map(DRAFT_COMMANDS.flatMap((c) => c.aliases.map((a) => [a, c] as const)));

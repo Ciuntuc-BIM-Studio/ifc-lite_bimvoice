@@ -12,6 +12,7 @@
  * and command-line keywords, and drives the command state machine.
  */
 
+import { providers } from './session-providers';
 import { create } from 'zustand';
 import type { TranslationKey } from '@/i18n';
 import { useProjectStore } from '@/project/project-store';
@@ -22,8 +23,6 @@ import { applyOrtho, parseCoordinateInput, pointAlong } from './input';
 import { drawingToUserVec, userToDrawingVec, type SectionAxisName } from './frame';
 import { draftsOfView } from './draft-store';
 import type { DraftEntity, DraftShape, Pt } from './types';
-import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
-import type { ProjectView } from '@/project/types';
 
 export interface HistoryLine {
   key: TranslationKey;
@@ -72,41 +71,9 @@ const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHei
   currentTextStyle: 'standard', currentDimStyle: 'standard', currentAxisStyle: 'standard' };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
-let referenceProvider: (min: Pt, max: Pt) => DraftShape[] = () => [];
-/** Picks a model element under an idle click that hit no drafted entity (the view installs it). */
-let modelPicker: ((p: Pt, tolerance: number, additive: boolean) => void) | null = null;
-let loopProvider: () => Pt[][] = () => [];
-let levelProvider: (p: Pt) => number = () => 0;
-let planeProvider: () => SectionPlaneConfig | null = () => null;
-let viewKindProvider: () => 'plan' | 'section' | 'elevation' | null = () => null;
-let viewProvider: () => ProjectView | null = () => null;
-
-/** The view installs where hatch boundaries and level values come from. */
-export function setAnnotationProviders(loops: () => Pt[][], levelAt: (p: Pt) => number): void {
-  loopProvider = loops;
-  levelProvider = levelAt;
-}
-
-/** The view installs its work plane and kind (work-plane commands need them). */
-export function setWorkPlaneProvider(plane: () => SectionPlaneConfig | null, view: () => ProjectView | null): void {
-  planeProvider = plane;
-  viewProvider = view;
-  viewKindProvider = () => {
-    const kind = view()?.kind;
-    return kind === 'plan' || kind === 'section' || kind === 'elevation' ? kind : null;
-  };
-}
-
-/** The view in front and its work plane, and the drafting settings, as the commands see them. */
-export const activeWorkPlane = (): { plane: SectionPlaneConfig | null; view: ProjectView | null } => ({ plane: planeProvider(), view: viewProvider() });
+export { activeWorkPlane, setAnnotationProviders, setElementPicker, setModelPicker, setWorkPlaneProvider } from './session-providers';
+/** The drafting settings, as the commands see them. */
 export const draftSettings = (): Readonly<DraftSettings> => scaledSettings;
-
-export function setModelPicker(picker: typeof modelPicker): void {
-  modelPicker = picker;
-}
-
-/** The model element (renderer id) drawn under a drawing point, from the view in front. */
-let elementPicker: (p: Pt) => number | null = () => null;
 
 /**
  * The styles new annotations take; the text height setting follows the current text style (paper mm →
@@ -123,10 +90,6 @@ export function setCurrentStyles(patch: { textStyle?: string; dimStyle?: string;
 
 export function currentStyles(): { textStyle: string; dimStyle: string; axisStyle: string } {
   return { textStyle: settings.currentTextStyle, dimStyle: settings.currentDimStyle, axisStyle: settings.currentAxisStyle };
-}
-
-export function setElementPicker(picker: ((p: Pt) => number | null) | null): void {
-  elementPicker = picker ?? (() => null);
 }
 
 const get = () => useDraftingSession.getState();
@@ -149,13 +112,13 @@ function context(viewId: string): DraftContext {
     viewId,
     layerId: currentLayerId(),
     entities: () => visibleEntities(viewId),
-    referenceShapes: (min, max) => referenceProvider(min, max),
-    closedLoops: () => loopProvider(),
-    levelAt: (p) => levelProvider(p),
-    plane: () => planeProvider(),
-    viewKind: () => viewKindProvider(),
-    view: () => viewProvider(),
-    elementAt: (p) => elementPicker(p),
+    referenceShapes: (min, max) => providers.references(min, max),
+    closedLoops: () => providers.loops(),
+    levelAt: (p) => providers.levelAt(p),
+    plane: () => providers.plane(),
+    viewKind: () => providers.viewKind(),
+    view: () => providers.view(),
+    elementAt: (p) => providers.elementAt(p),
     selection: () => get().selection,
     setSelection: (ids) => set({ selection: ids }),
     // userToDrawing is diag(kx, −ky): orientation-reversing when its determinant is negative.
@@ -207,7 +170,7 @@ const scaledSettings = new Proxy(settings, {
 });
 
 export function attachDraftingView(viewId: string | null, axis: SectionAxisName, references: (min: Pt, max: Pt) => DraftShape[], unitsScale = 1): void {
-  referenceProvider = references;
+  providers.references = references;
   sizeScale = unitsScale;
   // Plans draw drawing-y downward on screen; text and marks grow up on screen.
   setAnnotationScreenUp(axis === 'down' ? -1 : 1);
@@ -294,9 +257,9 @@ export function clickDrawing(p: Pt, tolerance: number, additive: boolean, snappe
   if (selecting || !command) {
     const hit = pickEntity(p, tolerance);
     // Idle, nothing drafted under the click: the click is for the model's elements.
-    if (!hit && !selecting && modelPicker) {
+    if (!hit && !selecting && providers.modelPicker) {
       if (!additive) set({ selection: new Set() });
-      modelPicker(p, tolerance, additive);
+      providers.modelPicker(p, tolerance, additive);
       refresh();
       return;
     }
