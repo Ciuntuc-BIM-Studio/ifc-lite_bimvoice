@@ -9,6 +9,7 @@
  */
 
 import { TrussDialog } from '@/components/viewer/timber/TrussDialog';
+import { TimberFrameDialog } from '@/components/viewer/timber/TimberFrameDialog';
 import { useState } from 'react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -109,6 +110,7 @@ export function LeftNavigator() {
       <ElementTypesDialog />
       <RoofSystemDialog />
       <TrussDialog />
+      <TimberFrameDialog />
       <CorridorDialog />
       <GroupEditBar />
       <ProfileLibraryDialog />

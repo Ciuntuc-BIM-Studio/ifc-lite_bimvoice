@@ -9,7 +9,7 @@
  * `design:*` commands (`surface-commands-design-ribbon.ts`).
  */
 
-import { BimRoof, RoofSystem, TimberBeam, TimberBrace, TimberPost, TimberTruss, TimberTrussSettings, WallAttachRoof, WallDetachRoof } from '@/icons';
+import { BimRoof, RoofSystem, TimberBeam, TimberBrace, TimberFrame, TimberPost, TimberTruss, TimberTrussSettings, WallAttachRoof, WallDetachRoof } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -41,6 +41,10 @@ export function WoodTab() {
       <RibbonGroup label={t('timber.group.trusses')}>
         <RibbonCommandLargeButton commandId="wood:truss" icon={TimberTruss} active={commandId === 'truss'} />
         <RibbonCommandLargeButton commandId="wood:truss-settings" icon={TimberTrussSettings} />
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('timber.group.frames')}>
+        <RibbonCommandLargeButton commandId="wood:timber-frame" icon={TimberFrame} />
       </RibbonGroup>
     </>
   );

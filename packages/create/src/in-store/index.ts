@@ -73,6 +73,8 @@ export { defaultRoofStructure, defaultTruss, roofStructure, type MemberRole, typ
 export { addCurtainWallSystemToStore, curtainWallOf, curtainWallParams, curtainWallParts, curtainWallSpecLayout, curtainWallTypeOf, CURTAIN_WALL_PSET, DEFAULT_CURTAIN_WALL_TYPE, readCurtainWallSystem, regenerateCurtainWallInStore, resolveGrid, type CurtainGridRule, type CurtainSection, type CurtainWallSpec, type CurtainWallSystemResult, type CurtainWallTypeSpec } from './curtain-wall-system.js';
 export { inferCurtainWallSpec } from './curtain-wall-infer.js';
 export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type GableWallSpec, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
+export { boxFaces, defaultTimberFrame, timberFrameParts, timberFrameProblem, type FrameBox, type FrameOpening, type FramePiece, type FramePieceRole, type FrameWall, type TimberFrameSpec } from './timber-frame.js';
+export { readTimberFrame, setTimberFrameInStore, syncTimberFrameInStore, TIMBER_FRAME_PSET, timberFramedWalls, timberFramePieces } from './timber-frame-store.js';
 export { defaultTimberTruss, topAt, trussBars, trussProblem, type TimberTrussSpec, type TrussBar, type TrussPattern, type TrussRole, type TrussSection, type TrussShape } from './truss.js';
 export { addTrussToStore, readPlacedTruss, readTruss, regenerateTrussInStore, TRUSS_PSET, trussOf, trussParts, type PlacedTrussSpec, type TrussResult } from './truss-store.js';
 export {
