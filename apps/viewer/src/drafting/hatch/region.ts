@@ -4,8 +4,14 @@
 
 /**
  * Hatch boundary detection for "pick a point inside": given closed loops,
- * find the smallest loop containing the point (outer boundary) and the
- * first-level islands inside it (holes).
+ * find the smallest loop containing the point (outer boundary) and every
+ * loop nested inside it — its islands (holes), the islands inside those, and
+ * so on — first-level islands first. Filled even-odd, that is AutoCAD's
+ * "normal" island style: outer filled, holes empty, islands in holes filled.
+ *
+ * The same outline often comes twice (a closed polyline and the area its own
+ * segments enclose); a loop drawn twice would cancel itself under even-odd,
+ * so duplicates are dropped first.
  */
 
 import type { Pt } from '../types';
@@ -86,9 +92,19 @@ function loopInside(inner: LoopInfo, outer: LoopInfo): boolean {
   return pointInPolygon(c, outer.pts);
 }
 
+/** Two loops trace the same outline: same area and extent, every vertex of one on the other. */
+function sameLoop(a: LoopInfo, b: LoopInfo): boolean {
+  const span = Math.max(a.maxX - a.minX, a.maxY - a.minY, 1e-9);
+  const tol = span * 1e-6;
+  if (Math.abs(a.area - b.area) > span * span * 1e-6) return false;
+  if (Math.abs(a.minX - b.minX) > tol || Math.abs(a.minY - b.minY) > tol || Math.abs(a.maxX - b.maxX) > tol || Math.abs(a.maxY - b.maxY) > tol) return false;
+  return a.pts.every((v) => onBoundary(v, b, tol)) && b.pts.every((v) => onBoundary(v, a, tol));
+}
+
 /**
- * Region around `p`: `[outer, ...holes]`, or null when no loop contains p.
- * Degenerate loops (< 3 points or ~zero area) are ignored.
+ * Region around `p`: `[outer, ...islands]` (first-level islands first, then
+ * the ones nested in them), or null when no loop contains p. Degenerate loops
+ * (< 3 points or ~zero area) and repeated outlines are ignored.
  */
 export function regionAt(p: Pt, loops: readonly Pt[][]): Pt[][] | null {
   const valid: LoopInfo[] = [];
@@ -97,6 +113,7 @@ export function regionAt(p: Pt, loops: readonly Pt[][]): Pt[][] | null {
     const li = info(l);
     const span = Math.max(li.maxX - li.minX, li.maxY - li.minY);
     if (!(li.area > span * span * 1e-12)) continue;
+    if (valid.some((v) => sameLoop(v, li))) continue;
     valid.push(li);
   }
   let outer: LoopInfo | null = null;
@@ -111,5 +128,6 @@ export function regionAt(p: Pt, loops: readonly Pt[][]): Pt[][] | null {
     (l) => l !== chosenOuter && !pointInPolygon(p, l.pts) && loopInside(l, chosenOuter),
   );
   const holes = candidates.filter((l) => !candidates.some((o) => o !== l && loopInside(l, o)));
-  return [chosenOuter.pts, ...holes.map((h) => h.pts)];
+  const nested = candidates.filter((l) => !holes.includes(l));
+  return [chosenOuter.pts, ...holes.map((h) => h.pts), ...nested.map((h) => h.pts)];
 }

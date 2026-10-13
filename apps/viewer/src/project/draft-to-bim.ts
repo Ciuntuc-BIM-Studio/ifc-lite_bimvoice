@@ -19,6 +19,7 @@
  * The drafted entity stays a drafting entity; it records what it became.
  */
 
+import { ensureEditMode } from './edit-mode';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import { useViewerStore } from '@/store';
 // The Design tab's BIM commands, registered (the viewer loads them with its tool HUDs).
@@ -112,6 +113,9 @@ const COMMANDS: Record<'wall' | 'beam' | 'railing' | 'slab', { id: Parameters<ty
 /** Turn `entity` (drawn on `view`) into model elements. */
 export function convertDraftToBim(entity: DraftEntity, kind: DraftBimKind, view: ProjectView, plane: SectionPlaneConfig, entities: readonly DraftEntity[], options: DraftBimOptions = {}): DraftBimResult {
   if (entity.params.ifcGlobalId) return { ok: false, error: 'This contour already drives an element.' };
+  // Converting is a modelling tool: it switches Edit mode on itself, for every kind (the wall, beam,
+  // railing and slab tools commit through the modelling commands, which refuse while it is off).
+  ensureEditMode();
   if (kind === 'extrude') {
     const loops = contourLoops(entity, entities);
     if (!loops) return { ok: false, error: 'Only a closed contour can be extruded.' };
