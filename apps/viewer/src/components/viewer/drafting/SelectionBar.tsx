@@ -22,7 +22,7 @@ import { overriddenFields, resolveDim, resolveText, type ArrowKind, type TextPla
 import { isGeometry, type AnnotationShape, type DraftEntity, type Pt } from '@/drafting/types';
 import { resetElementOverrides, setElementOverride, setElementStyle } from '@/project/drafting-standards';
 import { openStandards } from '@/project/standards-dialog-store';
-import { isDimensional, useStyleBook } from './AnnotationStyleFields';
+import { isDimensional, styleChoice, useStyleBook } from './AnnotationStyleFields';
 
 const BTN = 'h-7 whitespace-nowrap rounded-sm px-1.5 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800';
 const BAR_HALF = 250;
@@ -64,7 +64,7 @@ export function SelectionBar({ entity, transform, axis, editing, onEditingChange
   if (isGeometry(shape) || shape.type === 'hatch') return null;
   const ids = new Set([entity.id]);
   const dimensional = isDimensional(shape);
-  const kind = dimensional ? 'dimStyle' : 'textStyle';
+  const choice = styleChoice(book, entity, shape);
   const text = resolveText(book, entity.params);
   const dim = resolveDim(book, entity.params);
   const bounds = entityBounds(shape);
@@ -86,8 +86,9 @@ export function SelectionBar({ entity, transform, axis, editing, onEditingChange
         style={{ left, top: Math.max(top - 10, 40) }}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        <select aria-label={t('standards.el.style')} className={SELECT} value={String(entity.params[kind] ?? 'standard')} onChange={(e) => setElementStyle(ids, kind, e.target.value)}>
-          {(dimensional ? book.dimStyles : book.textStyles).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        <select aria-label={t('standards.el.style')} className={SELECT} value={choice.value} onChange={(e) => e.target.value && setElementStyle(ids, choice.kind, e.target.value)}>
+          {choice.value === '' ? <option value="">—</option> : null}
+          {choice.styles.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         {dimensional ? (
           <>
@@ -110,7 +111,7 @@ export function SelectionBar({ entity, transform, axis, editing, onEditingChange
           <IconButton label={t('standards.el.editText')} className="size-7" onClick={() => onEditingChange(true)}><Pencil className="size-3.5" /></IconButton>
         ) : null}
         <IconButton label={t('standards.el.reset')} className="size-7" disabled={overriddenFields(entity.params).length === 0} onClick={() => resetElementOverrides(ids)}><RotateCcw className="size-3.5" /></IconButton>
-        <IconButton label={t('standards.open')} className="size-7" onClick={() => openStandards(dimensional ? 'dim' : 'text', String(entity.params[kind] ?? 'standard'))}><SlidersHorizontal className="size-3.5" /></IconButton>
+        <IconButton label={t('standards.open')} className="size-7" onClick={() => openStandards(choice.tab, choice.value || null)}><SlidersHorizontal className="size-3.5" /></IconButton>
       </div>
       {editing && editable !== null ? (
         <InlineEditor entity={entity} value={editable} at={{ x: left, y: top }} onDone={() => onEditingChange(false)} />

@@ -5,18 +5,20 @@
 /**
  * The project's drafting standards as actions: layers and layer groups,
  * layer visibility per view and per sheet viewport, text and dimension
- * styles, and the per-element style / overrides.
+ * styles, axis types, and the per-element style / overrides.
  *
  * Annotation heights live on the shapes (drawing units, what picking and
  * snapping measure); a style holds them in paper millimetres. So whenever a
  * style, an element's style or a view's scale changes, the heights of the
  * annotations it governs are recomputed — except where the element
- * overrides its height (`o.height`, paper mm).
+ * overrides its height (`o.height`, paper mm). An axis of a type takes the
+ * type's bubble, ends, size and line type the same way: the shape keeps
+ * them (what drawing, snapping and export read), the type governs them.
  */
 
 import {
-  DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, overrideKey, resolveText, STANDARD,
-  type DimStyle, type LayerGroup, type StyleBook, type TextStyle,
+  AXIS_OVERRIDES, DEFAULT_AXIS_STYLE, DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, overrideKey, resolveAxis, resolveText, STANDARD,
+  type AxisStyle, type DimStyle, type LayerGroup, type StyleBook, type TextStyle,
 } from '@/drafting/styles';
 import type { DraftEntity, DraftLayer, DraftParamValue, EntityShape } from '@/drafting/types';
 import { useProjectStore } from './project-store';
@@ -27,6 +29,7 @@ type State = ReturnType<typeof useProjectStore.getState>;
 const book = (s: State): StyleBook => ({
   textStyles: s.textStyles?.length ? s.textStyles : [DEFAULT_TEXT_STYLE],
   dimStyles: s.dimStyles?.length ? s.dimStyles : [DEFAULT_DIM_STYLE],
+  axisStyles: s.axisStyles?.length ? s.axisStyles : [DEFAULT_AXIS_STYLE],
 });
 
 export function styleBook(): StyleBook {
@@ -48,15 +51,30 @@ function styledHeight(entity: DraftEntity, s: State): number | null {
   return mm * paperUnitOf(entity.viewId, s);
 }
 
-/** Re-apply style heights to `drafts` (all, or those `which` selects). Returns the same array when nothing changes. */
+/** The shape `entity` has under its styles: its height, and an axis's type; the same object when nothing changes. */
+function styledShape(entity: DraftEntity, s: State): EntityShape {
+  let shape = entity.shape;
+  const h = styledHeight(entity, s);
+  if (h !== null && sized(shape) && Math.abs(shape.height - h) >= 1e-9) shape = { ...shape, height: h };
+  if (shape.type === 'axis' && entity.params.axisStyle !== undefined) {
+    const type = resolveAxis(book(s), entity.params);
+    const size = type.size * paperUnitOf(entity.viewId, s);
+    if (shape.bubble !== type.bubble || shape.ends !== type.ends || shape.lineType !== type.lineType || Math.abs(shape.size - size) >= 1e-9) {
+      shape = { ...shape, bubble: type.bubble, ends: type.ends, lineType: type.lineType, size };
+    }
+  }
+  return shape;
+}
+
+/** Re-apply styles to `drafts` (all, or those `which` selects). Returns the same array when nothing changes. */
 function restyle(s: State, drafts: readonly DraftEntity[], which: (d: DraftEntity) => boolean = () => true): DraftEntity[] {
   let changed = false;
   const next = drafts.map((d) => {
     if (!which(d)) return d;
-    const h = styledHeight(d, s);
-    if (h === null || !sized(d.shape) || Math.abs(d.shape.height - h) < 1e-9) return d;
+    const shape = styledShape(d, s);
+    if (shape === d.shape) return d;
     changed = true;
-    return { ...d, shape: { ...d.shape, height: h } };
+    return { ...d, shape };
   });
   return changed ? next : (drafts as DraftEntity[]);
 }
@@ -67,14 +85,29 @@ function commit(patch: Partial<State>): void {
   useProjectStore.setState({ ...patch, ...(drafts !== s.drafts ? { drafts } : {}), dirty: true });
 }
 
-/** A new annotation takes its style: style ids by kind, and an `o.height` when its height is not the style's. */
-export function styledParams(viewId: string, shape: EntityShape, current: { textStyle: string; dimStyle: string }): Record<string, DraftParamValue> {
+/**
+ * A new annotation takes its style: style ids by kind, and an `o.height` when its height is not the
+ * style's. An axis takes the current axis type, with an override for each field drawn otherwise.
+ */
+export function styledParams(viewId: string, shape: EntityShape, current: { textStyle: string; dimStyle: string; axisStyle?: string }): Record<string, DraftParamValue> {
   if (!sized(shape)) return {};
   const s = useProjectStore.getState();
   const dimensional = shape.type === 'dimension' || shape.type === 'radial' || shape.type === 'angular';
-  const params: Record<string, DraftParamValue> = dimensional ? { dimStyle: current.dimStyle } : { textStyle: current.textStyle };
-  const mm = shape.height / paperUnitOf(viewId, s);
+  const params: Record<string, DraftParamValue> = dimensional ? { dimStyle: current.dimStyle }
+    : shape.type === 'axis' ? { axisStyle: current.axisStyle ?? STANDARD } : { textStyle: current.textStyle };
+  const unit = paperUnitOf(viewId, s);
+  const mm = shape.height / unit;
   if (Math.abs(mm - resolveText(book(s), params).height) > 1e-6) params[overrideKey('height')] = Number(mm.toFixed(3));
+  if (shape.type === 'axis') {
+    const type = resolveAxis(book(s), params);
+    const drawn: Record<(typeof AXIS_OVERRIDES)[number], DraftParamValue> = {
+      bubble: shape.bubble, ends: shape.ends, lineType: shape.lineType, size: Number((shape.size / unit).toFixed(3)),
+    };
+    for (const field of AXIS_OVERRIDES) {
+      const same = field === 'size' ? Math.abs(type.size - (drawn.size as number)) < 1e-6 : type[field] === drawn[field];
+      if (!same) params[overrideKey(field)] = drawn[field];
+    }
+  }
   return params;
 }
 
@@ -174,6 +207,7 @@ export function removeTextStyle(id: string): void {
   commit({
     textStyles: book(s).textStyles.filter((t) => t.id !== id),
     dimStyles: book(s).dimStyles.map((d) => (d.textStyle === id ? { ...d, textStyle: STANDARD } : d)),
+    axisStyles: book(s).axisStyles?.map((a) => (a.textStyle === id ? { ...a, textStyle: STANDARD } : a)),
     drafts: s.drafts.map((d) => (d.params.textStyle === id ? { ...d, params: { ...d.params, textStyle: STANDARD } } : d)),
   });
 }
@@ -199,6 +233,28 @@ export function removeDimStyle(id: string): void {
   });
 }
 
+export function addAxisStyle(from: AxisStyle, name: string): string {
+  const id = freshProjectId('axis');
+  const s = useProjectStore.getState();
+  commit({ axisStyles: [...(book(s).axisStyles ?? []), { ...from, id, name }] });
+  return id;
+}
+
+export function updateAxisStyle(id: string, patch: Partial<Omit<AxisStyle, 'id'>>): void {
+  const s = useProjectStore.getState();
+  commit({ axisStyles: (book(s).axisStyles ?? []).map((a) => (a.id === id ? { ...a, ...patch } : a)) });
+}
+
+/** Remove an axis type (not Standard): its axes follow Standard, keeping their own overrides. */
+export function removeAxisStyle(id: string): void {
+  if (id === STANDARD) return;
+  const s = useProjectStore.getState();
+  commit({
+    axisStyles: (book(s).axisStyles ?? []).filter((a) => a.id !== id),
+    drafts: s.drafts.map((d) => (d.params.axisStyle === id ? { ...d, params: { ...d.params, axisStyle: STANDARD } } : d)),
+  });
+}
+
 // ─── Per element ──────────────────────────────────────────────────────────
 
 function patchParams(ids: ReadonlySet<string>, patch: Record<string, DraftParamValue | null>): void {
@@ -215,9 +271,9 @@ function patchParams(ids: ReadonlySet<string>, patch: Record<string, DraftParamV
   useProjectStore.setState({ drafts: restyle(s, drafts, (d) => ids.has(d.id)), dirty: true });
 }
 
-/** Give elements a text or dimension style. */
-export function setElementStyle(ids: ReadonlySet<string>, kind: 'textStyle' | 'dimStyle', styleId: string): void {
-  patchParams(ids, { [kind]: styleId });
+/** Give elements a text, dimension or axis style (an axis then takes its label's text style from the type). */
+export function setElementStyle(ids: ReadonlySet<string>, kind: 'textStyle' | 'dimStyle' | 'axisStyle', styleId: string): void {
+  patchParams(ids, kind === 'axisStyle' ? { axisStyle: styleId, textStyle: null } : { [kind]: styleId });
 }
 
 /** Override one style field on elements (`null` clears it back to the style). */

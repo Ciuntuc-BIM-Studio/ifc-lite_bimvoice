@@ -48,7 +48,7 @@ interface ViewDxfInput {
 function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, overlays }: ViewDxfInput) {
   const pens = drawing ? viewportPens(drawing, view.graphics, MM, axis, extraPatterns) : [];
   const s = useProjectStore.getState();
-  const book = { textStyles: s.textStyles ?? [], dimStyles: s.dimStyles ?? [] };
+  const book = { textStyles: s.textStyles ?? [], dimStyles: s.dimStyles ?? [], axisStyles: s.axisStyles ?? [] };
   const colour = new Map(layers.map((l) => [l.id, layerShows(l, s.layerGroups ?? [], { view: view.hiddenLayers }) ? l.color : null]));
   const layerById = new Map(layers.map((l) => [l.id, l]));
   const paperUnit = (view.scale ?? 100) / 1000;

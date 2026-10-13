@@ -15,7 +15,7 @@
  * project/views.json      views (plans, sections, elevations, 3D) and their graphics
  * project/sheets.json     sheets and viewports
  * project/drafts/<id>.json  the drafted geometry and annotations of one view (or sheet)
- * project/standards.json  layers, layer groups, text and dimension styles, hatch patterns
+ * project/standards.json  layers, layer groups, text, dimension and axis styles, hatch patterns
  * project/catalogs.json   joinery, element types, profiles, schedules
  * models/<id>.ifc         a native model, with all its edits
  * analytics/<model>/*.parquet  its elements, properties, quantities and

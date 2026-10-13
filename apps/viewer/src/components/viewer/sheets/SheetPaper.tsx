@@ -150,8 +150,9 @@ const PAPER: ViewTransform = { scale: 1, x: 0, y: 0 };
 function useDraftingStandards() {
   const textStyles = useProjectStore((s) => s.textStyles);
   const dimStyles = useProjectStore((s) => s.dimStyles);
+  const axisStyles = useProjectStore((s) => s.axisStyles);
   const groups = useProjectStore((s) => s.layerGroups);
-  const book = useMemo(() => ({ textStyles: textStyles ?? [], dimStyles: dimStyles ?? [] }), [textStyles, dimStyles]);
+  const book = useMemo(() => ({ textStyles: textStyles ?? [], dimStyles: dimStyles ?? [], axisStyles: axisStyles ?? [] }), [textStyles, dimStyles, axisStyles]);
   return { book, groups: groups ?? [] };
 }
 

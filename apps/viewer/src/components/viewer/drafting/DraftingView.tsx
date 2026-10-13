@@ -35,7 +35,7 @@ import { selectFromPlan } from '@/components/viewer/plan/PlanPointer';
 import { draftsOfView } from '@/drafting/draft-store';
 import { redoEarliest, undoLatest } from '@/project/unified-undo';
 import {
-  attachDraftingView, currentLayerId, setElementPicker, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelPicker, setWorkPlaneProvider, submitCommandLine,
+  attachDraftingView, currentLayerId, setElementPicker, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelEditRoute, setModelPicker, setWorkPlaneProvider, submitCommandLine,
   toggleOrtho, toggleSnap, useDraftingSession, pickEntity, setDraftSelection,
 } from '@/drafting/session';
 import { DraftOverlay } from './DraftOverlay';
@@ -49,6 +49,8 @@ import { arrangementLoops, type Segment } from '@/drafting/arrangement';
 import { shapeSegments } from '@/hooks/useDraftingLines3D';
 import { screenToDrawing } from '@/drafting/frame';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
+import { routeModifyToModel } from '@/project/model-edit-route';
+import { ModelHandlesLayer, useModelHandles } from './ModelHandlesLayer';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
 import { MembraneLayer } from './MembraneLayer';
@@ -149,6 +151,11 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
     });
     return () => setModelPicker(null);
   }, [drawing, references, view, plane]);
+  // MOVE / COPY / ROTATE / ARRAY / ERASE with model elements selected (and nothing drafted) edit the elements.
+  useEffect(() => {
+    setModelEditRoute(routeModifyToModel);
+    return () => setModelEditRoute(null);
+  }, []);
   // Commands that work on a model element (a door into a wall in elevation) ask what is under a point.
   useEffect(() => {
     setElementPicker((p) => (drawing && references ? pickModelElement(drawing, references, p, 6 / viewTransform.scale) : null));
@@ -191,11 +198,14 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const { state, handlers } = useDraftingPointer({ containerRef, transform: viewTransform, setTransform: setViewTransform, axis, entityShapes, references, grips });
   const workPlane = useMemo(() => viewWorkPlane(view, plane ?? null, levels), [view, plane, levels]);
   const bim = useModelCommandBridge({ view, plane: workPlane, transform: viewTransform, axis, containerRef });
-  // A running BIM tool takes the left button; panning, zoom and the cursor stay the drafting view's.
+  const modelHandles = useModelHandles({ view, plane: workPlane, drawing: shown, transform: viewTransform, axis, drafting: runningCommand() !== null });
+  // A running BIM tool takes the left button (a grabbed grip starts one); panning, zoom and the cursor stay the drafting view's.
   const pointer = {
     ...handlers,
     onPointerDown: (e: React.PointerEvent) => {
-      if (e.button === 0 && bim.feed('down', e)) capturePointer(e.currentTarget as HTMLElement, e.pointerId);
+      const rect = containerRef.current?.getBoundingClientRect();
+      const grabbed = e.button === 0 && !e.shiftKey && modelHandles.grab(e.clientX - (rect?.left ?? 0), e.clientY - (rect?.top ?? 0));
+      if (grabbed || (e.button === 0 && bim.feed('down', e))) capturePointer(e.currentTarget as HTMLElement, e.pointerId);
       else handlers.onPointerDown(e);
     },
     onPointerMove: (e: React.PointerEvent) => {
@@ -313,6 +323,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         {selected.length === 1 && !state.gripDrag ? (
           <SelectionBar entity={selected[0]} transform={viewTransform} axis={axis} editing={editingText} onEditingChange={setEditingText} areaWidth={containerRef.current?.clientWidth ?? 800} />
         ) : null}
+        <ModelHandlesLayer handles={modelHandles} />
         <ModelCommandLayer map={bim.map} />
         <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} extraPatterns={extraPatterns} />
       </div>

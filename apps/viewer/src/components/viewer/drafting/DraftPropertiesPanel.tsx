@@ -36,7 +36,7 @@ const TYPE_KEYS = {
 } as const;
 
 const fmt = (n: number) => n.toFixed(3);
-const STYLE_KEYS = new Set(['textStyle', 'dimStyle']);
+const STYLE_KEYS = new Set(['textStyle', 'dimStyle', 'axisStyle']);
 
 export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { entities: DraftEntity[]; layers: DraftLayer[]; extraPatterns: readonly HatchPattern[] }) {
   const { t } = useTranslation();

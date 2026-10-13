@@ -13,7 +13,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { strFromU8, strToU8 } from 'fflate';
 import { defaultWindowSpec } from '@ifc-lite/create';
-import { DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE } from '@/drafting/styles';
+import { DEFAULT_AXIS_STYLE, DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE } from '@/drafting/styles';
 import { parseProjectFile, serializeProject } from '../project-file.js';
 import type { ProjectDocument } from '../types.js';
 import { MANIFEST_PATH, PACKAGE_VERSION } from './format.js';
@@ -37,6 +37,7 @@ const doc: ProjectDocument = {
   symbolFlips: { '2O2Fr$t4X7Zf8NOew3FLOH': 3 },
   textStyles: [{ ...DEFAULT_TEXT_STYLE }, { ...DEFAULT_TEXT_STYLE, id: 'big', name: 'Big', height: 5, bold: true, color: '#aa0000' }],
   dimStyles: [{ ...DEFAULT_DIM_STYLE }],
+  axisStyles: [{ ...DEFAULT_AXIS_STYLE }],
   layerGroups: [{ id: 'g1', name: 'Annotation', visible: false, locked: true }],
   joineryTypes: [{ ...defaultWindowSpec('W-1'), id: 'j1' }],
   currentJoinery: { window: 'j1' },

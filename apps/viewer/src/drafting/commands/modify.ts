@@ -142,4 +142,24 @@ export const mirrorCommand: DraftCommandDef = {
   },
 };
 
-export const MODIFY_COMMANDS: readonly DraftCommandDef[] = [eraseCommand, moveCommand, copyCommand, rotateCommand, mirrorCommand];
+/**
+ * ARRAY: repeats BIM elements (the session routes it to `element.array` when model elements are
+ * selected); drafted entities are not arrayed yet, so on them it only says so.
+ */
+export const arrayCommand: DraftCommandDef = {
+  id: 'array',
+  aliases: ['ARRAY', 'AR'],
+  labelKey: 'drafting.cmd.array',
+  needsSelection: true,
+  create(ctx) {
+    ctx.say('drafting.msg.arrayBimOnly');
+    return {
+      prompt: () => ({ key: 'drafting.msg.arrayBimOnly' }),
+      input: () => 'pick',
+      basePoint: () => null,
+      onEnter: () => 'done',
+    };
+  },
+};
+
+export const MODIFY_COMMANDS: readonly DraftCommandDef[] = [eraseCommand, moveCommand, copyCommand, rotateCommand, mirrorCommand, arrayCommand];

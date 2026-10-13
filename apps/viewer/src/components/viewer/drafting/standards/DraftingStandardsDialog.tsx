@@ -4,7 +4,7 @@
 
 /**
  * Drafting standards: layers (with groups and per-view visibility), text
- * styles and dimension styles — one dialog, opened from the Annotations tab,
+ * styles, dimension styles and axis types — one dialog, opened from the Annotations tab,
  * a drawing tab's header or a selected annotation (`openStandards`).
  */
 
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { closeStandards, useStandardsDialog, type StandardsTab } from '@/project/standards-dialog-store';
 import { LayersTab } from './LayersTab';
 import { DimStylesTab, TextStylesTab } from './StyleTabs';
+import { AxisStylesTab } from './AxisStylesTab';
 
 export function DraftingStandardsDialog() {
   const { t } = useTranslation();
@@ -30,10 +31,12 @@ export function DraftingStandardsDialog() {
             <TabsTrigger value="layers">{t('standards.tab.layers')}</TabsTrigger>
             <TabsTrigger value="text">{t('standards.tab.text')}</TabsTrigger>
             <TabsTrigger value="dim">{t('standards.tab.dim')}</TabsTrigger>
+            <TabsTrigger value="axis">{t('standards.tab.axis')}</TabsTrigger>
           </TabsList>
           <TabsContent value="layers" className="pt-3"><LayersTab /></TabsContent>
           <TabsContent value="text" className="pt-3"><TextStylesTab /></TabsContent>
           <TabsContent value="dim" className="pt-3"><DimStylesTab /></TabsContent>
+          <TabsContent value="axis" className="pt-3"><AxisStylesTab /></TabsContent>
         </Tabs>
         <DialogFooter>
           <Button onClick={closeStandards}>{t('standards.close')}</Button>

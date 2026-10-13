@@ -9,6 +9,9 @@
  *  - DIMENSION STYLES: a text style, the arrow (tick, arrow, dot, none) and
  *    its size, extension-line gap and overshoot, where the value sits (above,
  *    centred on or below the line), its gap, precision and unit.
+ *  - AXIS TYPES: how grid axes look — the bubble (circle / square), which
+ *    ends carry it and its size, the line type, a colour, the text style of
+ *    the label and the label new axes of the type start counting from.
  *  - LAYER GROUPS: layers gathered under a group that switches and locks
  *    them together.
  *
@@ -16,12 +19,14 @@
  * its scale (`paperUnit`: drawing units per paper millimetre — scale / 1000
  * on a view, 1 on a sheet).
  *
- * An entity names its style in `params.textStyle` / `params.dimStyle` and
+ * An entity names its style in `params.textStyle` / `params.dimStyle` /
+ * `params.axisStyle` and
  * may override any field of it, element by element, in `params['o.<field>']`.
- * `resolveText` / `resolveDim` give the style an entity is drawn with.
+ * `resolveText` / `resolveDim` / `resolveAxis` give the style an entity is
+ * drawn with.
  */
 
-import type { DraftLayer, DraftParamValue } from './types';
+import type { AxisEnds, DraftLayer, DraftParamValue } from './types';
 
 export type FontKind = 'sans' | 'serif' | 'mono';
 export type TextPlacement = 'above' | 'centered' | 'below';
@@ -57,6 +62,23 @@ export interface DimStyle {
   color?: string;
 }
 
+export type AxisBubble = 'circle' | 'square';
+
+export interface AxisStyle {
+  id: string;
+  name: string;
+  textStyle: string;
+  bubble: AxisBubble;
+  ends: AxisEnds;
+  /** The bubble's smallest diameter / side, paper millimetres. */
+  size: number;
+  lineType: LineType;
+  /** CSS colour of the line and bubbles; absent = the entity's layer colour. */
+  color?: string;
+  /** The label the AXIS command starts from when the type is made current (1, A, A1…). */
+  firstLabel: string;
+}
+
 export interface LayerGroup {
   id: string;
   name: string;
@@ -73,15 +95,23 @@ export const DEFAULT_DIM_STYLE: DimStyle = {
   placement: 'above', textGap: 0.8, precision: 2, unit: 'm',
 };
 
+export const DEFAULT_AXIS_STYLE: AxisStyle = {
+  id: STANDARD, name: 'Standard', textStyle: STANDARD, bubble: 'circle', ends: 'both', size: 10, lineType: 'dashdot', firstLabel: '1',
+};
+
 /** The fields an element may override, by kind. */
 export const TEXT_OVERRIDES = ['height', 'font', 'bold', 'italic', 'color'] as const;
 export const DIM_OVERRIDES = ['arrow', 'arrowSize', 'placement', 'textGap', 'precision', 'unit', 'color'] as const;
+/** `color` is the text's (TEXT_OVERRIDES); an axis overrides its line colour as `lineColor`. */
+export const AXIS_OVERRIDES = ['bubble', 'ends', 'size', 'lineType'] as const;
 
 export const overrideKey = (field: string) => `o.${field}`;
 
 export interface StyleBook {
   textStyles: readonly TextStyle[];
   dimStyles: readonly DimStyle[];
+  /** Absent: Standard only. */
+  axisStyles?: readonly AxisStyle[];
 }
 
 type Params = Record<string, DraftParamValue>;
@@ -108,14 +138,27 @@ export function dimStyleOf(book: StyleBook, id: unknown): DimStyle {
   return book.dimStyles.find((s) => s.id === id) ?? book.dimStyles.find((s) => s.id === STANDARD) ?? DEFAULT_DIM_STYLE;
 }
 
-/** The text style an entity is drawn with: its style (or its dimension style's), then its own overrides. */
+export function axisStyleOf(book: StyleBook, id: unknown): AxisStyle {
+  const styles = book.axisStyles ?? [];
+  return styles.find((s) => s.id === id) ?? styles.find((s) => s.id === STANDARD) ?? DEFAULT_AXIS_STYLE;
+}
+
+/** The text style an entity is drawn with: its style (or its dimension / axis style's), then its own overrides. */
 export function resolveText(book: StyleBook, params: Params): TextStyle {
-  const base = params.textStyle !== undefined ? textStyleOf(book, params.textStyle) : textStyleOf(book, dimStyleOf(book, params.dimStyle).textStyle);
+  const base = params.textStyle !== undefined ? textStyleOf(book, params.textStyle)
+    : params.axisStyle !== undefined ? textStyleOf(book, axisStyleOf(book, params.axisStyle).textStyle)
+      : textStyleOf(book, dimStyleOf(book, params.dimStyle).textStyle);
   return overridden(base, params, TEXT_OVERRIDES);
 }
 
 export function resolveDim(book: StyleBook, params: Params): DimStyle {
   return overridden(dimStyleOf(book, params.dimStyle), params, DIM_OVERRIDES);
+}
+
+export function resolveAxis(book: StyleBook, params: Params): AxisStyle {
+  const style = overridden(axisStyleOf(book, params.axisStyle), params, AXIS_OVERRIDES);
+  const lineColor = params[overrideKey('lineColor')];
+  return typeof lineColor === 'string' ? { ...style, color: lineColor } : style;
 }
 
 /** Which fields of an entity are overridden (for "by style" / reset in the UI). */
@@ -166,8 +209,8 @@ export interface LayerVisibilityScope {
 }
 
 /** An entity's drawing styles, resolved. */
-export function lookOf(book: StyleBook, params: Params): { text: TextStyle; dim: DimStyle } {
-  return { text: resolveText(book, params), dim: resolveDim(book, params) };
+export function lookOf(book: StyleBook, params: Params): { text: TextStyle; dim: DimStyle; axis: AxisStyle } {
+  return { text: resolveText(book, params), dim: resolveDim(book, params), axis: resolveAxis(book, params) };
 }
 
 /** A layer's pen: width and dash in paper millimetres. */

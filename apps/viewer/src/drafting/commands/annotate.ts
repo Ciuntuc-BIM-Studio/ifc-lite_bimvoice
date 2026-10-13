@@ -10,7 +10,8 @@
  */
 
 import { editDrafts, newDraft } from '../draft-store';
-import { styledParams } from '@/project/drafting-standards';
+import { paperUnitOf, styleBook, styledParams } from '@/project/drafting-standards';
+import { resolveAxis, resolveText } from '../styles';
 import { dimensionLayout, entitySkeleton, nextAxisLabel } from '../annotation';
 import { findPattern } from '../hatch/library';
 import { regionAt } from '../hatch/region';
@@ -20,7 +21,7 @@ import type { DraftCommandDef, DraftContext, StepResult } from './types';
 
 function add(ctx: DraftContext, shape: AnnotationShape): void {
   // The current style, and an override when the height was typed differently.
-  const params = styledParams(ctx.viewId, shape, { textStyle: ctx.settings.currentTextStyle, dimStyle: ctx.settings.currentDimStyle });
+  const params = styledParams(ctx.viewId, shape, { textStyle: ctx.settings.currentTextStyle, dimStyle: ctx.settings.currentDimStyle, axisStyle: ctx.settings.currentAxisStyle });
   editDrafts({ add: [newDraft(ctx.viewId, ctx.layerId, shape, params)] });
 }
 
@@ -275,11 +276,13 @@ const AXIS_KEYWORDS: Record<string, (s: DraftContext['settings']) => void> = {
 };
 
 /**
- * AXIS: grid axis lines — two points each, the label in a bubble (circle or
- * square) at the chosen ends, dash-dot by default. Labels count on from one
- * axis to the next (1, 2, 3… or A, B, C…); L types the next label, SIZE a
- * bubble size, C / S the bubble, BOTH / START / END / NONE its ends,
- * DASHDOT / DASHED / DOTTED / CONTINUOUS the line.
+ * AXIS: grid axis lines — two points each, drawn as the current axis type
+ * (Drafting standards › Axis types: bubble, ends, size, line type, label text
+ * style). Labels count on from one axis to the next (1, 2, 3… or A, B, C…);
+ * T picks another type by name (its labels restart at the type's first
+ * label), L types the next label. SIZE, C / S, BOTH / START / END / NONE and
+ * DASHDOT / DASHED / DOTTED / CONTINUOUS draw this run's axes otherwise than
+ * the type — each axis keeps those as its own overrides.
  */
 export const axisCommand: DraftCommandDef = {
   id: 'axis',
@@ -287,17 +290,32 @@ export const axisCommand: DraftCommandDef = {
   labelKey: 'drafting.cmd.axis',
   create(ctx) {
     const s = ctx.settings;
+    // A run starts from the type; the options typed below hold for this run only.
+    s.axisBubble = null;
+    s.axisEnds = null;
+    s.axisSize = null;
+    s.axisLineType = null;
     let start: Pt | null = null;
-    let pending: 'label' | 'size' | null = null;
-    const shape = (a: Pt, b: Pt): AxisShape => ({
-      type: 'axis', a, b, label: s.axisLabel, bubble: s.axisBubble, ends: s.axisEnds,
-      size: s.axisSize ?? s.textHeight * 4, height: s.textHeight, lineType: s.axisLineType,
-    });
+    let pending: 'label' | 'size' | 'type' | null = null;
+    const type = () => resolveAxis(styleBook(), { axisStyle: s.currentAxisStyle });
+    const shape = (a: Pt, b: Pt): AxisShape => {
+      const t = type();
+      const unit = paperUnitOf(ctx.viewId);
+      return {
+        type: 'axis', a, b, label: s.axisLabel, bubble: s.axisBubble ?? t.bubble, ends: s.axisEnds ?? t.ends,
+        size: s.axisSize ?? t.size * unit, height: resolveText(styleBook(), { axisStyle: s.currentAxisStyle }).height * unit,
+        lineType: s.axisLineType ?? t.lineType,
+      };
+    };
     return {
-      prompt: () => ({
-        key: pending === 'label' ? 'drafting.prompt.axisLabel' : pending === 'size' ? 'drafting.prompt.axisSize' : start ? 'drafting.prompt.axisEnd' : 'drafting.prompt.axisStart',
-        params: { label: s.axisLabel, bubble: s.axisBubble.toUpperCase(), ends: s.axisEnds.toUpperCase() },
-      }),
+      prompt: () => {
+        const t = type();
+        return {
+          key: pending === 'label' ? 'drafting.prompt.axisLabel' : pending === 'size' ? 'drafting.prompt.axisSize' : pending === 'type' ? 'drafting.prompt.axisType'
+            : start ? 'drafting.prompt.axisEnd' : 'drafting.prompt.axisStart',
+          params: { type: t.name, label: s.axisLabel, bubble: (s.axisBubble ?? t.bubble).toUpperCase(), ends: (s.axisEnds ?? t.ends).toUpperCase() },
+        };
+      },
       input: () => 'point',
       basePoint: () => start,
       onPoint(p) {
@@ -311,9 +329,16 @@ export const axisCommand: DraftCommandDef = {
         start = null;
         return 'continue';
       },
-      wantsText: () => pending === 'label',
+      wantsText: () => pending === 'label' || pending === 'type',
       onText(text) {
-        if (text.trim()) s.axisLabel = text.trim();
+        const typed = text.trim();
+        if (pending === 'type') {
+          const found = (styleBook().axisStyles ?? []).find((a) => a.name.toLowerCase() === typed.toLowerCase());
+          if (found) {
+            s.currentAxisStyle = found.id;
+            s.axisLabel = found.firstLabel;
+          } else if (typed) ctx.say('drafting.msg.noAxisType', { name: typed });
+        } else if (typed) s.axisLabel = typed;
         pending = null;
         return 'continue';
       },
@@ -325,6 +350,7 @@ export const axisCommand: DraftCommandDef = {
       },
       onKeyword(word) {
         if (word === 'L' || word === 'LABEL') { pending = 'label'; return 'continue'; }
+        if (word === 'T' || word === 'TYPE') { pending = 'type'; return 'continue'; }
         if (word === 'SIZE' || word === 'D') { pending = 'size'; return 'continue'; }
         const set = AXIS_KEYWORDS[word];
         if (!set) return undefined;

@@ -5,11 +5,13 @@
 /**
  * Editable fields of one selected annotation: its text, text height, a
  * dimension's text override, a level mark's value, a grid axis's label,
- * bubble, ends, size and line type, a hatch's pattern / scale / angle. Each change is one undoable drafting edit.
+ * bubble, ends, size and line type, a hatch's pattern / scale / angle. Each change is one undoable drafting edit,
+ * except an axis of a type: its bubble, ends, size and line type are overrides of the type.
  */
 
 import { useTranslation } from '@/i18n';
 import { editDrafts } from '@/drafting/draft-store';
+import { paperUnitOf, setElementOverride } from '@/project/drafting-standards';
 import { builtInPatterns } from '@/drafting/hatch/library';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
 import type { AnnotationShape, AxisShape, DraftEntity } from '@/drafting/types';
@@ -131,13 +133,22 @@ const LINE_TYPES = ['dashdot', 'dashed', 'dotted', 'continuous'] as const;
 
 function AxisFields({ entity, shape }: { entity: DraftEntity; shape: AxisShape }) {
   const { t } = useTranslation();
+  // An axis of a type overrides the type's fields (the type keeps the shape in step); an older, untyped one edits its shape.
+  const typed = entity.params.axisStyle !== undefined;
+  const unit = paperUnitOf(entity.viewId);
+  const ids = new Set([entity.id]);
+  const change = <K extends 'bubble' | 'ends' | 'lineType'>(field: K, value: AxisShape[K]) =>
+    typed ? setElementOverride(ids, field, value) : update(entity, { ...shape, [field]: value });
+  const sizeMm = Number((shape.size / unit).toFixed(2));
   return (
     <>
       <Field label={t('drafting.props.axisLabel')} value={shape.label} onCommit={(v) => update(entity, { ...shape, label: v.trim() || shape.label })} />
-      <Choice label={t('drafting.props.axisBubble')} value={shape.bubble} options={BUBBLES.map((v) => ({ value: v, label: t(`drafting.props.axisBubble.${v}`) }))} onChange={(bubble) => update(entity, { ...shape, bubble })} />
-      <Choice label={t('drafting.props.axisEnds')} value={shape.ends} options={ENDS.map((v) => ({ value: v, label: t(`drafting.props.axisEnds.${v}`) }))} onChange={(ends) => update(entity, { ...shape, ends })} />
-      <Field label={t('drafting.props.axisSize')} value={String(shape.size)} numeric onCommit={(v) => update(entity, { ...shape, size: positive(v, shape.size) })} />
-      <Choice label={t('drafting.props.lineType')} value={shape.lineType} options={LINE_TYPES.map((v) => ({ value: v, label: t(`drafting.props.lineType.${v}`) }))} onChange={(lineType) => update(entity, { ...shape, lineType })} />
+      <Choice label={t('drafting.props.axisBubble')} value={shape.bubble} options={BUBBLES.map((v) => ({ value: v, label: t(`drafting.props.axisBubble.${v}`) }))} onChange={(bubble) => change('bubble', bubble)} />
+      <Choice label={t('drafting.props.axisEnds')} value={shape.ends} options={ENDS.map((v) => ({ value: v, label: t(`drafting.props.axisEnds.${v}`) }))} onChange={(ends) => change('ends', ends)} />
+      {typed
+        ? <Field label={t('drafting.props.axisSizeMm')} value={String(sizeMm)} numeric onCommit={(v) => setElementOverride(ids, 'size', positive(v, sizeMm))} />
+        : <Field label={t('drafting.props.axisSize')} value={String(shape.size)} numeric onCommit={(v) => update(entity, { ...shape, size: positive(v, shape.size) })} />}
+      <Choice label={t('drafting.props.lineType')} value={shape.lineType} options={LINE_TYPES.map((v) => ({ value: v, label: t(`drafting.props.lineType.${v}`) }))} onChange={(lineType) => change('lineType', lineType)} />
     </>
   );
 }

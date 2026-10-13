@@ -115,8 +115,9 @@ export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps)
   const layerById = new Map(layers.map((l) => [l.id, l]));
   const textStyles = useProjectStore((s) => s.textStyles);
   const dimStyles = useProjectStore((s) => s.dimStyles);
+  const axisStyles = useProjectStore((s) => s.axisStyles);
   const groups = useProjectStore((s) => s.layerGroups) ?? NO_GROUPS;
-  const book = useMemo(() => ({ textStyles: textStyles ?? [], dimStyles: dimStyles ?? [] }), [textStyles, dimStyles]);
+  const book = useMemo(() => ({ textStyles: textStyles ?? [], dimStyles: dimStyles ?? [], axisStyles: axisStyles ?? [] }), [textStyles, dimStyles, axisStyles]);
   /** Paper millimetres → screen px. */
   const mm = paperUnit * t.scale;
   return (

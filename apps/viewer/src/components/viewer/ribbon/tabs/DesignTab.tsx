@@ -10,7 +10,7 @@
  */
 
 import {
-  AnnoAxis, DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
+  AnnoAxis, DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
   BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
@@ -54,6 +54,7 @@ export function DesignTab() {
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="design:rotate" icon={DraftRotate} active={on('rotate')} />
           <RibbonCommandSmallButton commandId="design:mirror" icon={DraftMirror} active={on('mirror')} />
+          <RibbonCommandSmallButton commandId="design:array" icon={DraftArray} active={on('array')} />
           <RibbonCommandSmallButton commandId="design:erase" icon={DraftErase} active={on('erase')} />
         </RibbonSmallStack>
       </RibbonGroup>

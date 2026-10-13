@@ -4,13 +4,16 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, formatDimension, layerShows, readableDeg, resolveDim, resolveText } from './styles';
+import {
+  DEFAULT_AXIS_STYLE, DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, formatDimension, layerShows, readableDeg, resolveAxis, resolveDim, resolveText,
+} from './styles';
 import { gripsOf, moveGrip } from './grips';
 import type { DraftLayer } from './types';
 
 const book = {
   textStyles: [DEFAULT_TEXT_STYLE, { ...DEFAULT_TEXT_STYLE, id: 'big', name: 'Big', height: 5, bold: true }],
   dimStyles: [DEFAULT_DIM_STYLE, { ...DEFAULT_DIM_STYLE, id: 'arch', name: 'Arch', textStyle: 'big', unit: 'mm' as const, precision: 0 }],
+  axisStyles: [DEFAULT_AXIS_STYLE, { ...DEFAULT_AXIS_STYLE, id: 'grid', name: 'Grid', textStyle: 'big', bubble: 'square' as const, color: '#cc0000' }],
 };
 
 describe('readability', () => {
@@ -33,6 +36,16 @@ describe('styles and overrides', () => {
     assert.equal(resolveText(book, { dimStyle: 'arch' }).height, 5);
     assert.equal(resolveDim(book, { dimStyle: 'arch', 'o.placement': 'below' }).placement, 'below');
     assert.equal(resolveDim(book, { dimStyle: 'gone' }).id, 'standard');
+  });
+
+  it('resolves an axis\'s type: its label\'s text style, then the axis\'s overrides', () => {
+    assert.equal(resolveText(book, { axisStyle: 'grid' }).height, 5);
+    assert.equal(resolveAxis(book, { axisStyle: 'grid' }).bubble, 'square');
+    assert.equal(resolveAxis(book, { axisStyle: 'grid', 'o.bubble': 'circle', 'o.size': 14 }).bubble, 'circle');
+    assert.equal(resolveAxis(book, { axisStyle: 'grid', 'o.size': 14 }).size, 14);
+    assert.equal(resolveAxis(book, { axisStyle: 'grid', 'o.lineColor': '#00ff00' }).color, '#00ff00');
+    assert.equal(resolveAxis(book, { axisStyle: 'gone' }).id, 'standard');
+    assert.equal(resolveAxis({ textStyles: [], dimStyles: [] }, {}).id, 'standard', 'a book without axis types draws Standard');
   });
 
   it('formats in the style\'s unit and precision', () => {

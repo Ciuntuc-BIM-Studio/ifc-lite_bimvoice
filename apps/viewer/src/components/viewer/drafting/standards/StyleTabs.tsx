@@ -28,9 +28,9 @@ import {
 import type { AnnotationShape } from '@/drafting/types';
 import { AnnotationGraphics } from '../AnnotationGraphics';
 
-const INPUT = 'h-7 w-32 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1 text-xs';
+export const INPUT = 'h-7 w-32 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1 text-xs';
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+export function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex min-h-8 items-center justify-between gap-3">
       <span className="text-zinc-500">{label}</span>
@@ -39,7 +39,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function NumberField({ label, value, min = 0, step = 0.1, onCommit }: { label: string; value: number; min?: number; step?: number; onCommit: (v: number) => void }) {
+export function NumberField({ label, value, min = 0, step = 0.1, onCommit }: { label: string; value: number; min?: number; step?: number; onCommit: (v: number) => void }) {
   return (
     <input type="number" aria-label={label} className={`${INPUT} text-right tabular-nums`} min={min} step={step} defaultValue={value} key={value}
       onBlur={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= min && v !== value) onCommit(v); }}
@@ -47,7 +47,7 @@ function NumberField({ label, value, min = 0, step = 0.1, onCommit }: { label: s
   );
 }
 
-function StyleList<S extends { id: string; name: string }>({ styles, selected, current, onSelect, onDuplicate, onDelete }: {
+export function StyleList<S extends { id: string; name: string }>({ styles, selected, current, onSelect, onDuplicate, onDelete }: {
   styles: readonly S[]; selected: string; current: string; onSelect: (id: string) => void; onDuplicate: (s: S) => void; onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation();
@@ -66,7 +66,7 @@ function StyleList<S extends { id: string; name: string }>({ styles, selected, c
   );
 }
 
-function ColorChoice({ label, value, onChange }: { label: string; value: string | undefined; onChange: (v: string | undefined) => void }) {
+export function ColorChoice({ label, value, onChange }: { label: string; value: string | undefined; onChange: (v: string | undefined) => void }) {
   const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2">
@@ -79,7 +79,7 @@ function ColorChoice({ label, value, onChange }: { label: string; value: string 
   );
 }
 
-function useSelected(styles: readonly { id: string }[]): [string, (id: string) => void] {
+export function useSelected(styles: readonly { id: string }[]): [string, (id: string) => void] {
   const wanted = useStandardsDialog((s) => s.styleId);
   const [picked, setPicked] = useState<string | null>(null);
   const id = picked ?? wanted ?? STANDARD;

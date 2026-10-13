@@ -95,6 +95,7 @@ export { default as DraftMove } from '~icons/viewer/draft-move';
 export { default as DraftCopy } from '~icons/viewer/draft-copy';
 export { default as DraftRotate } from '~icons/viewer/draft-rotate';
 export { default as DraftMirror } from '~icons/viewer/draft-mirror';
+export { default as DraftArray } from '~icons/viewer/draft-array';
 export { default as DraftErase } from '~icons/viewer/draft-erase';
 export { default as DraftOffset } from '~icons/viewer/draft-offset';
 export { default as DraftTrim } from '~icons/viewer/draft-trim';

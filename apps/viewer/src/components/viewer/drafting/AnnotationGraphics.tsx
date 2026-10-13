@@ -22,7 +22,7 @@ import { findPattern } from '@/drafting/hatch/library';
 import { hatchSegments } from '@/drafting/hatch/fill';
 import {
   DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, dashOf, fontFamily, formatDimension, readableDeg,
-  type DimStyle, type TextStyle,
+  type AxisStyle, type DimStyle, type TextStyle,
 } from '@/drafting/styles';
 import type { AnnotationShape, Pt } from '@/drafting/types';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
@@ -31,6 +31,8 @@ import type { HatchPattern } from '@/drafting/hatch/pattern';
 export interface AnnotationLook {
   text: TextStyle;
   dim: DimStyle;
+  /** An axis's type, resolved (its colour colours the line and bubbles); absent: the layer's colour. */
+  axis?: AxisStyle;
 }
 
 const DEFAULT_LOOK: AnnotationLook = { text: DEFAULT_TEXT_STYLE, dim: DEFAULT_DIM_STYLE };
@@ -189,7 +191,8 @@ export const AnnotationGraphics = memo(function AnnotationGraphics({
     }
     case 'axis': {
       // The line in its line type (dash-dot by default, paper millimetres), the label upright in each bubble.
-      const lineColor = selected ? '#2563eb' : base;
+      const lineColor = selected ? '#2563eb' : look.axis?.color ?? base;
+      const labelColor = selected ? '#2563eb' : look.text.color ?? look.axis?.color ?? base;
       const a = s(shape.a), b = s(shape.b);
       const { bubbles, r } = axisLayout(shape);
       const rp = r * t.scale;
@@ -204,7 +207,7 @@ export const AnnotationGraphics = memo(function AnnotationGraphics({
                 {shape.bubble === 'circle'
                   ? <circle cx={p.x} cy={p.y} r={rp} stroke={lineColor} strokeWidth={k} fill="#fff" fillOpacity={0} />
                   : <rect x={p.x - rp} y={p.y - rp} width={rp * 2} height={rp * 2} stroke={lineColor} strokeWidth={k} fill="#fff" fillOpacity={0} />}
-                <Label at={p} text={shape.label} px={px} deg={0} color={textColor} style={look.text} shift={px * 0.35} />
+                <Label at={p} text={shape.label} px={px} deg={0} color={labelColor} style={look.text} shift={px * 0.35} />
               </g>
             );
           })}

@@ -15,7 +15,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/project/project-store';
 import { resetElementOverrides, setElementOverride, setElementStyle } from '@/project/drafting-standards';
-import { openStandards } from '@/project/standards-dialog-store';
+import { openStandards, type StandardsTab } from '@/project/standards-dialog-store';
 import {
   overriddenFields, overrideKey, resolveDim, resolveText,
   type ArrowKind, type FontKind, type LengthUnit, type StyleBook, type TextPlacement,
@@ -25,6 +25,22 @@ import type { AnnotationShape, DraftEntity } from '@/drafting/types';
 const INPUT = 'h-6 w-24 rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1';
 
 export const isDimensional = (shape: AnnotationShape) => shape.type === 'dimension' || shape.type === 'radial' || shape.type === 'angular';
+
+/**
+ * Which style an annotation names, the styles it can pick from and the standards tab that edits them.
+ * An axis drawn before axis types existed names none (`value` empty) until it is given one.
+ */
+export function styleChoice(book: StyleBook, entity: DraftEntity, shape: AnnotationShape): {
+  kind: 'textStyle' | 'dimStyle' | 'axisStyle'; styles: readonly { id: string; name: string }[]; value: string; tab: StandardsTab;
+} {
+  if (shape.type === 'axis') {
+    const value = entity.params.axisStyle;
+    return { kind: 'axisStyle', styles: book.axisStyles ?? [], value: value === undefined ? '' : String(value), tab: 'axis' };
+  }
+  const dimensional = isDimensional(shape);
+  const kind = dimensional ? 'dimStyle' : 'textStyle';
+  return { kind, styles: dimensional ? book.dimStyles : book.textStyles, value: String(entity.params[kind] ?? 'standard'), tab: dimensional ? 'dim' : 'text' };
+}
 
 function Line({ label, field, entity, children }: { label: string; field: string; entity: DraftEntity; children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -45,7 +61,8 @@ function Line({ label, field, entity, children }: { label: string; field: string
 export function useStyleBook(): StyleBook {
   const textStyles = useProjectStore((s) => s.textStyles) ?? [];
   const dimStyles = useProjectStore((s) => s.dimStyles) ?? [];
-  return { textStyles, dimStyles };
+  const axisStyles = useProjectStore((s) => s.axisStyles) ?? [];
+  return { textStyles, dimStyles, axisStyles };
 }
 
 export function AnnotationStyleFields({ entity, shape }: { entity: DraftEntity; shape: AnnotationShape }) {
@@ -54,8 +71,7 @@ export function AnnotationStyleFields({ entity, shape }: { entity: DraftEntity; 
   if (shape.type === 'hatch') return null;
   const ids = new Set([entity.id]);
   const dimensional = isDimensional(shape);
-  const kind = dimensional ? 'dimStyle' : 'textStyle';
-  const styles = dimensional ? book.dimStyles : book.textStyles;
+  const choice = styleChoice(book, entity, shape);
   const text = resolveText(book, entity.params);
   const dim = resolveDim(book, entity.params);
   const set = (field: string, value: string | number | boolean) => setElementOverride(ids, field, value);
@@ -65,10 +81,11 @@ export function AnnotationStyleFields({ entity, shape }: { entity: DraftEntity; 
       <div className="flex items-center justify-between gap-2">
         <span className="text-zinc-500">{t('standards.el.style')}</span>
         <div className="flex items-center gap-1">
-          <select aria-label={t('standards.el.style')} className={`${INPUT} w-32`} value={String(entity.params[kind] ?? 'standard')} onChange={(e) => setElementStyle(ids, kind, e.target.value)}>
-            {styles.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          <select aria-label={t('standards.el.style')} className={`${INPUT} w-32`} value={choice.value} onChange={(e) => e.target.value && setElementStyle(ids, choice.kind, e.target.value)}>
+            {choice.value === '' ? <option value="">—</option> : null}
+            {choice.styles.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <IconButton label={t('standards.open')} className="size-5" onClick={() => openStandards(dimensional ? 'dim' : 'text', String(entity.params[kind] ?? 'standard'))}>
+          <IconButton label={t('standards.open')} className="size-5" onClick={() => openStandards(choice.tab, choice.value || null)}>
             <SlidersHorizontal className="size-3" />
           </IconButton>
         </div>

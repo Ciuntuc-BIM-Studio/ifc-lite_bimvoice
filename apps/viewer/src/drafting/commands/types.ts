@@ -70,15 +70,20 @@ export interface DraftSettings {
   roofSlope: number;
   roofThickness: number;
   roofOverhang: number;
-  /** AXIS: the next axis's label (it counts on: 1, 2… / A, B…), bubble, ends, bubble size (model metres; null: four text heights) and line type. */
+  /**
+   * AXIS: the next axis's label (it counts on: 1, 2… / A, B…), then what this run of the command
+   * draws otherwise than the current axis type — bubble, ends, bubble size (model metres) and line
+   * type; null: as the type.
+   */
   axisLabel: string;
-  axisBubble: 'circle' | 'square';
-  axisEnds: 'both' | 'start' | 'end' | 'none';
+  axisBubble: 'circle' | 'square' | null;
+  axisEnds: 'both' | 'start' | 'end' | 'none' | null;
   axisSize: number | null;
-  axisLineType: 'continuous' | 'dashed' | 'dotted' | 'dashdot';
+  axisLineType: 'continuous' | 'dashed' | 'dotted' | 'dashdot' | null;
   /** The styles new annotations take. */
   currentTextStyle: string;
   currentDimStyle: string;
+  currentAxisStyle: string;
 }
 
 export interface DraftCommand {

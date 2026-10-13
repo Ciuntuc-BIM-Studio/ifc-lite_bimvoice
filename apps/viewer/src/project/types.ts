@@ -5,7 +5,7 @@
 import type { JoineryMapping } from '@/joinery/symbol-mapping';
 import type { AssemblySpec, JoinerySpec, StructureProfile } from '@ifc-lite/create';
 import type { ElementTypeKind, ElementTypeSpec } from '@/element-types/spec';
-import type { DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
+import type { AxisStyle, DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
 
 /**
  * The project document: the views and sheets a user organises over the
@@ -242,9 +242,10 @@ export interface ProjectDocument {
   draftLayers: DraftLayer[];
   /** User-imported hatch patterns, as `.pat` text (built-ins are not stored). */
   hatchPatterns?: string;
-  /** Drafting standards: text and dimension styles, and the groups layers are filed in. */
+  /** Drafting standards: text, dimension and axis styles, and the groups layers are filed in. */
   textStyles?: TextStyle[];
   dimStyles?: DimStyle[];
+  axisStyles?: AxisStyle[];
   layerGroups?: LayerGroup[];
   /** Door and window opening symbols in elevation: apex at the handle (default, window makers' sketches) or at the hinges (DIN 1356). */
   openingLines?: 'handle' | 'hinge';

@@ -68,8 +68,8 @@ export const useDraftingSession = create<SessionState>()(() => ({
 const HISTORY_LINES = 50;
 const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHeight: 0.25, hatchPattern: 'LINES45', hatchScale: 1, hatchAngle: 0, extrudeClass: 'IfcBuildingElementProxy', extrudeDepth: 1,
   roofKind: 'gable', roofSystem: true, roofPick: false, roofSlope: 30, roofThickness: 0.25, roofOverhang: 0.5,
-  axisLabel: '1', axisBubble: 'circle', axisEnds: 'both', axisSize: null, axisLineType: 'dashdot',
-  currentTextStyle: 'standard', currentDimStyle: 'standard' };
+  axisLabel: '1', axisBubble: null, axisEnds: null, axisSize: null, axisLineType: null,
+  currentTextStyle: 'standard', currentDimStyle: 'standard', currentAxisStyle: 'standard' };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
 let referenceProvider: (min: Pt, max: Pt) => DraftShape[] = () => [];
@@ -108,16 +108,21 @@ export function setModelPicker(picker: typeof modelPicker): void {
 /** The model element (renderer id) drawn under a drawing point, from the view in front. */
 let elementPicker: (p: Pt) => number | null = () => null;
 
-/** The styles new annotations take; the text height setting follows the current text style (paper mm → metres at 1:100). */
-export function setCurrentStyles(patch: { textStyle?: string; dimStyle?: string; textHeightMm?: number }): void {
+/**
+ * The styles new annotations take; the text height setting follows the current text style (paper mm →
+ * metres at 1:100). Making an axis type current restarts the axis labels at the type's first label.
+ */
+export function setCurrentStyles(patch: { textStyle?: string; dimStyle?: string; axisStyle?: string; firstAxisLabel?: string; textHeightMm?: number }): void {
   if (patch.textStyle) settings.currentTextStyle = patch.textStyle;
   if (patch.dimStyle) settings.currentDimStyle = patch.dimStyle;
+  if (patch.axisStyle) settings.currentAxisStyle = patch.axisStyle;
+  if (patch.firstAxisLabel) settings.axisLabel = patch.firstAxisLabel;
   if (patch.textHeightMm) settings.textHeight = patch.textHeightMm / 10;
   set({ revision: get().revision + 1 });
 }
 
-export function currentStyles(): { textStyle: string; dimStyle: string } {
-  return { textStyle: settings.currentTextStyle, dimStyle: settings.currentDimStyle };
+export function currentStyles(): { textStyle: string; dimStyle: string; axisStyle: string } {
+  return { textStyle: settings.currentTextStyle, dimStyle: settings.currentDimStyle, axisStyle: settings.currentAxisStyle };
 }
 
 export function setElementPicker(picker: ((p: Pt) => number | null) | null): void {
@@ -215,11 +220,21 @@ export function runningCommand(): DraftCommand | null {
   return command;
 }
 
+/**
+ * Where a selection command goes when nothing drafted is selected but model elements are
+ * (MOVE / COPY / ROTATE / ARRAY / ERASE on BIM elements); true when it took the command.
+ */
+let modelEditRoute: ((id: string) => boolean) | null = null;
+export function setModelEditRoute(route: typeof modelEditRoute): void {
+  modelEditRoute = route;
+}
+
 export function startDraftCommand(id: string): void {
   const def = draftCommandById(id);
   const { viewId } = get();
   if (!def || !viewId) return;
   cancelCommand();
+  if (def.needsSelection && get().selection.size === 0 && modelEditRoute?.(def.id)) return;
   say({ key: def.labelKey });
   set({ lastCommandId: def.id });
   if (def.needsSelection && get().selection.size === 0) {

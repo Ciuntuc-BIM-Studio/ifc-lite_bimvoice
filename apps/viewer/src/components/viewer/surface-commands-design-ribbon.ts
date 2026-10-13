@@ -9,7 +9,7 @@
  */
 
 import {
-  DraftArc, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
+  DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
   BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
@@ -151,6 +151,7 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:arc', labelKey: 'drafting.tool.arc', keywords: 'draw arc three points cad A', category: 'Tools', icon: DraftArc, surfaces: ribbonOnly, enabled: always, run: draft('arc') },
   { id: 'design:move', labelKey: 'drafting.tool.move', keywords: 'move displace drafting M', category: 'Tools', icon: DraftMove, surfaces: ribbonOnly, enabled: always, run: draft('move') },
   { id: 'design:copy', labelKey: 'drafting.tool.copy', keywords: 'copy duplicate drafting CO', category: 'Tools', icon: DraftCopy, surfaces: ribbonOnly, enabled: always, run: draft('copy') },
+  { id: 'design:array', labelKey: 'drafting.tool.array', keywords: 'array repeat copies linear polar AR', category: 'Tools', icon: DraftArray, surfaces: ribbonOnly, enabled: always, run: draft('array') },
   { id: 'design:rotate', labelKey: 'drafting.tool.rotate', keywords: 'rotate angle drafting RO', category: 'Tools', icon: DraftRotate, surfaces: ribbonOnly, enabled: always, run: draft('rotate') },
   { id: 'design:mirror', labelKey: 'drafting.tool.mirror', keywords: 'mirror reflect drafting MI', category: 'Tools', icon: DraftMirror, surfaces: ribbonOnly, enabled: always, run: draft('mirror') },
   { id: 'design:erase', labelKey: 'drafting.tool.erase', keywords: 'erase delete drafting E', category: 'Tools', icon: DraftErase, surfaces: ribbonOnly, enabled: always, run: draft('erase') },

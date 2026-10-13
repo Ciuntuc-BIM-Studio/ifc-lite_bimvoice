@@ -11,9 +11,11 @@
 import { beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetProject, useProjectStore } from '@/project/project-store';
+import { addAxisStyle, removeAxisStyle, setElementOverride, updateAxisStyle } from '@/project/drafting-standards';
+import { DEFAULT_AXIS_STYLE } from './styles';
 import { clearDraftHistory, redoDrafts, undoDrafts } from './draft-store.js';
 import {
-  attachDraftingView, cancelCommand, clickDrawing, pressEnter, pressEscape, setAnnotationProviders, startDraftCommand,
+  attachDraftingView, cancelCommand, clickDrawing, pressEnter, pressEscape, setAnnotationProviders, setCurrentStyles, setModelEditRoute, startDraftCommand,
   submitCommandLine, useDraftingSession, windowSelect,
 } from './session.js';
 import { arcThrough } from './commands/draw.js';
@@ -199,13 +201,64 @@ describe('annotation commands', () => {
     assert.ok(axes.every((a) => a.type === 'axis' && a.bubble === 'square' && a.ends === 'start' && a.lineType === 'dashdot'));
     assert.deepEqual(axes.map((a) => (a.type === 'axis' ? a.label : '')), ['A', 'B']);
     assert.equal(useDraftingSession.getState().commandId, null);
-    // Back to the defaults for the tests after.
-    startDraftCommand('axis');
-    submitCommandLine('C', null);
-    submitCommandLine('BOTH', null);
-    submitCommandLine('L', null);
-    submitCommandLine('1', null);
-    pressEnter();
+    // The typed options are this run's, kept on each axis as overrides of its type.
+    const [first] = useProjectStore.getState().drafts;
+    assert.equal(first.params.axisStyle, 'standard');
+    assert.equal(first.params['o.bubble'], 'square');
+    assert.equal(first.params['o.ends'], 'start');
+    assert.equal(first.params['o.lineType'], undefined);
+    // Back to the first label for the tests after.
+    setCurrentStyles({ firstAxisLabel: '1' });
+  });
+
+  it('AXIS draws the current axis type, and the type governs its axes (overrides stay)', () => {
+    const typeId = addAxisStyle({ ...DEFAULT_AXIS_STYLE, bubble: 'square', ends: 'none', lineType: 'dashed', size: 12, firstLabel: 'A' }, 'Grid B');
+    setCurrentStyles({ axisStyle: typeId, firstAxisLabel: 'A' });
+    try {
+      startDraftCommand('axis');
+      clickDrawing({ x: 0, y: 0 }, TOL, false);
+      clickDrawing({ x: 0, y: 10 }, TOL, false);
+      // A run starts from the type again: C here draws circles for this run only.
+      submitCommandLine('C', null);
+      clickDrawing({ x: 5, y: 0 }, TOL, false);
+      clickDrawing({ x: 5, y: 10 }, TOL, false);
+      pressEnter();
+      const [a, b] = useProjectStore.getState().drafts;
+      assert.ok(a.shape.type === 'axis' && b.shape.type === 'axis');
+      if (a.shape.type !== 'axis' || b.shape.type !== 'axis') return;
+      assert.equal(a.params.axisStyle, typeId);
+      assert.deepEqual([a.shape.label, a.shape.bubble, a.shape.ends, a.shape.lineType], ['A', 'square', 'none', 'dashed']);
+      near(a.shape.size, 1.2); // 12 mm at 1:100
+      assert.equal(Object.keys(a.params).filter((k) => k.startsWith('o.')).length, 0);
+      assert.equal(b.shape.bubble, 'circle');
+      assert.equal(b.params['o.bubble'], 'circle');
+
+      // Editing the type redraws its axes, except what an axis overrides.
+      setElementOverride(new Set([a.id]), 'ends', 'start');
+      updateAxisStyle(typeId, { ends: 'both', bubble: 'circle', size: 8, lineType: 'dotted' });
+      const [a2, b2] = useProjectStore.getState().drafts;
+      assert.ok(a2.shape.type === 'axis' && b2.shape.type === 'axis');
+      if (a2.shape.type !== 'axis' || b2.shape.type !== 'axis') return;
+      assert.deepEqual([a2.shape.bubble, a2.shape.ends, a2.shape.lineType], ['circle', 'start', 'dotted']);
+      near(a2.shape.size, 0.8);
+      assert.equal(b2.shape.ends, 'both');
+
+      // T picks a type by name; its labels restart at its first label.
+      startDraftCommand('axis');
+      submitCommandLine('T', null);
+      submitCommandLine('standard', null);
+      clickDrawing({ x: 9, y: 0 }, TOL, false);
+      clickDrawing({ x: 9, y: 10 }, TOL, false);
+      pressEnter();
+      const c = useProjectStore.getState().drafts[2];
+      assert.ok(c.shape.type === 'axis' && c.shape.label === '1' && c.shape.bubble === 'circle' && c.params.axisStyle === 'standard');
+
+      // A removed type leaves its axes on Standard.
+      removeAxisStyle(typeId);
+      assert.ok(useProjectStore.getState().drafts.every((d) => d.params.axisStyle === 'standard'));
+    } finally {
+      setCurrentStyles({ axisStyle: 'standard', firstAxisLabel: '1' });
+    }
   });
 
   it('HATCH fills the closed region around the picked point, with its islands', () => {
@@ -219,5 +272,35 @@ describe('annotation commands', () => {
     const [hatch] = shapes();
     assert.ok(hatch.type === 'hatch');
     if (hatch.type === 'hatch') { assert.equal(hatch.pattern, 'CROSS'); assert.equal(hatch.loops.length, 2); }
+  });
+});
+
+describe('modify commands on model elements', () => {
+  it('with nothing drafted selected, MOVE / ERASE go to the model route; with a drafted selection they stay drafting commands', () => {
+    const routed: string[] = [];
+    setModelEditRoute((id) => { routed.push(id); return id !== 'mirror'; });
+    try {
+      startDraftCommand('move');
+      submitCommandLine('E', null);
+      assert.deepEqual(routed, ['move', 'erase']);
+      assert.equal(useDraftingSession.getState().commandId, null, 'the route took them');
+      // A command the route declines waits for a drafted selection as before.
+      startDraftCommand('mirror');
+      assert.equal(useDraftingSession.getState().commandId, 'mirror');
+      cancelCommand();
+
+      submitCommandLine('L', null);
+      clickDrawing({ x: 0, y: 0 }, TOL, false);
+      clickDrawing({ x: 4, y: 0 }, TOL, false);
+      pressEnter();
+      useDraftingSession.setState({ selection: new Set([useProjectStore.getState().drafts[0].id]) });
+      routed.length = 0;
+      startDraftCommand('move');
+      assert.deepEqual(routed, [], 'drafted entities selected: no route');
+      assert.equal(useDraftingSession.getState().commandId, 'move');
+      cancelCommand();
+    } finally {
+      setModelEditRoute(null);
+    }
   });
 });
