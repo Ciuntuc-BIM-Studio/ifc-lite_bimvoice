@@ -17,12 +17,15 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react';
 import { advance, cleanup, mouseDown, press, render } from '@/test/render.js';
+import { DEFAULT_RIBBON_TABS } from './ribbon-layout.js';
+import { showRibbonTab } from './ribbon-test-tabs.js';
+import { RIBBON_REMOVED_TABS } from '@/store/constants';
 import { registerLocale, setLocale, type Catalogue } from '@/i18n';
 import { ribbonToolbarEn } from '@/i18n/catalogues/ribbon-toolbar.en';
 import { useViewerStore, type RibbonTabId } from '@/store';
 import { RibbonToolbar } from './RibbonToolbar.js';
 
-const TABS: RibbonTabId[] = ['file', 'home', 'design', 'annotations', 'view', 'elements', 'analyze', 'author', 'infrastructure'];
+const TABS: RibbonTabId[] = ['file', 'home', 'design', 'studio', 'annotations', 'view', 'elements', 'analyze', 'author', 'infrastructure'];
 type RibbonKey = keyof typeof ribbonToolbarEn;
 const RIBBON_KEYS = Object.keys(ribbonToolbarEn) as RibbonKey[];
 
@@ -102,10 +105,7 @@ function readableSlots(root: HTMLElement): Map<string, string> {
 }
 
 function showTab(container: HTMLElement, tab: RibbonTabId): void {
-  const tabs = [...container.querySelectorAll('[role="tab"]')];
-  const target = tabs[TABS.indexOf(tab)];
-  assert.ok(target, `tab ${tab} is rendered`);
-  mouseDown(target);
+  showRibbonTab(container, tab);
   assert.equal(useViewerStore.getState().ribbonTab, tab);
 }
 
@@ -137,14 +137,17 @@ afterEach(() => {
 });
 
 describe('RibbonToolbar localization (#4785)', () => {
-  it('#5815 ArrowRight selects the next tab (Design) and labels the command band', async () => {
+  it('#5815 ArrowRight selects the next tab and labels the command band', async () => {
+    act(() => useViewerStore.setState({ ribbonTab: 'design' }));
     const container = render(<RibbonToolbar />);
     const tabs = [...container.querySelectorAll<HTMLElement>('[role="tab"]')];
-    assert.equal(tabs.length, TABS.length);
-    tabs[1].focus(); // Home is the initial tab.
+    // Lapin's strip: ifc-lite's Home, Elements, Analyze and Author are left out.
+    assert.equal(tabs.length, DEFAULT_RIBBON_TABS.length);
+    tabs[1].focus(); // Design is the initial tab.
     press(tabs[1], 'ArrowRight');
     await advance(5);
-    assert.equal(useViewerStore.getState().ribbonTab, 'design');
+    // The tab after Design on Lapin's strip.
+    assert.equal(useViewerStore.getState().ribbonTab, DEFAULT_RIBBON_TABS[2].id);
     assert.equal(document.activeElement, tabs[2]);
     const panel = container.querySelector('[role="tabpanel"]');
     assert.ok(panel);
@@ -195,7 +198,9 @@ describe('RibbonToolbar localization (#4785)', () => {
     // Independent of what rendered: every static key in the catalogue must have
     // shown up on its own control, unless listed as not reachable in this state.
     // A key wired to the wrong control leaves the right key unrendered here.
-    const missing = RIBBON_KEYS.filter((key) => !ribbonToolbarEn[key].includes('{') && !covered.has(key));
+    // The labels of the tabs Lapin leaves out of its strip are never drawn (their bands still are, above).
+    const leftOut = new Set<string>([...RIBBON_REMOVED_TABS].map((tab) => `ribbon.tab.${tab}`));
+    const missing = RIBBON_KEYS.filter((key) => !ribbonToolbarEn[key].includes('{') && !covered.has(key) && !leftOut.has(key));
     assert.deepEqual(missing, NOT_RENDERED_IN_THIS_STATE);
   });
 });

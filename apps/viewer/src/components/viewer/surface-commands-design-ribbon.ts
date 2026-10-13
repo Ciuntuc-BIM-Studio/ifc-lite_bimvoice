@@ -9,7 +9,7 @@
  */
 
 import {
-  DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
+  WallAttachRoof, WallDetachRoof, DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
   BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
@@ -25,6 +25,7 @@ import { roofSystemOfRenderId } from '@/project/roof-system-element';
 import { useViewerStore } from '@/store';
 import { selectedGlobalIds } from '@/project/element-guid';
 import { flipElements } from '@/project/element-flip';
+import { attachSelectedWallsToRoof, detachSelectedWalls } from '@/project/roof-walls';
 import { openMoveToStorey } from '@/project/element-relocate';
 import { changeSelectedWallJoins, defaultWallJoinStyle, setDefaultWallJoinStyle, type WallJoinChange } from '@/lib/wall-join-style';
 import { startWorkPlaneFromFace } from '@/project/workplane-from-face';
@@ -78,6 +79,18 @@ function flip(axis: 'x' | 'y'): () => void {
 }
 
 /** Say what a group action did, or why it did not. */
+function attachToRoof(): void {
+  const report = attachSelectedWallsToRoof();
+  if (report.attached) toast.success(resolve('roofWalls.attached', { count: report.attached }));
+  if (report.noRoof) toast.info(resolve('roofWalls.noRoof', { count: report.noRoof }));
+  if (!report.attached && !report.noRoof) toast.info(resolve('roofWalls.selectWalls'));
+}
+
+function detachFromRoof(): void {
+  const count = detachSelectedWalls();
+  toast.info(resolve(count ? 'roofWalls.detached' : 'roofWalls.noneAttached', { count }));
+}
+
 function groupToast(outcome: GroupOutcome, ok: (o: Extract<GroupOutcome, { ok: true }>) => string): void {
   if (outcome.ok) toast.success(ok(outcome));
   else toast.info(resolve(`groups.error.${outcome.error}`));
@@ -132,6 +145,8 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:join-swap', labelKey: 'drafting.join.swap', keywords: 'wall join corner swap priority through', category: 'Tools', icon: JoinSwap, surfaces: ribbonOnly, enabled: always, run: joins({ swap: true }) },
   { id: 'design:join-auto-mitre', labelKey: 'drafting.join.autoMitre', keywords: 'wall join automatic default mitre corners', category: 'Tools', icon: JoinAuto, surfaces: ribbonOnly, enabled: always, run: toggleAutoMitre },
   { id: 'design:roof-system', labelKey: 'roof.open', keywords: 'roof system configurator rafters purlins ridge gable hip eave pitch structure edit in place', category: 'Tools', icon: RoofSystem, surfaces: ribbonOnly, enabled: always, run: openRoofSystem },
+  { id: 'design:attach-roof', labelKey: 'roofWalls.attach', keywords: 'attach top wall roof gable trim cut under roof', category: 'Tools', icon: WallAttachRoof, surfaces: ribbonOnly, enabled: always, run: attachToRoof },
+  { id: 'design:detach-roof', labelKey: 'roofWalls.detach', keywords: 'detach top wall roof gable trim', category: 'Tools', icon: WallDetachRoof, surfaces: ribbonOnly, enabled: always, run: detachFromRoof },
   { id: 'design:cut-priorities', labelKey: 'cutPriority.command', keywords: 'cut priority intersection column wall slab beam boolean clean-up join', category: 'Tools', icon: CutPriority, surfaces: ribbonOnly, enabled: always, run: runCutPriorities },
   { id: 'design:materials', labelKey: 'materials.cmd', keywords: 'building materials hatch cut fill membrane vapour barrier layers priority', category: 'Tools', icon: BuildingMaterials, surfaces: ribbonOnly, enabled: always, run: openMaterials },
   { id: 'design:element-types', labelKey: 'elementTypes.open', keywords: 'type types catalogue wall slab column beam roof opening layers build-up section configurator', category: 'Tools', icon: ElementTypes, surfaces: ribbonOnly, enabled: always, run: () => openElementTypes() },

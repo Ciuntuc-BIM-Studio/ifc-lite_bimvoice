@@ -14,7 +14,7 @@
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import {
   addRoofSystemToStore, defaultRoofStructure, orientRoof, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, resolveSpatialAnchor,
-  roofSystemOf, type RoofEdgeRule, type RoofLayer, type RoofSystemSpec,
+  resolveJoineryAnchor, roofSystemOf, type RoofEdgeRule, type RoofLayer, type RoofSystemSpec,
 } from '@ifc-lite/create';
 import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
@@ -30,6 +30,8 @@ import { useProjectStore } from './project-store';
 import { findElementByGlobalId, prepare, type ContourElementResult } from './contour-element';
 import type { ProjectView } from './types';
 import { ensureEditMode } from '@/project/edit-mode';
+import { registerGableWalls, releaseRoofWallsInStore, syncRoofWallsInStore } from './roof-walls';
+import { deleteInLastStep } from './element-delete';
 
 type Vec2 = [number, number];
 
@@ -92,11 +94,14 @@ export function createRoofSystem(view: ProjectView, plane: SectionPlaneConfig, o
       covering: { thickness: defaults.thickness, color: '#8b4a3a', layers: defaultCoveringLayers(defaults.thickness) }, structure: defaultRoofStructure(), timberColor: '#c8a070',
       ...preset,
     };
-    const made = recordModellingCommit(useViewerStore, ready.modelId, (editor, ds) => {
+    const { made, walls } = recordModellingCommit(useViewerStore, ready.modelId, (editor, ds) => {
       ensureStoreyPlacement(ds, editor, ready.storeyId);
-      return addRoofSystemToStore(editor, resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView()), spec);
+      const anchor = resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView());
+      const roof = addRoofSystemToStore(editor, anchor, spec);
+      return { made: roof, walls: syncRoofWallsInStore(ds, editor, anchor, roof.globalId, spec) };
     });
     afterCommit(ready.modelId, ready.storeyId, made.parts, [], true, made.roofId);
+    afterWalls(ready.modelId, ready.storeyId, walls);
     return { ok: true, modelId: ready.modelId, elementId: made.roofId, globalId: made.globalId, ifcClass: 'IfcRoof' };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
@@ -130,17 +135,30 @@ export function roofSystemByGlobalId(modelId: string, globalId: string): RoofSys
   return spec ? { modelId, roofId, spec } : null;
 }
 
-/** Regenerate a roof system from a changed spec. */
+/** The roof's gable walls and attached walls after its commit: new ones on the storey and meshed, changed ones re-meshed, dropped ones deleted in the same step. */
+function afterWalls(modelId: string, storeyId: number, walls: ReturnType<typeof syncRoofWallsInStore>): void {
+  registerGableWalls(modelId, storeyId, walls.created);
+  const get = useViewerStore.getState;
+  if (walls.created.length) void requestRemesh(get, modelId, walls.created, 'created');
+  if (walls.remesh.length) void requestRemesh(get, modelId, walls.remesh, 'shape');
+  deleteInLastStep(modelId, walls.remove);
+}
+
+/** Regenerate a roof system from a changed spec; its gable walls and the walls attached to it follow, in the same step. */
 export function applyRoofSystem(ref: Pick<RoofSystemRef, 'modelId' | 'roofId'>, spec: RoofSystemSpec): { ok: true } | { ok: false; error: string } {
   ensureEditMode();
   const storeyId = storeyOf(ref.modelId, ref.roofId);
   if (storeyId === null) return { ok: false, error: 'The roof is not on a storey.' };
+  const globalId = roofGuid(ref);
   try {
-    const result = recordModellingCommit(useViewerStore, ref.modelId, (editor, ds) => {
+    const { result, walls } = recordModellingCommit(useViewerStore, ref.modelId, (editor, ds) => {
       ensureStoreyPlacement(ds, editor, storeyId);
-      return regenerateRoofSystemInStore(ds, editor, resolveSpatialAnchor(ds, storeyId, editor.getMutationView()), ref.roofId, spec);
+      const anchor = resolveSpatialAnchor(ds, storeyId, editor.getMutationView());
+      const roof = regenerateRoofSystemInStore(ds, editor, anchor, ref.roofId, spec);
+      return { result: roof, walls: globalId ? syncRoofWallsInStore(ds, editor, anchor, globalId, spec) : null };
     });
     afterCommit(ref.modelId, storeyId, result.parts, result.removed, true);
+    if (walls) afterWalls(ref.modelId, storeyId, walls);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
@@ -188,8 +206,14 @@ export function deleteRoofSystem(ref: Pick<RoofSystemRef, 'modelId' | 'roofId'>)
   const get = useViewerStore.getState;
   const globalId = roofGuid(ref);
   try {
-    const removed = recordModellingCommit(useViewerStore, ref.modelId, (editor, ds) => removeRoofSystemFromStore(ds, editor, ref.roofId));
+    const { removed, walls } = recordModellingCommit(useViewerStore, ref.modelId, (editor, ds) => {
+      // Its other walls go back to plain walls; its gable walls leave with it (below, same step).
+      const released = globalId ? releaseRoofWallsInStore(ds, editor, resolveJoineryAnchor(ds, editor.getMutationView()), globalId) : { gableWalls: [], detached: [] };
+      return { removed: removeRoofSystemFromStore(ds, editor, ref.roofId), walls: released };
+    });
     for (const id of removed) stashAndPruneEntityMesh(get, useViewerStore.setState, ref.modelId, id);
+    if (walls.detached.length) void requestRemesh(get, ref.modelId, walls.detached, 'shape');
+    deleteInLastStep(ref.modelId, walls.gableWalls);
     const hierarchy = get().models.get(ref.modelId)?.ifcDataStore?.spatialHierarchy;
     if (hierarchy) for (const id of removed) hierarchy.elementToStorey.delete(id);
     get().setSelectedEntityId(null);

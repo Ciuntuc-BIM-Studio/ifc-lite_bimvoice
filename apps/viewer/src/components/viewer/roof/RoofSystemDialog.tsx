@@ -22,6 +22,7 @@ import { applyRoofSystem } from '@/project/roof-system-element';
 import { deleteRoofWithConfirm } from './delete-roof';
 import { closeRoofDialog, startRoofEdit, useRoofDialog } from '@/project/roof-dialog-store';
 import { ArchitectureFields, StructureFields } from './RoofFields';
+import { GableWallFields } from './RoofGableWalls';
 import { RoofIsoPreview, RoofPlanPreview } from './RoofPreview';
 import { RoofTypeControls } from './RoofTypeControls';
 
@@ -75,6 +76,7 @@ export function RoofSystemDialog() {
           <div className="grid h-[68vh] grid-cols-[23rem_19rem_1fr] gap-3 text-xs">
             <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
               <ArchitectureFields spec={draft} onChange={setDraft} edge={edge} onEdge={setEdge} />
+              <GableWallFields spec={draft} onChange={setDraft} />
             </div>
             <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
               <StructureFields spec={draft} onChange={setDraft} />

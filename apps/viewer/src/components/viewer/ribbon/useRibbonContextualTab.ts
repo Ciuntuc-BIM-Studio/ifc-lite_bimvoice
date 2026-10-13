@@ -13,6 +13,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useViewerStore } from '@/store';
+import { RIBBON_REMOVED_TABS } from '@/store/constants';
 import { useTourStore } from '@/lib/tours/tour-store';
 import {
   decideRibbonTab,
@@ -58,7 +59,8 @@ export function useRibbonContextualTab(): void {
 
     const decision = decideRibbonTab(prevRef.current, next, ribbonTab, memoryRef.current);
     prevRef.current = next;
-    if (!decision) return;
+    // Elements and Author are out of Lapin's interface: a selection or Edit mode leaves the tab as it is.
+    if (!decision || RIBBON_REMOVED_TABS.has(decision.tab)) return;
     memoryRef.current = decision.memory;
     if (decision.tab !== ribbonTab) setRibbonTab(decision.tab);
   }, [enabled, tourIdle, hasModel, hasSelection, editEnabled, ribbonTab, setRibbonTab]);

@@ -213,10 +213,18 @@ export function clearRetiredToolbarStylePreference(): void {
 clearRetiredToolbarStylePreference();
 
 /** Ribbon tab strip contexts, in strip order. */
-export type RibbonTabId = 'file' | 'home' | 'view' | 'elements' | 'analyze' | 'author' | 'design' | 'annotations' | 'infrastructure';
+export type RibbonTabId = 'file' | 'home' | 'view' | 'elements' | 'analyze' | 'author' | 'design' | 'studio' | 'annotations' | 'infrastructure';
 
-/** Home first: it holds the everyday tool and camera loop. */
-export const RIBBON_DEFAULT_TAB: RibbonTabId = 'home';
+/** Lapin starts on Design: its drawing and modelling tools. */
+export const RIBBON_DEFAULT_TAB: RibbonTabId = 'design';
+
+/**
+ * ifc-lite's own tabs Lapin leaves out of its interface (Home, Elements,
+ * Analyze, Author): the tab strip does not offer them and the contextual
+ * switch (a selection, Edit mode) does not open them. Their commands stay in
+ * the command palette and on their keys.
+ */
+export const RIBBON_REMOVED_TABS: ReadonlySet<RibbonTabId> = new Set<RibbonTabId>(['home', 'elements', 'analyze', 'author']);
 
 /**
  * localStorage key for contextual ribbon tabs (Revit-style: a selection

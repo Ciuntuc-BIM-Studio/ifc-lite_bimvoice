@@ -36,6 +36,7 @@ import { ElementsTab } from './tabs/ElementsTab';
 import { AnalyzeTab } from './tabs/AnalyzeTab';
 import { AuthorTab } from './tabs/AuthorTab';
 import { DesignTab } from './tabs/DesignTab';
+import { StudioTab } from './tabs/StudioTab';
 import { AnnotationsTab } from './tabs/AnnotationsTab';
 import { InfrastructureTab } from './tabs/InfrastructureTab';
 import { RibbonSwitchNotice } from './RibbonSwitchNotice';
@@ -245,6 +246,7 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
           {activeTab === 'analyze' && <AnalyzeTab />}
           {activeTab === 'author' && <AuthorTab />}
           {activeTab === 'design' && <DesignTab />}
+          {activeTab === 'studio' && <StudioTab />}
           {activeTab === 'annotations' && <AnnotationsTab />}
           {activeTab === 'infrastructure' && <InfrastructureTab />}
         </TabsContent>

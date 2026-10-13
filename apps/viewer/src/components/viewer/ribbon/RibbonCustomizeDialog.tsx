@@ -26,10 +26,10 @@ export function RibbonTabsMenu({ tab: target }: { tab: RibbonTabId | null }) {
   const { t } = useTranslation();
   const order = useRibbonLayout((s) => s.order);
   const hidden = useRibbonLayout((s) => s.hidden);
-  const label = t(DEFAULT_RIBBON_TABS.find((tab) => tab.id === target)?.labelKey ?? 'ribbon.tab.home');
+  const label = t(DEFAULT_RIBBON_TABS.find((tab) => tab.id === target)?.labelKey ?? 'ribbon.tab.design');
   const hide = (id: RibbonTabId) => {
     setRibbonLayout(toggleTab({ order, hidden }, id, false));
-    // The active tab would stay drawn while active: the ribbon goes Home.
+    // The active tab would stay drawn while active: the ribbon goes to Design.
     if (useViewerStore.getState().ribbonTab === id) useViewerStore.getState().setRibbonTab(PINNED_TAB);
   };
   const item = 'flex px-3 py-1.5 text-xs';

@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react';
 import { cleanup, mouseDown, render } from '@/test/render.js';
+import { showRibbonTab } from './ribbon-test-tabs.js';
 import { registerLocale, setLocale } from '@/i18n';
 import { resolve } from '@/i18n/registry';
 import { panelTitleKey } from '@/lib/panels/registry';
@@ -23,12 +24,10 @@ import { TOOLBAR_STYLE_STORAGE_KEY } from '@/store/constants';
 import { useViewerStore, type RibbonTabId } from '@/store';
 import { RibbonToolbar } from './RibbonToolbar.js';
 
-const TABS: RibbonTabId[] = ['file', 'home', 'design', 'annotations', 'view', 'elements', 'analyze', 'author'];
+const TABS: RibbonTabId[] = ['file', 'home', 'design', 'studio', 'annotations', 'view', 'elements', 'analyze', 'author'];
 
 function showTab(container: HTMLElement, tab: RibbonTabId): void {
-  const target = container.querySelectorAll('[role="tab"]')[TABS.indexOf(tab)];
-  assert.ok(target, `tab ${tab} is rendered`);
-  mouseDown(target, { button: 0 });
+  showRibbonTab(container, tab);
   assert.equal(useViewerStore.getState().ribbonTab, tab);
 }
 
@@ -93,12 +92,13 @@ describe('RibbonToolbar with a registered locale (#4785)', () => {
   });
 
   it('falls back to English per key for a partial locale', () => {
-    registerLocale('ribbon-partial', { 'ribbon.tab.home': 'Start', 'ribbon.home.measure': 'Messen' });
+    // Design's label is on Lapin's strip (Home's is not); Home's band still renders when opened.
+    registerLocale('ribbon-partial', { 'ribbon.tab.design': 'Entwurf', 'ribbon.home.measure': 'Messen' });
     setLocale('ribbon-partial');
     const container = render(<RibbonToolbar />);
     showTab(container, 'home');
     const strings = readableStrings(container);
-    assert.ok(strings.has('Start'));
+    assert.ok(strings.has('Entwurf'));
     assert.ok(strings.has('Messen'));
     assert.ok(strings.has('Walk'), 'untranslated key renders in English');
     assert.ok(strings.has('Measure & Mark'), 'untranslated group renders in English');

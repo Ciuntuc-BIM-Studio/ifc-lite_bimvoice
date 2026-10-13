@@ -11,6 +11,7 @@
  * and make sure every child closes when the parent tab unloads.
  */
 
+import { APP_NAME } from '@/brand';
 import { useEffect, type ElementType, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSyncExternalStore } from 'react';
@@ -68,7 +69,7 @@ function PanelWindowChrome({ entry }: { entry: PanelWindowEntry }) {
   const title = def ? t(def.titleKey) : entry.id;
 
   useEffect(() => {
-    entry.win.document.title = `${title} — ifc-lite`;
+    entry.win.document.title = `${title} — ${APP_NAME}`;
   }, [entry.win, revision, title]);
 
   return (

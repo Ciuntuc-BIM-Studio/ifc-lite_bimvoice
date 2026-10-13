@@ -22,6 +22,7 @@
  * subscribes via `useSyncExternalStore` and owns the portals.
  */
 
+import { APP_NAME } from '@/brand';
 import { getViewerStoreApi } from '@/store';
 import { getPanelDef, type WorkspacePanelId } from '@/lib/panels/registry';
 import { resolve } from '@/i18n/registry';
@@ -167,7 +168,7 @@ export async function openPanelWindow(id: WorkspacePanelId): Promise<PanelWindow
   if (!win) return null; // blocked by a popup blocker
 
   try {
-    win.document.title = `${def ? resolve(def.titleKey) : id} — ifc-lite`;
+    win.document.title = `${def ? resolve(def.titleKey) : id} — ${APP_NAME}`;
     bridgeStyles(win.document);
   } catch {
     /* about:blank not ready in some engines — portal still mounts into body */

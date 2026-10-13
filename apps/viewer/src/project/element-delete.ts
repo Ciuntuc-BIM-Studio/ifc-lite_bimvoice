@@ -123,3 +123,21 @@ export function selectedRenderIds(): number[] {
   if (typeof s.selectedEntityId === 'number') ids.add(s.selectedEntityId);
   return [...ids];
 }
+
+/**
+ * Delete elements of one model inside the undo step the last commit opened
+ * (gable walls a roof no longer has, the tools a boolean union consumed):
+ * one Undo takes back that commit and these deletions together.
+ */
+export function deleteInLastStep(modelId: string, ids: readonly number[]): DeleteOutcome {
+  if (ids.length === 0) return { deleted: 0, refused: [] };
+  const s = useViewerStore.getState();
+  const top = s.undoStacks.get(modelId)?.at(-1);
+  const batchId = top ? s.mutationBatchTags.get(top.id) : undefined;
+  const before = s.undoStacks.get(modelId)?.length ?? 0;
+  const outcome = deleteModelElements(modelId, ids);
+  const after = useViewerStore.getState();
+  const added = (after.undoStacks.get(modelId) ?? []).slice(before).map((m) => m.id);
+  if (batchId && added.length) after.tagMutationBatch(added, batchId);
+  return outcome;
+}

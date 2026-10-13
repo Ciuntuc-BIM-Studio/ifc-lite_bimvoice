@@ -7,6 +7,8 @@ import { afterEach, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react';
 import { click, cleanup, mouseDown, press, render } from '@/test/render.js';
+import { DEFAULT_RIBBON_TABS } from './ribbon-layout.js';
+import { showRibbonTab } from './ribbon-test-tabs.js';
 import { resolve } from '@/i18n/registry';
 import { posthog } from '@/lib/analytics';
 import { setCollabEnabledOverride } from '@/lib/collab/config';
@@ -18,7 +20,7 @@ import type { FileCommands } from '../toolbar/useFileCommands.js';
 import { RibbonToolbar } from './RibbonToolbar.js';
 import { FileTab } from './tabs/FileTab.js';
 
-const TABS: RibbonTabId[] = ['file', 'home', 'design', 'annotations', 'view', 'elements', 'analyze', 'author', 'infrastructure'];
+const TABS: RibbonTabId[] = ['file', 'home', 'design', 'studio', 'annotations', 'view', 'elements', 'analyze', 'author', 'infrastructure'];
 const initialState = useViewerStore.getState();
 
 afterEach(() => {
@@ -96,14 +98,12 @@ it('#5870/#5878 mounts every ribbon command with its registry name across all ta
     cesiumAvailable: true, cesiumEnabled: true, editEnabled: true,
   }));
   const container = render(<RibbonToolbar />);
-  assert.equal(container.querySelectorAll('[role="tab"]').length, TABS.length,
-    'the guard visits every ribbon tab');
+  // Lapin's strip leaves ifc-lite's Home, Elements, Analyze and Author out; the guard still opens their bands.
+  assert.equal(container.querySelectorAll('[role="tab"]').length, DEFAULT_RIBBON_TABS.length);
   const rawByTab: Record<string, number> = {};
   const renderedIds = new Set<string>();
   for (const tab of TABS) {
-    const trigger = container.querySelectorAll('[role="tab"]')[TABS.indexOf(tab)];
-    assert.ok(trigger, `${tab} tab is mounted`);
-    mouseDown(trigger, { button: 0 });
+    showRibbonTab(container, tab);
     const band = container.querySelector('[role="tabpanel"]');
     assert.ok(band, `${tab} band is mounted`);
     const buttons = [...band.querySelectorAll<HTMLButtonElement>('button')];
@@ -153,7 +153,7 @@ it('#5870/#5878 mounts every ribbon command with its registry name across all ta
   // hand-labelled command fails this mounted guard even before its tab is
   // converted to typed IDs. Drop each count to zero with that tab's migration.
   assert.deepEqual(rawByTab, {
-    file: 0, home: 0, view: 0, elements: 0, analyze: 0, author: 0, design: 0, annotations: 0, infrastructure: 0,
+    file: 0, home: 0, view: 0, elements: 0, analyze: 0, author: 0, design: 0, studio: 0, annotations: 0, infrastructure: 0,
   });
   assert.deepEqual(renderedIds,
     new Set(SURFACE_COMMANDS.filter((command) => command.surfaces.includes('ribbon'))

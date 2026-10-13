@@ -56,6 +56,24 @@ export interface RoofSystemSpec {
   timberColor: string;
   /** Edits to single parts by part key, kept across regenerations while the part is still generated. */
   overrides?: RoofOverrides;
+  /** Walls closing the gable ends (`wall-roof-trim.ts`); absent or disabled: none. */
+  gableWalls?: GableWallSpec;
+}
+
+/**
+ * The walls the roof system puts under its gables: one per gable edge, its
+ * outer face `offset` metres inside the outline, standing on the wall plate
+ * and cut by the roof. `flip` runs it the other way (its layers mirrored).
+ */
+export interface GableWallSpec {
+  enabled: boolean;
+  /** The project wall type (its layers); absent: a plain wall `thickness` thick. */
+  typeId?: string;
+  thickness: number;
+  offset: number;
+  flip: boolean;
+  /** Cut under the covering only, or under the structure too. */
+  top: 'covering' | 'structure';
 }
 
 export interface RoofSystemResult {

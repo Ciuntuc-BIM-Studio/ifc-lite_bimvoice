@@ -70,7 +70,14 @@ export { hipRoofFaces, weightedSkeletonFaces } from './straight-skeleton.js';
 // Roof systems: per-edge rules → planes, structure, and the IfcRoof block of slabs and members.
 export { offsetEdges, orientRoof, roofGeometry, roofProblem, type RoofEdgeKind, type RoofEdgeRule, type RoofGeometry, type RoofLine, type RoofPlane } from './roof-system.js';
 export { defaultRoofStructure, defaultTruss, roofStructure, type MemberRole, type MemberSection, type RoofMember, type RoofStructureSpec, type TrussSpec } from './roof-structure.js';
-export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
+export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type GableWallSpec, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
+export {
+  bakeBooleanInStore, readSubtractions, removeSubtractionsInStore, subtractElementsInStore, SUBTRACT_NAME, type BakeOutcome, type Subtraction,
+} from './element-boolean.js';
+export {
+  gableWallLines, readWallRoofTrim, ROOF_TRIM_PSET, roofOverWall, roofTrimCuts, roofTrimDepth, roofTrimmedWalls, setWallRoofTrimInStore, syncWallRoofTrimInStore,
+  type GableWallLine, type RoofTrimCut, type RoofTrimTop, type WallRoofTrim,
+} from './wall-roof-trim.js';
 export { deletionClosure, type DeletionPlan } from './element-deletion.js';
 export { END_CUTS, memberSolidFaces, pruneOverrides, shapeMembers, type EndCut, type RoofOverrides, type RoofPartOverride, type ShapedMember } from './roof-overrides.js';
 export { coveringLayers, coveringThickness, layerColour, type RoofCovering, type RoofLayer } from './roof-system-material.js';

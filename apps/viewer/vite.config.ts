@@ -17,6 +17,7 @@ import { oauthCallbackRoutes } from './vite-plugins/oauth-callback';
 // Same allowlist the production relay uses, so dev and prod cannot disagree
 // about which Dalux node a request reaches (#2792).
 import { daluxRelayRoute } from './vite-plugins/dalux-relay';
+import { lapinBranding } from './vite-plugins/lapin-branding';
 import { deploymentAssetsDir } from '../../scripts/lib/deployment-assets-dir.mjs';
 
 // --- Build-time changelog parser ---
@@ -244,6 +245,8 @@ export default defineConfig({
     // relay. Dev runs the SAME handler production does (#2792), rather than a
     // second proxy config that can drift from it.
     daluxRelayRoute(),
+    // Lapin's name and icons in the page title, the favicons and the web app manifest.
+    lapinBranding(path.resolve(__dirname, 'public')),
   ],
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),

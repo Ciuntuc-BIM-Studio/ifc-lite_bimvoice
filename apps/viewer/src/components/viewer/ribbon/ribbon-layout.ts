@@ -6,7 +6,9 @@
  * The user's ribbon: which tabs show and in what order. It is a preference
  * of the person, not of the project, so it lives in this browser.
  *
- * - Home always shows (it is where the ribbon falls back to);
+ * - Design always shows (it is where the ribbon falls back to);
+ * - ifc-lite's Home, Elements, Analyze and Author are not offered at all
+ *   (`RIBBON_REMOVED_TABS`);
  * - a hidden tab still shows while it is the active one (a tool or a
  *   contextual switch opened it), so nothing is ever unreachable;
  * - tabs added in a later version, missing from a saved order, go after
@@ -14,14 +16,16 @@
  */
 
 import { create } from 'zustand';
-import type { RibbonTabId } from '@/store/constants';
+import { RIBBON_REMOVED_TABS, type RibbonTabId } from '@/store/constants';
 import type { TranslationKey } from '@/i18n';
 
-export const DEFAULT_RIBBON_TABS: { id: RibbonTabId; labelKey: TranslationKey }[] = [
+const ALL_RIBBON_TABS: { id: RibbonTabId; labelKey: TranslationKey }[] = [
   { id: 'file', labelKey: 'ribbon.tab.file' },
   { id: 'home', labelKey: 'ribbon.tab.home' },
   // Drawing and annotating come first, right after Home.
   { id: 'design', labelKey: 'ribbon.tab.design' },
+  // Free modelling: solids from contours and boolean operations.
+  { id: 'studio', labelKey: 'ribbon.tab.studio' },
   { id: 'annotations', labelKey: 'ribbon.tab.annotations' },
   { id: 'view', labelKey: 'ribbon.tab.view' },
   { id: 'elements', labelKey: 'ribbon.tab.elements' },
@@ -30,8 +34,11 @@ export const DEFAULT_RIBBON_TABS: { id: RibbonTabId; labelKey: TranslationKey }[
   { id: 'infrastructure', labelKey: 'ribbon.tab.infrastructure' },
 ];
 
+/** The tabs Lapin's ribbon offers, in their default order. */
+export const DEFAULT_RIBBON_TABS = ALL_RIBBON_TABS.filter((t) => !RIBBON_REMOVED_TABS.has(t.id));
+
 /** The tab that cannot be hidden. */
-export const PINNED_TAB: RibbonTabId = 'home';
+export const PINNED_TAB: RibbonTabId = 'design';
 
 export interface RibbonLayout {
   order: RibbonTabId[];

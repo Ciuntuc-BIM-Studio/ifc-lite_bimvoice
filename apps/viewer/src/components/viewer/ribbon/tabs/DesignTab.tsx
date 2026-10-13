@@ -10,10 +10,10 @@
  */
 
 import {
-  AnnoAxis, DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
-  DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
+  AnnoAxis, WallAttachRoof, WallDetachRoof, DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
+  DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane,
   BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, JoineryTypes, ElementTypes, RoofSystem, DoorFlipSide, CutPriority,
-  DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
+  BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { useViewerStore } from '@/store';
 import { useWallJoinPrefs } from '@/lib/wall-join-prefs';
@@ -108,6 +108,10 @@ export function DesignTab() {
           <RibbonCommandSmallButton commandId="design:join-auto-mitre" icon={JoinAuto} active={autoMitre} />
           <RibbonCommandSmallButton commandId="design:cut-priorities" icon={CutPriority} />
         </RibbonSmallStack>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:attach-roof" icon={WallAttachRoof} />
+          <RibbonCommandSmallButton commandId="design:detach-roof" icon={WallDetachRoof} />
+        </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('groups.group')}>
@@ -119,14 +123,6 @@ export function DesignTab() {
         </RibbonSmallStack>
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="design:move-to-storey" icon={MoveToStorey} />
-        </RibbonSmallStack>
-      </RibbonGroup>
-      <RibbonGroupDivider />
-      <RibbonGroup label={t('drafting.group.model')}>
-        <RibbonCommandLargeButton commandId="design:extrude" icon={DraftExtrude} active={on('extrude')} />
-        <RibbonSmallStack>
-          <RibbonCommandSmallButton commandId="design:sweep" icon={DraftSweep} active={on('sweep')} />
-          <RibbonCommandSmallButton commandId="design:revolve" icon={DraftRevolve} active={on('revolve')} />
         </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />

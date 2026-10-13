@@ -25,6 +25,7 @@ import { RIBBON_FILE_SURFACE_COMMANDS } from './surface-commands-file-ribbon';
 import { RIBBON_ELEMENTS_SURFACE_COMMANDS } from './surface-commands-elements-ribbon';
 import { RIBBON_AUTHOR_SURFACE_COMMANDS } from './surface-commands-author-ribbon';
 import { RIBBON_DESIGN_SURFACE_COMMANDS } from './surface-commands-design-ribbon';
+import { RIBBON_STUDIO_SURFACE_COMMANDS } from './surface-commands-studio-ribbon';
 import { RIBBON_ANNOTATE_SURFACE_COMMANDS } from './surface-commands-annotate-ribbon';
 import { RIBBON_INFRA_SURFACE_COMMANDS } from './surface-commands-infra-ribbon';
 import { RIBBON_PROJECT_SURFACE_COMMANDS } from './surface-commands-project';
@@ -197,6 +198,7 @@ type SurfaceCommandEntry =
   | (typeof RIBBON_ELEMENTS_SURFACE_COMMANDS)[number]
   | (typeof RIBBON_AUTHOR_SURFACE_COMMANDS)[number]
   | (typeof RIBBON_DESIGN_SURFACE_COMMANDS)[number]
+  | (typeof RIBBON_STUDIO_SURFACE_COMMANDS)[number]
   | (typeof RIBBON_INFRA_SURFACE_COMMANDS)[number]
   | (typeof RIBBON_ANNOTATE_SURFACE_COMMANDS)[number]
   | (typeof RIBBON_PROJECT_SURFACE_COMMANDS)[number]
@@ -219,6 +221,7 @@ export const SURFACE_COMMANDS: readonly (SurfaceCommandDefinition & { id: Surfac
   ...RIBBON_ELEMENTS_SURFACE_COMMANDS,
   ...RIBBON_AUTHOR_SURFACE_COMMANDS,
   ...RIBBON_DESIGN_SURFACE_COMMANDS,
+  ...RIBBON_STUDIO_SURFACE_COMMANDS,
   ...RIBBON_INFRA_SURFACE_COMMANDS,
   ...RIBBON_ANNOTATE_SURFACE_COMMANDS,
   ...RIBBON_PROJECT_SURFACE_COMMANDS,
