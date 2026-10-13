@@ -100,7 +100,7 @@ describe('library', () => {
     const names = lib.map((p) => p.name);
     for (const n of [
       'SOLID', 'LINES45', 'CROSS', 'HORIZONTAL', 'BRICK', 'CONCRETE',
-      'INSULATION', 'EARTH', 'STEEL', 'WOOD', 'GRAVEL', 'TILES',
+      'INSULATION', 'EARTH', 'STEEL', 'WOOD', 'WOODCROSS', 'GRAVEL', 'TILES',
     ]) {
       assert.ok(names.includes(n), `missing ${n}`);
     }

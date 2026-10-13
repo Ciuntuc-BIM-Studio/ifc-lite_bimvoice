@@ -108,6 +108,7 @@ export { default as TimberBrace } from '~icons/viewer/timber-brace';
 export { default as TimberTruss } from '~icons/viewer/timber-truss';
 export { default as TimberTrussSettings } from '~icons/viewer/timber-truss-settings';
 export { default as TimberFrame } from '~icons/viewer/timber-frame';
+export { default as TimberClt } from '~icons/viewer/timber-clt';
 export { default as DraftErase } from '~icons/viewer/draft-erase';
 export { default as DraftOffset } from '~icons/viewer/draft-offset';
 export { default as DraftTrim } from '~icons/viewer/draft-trim';

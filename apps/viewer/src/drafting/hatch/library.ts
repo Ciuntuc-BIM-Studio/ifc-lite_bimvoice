@@ -59,6 +59,11 @@ const BUILT_IN_PAT = `
 8, 0,0.9, 5.1,2.4, 4.2,-11
 352, 3,1.4, 6.7,2.4, 3.6,-9.8
 
+*WOODCROSS, Wood across the grain (WOOD turned 90°, cross layers)
+90, 0,0, 7.3,2.4, 9,-1.5
+98, -0.9,0, 5.1,2.4, 4.2,-11
+82, -1.4,3, 6.7,2.4, 3.6,-9.8
+
 *GRAVEL, Gravel dots and grains
 0, 0,0, 1.7,2.9, 0,-3.3
 37, 0.8,1.1, 2.3,3.1, 0.5,-4.2

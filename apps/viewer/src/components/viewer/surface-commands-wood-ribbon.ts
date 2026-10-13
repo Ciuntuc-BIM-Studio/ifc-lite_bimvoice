@@ -8,7 +8,8 @@
  * drawn on the view in front.
  */
 
-import { TimberBeam, TimberBrace, TimberFrame, TimberPost, TimberTruss, TimberTrussSettings } from '@/icons';
+import { TimberBeam, TimberBrace, TimberClt, TimberFrame, TimberPost, TimberTruss, TimberTrussSettings } from '@/icons';
+import { openCltDialog } from './timber/CltDialog';
 import { openTimberFrameDialog } from './timber/TimberFrameDialog';
 import { openTrussDialog } from './timber/TrussDialog';
 import { toast } from '@/components/ui/toast';
@@ -37,4 +38,5 @@ export const RIBBON_WOOD_SURFACE_COMMANDS = [
   { id: 'wood:truss', labelKey: 'timber.tool.truss', keywords: 'timber wood truss fink pratt howe warren king queen girder TRUSS', category: 'Tools', icon: TimberTruss, surfaces: ribbonOnly, enabled: always, run: draft('truss') },
   { id: 'wood:truss-settings', labelKey: 'timber.tool.trussSettings', keywords: 'timber truss configure settings pattern rise panels chords webs', category: 'Tools', icon: TimberTrussSettings, surfaces: ribbonOnly, enabled: always, run: openTrussDialog },
   { id: 'wood:timber-frame', labelKey: 'timber.tool.frame', keywords: 'timber frame stud wall panel studs plates noggings osb sheathing', category: 'Tools', icon: TimberFrame, surfaces: ribbonOnly, enabled: always, run: openTimberFrameDialog },
+  { id: 'wood:clt', labelKey: 'timber.tool.clt', keywords: 'clt cross laminated timber panel wall slab lamella type', category: 'Tools', icon: TimberClt, surfaces: ribbonOnly, enabled: always, run: openCltDialog },
 ] as const satisfies readonly SurfaceCommandDefinition[];
