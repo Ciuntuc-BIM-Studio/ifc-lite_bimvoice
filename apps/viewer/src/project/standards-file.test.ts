@@ -26,3 +26,27 @@ describe('axis types in a project file', () => {
     assert.deepEqual(readStandards({}).axisStyles, [DEFAULT_AXIS_STYLE]);
   });
 });
+
+describe('default axis type and tag types in a project file', () => {
+  it('reads the default, falling back to Standard when the type is gone', () => {
+    const axisStyles = [{ id: 'grid', name: 'Grid' }];
+    assert.equal(readStandards({ axisStyles, defaultAxisStyle: 'grid' }).defaultAxisStyle, 'grid');
+    assert.equal(readStandards({ axisStyles, defaultAxisStyle: 'gone' }).defaultAxisStyle, 'standard');
+    assert.equal(readStandards({}).defaultAxisStyle, 'standard');
+  });
+
+  it('reads tag types tolerantly', () => {
+    const { tagTypes } = readStandards({
+      tagTypes: [
+        { id: 't1', name: 'Wall', template: '{Name} {Pset_WallCommon.FireRating}', classes: ['IfcWall', 3, ' '] },
+        { id: 't2', template: '{Tag}' },
+        { name: 'no id', template: '{Tag}' },
+        { id: 't3', name: 'no template' },
+      ],
+    });
+    assert.deepEqual(tagTypes, [
+      { id: 't1', name: 'Wall', template: '{Name} {Pset_WallCommon.FireRating}', classes: ['IfcWall'] },
+      { id: 't2', name: 'Tag', template: '{Tag}', classes: [] },
+    ]);
+  });
+});

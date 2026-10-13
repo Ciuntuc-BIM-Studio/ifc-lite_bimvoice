@@ -5,7 +5,8 @@
 /**
  * The project's drafting standards as actions: layers and layer groups,
  * layer visibility per view and per sheet viewport, text and dimension
- * styles, axis types, and the per-element style / overrides.
+ * styles, axis types (and the project's default one), tag types, and the
+ * per-element style / overrides.
  *
  * Annotation heights live on the shapes (drawing units, what picking and
  * snapping measure); a style holds them in paper millimetres. So whenever a
@@ -18,7 +19,7 @@
 
 import {
   AXIS_OVERRIDES, DEFAULT_AXIS_STYLE, DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, overrideKey, resolveAxis, resolveText, STANDARD,
-  type AxisStyle, type DimStyle, type LayerGroup, type StyleBook, type TextStyle,
+  type AxisStyle, type DimStyle, type LayerGroup, type StyleBook, type TagType, type TextStyle,
 } from '@/drafting/styles';
 import type { DraftEntity, DraftLayer, DraftParamValue, EntityShape } from '@/drafting/types';
 import { useProjectStore } from './project-store';
@@ -251,7 +252,42 @@ export function removeAxisStyle(id: string): void {
   const s = useProjectStore.getState();
   commit({
     axisStyles: (book(s).axisStyles ?? []).filter((a) => a.id !== id),
+    ...(s.defaultAxisStyle === id ? { defaultAxisStyle: STANDARD } : {}),
     drafts: s.drafts.map((d) => (d.params.axisStyle === id ? { ...d, params: { ...d.params, axisStyle: STANDARD } } : d)),
+  });
+}
+
+/** The axis type new axes take and the BIM grids in views are drawn with. */
+export function setDefaultAxisStyle(id: string): void {
+  if (useProjectStore.getState().defaultAxisStyle === id) return;
+  useProjectStore.setState({ defaultAxisStyle: id, dirty: true });
+}
+
+// ─── Tag types ────────────────────────────────────────────────────────────
+
+export function addTagType(from: Omit<TagType, 'id'>): string {
+  const id = freshProjectId('tag');
+  const s = useProjectStore.getState();
+  useProjectStore.setState({ tagTypes: [...(s.tagTypes ?? []), { ...from, id }], dirty: true });
+  return id;
+}
+
+export function updateTagType(id: string, patch: Partial<Omit<TagType, 'id'>>): void {
+  const s = useProjectStore.getState();
+  useProjectStore.setState({ tagTypes: (s.tagTypes ?? []).map((t) => (t.id === id ? { ...t, ...patch } : t)), dirty: true });
+}
+
+/** Remove a tag type: its tags keep their last text and stop following their elements. */
+export function removeTagType(id: string): void {
+  const s = useProjectStore.getState();
+  useProjectStore.setState({
+    tagTypes: (s.tagTypes ?? []).filter((t) => t.id !== id),
+    drafts: s.drafts.map((d) => {
+      if (d.params.tagType !== id) return d;
+      const { tagType: _type, tagOf: _of, tagMissing: _missing, ...params } = d.params;
+      return { ...d, params };
+    }),
+    dirty: true,
   });
 }
 

@@ -22,6 +22,7 @@ import { closeProjectTab } from '@/project/open-view';
 import { EMPTY_VIEW_DRAWING, useViewDrawings } from '@/project/view-drawings';
 import { DocumentTabBar } from './DocumentTabBar';
 import { ViewDrawingHost } from './ViewDrawingHost';
+import { useSheetBook } from '@/project/sheet-book';
 import { DraftingView } from '../drafting/DraftingView';
 import { SheetView } from '../sheets/SheetView';
 import { ScheduleView } from '../joinery/ScheduleView';
@@ -52,10 +53,12 @@ export function DocumentWorkspace({ children }: { children: ReactNode }) {
   const schedules = useProjectStore((s) => s.schedules);
   const civilDrawings = useProjectStore((s) => s.civilDrawings);
   useMirrorFrontDrawing(activeId);
-  // Views that need their own drawing: open as a tab, or placed on a sheet that is open as a tab.
+  // Views that need their own drawing: open as a tab, or placed on a sheet the sheets canvas shows in full.
+  const liveSheets = useSheetBook((s) => s.live);
   const drawn = new Set(openIds);
+  const sheetsOpen = sheets.some((s) => openIds.includes(s.id));
   for (const sheet of sheets) {
-    if (openIds.includes(sheet.id)) for (const vp of sheet.viewports ?? []) drawn.add(vp.viewId);
+    if (sheetsOpen && (liveSheets.includes(sheet.id) || activeId === sheet.id)) for (const vp of sheet.viewports ?? []) drawn.add(vp.viewId);
   }
 
   // A deleted view (or another project loaded) takes its tab with it.
@@ -96,7 +99,7 @@ export function DocumentWorkspace({ children }: { children: ReactNode }) {
         ) : null}
         {frontSheet ? (
           <div className="absolute inset-0 z-30 flex flex-col bg-zinc-200 dark:bg-zinc-900">
-            <SheetView key={frontSheet.id} sheet={frontSheet} />
+            <SheetView sheet={frontSheet} />
           </div>
         ) : null}
       </div>

@@ -16,6 +16,7 @@
  *   fits them to it.
  */
 
+import { applyCurtainWall, curtainWallOfRenderId, pushCurtainWallType, specFromType } from '@/project/curtain-wall-element';
 import {
   assignMaterialInStore, assignTypeInStore, catalogTypeOfElement, ensureCatalogTypeInStore, findCatalogTypeInStore,
   occurrencesOfTypeInStore, readRelatedLists, readRoofSystem, resolveJoineryAnchor, rewriteCatalogTypeInStore, setLayerUsageOffset,
@@ -115,6 +116,11 @@ export function pushElementType(spec: ElementTypeSpec): TypePushReport {
   ensureEditMode();
   const report: TypePushReport = { models: 0, elements: 0, refused: [] };
   const s = useViewerStore.getState();
+  if (spec.kind === 'curtainWall') {
+    // Curtain walls name their type in their own spec, across every loaded model.
+    const pushed = pushCurtainWallType({ id: spec.id, spec: spec.curtain, height: spec.height });
+    return { models: pushed.updated > 0 ? 1 : 0, elements: pushed.updated, refused: pushed.failed };
+  }
   for (const [modelId, model] of s.models) {
     const ds = model.ifcDataStore;
     if (!ds) continue;
@@ -205,7 +211,18 @@ export function applyTypeToSelection(spec: ElementTypeSpec): { updated: number; 
   if (s.selectedEntityId !== null && s.selectedEntityId !== undefined) ids.add(s.selectedEntityId);
   const out = { updated: 0, refused: [] as string[] };
   const byModel = new Map<string, number[]>();
+  const doneCurtainWalls = new Set<string>();
   for (const id of ids) {
+    if (spec.kind === 'curtainWall') {
+      const wall = curtainWallOfRenderId(id);
+      const key = wall ? `${wall.modelId}:${wall.curtainWallId}` : '';
+      if (!wall || doneCurtainWalls.has(key)) continue;
+      doneCurtainWalls.add(key);
+      const result = applyCurtainWall(wall, specFromType(wall.spec, { id: spec.id, spec: spec.curtain, height: spec.height }));
+      if (result.ok) out.updated++;
+      else out.refused.push(result.error);
+      continue;
+    }
     if (spec.kind === 'roof') {
       const roof = roofSystemOfRenderId(id);
       if (!roof) continue;

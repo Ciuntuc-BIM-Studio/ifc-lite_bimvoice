@@ -10,7 +10,7 @@
  */
 
 import {
-  AnnoAxis, AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftingStandards,
+  AnnoAxis, AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoViewport, AnnoText, DraftingStandards,
 } from '@/icons';
 import { resolve } from '@/i18n/registry';
 import { toast } from '@/components/ui/toast';
@@ -37,6 +37,7 @@ export const RIBBON_ANNOTATE_SURFACE_COMMANDS = [
   { id: 'annotate:text', labelKey: 'drafting.tool.text', keywords: 'text note label', category: 'Tools', icon: AnnoText, surfaces: ribbonOnly, enabled: always, run: draft('text') },
   { id: 'annotate:standards', labelKey: 'standards.open', keywords: 'layers layer groups text style dimension style standards manager', category: 'Tools', icon: DraftingStandards, surfaces: ribbonOnly, enabled: always, run: () => openStandards('layers') },
   { id: 'annotate:tag', labelKey: 'drafting.tool.tag', keywords: 'tag label element mark door window number', category: 'Tools', icon: AnnoTag, surfaces: ribbonOnly, enabled: always, run: draft('tag') },
+  { id: 'annotate:viewport', labelKey: 'drafting.tool.viewport', keywords: 'viewport region crop sheet layout drawing limits polygon', category: 'Tools', icon: AnnoViewport, surfaces: ribbonOnly, enabled: always, run: draft('viewport') },
   { id: 'annotate:leader', labelKey: 'drafting.tool.leader', keywords: 'leader arrow callout note', category: 'Tools', icon: AnnoLeader, surfaces: ribbonOnly, enabled: always, run: draft('leader') },
   { id: 'annotate:dim-aligned', labelKey: 'drafting.tool.dimAligned', keywords: 'dimension aligned measure', category: 'Tools', icon: AnnoDimAligned, surfaces: ribbonOnly, enabled: always, run: draft('dimaligned') },
   { id: 'annotate:dim-linear', labelKey: 'drafting.tool.dimLinear', keywords: 'dimension linear horizontal vertical', category: 'Tools', icon: AnnoDimLinear, surfaces: ribbonOnly, enabled: always, run: draft('dimlinear') },

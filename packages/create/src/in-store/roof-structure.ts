@@ -42,7 +42,7 @@ export interface RoofStructureSpec {
   coverDepth: number;
   /** Trusses (used by the 'trusses' system; older specs may lack it). */
   truss?: TrussSpec;
-  /** How rafters (and hip, valley rafters, top chords) are cut at their eave and ridge ends; square when absent. */
+  /** How rafters (and hip, valley rafters, top chords) are cut at their eave and ridge ends; plumb (vertical) when absent. */
   rafterEnds?: { eave: 'square' | 'plumb' | 'level'; ridge: 'square' | 'plumb' | 'level' };
 }
 
@@ -139,6 +139,11 @@ function below(f: PlaneFrame, p: Vec2, drop: number): Vec3 {
   return [p[0] - f.normal[0] * drop, p[1] - f.normal[1] * drop, heightOn(f, p) - f.normal[2] * drop];
 }
 
+/** The point `drop` under the plane (square to it) that lies plumb under plan point `p`: a rafter's end on the vertical through the eave or ridge line. */
+function plumbBelow(f: PlaneFrame, p: Vec2, drop: number): Vec3 {
+  return below(f, [p[0] + f.normal[0] * drop, p[1] + f.normal[1] * drop], drop);
+}
+
 /** The direction trusses are spaced along: the longest ridge, or a mono-pitch's eave. */
 function spanDirection(g: RoofGeometry): Vec2 {
   let best: { len: number; u: Vec2 } | null = null;
@@ -172,7 +177,7 @@ function trusses(g: RoofGeometry, fs: PlaneFrame[], spec: RoofStructureSpec, tr:
     for (const f of fs) for (const [t0, t1] of crossings(f.plan, p, v)) chords.push({ t0, t1, f });
     chords.sort((a, b) => a.t0 - b.t0);
     chords.forEach((c, m) => {
-      out.push({ role: 'chord', key: `truss:${k}:chord:${m}`, start: below(c.f, at(c.t0), chordAxis), end: below(c.f, at(c.t1), chordAxis), width: tr.chord.width, depth: tr.chord.depth });
+      out.push({ role: 'chord', key: `truss:${k}:chord:${m}`, start: plumbBelow(c.f, at(c.t0), chordAxis), end: plumbBelow(c.f, at(c.t1), chordAxis), width: tr.chord.width, depth: tr.chord.depth });
     });
     if (chords.length === 0) continue;
     // Bottom chord: wall to wall.
@@ -229,7 +234,8 @@ export function roofStructure(g: RoofGeometry, spec: RoofStructureSpec): RoofMem
       const p: Vec2 = [f.a[0] + f.d[0] * s, f.a[1] + f.d[1] * s];
       crossings(f.plan, p, f.n).forEach(([t0, t1], m) => {
         const A: Vec2 = [p[0] + f.n[0] * t0, p[1] + f.n[1] * t0], B: Vec2 = [p[0] + f.n[0] * t1, p[1] + f.n[1] * t1];
-        out.push({ role: 'rafter', key: `rafter:${f.plane.edge}:${j}:${m}`, start: below(f, A, rafterAxis), end: below(f, B, rafterAxis), width: r.width, depth: r.depth });
+        // Ends plumb under the eave and ridge lines, so opposite rafters meet on the ridge's vertical.
+        out.push({ role: 'rafter', key: `rafter:${f.plane.edge}:${j}:${m}`, start: plumbBelow(f, A, rafterAxis), end: plumbBelow(f, B, rafterAxis), width: r.width, depth: r.depth });
       });
     }
     // Purlins: horizontal, under the rafters, spread up the slope.

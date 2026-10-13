@@ -1,0 +1,16 @@
+{
+  "name": "@lapin/desktop",
+  "version": "0.1.0",
+  "description": "Lapin desktop app: the viewer in a native Tauri window",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:app": "tauri build --bundles app",
+    "icons": "tauri icon ../viewer/public/brand/lapin/mark.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2"
+  }
+}

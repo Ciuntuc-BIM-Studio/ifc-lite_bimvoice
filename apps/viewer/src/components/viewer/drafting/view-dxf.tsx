@@ -13,6 +13,8 @@
  * exports is what a sheet shows of it.
  */
 
+import { isViewportRegion } from '@/project/viewport-regions';
+import { isFace } from '@/drafting/faces';
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import type { Drawing2D } from '@ifc-lite/drawing-2d';
@@ -60,7 +62,8 @@ function ViewSvg({ view, drawing, axis, drafts, layers, extraPatterns, overlays 
       <OverlayPaths overlays={overlays} transform={MM} axis={axis} />
       {drafts.map((e) => {
         const color = colour.get(e.layerId);
-        if (color === null) return null;
+        // Viewport regions only mark sheet crops: not part of the drawing.
+        if (color === null || isViewportRegion(e) || isFace(e)) return null;
         return isGeometry(e.shape)
           ? <path key={e.id} {...layerTags(layerById.get(e.layerId))} d={shapePath(e.shape, MM, axis)} stroke={color ?? '#000'} strokeWidth={layerPen(layerById.get(e.layerId)).width} fill="none" />
           : <g key={e.id} {...layerTags(layerById.get(e.layerId))}><AnnotationGraphics shape={e.shape} color={color ?? '#000'} selected={false} transform={MM} axis={axis} extraPatterns={extraPatterns} look={lookOf(book, e.params)} paperUnit={paperUnit} /></g>;

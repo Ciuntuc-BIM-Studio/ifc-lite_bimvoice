@@ -16,12 +16,13 @@
 import { forwardRef, memo, useMemo } from 'react';
 import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import { useTranslation } from '@/i18n';
-import type { SectionAxisName, ViewTransform } from '@/drafting/frame';
-import { isGeometry, type DraftEntity, type DraftLayer, type DraftShape } from '@/drafting/types';
+import { drawingToScreen, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
+import { isGeometry, type DraftEntity, type DraftLayer, type DraftShape, type Pt } from '@/drafting/types';
 import type { HatchPattern } from '@/drafting/hatch/pattern';
-import { FRAME_MARGIN_MM, mmPerMetre, paperOf, TITLE_BLOCK_MM, viewportBox } from '@/project/sheets';
+import { FRAME_MARGIN_MM, mmPerMetre, paperOf, regionViewport, TITLE_BLOCK_MM, viewportBox } from '@/project/sheets';
 import type { ProjectSheet, ProjectView, SheetViewport } from '@/project/types';
 import { shapePath } from '../drafting/DraftOverlay';
+import { useViewGridAxes } from '@/project/view-grids';
 import { AnnotationGraphics } from '../drafting/AnnotationGraphics';
 import { layerTags, penTags } from './dxf-tags';
 import { layerPen, layerShows, lookOf } from '@/drafting/styles';
@@ -43,6 +44,8 @@ export interface ViewportContent {
   drafts: DraftEntity[];
   /** A plan's symbols and roof lines by pen, drawing units. */
   overlays?: PlanOverlay[];
+  /** The viewport region the viewport shows (drawing metres): its crop and centre. */
+  region?: { name: string; pts: Pt[] };
   /** A joinery schedule placed here instead of a view (paper millimetres). */
   schedule?: ScheduleLayout;
   /** A road drawing (profile / cross sections) placed here instead of a view (paper millimetres). */
@@ -72,11 +75,13 @@ export function viewportTransform(vp: SheetViewport, drawing: Drawing2D | null, 
   return { scale: s, x: vp.x - c.x * kx * s, y: vp.y - c.y * ky * s };
 }
 
-const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, extraPatterns, selected }: {
+const ViewportGraphic = memo(function ViewportGraphic({ vp: placed, content, layers, extraPatterns, selected }: {
   vp: SheetViewport; content: ViewportContent; layers: readonly DraftLayer[]; extraPatterns: readonly HatchPattern[]; selected: boolean;
 }) {
   const { t: tr } = useTranslation();
-  const { view, drawing, drafts } = content;
+  const { view, drawing, drafts, region } = content;
+  // A region viewport is centred on its polygon and as large as it.
+  const vp = useMemo(() => regionViewport(placed, region?.pts), [placed, region?.pts]);
   const axis: SectionAxisName = drawing ? AXIS_NAME[drawing.config.plane.axis] : 'down';
   const t = viewportTransform(vp, drawing, axis);
   const pens = useMemo(
@@ -87,19 +92,25 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
   const left = vp.x - box.width / 2;
   const top = vp.y - box.height / 2;
   const clipId = `vp-${vp.id}`;
+  // A region crops to its polygon, mapped to the paper like the drawing.
+  const outline = region ? `M${region.pts.map((p) => { const q = drawingToScreen(p, t, axis); return `${q.x.toFixed(3)} ${q.y.toFixed(3)}`; }).join('L')}Z` : null;
   const { book, groups } = useDraftingStandards();
   // A layer shows in a viewport by its own switch, its group's, its view's and the viewport's.
   const layerColor = new Map(layers.map((l) => [l.id, layerShows(l, groups, { view: view?.hiddenLayers, viewport: vp.hiddenLayers }) ? l.color : null]));
   const layerById = new Map(layers.map((l) => [l.id, l]));
   const paperUnit = (view?.scale ?? 100) / 1000;
+  const grids = useViewGridAxes(view, drawing?.config.plane);
   return (
     <g data-viewport-id={vp.id}>
-      <clipPath id={clipId}><rect x={left} y={top} width={box.width} height={box.height} /></clipPath>
+      <clipPath id={clipId}>{outline ? <path d={outline} /> : <rect x={left} y={top} width={box.width} height={box.height} />}</clipPath>
       <g clipPath={`url(#${clipId})`}>
         {pens.map((p, i) => (
           <path key={i} {...penTags(p.layer, p.width, !!p.dash, p.stroke ?? '#000000')} d={p.d} fill={p.fill ?? 'none'} fillRule="evenodd" stroke={p.stroke ?? 'none'} strokeWidth={p.width} strokeDasharray={p.dash} strokeLinejoin="round" />
         ))}
         {content.overlays?.length ? <OverlayPaths overlays={content.overlays} transform={t} axis={axis} /> : null}
+        {grids.axes.map((shape, i) => (
+          <AnnotationGraphics key={`grid${i}`} shape={shape} color="#000" selected={false} transform={t} axis={axis} extraPatterns={extraPatterns} strokeScale={0.25} look={grids.look} paperUnit={paperUnit} />
+        ))}
         {drafts.map((e) => {
           const color = layerColor.get(e.layerId);
           if (color === null) return null;
@@ -110,11 +121,12 @@ const ViewportGraphic = memo(function ViewportGraphic({ vp, content, layers, ext
       </g>
       <rect
         x={left} y={top} width={box.width} height={box.height} fill="transparent"
-        stroke={selected ? '#2563eb' : 'transparent'} strokeWidth={0.4} strokeDasharray={selected ? '3 2' : undefined}
+        stroke={selected && !outline ? '#2563eb' : 'transparent'} strokeWidth={0.4} strokeDasharray={selected ? '3 2' : undefined}
         data-export-ignore={selected ? 'true' : undefined}
       />
+      {outline && selected ? <path d={outline} fill="none" stroke="#2563eb" strokeWidth={0.4} strokeDasharray="3 2" data-export-ignore="true" /> : null}
       <text {...penTags('VIEWPORT-LABELS', 0.25)} x={left} y={top + box.height + LABEL_MM + 1.5} fontSize={LABEL_MM} fontFamily="ui-sans-serif, system-ui, sans-serif" fill="#000">
-        {tr('sheets.viewportLabel', { name: view?.name ?? '?', scale: vp.scale })}
+        {tr('sheets.viewportLabel', { name: region?.name ? `${view?.name ?? '?'} – ${region.name}` : view?.name ?? '?', scale: vp.scale })}
       </text>
     </g>
   );

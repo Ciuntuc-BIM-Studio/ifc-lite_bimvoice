@@ -5,7 +5,7 @@
 import type { JoineryMapping } from '@/joinery/symbol-mapping';
 import type { AssemblySpec, JoinerySpec, StructureProfile } from '@ifc-lite/create';
 import type { ElementTypeKind, ElementTypeSpec } from '@/element-types/spec';
-import type { AxisStyle, DimStyle, LayerGroup, TextStyle } from '@/drafting/styles';
+import type { AxisStyle, DimStyle, LayerGroup, TagType, TextStyle } from '@/drafting/styles';
 
 /**
  * The project document: the views and sheets a user organises over the
@@ -138,6 +138,8 @@ export interface SheetViewport {
   center: { x: number; y: number } | null;
   /** Drafting layers this viewport hides, on top of its view's. */
   hiddenLayers?: string[];
+  /** A viewport region of the view (drafted entity id): the viewport is that polygon — its crop and centre follow it. */
+  regionId?: string;
 }
 
 export interface ProjectSheet {
@@ -151,6 +153,8 @@ export interface ProjectSheet {
   viewports?: SheetViewport[];
   /** Free title-block fields (project, drawn by, date, revision…). */
   titleBlock?: Record<string, string>;
+  /** Left out of the sheets canvas (still in the navigator, still exported on its own). */
+  hidden?: boolean;
 }
 
 /** The identity of a model a project refers to (content hash, else its name). */
@@ -246,6 +250,10 @@ export interface ProjectDocument {
   textStyles?: TextStyle[];
   dimStyles?: DimStyle[];
   axisStyles?: AxisStyle[];
+  /** The axis type new axes and the BIM grids in views are drawn with (absent: Standard). */
+  defaultAxisStyle?: string;
+  /** Element tag types: text templates mapped on element parameters. */
+  tagTypes?: TagType[];
   layerGroups?: LayerGroup[];
   /** Door and window opening symbols in elevation: apex at the handle (default, window makers' sketches) or at the hinges (DIN 1356). */
   openingLines?: 'handle' | 'hinge';

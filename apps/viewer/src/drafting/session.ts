@@ -68,7 +68,7 @@ const HISTORY_LINES = 50;
 const settings: DraftSettings = { filletRadius: 0, offsetDistance: null, textHeight: 0.25, hatchPattern: 'LINES45', hatchScale: 1, hatchAngle: 0, extrudeClass: 'IfcBuildingElementProxy', extrudeDepth: 1,
   roofKind: 'gable', roofSystem: true, roofPick: false, roofSlope: 30, roofThickness: 0.25, roofOverhang: 0.5,
   axisLabel: '1', axisBubble: null, axisEnds: null, axisSize: null, axisLineType: null,
-  currentTextStyle: 'standard', currentDimStyle: 'standard', currentAxisStyle: 'standard' };
+  currentTextStyle: 'standard', currentDimStyle: 'standard', currentAxisStyle: 'standard', currentTagType: '' };
 let command: DraftCommand | null = null;
 let pending: DraftCommandDef | null = null;
 export { activeWorkPlane, setAnnotationProviders, setElementPicker, setModelPicker, setWorkPlaneProvider } from './session-providers';
@@ -79,7 +79,8 @@ export const draftSettings = (): Readonly<DraftSettings> => scaledSettings;
  * The styles new annotations take; the text height setting follows the current text style (paper mm →
  * metres at 1:100). Making an axis type current restarts the axis labels at the type's first label.
  */
-export function setCurrentStyles(patch: { textStyle?: string; dimStyle?: string; axisStyle?: string; firstAxisLabel?: string; textHeightMm?: number }): void {
+export function setCurrentStyles(patch: { textStyle?: string; dimStyle?: string; axisStyle?: string; firstAxisLabel?: string; textHeightMm?: number; tagType?: string }): void {
+  if (patch.tagType !== undefined) settings.currentTagType = patch.tagType;
   if (patch.textStyle) settings.currentTextStyle = patch.textStyle;
   if (patch.dimStyle) settings.currentDimStyle = patch.dimStyle;
   if (patch.axisStyle) settings.currentAxisStyle = patch.axisStyle;
@@ -88,8 +89,17 @@ export function setCurrentStyles(patch: { textStyle?: string; dimStyle?: string;
   set({ revision: get().revision + 1 });
 }
 
-export function currentStyles(): { textStyle: string; dimStyle: string; axisStyle: string } {
-  return { textStyle: settings.currentTextStyle, dimStyle: settings.currentDimStyle, axisStyle: settings.currentAxisStyle };
+// The project's default axis type is what AXIS starts with: on opening a
+// project and whenever the default changes (Drafting standards › Axis types).
+useProjectStore.subscribe((s, prev) => {
+  if (s.defaultAxisStyle === prev.defaultAxisStyle) return;
+  const id = s.defaultAxisStyle ?? 'standard';
+  const first = s.axisStyles?.find((a) => a.id === id)?.firstLabel;
+  setCurrentStyles({ axisStyle: id, ...(first ? { firstAxisLabel: first } : {}) });
+});
+
+export function currentStyles(): { textStyle: string; dimStyle: string; axisStyle: string; tagType: string } {
+  return { textStyle: settings.currentTextStyle, dimStyle: settings.currentDimStyle, axisStyle: settings.currentAxisStyle, tagType: settings.currentTagType };
 }
 
 const get = () => useDraftingSession.getState();

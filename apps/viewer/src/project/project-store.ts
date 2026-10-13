@@ -13,7 +13,7 @@
  */
 
 import { DEFAULT_JOINERY_MAPPING } from '@/joinery/symbol-mapping';
-import { DEFAULT_AXIS_STYLE, DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE } from '@/drafting/styles';
+import { DEFAULT_AXIS_STYLE, DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, STANDARD } from '@/drafting/styles';
 import { create } from 'zustand';
 import { defaultViews, freshProjectId, levelsFromStoreys, syncDefaultViews, uniqueViewName, type StoreyInput } from './view-defaults';
 import type { NewProjectView, ProjectViewPatch, ProjectDocument, ProjectLevel, ProjectModelRef, ProjectSheet, ProjectView } from './types';
@@ -31,7 +31,7 @@ export const DEFAULT_DRAFT_LAYER = { id: '0', name: '0', color: '#18181b', visib
 
 export const EMPTY_PROJECT: ProjectDocument = {
   name: 'Untitled project', models: [], views: [], sheets: [], drafts: [], draftLayers: [{ ...DEFAULT_DRAFT_LAYER }], hatchPatterns: '', symbolFlips: {},
-  textStyles: [{ ...DEFAULT_TEXT_STYLE }], dimStyles: [{ ...DEFAULT_DIM_STYLE }], axisStyles: [{ ...DEFAULT_AXIS_STYLE }], layerGroups: [],
+  textStyles: [{ ...DEFAULT_TEXT_STYLE }], dimStyles: [{ ...DEFAULT_DIM_STYLE }], axisStyles: [{ ...DEFAULT_AXIS_STYLE }], defaultAxisStyle: STANDARD, tagTypes: [], layerGroups: [],
   joineryTypes: [], currentJoinery: {}, joineryMapping: { ...DEFAULT_JOINERY_MAPPING }, elementTypes: [], currentTypes: {}, schedules: [], structureProfiles: [], civilDrawings: [], typicalSections: [], materials: [],
 };
 
@@ -49,6 +49,7 @@ export function projectDocument(state: ProjectState = useProjectStore.getState()
     drafts: state.drafts, draftLayers: state.draftLayers, hatchPatterns: state.hatchPatterns ?? '',
     symbolFlips: state.symbolFlips ?? {}, openingLines: state.openingLines ?? 'handle',
     textStyles: state.textStyles ?? [], dimStyles: state.dimStyles ?? [], axisStyles: state.axisStyles ?? [], layerGroups: state.layerGroups ?? [],
+    defaultAxisStyle: state.defaultAxisStyle ?? STANDARD, tagTypes: state.tagTypes ?? [],
     joineryTypes: state.joineryTypes ?? [], currentJoinery: state.currentJoinery ?? {}, schedules: state.schedules ?? [],
     joineryMapping: state.joineryMapping ?? { ...DEFAULT_JOINERY_MAPPING },
     elementTypes: state.elementTypes ?? [], currentTypes: state.currentTypes ?? {},
@@ -69,6 +70,8 @@ export function loadProjectDocument(doc: ProjectDocument, options: { dirty?: boo
     textStyles: doc.textStyles?.length ? doc.textStyles : [{ ...DEFAULT_TEXT_STYLE }],
     dimStyles: doc.dimStyles?.length ? doc.dimStyles : [{ ...DEFAULT_DIM_STYLE }],
     axisStyles: doc.axisStyles?.length ? doc.axisStyles : [{ ...DEFAULT_AXIS_STYLE }],
+    defaultAxisStyle: doc.defaultAxisStyle ?? STANDARD,
+    tagTypes: doc.tagTypes ?? [],
     layerGroups: doc.layerGroups ?? [],
     joineryTypes: doc.joineryTypes ?? [],
     currentJoinery: doc.currentJoinery ?? {},

@@ -77,7 +77,10 @@ export function useLinkedElementSync(): void {
       const ref = typeof draft.params.path === 'string' ? draft.params.path : typeof draft.params.axis === 'string' ? draft.params.axis : null;
       const sweptChanged = typeof draft.params.solid === 'string'
         && (old.params.angle !== draft.params.angle || (ref !== null && before.get(ref)?.shape !== state.drafts.find((d) => d.id === ref)?.shape));
-      if (old.shape === draft.shape && old.params.depth === draft.params.depth && !roofChanged && !sweptChanged) continue;
+      // A plain extrusion also follows its holes: the closed contours drawn inside it.
+      const holesChanged = !roof && !draft.params.roofSystem && !draft.params.corridor && typeof draft.params.solid !== 'string'
+        && JSON.stringify(contourLoops(old, prev.drafts)?.slice(1)) !== JSON.stringify(contourLoops(draft, state.drafts)?.slice(1));
+      if (old.shape === draft.shape && old.params.depth === draft.params.depth && !roofChanged && !sweptChanged && !holesChanged) continue;
       const view = state.views.find((v) => v.id === draft.viewId);
       if (!view) continue;
       const viewer = useViewerStore.getState();

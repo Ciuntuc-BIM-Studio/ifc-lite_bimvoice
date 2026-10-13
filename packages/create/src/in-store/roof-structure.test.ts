@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { roofGeometry, type RoofEdgeRule } from './roof-system.js';
 import { defaultRoofStructure, roofStructure } from './roof-structure.js';
+import { memberSolidFaces, shapeMembers } from './roof-overrides.js';
 
 type Vec2 = [number, number];
 const rect: Vec2[] = [[0, 0], [10, 0], [10, 6], [0, 6]];
@@ -30,6 +31,22 @@ describe('roof structure', () => {
     const axisDrop = (spec.coverDepth + spec.rafter.depth / 2) / Math.cos(Math.PI / 6);
     const mid = [(r.start[0] + r.end[0]) / 2, (r.start[1] + r.end[1]) / 2, (r.start[2] + r.end[2]) / 2];
     expect(surface(mid[1]) - mid[2]).toBeCloseTo(axisDrop, 2);
+  });
+
+  it('ends rafters plumb, on the vertical through the eave and the ridge lines', () => {
+    const spec = defaultRoofStructure();
+    const shaped = shapeMembers(roofStructure(roofGeometry(rect, [eave, gable, eave, gable]), spec), spec);
+    const rafters = shaped.filter((m) => m.role === 'rafter');
+    for (const m of rafters) {
+      expect([m.startCut, m.endCut]).toEqual(['plumb', 'plumb']);
+      // Eave ends under the overhang's edge (y −0.5 or 6.5), ridge ends under the ridge (y 3): opposite rafters meet there.
+      expect([-0.5, 6.5].some((y) => Math.abs(m.start[1] - y) < 1e-9)).toBe(true);
+      expect(m.end[1]).toBeCloseTo(3, 9);
+      const faces = memberSolidFaces(m);
+      // Both end faces are vertical: all their corners share one plan line across the rafter.
+      for (const face of [faces[0], faces[1]]) for (const q of face) expect(q[1]).toBeCloseTo(face[0][1], 9);
+      expect(Math.max(...faces[1].map((q) => q[1]))).toBeCloseTo(3, 9);
+    }
   });
 
   it('adds a ridge beam, purlins and wall plates; hips on a hip roof', () => {

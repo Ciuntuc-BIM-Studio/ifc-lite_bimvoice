@@ -3,18 +3,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * #5840 — the first-run card's primary action is "Load demo project", and
- * it goes through the SAME `loadFile` every other open uses (not a bus event
- * or a second pipeline). The Open button names model files, not ".ifc", and
+ * #5840 — the first-run card's primary action is "Load demo project", which
+ * opens the bundled Lapin project through the package host, the same path as
+ * File > Open project. The Open button names model files, not ".ifc", and
  * the formats under it come from the one extension list.
  */
 import '@/test/setup-dom.js';
 import { afterEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { act } from 'react';
 import { cleanup, click, render } from '@/test/render.js';
 import { viewportLightingEn } from '@/i18n/catalogues/viewport-lighting.en';
 import { MODEL_FILE_EXTENSIONS } from '@/services/supported-model-files';
+import { PACKAGE_ACTION_EVENT } from '@/project/package/actions';
 import { ViewportWelcomeCard } from './ViewportWelcomeCard.js';
 
 const DEMO_LABEL = viewportLightingEn['viewportLighting.container.emptyState.loadDemo.button'] as string | undefined;
@@ -35,10 +35,8 @@ function renderCard(loadFile: (file: File) => Promise<void>, supported = true) {
   );
 }
 
-const realFetch = globalThis.fetch;
 afterEach(() => {
   cleanup();
-  globalThis.fetch = realFetch;
 });
 
 describe('first-run card (#5840)', () => {
@@ -57,23 +55,20 @@ describe('first-run card (#5840)', () => {
     assert.match(primary.className, /\bfocus-visible:ring-ring\b/);
   });
 
-  it('loads the demo sample through the canonical loadFile', async () => {
-    const fetched: string[] = [];
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
-      fetched.push(String(input));
-      return new Response(new Blob(['ISO-10303-21;']), { status: 200 });
-    }) as typeof fetch;
+  it('asks the package host to open the demo project', () => {
+    const actions: unknown[] = [];
+    const onAction = (e: Event) => { actions.push((e as CustomEvent).detail); };
+    window.addEventListener(PACKAGE_ACTION_EVENT, onAction);
     const loaded: File[] = [];
     const card = renderCard(async (file) => { loaded.push(file); });
 
     const button = buttonWithText(card, DEMO_LABEL ?? '');
     assert.ok(button, 'Load demo project button is rendered');
     click(button);
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    window.removeEventListener(PACKAGE_ACTION_EVENT, onAction);
 
-    assert.deepEqual(fetched, ['/samples/building-architecture.ifc']);
-    assert.equal(loaded.length, 1, 'loadFile called once');
-    assert.equal(loaded[0].name, 'building-architecture.ifc');
+    assert.deepEqual(actions, ['open-demo']);
+    assert.equal(loaded.length, 0, 'the demo is a project package, not a loose model file');
   });
 
   it('disables the demo action without WebGPU, like every other action', () => {

@@ -15,7 +15,7 @@
  * or the element places it centred (the line broken under it) or below.
  */
 
-import { memo, useId, useMemo } from 'react';
+import { memo, useId, useMemo, type ReactNode } from 'react';
 import { axisLayout, dimensionLayout, formatLevel, HATCH_UNIT_M } from '@/drafting/annotation';
 import { drawingToScreen, screenSigns, type SectionAxisName, type ViewTransform } from '@/drafting/frame';
 import { findPattern } from '@/drafting/hatch/library';
@@ -33,7 +33,12 @@ export interface AnnotationLook {
   dim: DimStyle;
   /** An axis's type, resolved (its colour colours the line and bubbles); absent: the layer's colour. */
   axis?: AxisStyle;
+  /** Text ranges a tag could not fill (NaN), drawn red. */
+  missing?: ReadonlyArray<[number, number]>;
 }
+
+/** What a tag could not fill. */
+const MISSING_COLOR = '#dc2626';
 
 const DEFAULT_LOOK: AnnotationLook = { text: DEFAULT_TEXT_STYLE, dim: DEFAULT_DIM_STYLE };
 
@@ -74,9 +79,26 @@ interface LabelProps {
   shift?: number;
   /** Paper behind the text (a dimension value centred on its line). */
   mask?: boolean;
+  /** Ranges of `text` drawn red (a tag's NaNs). */
+  missing?: ReadonlyArray<[number, number]>;
 }
 
-function Label({ at, text, px, deg, color, style, anchor = 'middle', shift = 0, mask = false }: LabelProps) {
+/** `text` as runs, the missing ranges red. */
+function runs(text: string, missing: ReadonlyArray<[number, number]> | undefined): ReactNode {
+  if (!missing?.length) return text;
+  const out: ReactNode[] = [];
+  let at = 0;
+  for (const [a, b] of [...missing].sort((x, y) => x[0] - y[0])) {
+    if (a < at || b > text.length) continue;
+    if (a > at) out.push(text.slice(at, a));
+    out.push(<tspan key={a} fill={MISSING_COLOR}>{text.slice(a, b)}</tspan>);
+    at = b;
+  }
+  if (at < text.length) out.push(text.slice(at));
+  return out;
+}
+
+function Label({ at, text, px, deg, color, style, anchor = 'middle', shift = 0, mask = false, missing }: LabelProps) {
   const size = Math.max(px, 1);
   const width = Math.max(1, text.length) * size * 0.6;
   return (
@@ -92,7 +114,7 @@ function Label({ at, text, px, deg, color, style, anchor = 'middle', shift = 0, 
         fontStyle={style.italic ? 'italic' : 'normal'}
         textAnchor={anchor}
       >
-        {text}
+        {runs(text, missing)}
       </text>
     </g>
   );
@@ -168,7 +190,7 @@ export const AnnotationGraphics = memo(function AnnotationGraphics({
         <g>
           <path d={polyline(shape.pts, t, axis)} stroke={lineColor} strokeWidth={k} fill="none" />
           <path d={head.d} fill={lineColor} />
-          <Label at={{ x: end.x + 3 * k, y: end.y }} text={shape.text} px={px} deg={0} color={textColor} style={look.text} anchor="start" shift={px * 0.35} />
+          <Label at={{ x: end.x + 3 * k, y: end.y }} text={shape.text} px={px} deg={0} color={textColor} style={look.text} anchor="start" shift={px * 0.35} missing={look.missing} />
         </g>
       );
     }

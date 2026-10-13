@@ -56,6 +56,7 @@ import { CutHatchLayer } from './CutHatchLayer';
 import { MembraneLayer } from './MembraneLayer';
 import { RoofPlanLayer } from '../roof/RoofPlanLayer';
 import { SectionMarksLayer } from './SectionMarksLayer';
+import { ViewGridLayer } from './ViewGridLayer';
 import { setLevelResolver } from '@/drafting/draft-store';
 import { roofAtPoint } from '@/project/roof-plan';
 import { editRoofBlock } from '@/project/roof-block';
@@ -302,6 +303,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         <OpeningSymbolsLayer plane={view.kind === 'plan' || view.kind === 'elevation' || view.kind === 'section' ? plane ?? null : null} drawing={view.kind === 'plan' ? null : shown} hidden={hidden} transform={viewTransform} axis={axis} />
         <RoofPlanLayer view={view} plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
         <SectionMarksLayer view={view} plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
+        <ViewGridLayer view={view} plane={view.kind === 'plan' ? plane ?? null : null} transform={viewTransform} axis={axis} />
         <DraftOverlay
           entities={entities}
           layers={layers}

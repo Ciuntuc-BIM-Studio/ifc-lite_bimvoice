@@ -5,11 +5,12 @@
 /**
  * Ribbon · Annotations tab — notation on the view in front: text and
  * leaders, dimensions, level marks, grid axes and CAD hatches (built-in patterns plus
- * the project's own `.pat` files), and the drawing aids (Snap, Ortho). The buttons are the registered
+ * the project's own `.pat` files), and the drawing aids (Snap, Ortho). The
+ * drafting standards are on Project settings. The buttons are the registered
  * `annotate:*` commands (`surface-commands-annotate-ribbon.ts`).
  */
 
-import { AnnoAxis, AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, DraftOrtho, DraftSnap, DraftingStandards } from '@/icons';
+import { AnnoAxis, AnnoDimAligned, AnnoDimAngular, AnnoDimLinear, AnnoDimRadius, AnnoHatch, AnnoLeader, AnnoLevel, AnnoLoadPattern, AnnoTag, AnnoText, AnnoViewport, DraftOrtho, DraftSnap } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -44,13 +45,13 @@ export function AnnotationsTab() {
         <RibbonCommandLargeButton commandId="annotate:axis" icon={AnnoAxis} active={on('axis')} />
       </RibbonGroup>
       <RibbonGroupDivider />
+      <RibbonGroup label={t('drafting.group.sheets')}>
+        <RibbonCommandLargeButton commandId="annotate:viewport" icon={AnnoViewport} active={on('viewport')} />
+      </RibbonGroup>
+      <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.fill')}>
         <RibbonCommandLargeButton commandId="annotate:hatch" icon={AnnoHatch} active={on('hatch')} />
         <RibbonCommandLargeButton commandId="annotate:load-pattern" icon={AnnoLoadPattern} />
-      </RibbonGroup>
-      <RibbonGroupDivider />
-      <RibbonGroup label={t('standards.title')}>
-        <RibbonCommandLargeButton commandId="annotate:standards" icon={DraftingStandards} />
       </RibbonGroup>
       <RibbonGroupDivider />
       {/* Snap (F3) and Ortho (F8; or hold Ctrl while drawing), as on the Design tab. */}

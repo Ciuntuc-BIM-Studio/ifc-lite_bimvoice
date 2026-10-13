@@ -23,15 +23,21 @@ const ALL_RIBBON_TABS: { id: RibbonTabId; labelKey: TranslationKey }[] = [
   { id: 'file', labelKey: 'ribbon.tab.file' },
   { id: 'home', labelKey: 'ribbon.tab.home' },
   // Drawing and annotating come first, right after Home.
+  // Draft (id `design`): 2D drawing; BIM: modelling with the predefined elements.
   { id: 'design', labelKey: 'ribbon.tab.design' },
+  { id: 'bim', labelKey: 'ribbon.tab.bim' },
   // Free modelling: solids from contours and boolean operations.
   { id: 'studio', labelKey: 'ribbon.tab.studio' },
+  // Roofs and their timber structure.
+  { id: 'wood', labelKey: 'ribbon.tab.wood' },
   { id: 'annotations', labelKey: 'ribbon.tab.annotations' },
   { id: 'view', labelKey: 'ribbon.tab.view' },
   { id: 'elements', labelKey: 'ribbon.tab.elements' },
   { id: 'analyze', labelKey: 'ribbon.tab.analyze' },
   { id: 'author', labelKey: 'ribbon.tab.author' },
   { id: 'infrastructure', labelKey: 'ribbon.tab.infrastructure' },
+  // The project's catalogues and standards (the configurators), last.
+  { id: 'projectSettings', labelKey: 'ribbon.tab.projectSettings' },
 ];
 
 /** The tabs Lapin's ribbon offers, in their default order. */

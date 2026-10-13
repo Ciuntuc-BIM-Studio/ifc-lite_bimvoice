@@ -52,7 +52,7 @@ const unit = (a: Vec3): Vec3 => { const l = Math.hypot(a[0], a[1], a[2]) || 1; r
 
 const RAFTERS = new Set(['rafter', 'hip', 'valley', 'chord']);
 
-/** The members as built: overrides applied, deleted ones left out; rafters take the structure's end cuts unless overridden. */
+/** The members as built: overrides applied, deleted ones left out; rafters take the structure's end cuts (plumb by default) unless overridden. */
 export function shapeMembers(members: readonly RoofMember[], structure: RoofStructureSpec, overrides: RoofOverrides = {}): ShapedMember[] {
   const out: ShapedMember[] = [];
   for (const m of members) {
@@ -66,8 +66,8 @@ export function shapeMembers(members: readonly RoofMember[], structure: RoofStru
       ...m, start, end,
       width: o.width && o.width > 0 ? o.width : m.width,
       depth: o.depth && o.depth > 0 ? o.depth : m.depth,
-      startCut: o.startCut ?? ends?.eave ?? 'square',
-      endCut: o.endCut ?? ends?.ridge ?? 'square',
+      startCut: o.startCut ?? ends?.eave ?? (RAFTERS.has(m.role) ? 'plumb' : 'square'),
+      endCut: o.endCut ?? ends?.ridge ?? (RAFTERS.has(m.role) ? 'plumb' : 'square'),
       ...(o.color ? { color: o.color } : {}),
     });
   }

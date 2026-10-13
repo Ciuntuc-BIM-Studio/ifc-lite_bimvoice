@@ -12,12 +12,13 @@
  * without growing it. Living here it is also testable on its own.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Upload, Clock3, Sparkles, ArrowUpRight, PackagePlus, Cloud, ShieldCheck, Building2, GitMerge } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { useTranslation } from '@/i18n';
 import { toast } from '@/components/ui/toast';
-import { loadDemoProjectVia } from '@/lib/tours/demo-kit';
+import { requestPackageAction } from '@/project/package/actions';
+import { usePackageSession } from '@/project/package/session';
 import { MODEL_FILE_EXTENSIONS } from '@/services/supported-model-files';
 import { useViewerStore } from '@/store';
 import type { WebGPUStatus } from '@/hooks/useWebGPU';
@@ -61,7 +62,7 @@ export interface ViewportWelcomeCardProps {
 export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentFiles, loadFile }: ViewportWelcomeCardProps) {
   const { t } = useTranslation();
   const actionsDisabled = !webgpu.supported || webgpu.checking;
-  const [demoLoading, setDemoLoading] = useState(false);
+  const demoLoading = usePackageSession((s) => s.busy === 'opening');
   // One impression per mount: the denominator for the two clicks below.
   useEffect(() => { trackUiEvent('onboarding_surface', { surface: 'welcome_card', action: 'shown' }); }, []);
   // `viewer_boot` (#6961): navigation -> this drop target accepting a model.
@@ -71,21 +72,13 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
     onFieldTelemetry((field) => field.noteDropTargetInteractive(at));
   }, [actionsDisabled]);
 
-  // The first-run primary action (#5840): 43% of sessions never loaded a
-  // model, and the sample the tours use already ships with the viewer. It
-  // goes through the same `loadFile` as every other open.
-  const loadDemo = async () => {
+  // The first-run primary action (#5840): the demo is a project authored in
+  // Lapin (`public/samples/demo-project.lapin`), opened by the package host
+  // like any other `.lapin` — its models, views, sheets and standards together.
+  const loadDemo = () => {
     // Which way in a first visit takes; the panel empty state reports the same pair.
     trackUiEvent('onboarding_surface', { surface: 'welcome_card', action: 'load_sample' });
-    setDemoLoading(true);
-    try {
-      await loadDemoProjectVia(loadFile);
-    } catch (err) {
-      console.error('[welcome] demo project failed to load', err);
-      toast.error(t('viewportLighting.container.emptyState.loadDemo.failed'));
-    } finally {
-      setDemoLoading(false);
-    }
+    requestPackageAction('open-demo');
   };
 
   const loadLayersDemo = () => {
@@ -140,7 +133,7 @@ export function ViewportWelcomeCard({ webgpu, onOpenClick, onStartBlank, recentF
           visit (#5840); opening your own file sits right under it. */}
       <button
         type="button"
-        onClick={() => { void loadDemo(); }}
+        onClick={loadDemo}
         disabled={actionsDisabled || demoLoading}
         className={`group w-full flex items-center justify-center gap-3 px-6 py-3 font-mono text-sm font-bold border transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
           actionsDisabled

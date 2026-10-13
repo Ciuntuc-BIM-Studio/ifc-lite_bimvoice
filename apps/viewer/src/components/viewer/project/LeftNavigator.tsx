@@ -3,8 +3,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * The left navigation slot: the model Hierarchy and the Project Navigator
- * as two tabs. The project sync runs here, not in the navigator, so the
+ * The left navigation slot: the Project Navigator and the model Hierarchy
+ * as two tabs, Project first and shown by default. The project sync runs here, not in the navigator, so the
  * project follows model loads even while the Model tab is showing.
  */
 
@@ -15,6 +15,7 @@ import { HierarchyPanel } from '@/components/viewer/HierarchyPanel';
 import { useProjectSync } from '@/project/project-sync';
 import { useLinkedElementSync } from '@/project/useLinkedElementSync';
 import { useElementTagSync } from '@/project/useElementTagSync';
+import { useFaceSync } from '@/project/useFaceSync';
 import { ProjectNavigatorPanel } from './ProjectNavigatorPanel';
 import { NewProjectHost } from './NewProjectDialog';
 import { ProjectPackageHost } from './ProjectPackageHost';
@@ -30,6 +31,8 @@ import { MoveToStoreyDialog } from '../properties/MoveToStoreyDialog';
 import { MaterialsDialog } from '../materials/MaterialsDialog';
 import { installGroupBehaviour } from '@/project/element-groups';
 import { installRoofBlocks } from '@/project/roof-block';
+import { installCurtainWallBlocks } from '@/project/curtain-wall-element';
+import { CurtainWallDialog } from '../curtain-wall/CurtainWallDialog';
 import '@/joinery/placement';
 import '@/element-types/model-sync';
 import '@/project/cut-priorities';
@@ -38,17 +41,19 @@ import { ElementTypesDialog } from '../element-types/ElementTypesDialog';
 // Clicking a member selects its group; a group in edit mode keeps the rest locked.
 installGroupBehaviour();
 installRoofBlocks();
+installCurtainWallBlocks();
 
 type LeftTab = 'model' | 'project';
 
-const TAB_STORAGE_KEY = 'ifc-lite:left-navigator-tab';
+// v2: Project became the default; a Model choice remembered under the old key does not carry over.
+const TAB_STORAGE_KEY = 'lapin:left-navigator-tab:v2';
 
 function readTab(): LeftTab {
   try {
-    return localStorage.getItem(TAB_STORAGE_KEY) === 'project' ? 'project' : 'model';
+    return localStorage.getItem(TAB_STORAGE_KEY) === 'model' ? 'model' : 'project';
   } catch (err) {
     console.warn('[project] could not read the left panel tab', err);
-    return 'model';
+    return 'project';
   }
 }
 
@@ -57,6 +62,7 @@ export function LeftNavigator() {
   useProjectSync();
   useLinkedElementSync();
   useElementTagSync();
+  useFaceSync();
   const [tab, setTab] = useState<LeftTab>(readTab);
   const select = (next: LeftTab) => {
     setTab(next);
@@ -67,8 +73,8 @@ export function LeftNavigator() {
     }
   };
   const tabs: { id: LeftTab; label: string }[] = [
-    { id: 'model', label: t('projectNavigator.tab.model') },
     { id: 'project', label: t('projectNavigator.tab.project') },
+    { id: 'model', label: t('projectNavigator.tab.model') },
   ];
   return (
     <div className="h-full flex flex-col">
@@ -96,6 +102,7 @@ export function LeftNavigator() {
       <ProjectPackageHost />
       <ProjectVersionsHost />
       <RoofEditBar />
+      <CurtainWallDialog />
       <DraftingStandardsDialog />
       <JoineryDialog />
       <ElementTypesDialog />

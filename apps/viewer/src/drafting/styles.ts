@@ -12,6 +12,9 @@
  *  - AXIS TYPES: how grid axes look — the bubble (circle / square), which
  *    ends carry it and its size, the line type, a colour, the text style of
  *    the label and the label new axes of the type start counting from.
+ *  - TAG TYPES: what an element tag reads — a text template whose `{fields}`
+ *    are mapped on the element's parameters (`{Name}`, `{Pset.Property}`…);
+ *    a field the element lacks reads NaN, drawn in red.
  *  - LAYER GROUPS: layers gathered under a group that switches and locks
  *    them together.
  *
@@ -77,6 +80,15 @@ export interface AxisStyle {
   color?: string;
   /** The label the AXIS command starts from when the type is made current (1, A, A1…). */
   firstLabel: string;
+}
+
+export interface TagType {
+  id: string;
+  name: string;
+  /** The text, `{field}` placeholders mapped on the element's parameters (`project/tag-fields.ts`). */
+  template: string;
+  /** IFC classes the type tags (`IfcWall`…); empty: any element. */
+  classes: string[];
 }
 
 export interface LayerGroup {
@@ -208,9 +220,20 @@ export interface LayerVisibilityScope {
   viewport?: readonly string[];
 }
 
-/** An entity's drawing styles, resolved. */
-export function lookOf(book: StyleBook, params: Params): { text: TextStyle; dim: DimStyle; axis: AxisStyle } {
-  return { text: resolveText(book, params), dim: resolveDim(book, params), axis: resolveAxis(book, params) };
+/** Text ranges `[start, end)` a tag could not fill (its NaNs), from `params.tagMissing` ("0:3,8:11"). */
+export function missingRanges(params: Params): Array<[number, number]> {
+  const raw = params.tagMissing;
+  if (typeof raw !== 'string' || !raw) return [];
+  return raw.split(',').flatMap((pair) => {
+    const [a, b] = pair.split(':').map(Number);
+    return Number.isInteger(a) && Number.isInteger(b) && b > a ? [[a, b] as [number, number]] : [];
+  });
+}
+
+/** An entity's drawing styles, resolved, and the parts of its text a tag could not fill. */
+export function lookOf(book: StyleBook, params: Params): { text: TextStyle; dim: DimStyle; axis: AxisStyle; missing?: Array<[number, number]> } {
+  const missing = missingRanges(params);
+  return { text: resolveText(book, params), dim: resolveDim(book, params), axis: resolveAxis(book, params), ...(missing.length ? { missing } : {}) };
 }
 
 /** A layer's pen: width and dash in paper millimetres. */

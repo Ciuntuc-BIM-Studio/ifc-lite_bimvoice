@@ -19,7 +19,8 @@
 import { CurtainWallPlaceBar } from '@/components/viewer/tools/command/CurtainWallPlaceBar';
 import { CurtainWallPlaceScene } from '@/components/viewer/tools/command/CurtainWallPlaceScene';
 import { CurtainWallPlacePlan } from '@/components/viewer/tools/command/CurtainWallPlacePlan';
-import { addCurtainWallIn } from '@/store/slices/mutation-curtain-grid';
+import { addCurtainWallSystemIn } from '@/store/slices/mutation-curtain-grid';
+import { currentCurtainWallType } from '@/project/curtain-wall-element';
 import { useViewerStore } from '@/store';
 import { commandGhostId } from '../ghost.js';
 import type { CommandField, ModelingCommand } from '../types.js';
@@ -30,6 +31,7 @@ import {
   withDimensions,
   layoutOf,
   planCurtainWall,
+  curtainWallSpecOf,
   currentAngle,
   currentLength,
   anchorOf,
@@ -96,7 +98,8 @@ export const CURTAINWALL_PLACE: ModelingCommand<CurtainWallGesture> = {
   commit(g, tx) {
     const plan = planCurtainWall(g, planeZ(tx.workplane));
     if (!plan.ok || tx.storeyId === null) throw new Error('No curtain wall to place');
-    const made = addCurtainWallIn(useViewerStore, tx.modelId, tx.storeyId, plan.params);
+    // A parametric curtain wall: it keeps its spec, so its configurator edits it later.
+    const made = addCurtainWallSystemIn(useViewerStore, tx.modelId, tx.storeyId, curtainWallSpecOf(plan, g, currentCurtainWallType() ?? undefined));
     if ('error' in made) throw new Error(`Couldn't add the curtain wall: ${made.error}`);
     // The curtain wall has no body of its own; its parts are what is meshed.
     const created = [made.expressId, ...made.partIds];

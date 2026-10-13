@@ -76,9 +76,16 @@ export function SheetPanel({ sheet, viewport, box, viewportName, onExportSvg, on
               {SHEET_SCALES.map((s) => <option key={s} value={s}>{`1:${s}`}</option>)}
             </select>
           </Row>
-          <TextField label={t('sheets.width')} value={String(Math.round(box?.width ?? 0))} onCommit={(v) => Number(v) > 0 && updateViewport(sheet.id, viewport.id, { width: Number(v), height: box?.height ?? Number(v) })} />
-          <TextField label={t('sheets.height')} value={String(Math.round(box?.height ?? 0))} onCommit={(v) => Number(v) > 0 && updateViewport(sheet.id, viewport.id, { height: Number(v), width: box?.width ?? Number(v) })} />
-          <Button variant="outline" size="sm" className="w-full" onClick={() => updateViewport(sheet.id, viewport.id, { width: 0, height: 0 })}>{t('sheets.fitBox')}</Button>
+          {viewport.regionId ? (
+            // A region viewport is cropped by its region: edit the outline on the view.
+            <p className="text-zinc-500">{t('sheets.regionCrop', { w: Math.round(box?.width ?? 0), h: Math.round(box?.height ?? 0) })}</p>
+          ) : (
+            <>
+              <TextField label={t('sheets.width')} value={String(Math.round(box?.width ?? 0))} onCommit={(v) => Number(v) > 0 && updateViewport(sheet.id, viewport.id, { width: Number(v), height: box?.height ?? Number(v) })} />
+              <TextField label={t('sheets.height')} value={String(Math.round(box?.height ?? 0))} onCommit={(v) => Number(v) > 0 && updateViewport(sheet.id, viewport.id, { height: Number(v), width: box?.width ?? Number(v) })} />
+              <Button variant="outline" size="sm" className="w-full" onClick={() => updateViewport(sheet.id, viewport.id, { width: 0, height: 0 })}>{t('sheets.fitBox')}</Button>
+            </>
+          )}
           <ViewportLayers sheetId={sheet.id} viewport={viewport} />
           <Button variant="outline" size="sm" className="w-full" onClick={() => removeViewport(sheet.id, viewport.id)}>
             <Trash2 className="size-3.5 mr-1" />{t('sheets.removeViewport')}

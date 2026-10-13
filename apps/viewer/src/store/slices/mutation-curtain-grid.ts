@@ -21,6 +21,8 @@
  */
 
 import {
+  addCurtainWallSystemToStore,
+  type CurtainWallSpec,
   addCurtainWallToStore,
   addGridToStore,
   resolveSpatialAnchor,
@@ -93,6 +95,27 @@ export function addCurtainWallIn(
   for (const id of [...built.mullionIds, ...built.transomIds]) listInStorey(store, modelId, storeyId, id, PART_TYPE.member);
   for (const id of built.panelIds) listInStorey(store, modelId, storeyId, id, PART_TYPE.plate);
   return { expressId: built.curtainWallId, partIds, build: built };
+}
+
+/**
+ * A parametric curtain wall (`curtain-wall-system.ts`): built from `spec` and
+ * keeping it, so its configurator edits it later. One recorded edit.
+ */
+export function addCurtainWallSystemIn(
+  store: ModellingStore,
+  modelId: string,
+  storeyId: number,
+  spec: CurtainWallSpec,
+): { readonly expressId: number; readonly partIds: readonly number[] } | { readonly error: string } {
+  const built = writeOnStorey(store, modelId, storeyId, (editor, anchor) => addCurtainWallSystemToStore(editor, anchor, spec));
+  if ('error' in built) return built;
+  listInStorey(store, modelId, storeyId, built.curtainWallId, 'IFCCURTAINWALL');
+  const view = modelEditTarget(store.getState(), modelId)?.view;
+  for (const id of built.parts) {
+    const panel = String(view?.getNewEntity(id)?.attributes?.[7] ?? '').startsWith('panel:');
+    listInStorey(store, modelId, storeyId, id, panel ? PART_TYPE.plate : PART_TYPE.member);
+  }
+  return { expressId: built.curtainWallId, partIds: built.parts };
 }
 
 export function addGridIn(

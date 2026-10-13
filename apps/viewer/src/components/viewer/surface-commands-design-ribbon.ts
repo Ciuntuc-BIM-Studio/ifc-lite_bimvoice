@@ -10,7 +10,7 @@
 
 import {
   WallAttachRoof, WallDetachRoof, DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
-  DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude,
+  DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftWorkplane, DraftExtrude, DraftFace,
   BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
@@ -176,6 +176,7 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:fillet', labelKey: 'drafting.tool.fillet', keywords: 'fillet round corner radius drafting F', category: 'Tools', icon: DraftFillet, surfaces: ribbonOnly, enabled: always, run: draft('fillet') },
   { id: 'design:section-line', labelKey: 'drafting.tool.sectionLine', keywords: 'section line cut work plane vertical', category: 'Tools', icon: DraftSectionLine, surfaces: ribbonOnly, enabled: always, run: draft('sectionline') },
   { id: 'design:workplane-face', labelKey: 'drafting.tool.workplaneFace', keywords: 'work plane face pick any orientation', category: 'Tools', icon: DraftWorkplane, surfaces: ribbonOnly, enabled: always, run: () => startWorkPlaneFromFace() },
+  { id: 'design:face', labelKey: 'drafting.tool.face', keywords: 'face region surface promote closed contour holes islands hatch extrude', category: 'Tools', icon: DraftFace, surfaces: ribbonOnly, enabled: always, run: draft('face') },
   { id: 'design:extrude', labelKey: 'drafting.tool.extrude', keywords: 'extrude contour profile ifc element solid', category: 'Tools', icon: DraftExtrude, surfaces: ribbonOnly, enabled: always, run: draft('extrude') },
   { id: 'design:sweep', labelKey: 'drafting.tool.sweep', keywords: 'sweep profile path rail cornice solid', category: 'Tools', icon: DraftSweep, surfaces: ribbonOnly, enabled: always, run: draft('sweep') },
   { id: 'design:revolve', labelKey: 'drafting.tool.revolve', keywords: 'revolve rotate lathe profile axis solid', category: 'Tools', icon: DraftRevolve, surfaces: ribbonOnly, enabled: always, run: draft('revolve') },

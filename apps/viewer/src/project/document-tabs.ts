@@ -48,6 +48,14 @@ export function showDocumentTab(id: string): void {
  * Remove a tab. Closing the front tab brings its right neighbour forward
  * (else the left one, else the 3D tab). Returns the new front tab id.
  */
+/** Put `id` in `previous`'s place in the strip and in front (one tab that changes what it shows). */
+export function replaceDocumentTab(previous: string, id: string): void {
+  useDocumentTabs.setState((s) => ({
+    openIds: s.openIds.includes(id) ? s.openIds.filter((t) => t !== previous) : s.openIds.map((t) => (t === previous ? id : t)),
+    activeId: id,
+  }));
+}
+
 export function closeDocumentTab(id: string): string {
   const { openIds, activeId } = useDocumentTabs.getState();
   const at = openIds.indexOf(id);

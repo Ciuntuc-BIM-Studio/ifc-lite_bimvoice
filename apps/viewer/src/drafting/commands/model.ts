@@ -7,7 +7,8 @@
  * Click a closed drafted shape, or inside any closed region (drafted shapes
  * and the drawing's cut outlines) — a region becomes a drafted contour so
  * the element always has an editable base. Closed shapes drafted inside the
- * contour are its voids. Type an IFC class (WALL, SLAB, COLUMN… or any
+ * contour are its voids; a click on a face (FACE) takes the face's contour
+ * with its holes. Type an IFC class (WALL, SLAB, COLUMN… or any
  * IfcXxx) and a depth (negative extrudes away from the viewer).
  */
 
@@ -15,6 +16,7 @@ import { createContourElement } from '@/project/contour-element';
 import { editDrafts, newDraft, setDraftParams } from '../draft-store';
 import { regionAt } from '../hatch/region';
 import { pointInPolygon } from '../offset';
+import { isFace, pointOnFace } from '../faces';
 import type { DraftEntity, DraftShape, Pt } from '../types';
 import type { DraftCommandDef, DraftContext } from './types';
 
@@ -70,6 +72,14 @@ function sameLoop(a: Pt[], b: Pt[]): boolean {
 
 export function pickSource(ctx: DraftContext, p: Pt): DraftEntity | null {
   const entities = ctx.entities();
+  // On a face: the contour it follows (the smallest face under the point: an island's own, not its parent's).
+  const onFace = entities.filter((e) => isFace(e) && pointOnFace(p, e))
+    .map((e) => entities.find((o) => o.id === e.params.face))
+    .filter((e): e is DraftEntity => e !== undefined && !e.params.ifcGlobalId);
+  if (onFace.length > 0) {
+    const area = (e: DraftEntity) => { const l = (e.shape.type === 'polyline' || e.shape.type === 'circle' ? shapeLoop(e.shape) : null) ?? []; return Math.abs(l.reduce((s, a, i) => s + a.x * l[(i + 1) % l.length].y - l[(i + 1) % l.length].x * a.y, 0) / 2); };
+    return onFace.sort((a, b) => area(a) - area(b))[0];
+  }
   // The smallest closed drafted shape around the point.
   const around = entities
     .map((e) => ({ e, loop: e.shape.type === 'polyline' || e.shape.type === 'circle' ? shapeLoop(e.shape) : null }))

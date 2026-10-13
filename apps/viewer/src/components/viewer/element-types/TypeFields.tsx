@@ -8,6 +8,7 @@
  * and structure system, an opening's size. Lengths are typed in millimetres.
  */
 
+import { CurtainTypeFields } from '../curtain-wall/CurtainTypeFields';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { catalogLayerColour, type ProfileSectionType } from '@ifc-lite/create';
 import { useTranslation } from '@/i18n';
@@ -143,6 +144,13 @@ export function TypeFields({ spec, onChange }: { spec: ElementTypeSpec; onChange
           <Field label={t('elementTypes.width')}><Mm label={t('elementTypes.width')} value={spec.width} onCommit={(width) => onChange({ ...spec, width })} /></Field>
           <Field label={t('elementTypes.height')}><Mm label={t('elementTypes.height')} value={spec.height} onCommit={(height) => onChange({ ...spec, height })} /></Field>
           <Field label={t('elementTypes.sill')}><Mm label={t('elementTypes.sill')} value={spec.sill} zero onCommit={(sill) => onChange({ ...spec, sill })} /></Field>
+        </>
+      );
+    case 'curtainWall':
+      return (
+        <>
+          <Field label={t('elementTypes.height')}><Mm label={t('elementTypes.height')} value={spec.height} onCommit={(height) => onChange({ ...spec, height })} /></Field>
+          <CurtainTypeFields spec={spec.curtain} onChange={(curtain) => onChange({ ...spec, curtain })} />
         </>
       );
     case 'roof':

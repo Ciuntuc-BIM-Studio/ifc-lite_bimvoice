@@ -9,7 +9,7 @@
  * selected first; Remove subtraction).
  */
 
-import { BooleanIntersect, BooleanRemove, BooleanSubtract, BooleanUnion, DraftExtrude, DraftRevolve, DraftSweep } from '@/icons';
+import { BooleanIntersect, BooleanRemove, BooleanSubtract, BooleanUnion, DraftExtrude, DraftFace, DraftRevolve, DraftSweep } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -22,6 +22,7 @@ export function StudioTab() {
   return (
     <>
       <RibbonGroup label={t('studio.group.solids')}>
+        <RibbonCommandLargeButton commandId="design:face" icon={DraftFace} active={on('face')} />
         <RibbonCommandLargeButton commandId="design:extrude" icon={DraftExtrude} active={on('extrude')} />
         <RibbonCommandLargeButton commandId="design:sweep" icon={DraftSweep} active={on('sweep')} />
         <RibbonCommandLargeButton commandId="design:revolve" icon={DraftRevolve} active={on('revolve')} />

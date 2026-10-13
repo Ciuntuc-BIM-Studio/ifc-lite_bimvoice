@@ -17,6 +17,7 @@
  */
 
 import { emitFileDownloaded } from '@/lib/tours/events';
+import { isDesktop, saveBlobAs } from '@/lib/desktop/desktop-host';
 
 export interface SanitizeFilenameOptions {
   /** Returned (and used as the base) when sanitising yields an empty string. Default `'file'`. */
@@ -160,9 +161,20 @@ function clickDownloadAnchor(href: string, filename: string): void {
   emitFileDownloaded(filename);
 }
 
-/** Trigger a browser download of a `Blob`. No-op outside the browser. */
+/** In the desktop app a download is a native Save panel, then the file written where chosen. */
+function saveOnDesktop(blob: Blob, filename: string): void {
+  void saveBlobAs(blob, filename)
+    .then((saved) => { if (saved) emitFileDownloaded(filename); })
+    .catch((err: unknown) => console.error('[download] desktop save failed', err));
+}
+
+/** Trigger a browser download of a `Blob` (a native Save panel in the desktop app). No-op outside the browser. */
 export function downloadBlob(blob: Blob, filename: string): void {
   if (!canDownload()) return;
+  if (isDesktop()) {
+    saveOnDesktop(blob, filename);
+    return;
+  }
   const url = URL.createObjectURL(blob);
   clickDownloadAnchor(url, filename);
   // Defer revocation: revoking synchronously can cancel the download in some browsers.
@@ -198,6 +210,11 @@ export function downloadFile(
  */
 export function downloadDataUrl(dataUrl: string, filename: string): void {
   if (!canDownload()) return;
+  if (isDesktop()) {
+    const bytes = dataUrlToBytes(dataUrl);
+    if (bytes) saveOnDesktop(new Blob([bytes as BlobPart]), filename);
+    return;
+  }
   clickDownloadAnchor(dataUrl, filename);
 }
 

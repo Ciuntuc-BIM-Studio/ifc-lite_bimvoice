@@ -213,7 +213,7 @@ export function clearRetiredToolbarStylePreference(): void {
 clearRetiredToolbarStylePreference();
 
 /** Ribbon tab strip contexts, in strip order. */
-export type RibbonTabId = 'file' | 'home' | 'view' | 'elements' | 'analyze' | 'author' | 'design' | 'studio' | 'annotations' | 'infrastructure';
+export type RibbonTabId = 'file' | 'home' | 'view' | 'elements' | 'analyze' | 'author' | 'design' | 'bim' | 'studio' | 'wood' | 'annotations' | 'infrastructure' | 'projectSettings';
 
 /** Lapin starts on Design: its drawing and modelling tools. */
 export const RIBBON_DEFAULT_TAB: RibbonTabId = 'design';

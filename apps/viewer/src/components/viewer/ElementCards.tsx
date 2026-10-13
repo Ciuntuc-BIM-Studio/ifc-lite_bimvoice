@@ -10,6 +10,7 @@
 
 import { ElementTypeCard } from './ElementTypeCard';
 import { RoofBlockCards } from './roof/RoofBlockCards';
+import { CurtainWallCard } from './curtain-wall/CurtainWallCard';
 import { JoinerySymbolCard } from './JoinerySymbolCard';
 
 export function ElementCards({ modelId, expressId }: { modelId: string; expressId: number }) {
@@ -17,6 +18,7 @@ export function ElementCards({ modelId, expressId }: { modelId: string; expressI
   return (
     <>
       <RoofBlockCards modelId={modelId} expressId={expressId} />
+      <CurtainWallCard modelId={modelId} expressId={expressId} />
       <ElementTypeCard modelId={modelId} expressId={expressId} />
       <JoinerySymbolCard modelId={modelId} expressId={expressId} />
     </>

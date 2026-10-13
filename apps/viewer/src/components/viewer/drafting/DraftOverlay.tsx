@@ -8,6 +8,7 @@
  * all in screen space through the canvas's own transform (`drafting/frame`).
  */
 
+import { regionOf } from '@/project/viewport-regions';
 import { memo, useMemo } from 'react';
 import { layerPen, layerShows, lookOf, type LayerGroup } from '@/drafting/styles';
 import { moveGrip, type Grip } from '@/drafting/grips';
@@ -144,7 +145,7 @@ export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps)
         // The layer's pen at the view's scale: weight and line type in paper mm, never thinner than a pixel.
         const pen = layerPen(layer);
         const dash = pen.dash.length ? pen.dash.map((d) => Math.max(d * mm, 2)).join(' ') : undefined;
-        return (
+        const path = (
           <path
             key={e.id}
             d={shapePath(e.shape, t, axis)}
@@ -153,6 +154,16 @@ export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps)
             strokeWidth={isSelected || isHover ? 2 : Math.max(pen.width * mm, 1)}
             strokeDasharray={isSelected ? '6 3' : dash}
           />
+        );
+        // A viewport region carries its name at its top-left corner, on screen only.
+        const region = regionOf(e);
+        if (!region) return path;
+        const corners = region.pts.map((p) => drawingToScreen(p, t, axis));
+        return (
+          <g key={e.id}>
+            {path}
+            <text x={Math.min(...corners.map((c) => c.x)) + 4} y={Math.min(...corners.map((c) => c.y)) + 14} fontSize={11} fontWeight={600} fill={color}>{region.name}</text>
+          </g>
         );
       })}
       {gripDrag ? <GripPreview gripDrag={gripDrag} entities={entities} t={t} axis={axis} look={(e) => lookOf(book, e.params)} paperUnit={paperUnit} extraPatterns={extraPatterns} /> : null}

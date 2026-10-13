@@ -8,6 +8,7 @@
  * Ctrl+S / Ctrl+Shift+S. After an open, the linked models the package refers
  * to are listed to locate. While the project has unsaved changes, a recovery
  * copy is kept in the browser (`recovery.ts`) and offered back at startup.
+ * In the desktop app, a project opened from Finder opens here too.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -19,7 +20,8 @@ import { toast } from '@/components/ui/toast';
 import { useIfc } from '@/hooks/useIfc';
 import { useViewerStore } from '@/store';
 import { PACKAGE_ACTION_EVENT, type PackageAction } from '@/project/package/actions';
-import { pickFile, pickPackageToOpen } from '@/project/package/file-access';
+import { openPath, pickFile, pickPackageToOpen } from '@/project/package/file-access';
+import { isDesktop, onFilesOpened, takeOpenedPaths } from '@/lib/desktop/desktop-host';
 import type { PackageModel } from '@/project/package/format';
 import { loadLinkedModel, type ModelLoader } from '@/project/package/project-open';
 import { saveProject } from '@/project/package/save-actions';
@@ -29,6 +31,8 @@ import { usePackageSession } from '@/project/package/session';
 import { useAutosaveRecovery, isProjectDirty } from './useAutosaveRecovery';
 
 const MODEL_FILES = '.ifc,.ifczip,.ifcx';
+/** The demo project: a package authored in Lapin, shipped with the viewer. */
+const DEMO_PROJECT_PATH = '/samples/demo-project.lapin';
 
 export function ProjectPackageHost() {
   const { t } = useTranslation();
@@ -58,6 +62,25 @@ export function ProjectPackageHost() {
     if (picked) await openBytes(picked.bytes, picked.name, picked.handle);
   }, [t, openBytes]);
 
+  // Opened without a file name or handle, so Save asks where to save rather than
+  // pointing at the bundled sample.
+  const openDemo = useCallback(async () => {
+    if (isProjectDirty() && !(await confirmDialog({ title: t('projectPackage.open'), description: t('projectPackage.discardChanges'), confirmLabel: t('projectPackage.openAnyway'), destructive: true }))) return;
+    usePackageSession.setState({ busy: 'opening', progress: t('projectPackage.opening') });
+    let bytes: Uint8Array;
+    try {
+      const res = await fetch(DEMO_PROJECT_PATH);
+      if (!res.ok) throw new Error(`${res.status} ${DEMO_PROJECT_PATH}`);
+      bytes = new Uint8Array(await res.arrayBuffer());
+    } catch (err) {
+      usePackageSession.setState({ busy: null, progress: null });
+      console.error('[demo] project package fetch failed', err);
+      toast.error(t('viewportLighting.container.emptyState.loadDemo.failed'));
+      return;
+    }
+    await openBytes(bytes, null, null);
+  }, [t, openBytes]);
+
   const link = useCallback(async () => {
     const file = await pickFile(MODEL_FILES);
     if (!file) return;
@@ -72,6 +95,7 @@ export function ProjectPackageHost() {
       if (action === 'save') void save(false);
       else if (action === 'save-as') void save(true);
       else if (action === 'open') void open();
+      else if (action === 'open-demo') void openDemo();
       else if (action === 'link') void link();
     };
     const onKey = (e: KeyboardEvent) => {
@@ -82,7 +106,28 @@ export function ProjectPackageHost() {
     window.addEventListener(PACKAGE_ACTION_EVENT, onAction);
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener(PACKAGE_ACTION_EVENT, onAction); window.removeEventListener('keydown', onKey); };
-  }, [save, open, link]);
+  }, [save, open, openDemo, link]);
+
+  // Desktop: projects opened from Finder (at launch or while running) — the last one opens.
+  useEffect(() => {
+    if (!isDesktop()) return;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    const take = async () => {
+      const path = (await takeOpenedPaths()).pop();
+      if (!path) return;
+      if (isProjectDirty() && !(await confirmDialog({ title: t('projectPackage.open'), description: t('projectPackage.discardChanges'), confirmLabel: t('projectPackage.openAnyway'), destructive: true }))) return;
+      try {
+        const opened = await openPath(path);
+        await openBytes(opened.bytes, opened.name, opened.handle);
+      } catch (err) {
+        toast.error(t('projectPackage.openFailed', { detail: err instanceof Error ? err.message : String(err) }));
+      }
+    };
+    void onFilesOpened(() => { void take(); }).then((unlisten) => { if (cancelled) unlisten(); else stop = unlisten; });
+    void take();
+    return () => { cancelled = true; stop?.(); };
+  }, [t, openBytes]);
 
   // A recovery copy left by a session that ended with unsaved changes.
   useEffect(() => {

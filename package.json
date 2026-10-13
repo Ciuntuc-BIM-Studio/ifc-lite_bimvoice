@@ -92,6 +92,8 @@
     "collab:demo:3d": "pnpm turbo build --filter=@ifc-lite/collab --filter=@ifc-lite/collab-server && node scripts/collab-demo-3d.mjs",
     "typecheck": "turbo typecheck && node scripts/typecheck-tests.mjs --audit",
     "check:test-typecheck": "node scripts/typecheck-tests.mjs --audit",
+    "desktop:dev": "pnpm --filter @lapin/desktop dev",
+    "desktop:build": "pnpm --filter @lapin/desktop build",
     "lint": "node scripts/check-changesets.mjs && node scripts/check-test-glob-coverage.mjs && node scripts/check-unused-locals.mjs && node scripts/check-i18n-literals.mjs && node scripts/check-jsx-a11y.mjs && node scripts/check-type-scale.mjs && node scripts/check-lint-ran.mjs",
     "lint:baseline": "node scripts/check-unused-locals.mjs --update",
     "knip": "knip",

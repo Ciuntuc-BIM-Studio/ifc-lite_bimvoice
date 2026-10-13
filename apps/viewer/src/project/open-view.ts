@@ -18,7 +18,8 @@ import type { SectionPlane } from '@/store/types';
 import { mergedSectionBounds } from '@/lib/section/section-distance';
 import { addProjectView, setActiveProjectItem, useProjectStore } from './project-store';
 import { projectPlaneFromSection, sectionPlaneForView } from './view-plane';
-import { closeDocumentTab, isDrawingTabActive, MODEL_TAB_ID, showDocumentTab, useDocumentTabs } from './document-tabs';
+import { closeDocumentTab, isDrawingTabActive, MODEL_TAB_ID, replaceDocumentTab, showDocumentTab, useDocumentTabs } from './document-tabs';
+import { requestSheetFocus } from './sheet-book';
 import type { ProjectView } from './types';
 
 export type OpenViewResult = 'opened' | 'unresolved' | 'missing';
@@ -75,7 +76,12 @@ export function activateDocumentTab(id: string): OpenViewResult {
     return 'opened';
   }
   const project = useProjectStore.getState();
-  if (project.sheets.some((s) => s.id === id) || project.schedules?.some((s) => s.id === id) || project.civilDrawings?.some((d) => d.id === id)) {
+  if (project.sheets.some((s) => s.id === id)) {
+    // Opened from the navigator (or its tab clicked while another was in front): bring it into view.
+    openSheet(id, useDocumentTabs.getState().activeId !== id);
+    return 'opened';
+  }
+  if (project.schedules?.some((s) => s.id === id) || project.civilDrawings?.some((d) => d.id === id)) {
     // A sheet shows its viewports' own drawings; the 3D section state is set aside like for a view.
     leaveModelTab();
     setActiveProjectItem(id);
@@ -91,6 +97,21 @@ export function activateDocumentTab(id: string): OpenViewResult {
   setActiveProjectItem(id);
   showDocumentTab(id);
   return 'opened';
+}
+
+/**
+ * Make a sheet the active one on the sheets canvas. All sheets share one tab
+ * (the canvas shows them together), so an open sheet tab takes the new id;
+ * `focus` scrolls the canvas to it (opening from the navigator, not a click on the canvas).
+ */
+export function openSheet(id: string, focus: boolean): void {
+  const { sheets } = useProjectStore.getState();
+  const open = useDocumentTabs.getState().openIds.find((t) => t !== id && sheets.some((s) => s.id === t));
+  leaveModelTab();
+  setActiveProjectItem(id);
+  if (open) replaceDocumentTab(open, id);
+  else showDocumentTab(id);
+  if (focus) requestSheetFocus();
 }
 
 /** Close a drawing tab; when it was in front, the tab that takes its place is shown. */

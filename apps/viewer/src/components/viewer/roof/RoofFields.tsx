@@ -182,7 +182,7 @@ function TrussFields({ truss, onChange, optional, cover, onCover }: {
 /** How rafters are cut at the eave and at the ridge (a part's own cut, set inside the block, wins). */
 function RafterEnds({ value, onChange }: { value: RoofStructureSpec['rafterEnds']; onChange: (v: RoofStructureSpec['rafterEnds']) => void }) {
   const { t } = useTranslation();
-  const ends = value ?? { eave: 'square' as const, ridge: 'square' as const };
+  const ends = value ?? { eave: 'plumb' as const, ridge: 'plumb' as const };
   const row = (key: 'eave' | 'ridge', label: string) => (
     <label className="grid grid-cols-[1fr_12rem] items-center gap-2 text-xs">
       <span className="text-zinc-600 dark:text-zinc-400">{label}</span>

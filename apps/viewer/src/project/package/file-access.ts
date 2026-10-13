@@ -4,12 +4,14 @@
 
 /**
  * Reading and writing project packages on disk. Where the browser has the
- * File System Access API (Chrome, Edge) a picked file keeps a handle and Save
- * writes it in place; elsewhere Save downloads the package and Open uses a
- * file input.
+ * File System Access API (Chrome, Edge) — or in the desktop app, through its
+ * native panels (`lib/desktop/desktop-host.ts`) — a picked file keeps a handle
+ * and Save writes it in place; elsewhere Save downloads the package and Open
+ * uses a file input.
  */
 
 import { downloadFile } from '@/lib/export/download';
+import { isDesktop, pathHandle, pickOpenPath, pickSavePath } from '@/lib/desktop/desktop-host';
 import { OPEN_PACKAGE_SUFFIXES, PACKAGE_SUFFIX } from './format';
 
 // Saved as `.lapin`; opened as `.lapin` or the earlier `.bvproj`.
@@ -22,12 +24,18 @@ interface PickerWindow {
 }
 const picker = () => globalThis as unknown as PickerWindow;
 
-export const canWriteInPlace = (): boolean => typeof picker().showSaveFilePicker === 'function';
+const DESKTOP_FILTERS = [{ name: 'Lapin project', extensions: OPEN_PACKAGE_SUFFIXES.map((s) => s.slice(1)) }];
+
+export const canWriteInPlace = (): boolean => isDesktop() || typeof picker().showSaveFilePicker === 'function';
 
 const aborted = (err: unknown) => err instanceof DOMException && err.name === 'AbortError';
 
 /** Ask where to save; null when cancelled or unsupported. */
 export async function pickSaveTarget(suggestedName: string): Promise<FileSystemFileHandle | null> {
+  if (isDesktop()) {
+    const path = await pickSavePath(suggestedName, [{ name: 'Lapin project', extensions: [PACKAGE_SUFFIX.slice(1)] }]);
+    return path ? pathHandle(path) : null;
+  }
   const show = picker().showSaveFilePicker;
   if (!show) return null;
   try {
@@ -57,6 +65,10 @@ export function downloadPackage(bytes: Uint8Array, fileName: string): void {
 
 /** Pick a package to open: its bytes, name and (where supported) handle; null when cancelled. */
 export async function pickPackageToOpen(): Promise<{ bytes: Uint8Array; name: string; handle: FileSystemFileHandle | null } | null> {
+  if (isDesktop()) {
+    const path = await pickOpenPath(DESKTOP_FILTERS);
+    return path ? openPath(path) : null;
+  }
   const show = picker().showOpenFilePicker;
   if (show) {
     try {
@@ -82,4 +94,11 @@ export function pickFile(accept: string): Promise<File | null> {
     input.addEventListener('cancel', () => resolve(null));
     input.click();
   });
+}
+
+/** A package on disk by path (the desktop app): its bytes, name and a handle Save writes back through. */
+export async function openPath(path: string): Promise<{ bytes: Uint8Array; name: string; handle: FileSystemFileHandle }> {
+  const handle = pathHandle(path);
+  const file = await handle.getFile();
+  return { bytes: new Uint8Array(await file.arrayBuffer()), name: file.name, handle };
 }

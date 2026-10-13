@@ -14,7 +14,7 @@
  * builder writes.
  */
 
-import { curtainWallLayout, type CurtainWallInStoreParams, type CurtainWallLayout } from '@ifc-lite/create';
+import { curtainWallLayout, DEFAULT_CURTAIN_WALL_TYPE, type CurtainWallInStoreParams, type CurtainWallLayout, type CurtainWallSpec, type CurtainWallTypeSpec } from '@ifc-lite/create';
 import type { MeshData } from '@ifc-lite/geometry';
 import type { Vec2 } from '@/lib/snap/types';
 import { centredRectOutline, mergeGhostMeshes, prismGhostMesh } from '../ghost-shapes.js';
@@ -103,6 +103,27 @@ export function planCurtainWall(g: CurtainWallGesture, z: number): CurtainWallPl
       MullionProfile: { Type: 'Rectangle', XDim: g.mullionWidth, YDim: g.mullionDepth },
       PanelThickness: CURTAIN_PANEL_THICKNESS,
     },
+  };
+}
+
+/**
+ * The parametric spec of a planned curtain wall: its line and height, the
+ * panel sizes typed as the widest bays and rows, the mullion section typed
+ * (for transoms too) — over `type` (the current curtain wall type) when one
+ * is given, else the defaults.
+ */
+export function curtainWallSpecOf(plan: Extract<CurtainWallPlan, { ok: true }>, g: CurtainWallGesture, type?: { id: string; spec: CurtainWallTypeSpec }): CurtainWallSpec {
+  const base = type?.spec ?? DEFAULT_CURTAIN_WALL_TYPE;
+  const section = { width: g.mullionWidth, depth: g.mullionDepth };
+  return {
+    ...base,
+    version: 1,
+    name: 'Curtain Wall',
+    start: plan.params.Start,
+    end: plan.params.End,
+    height: plan.params.Height,
+    // A type keeps its own grid and sections; without one, what was typed.
+    ...(type ? { typeId: type.id } : { u: { mode: 'max', spacing: g.panelWidth }, v: { mode: 'max', spacing: g.panelHeight }, mullion: section, transom: section }),
   };
 }
 

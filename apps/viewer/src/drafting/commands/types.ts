@@ -84,6 +84,8 @@ export interface DraftSettings {
   currentTextStyle: string;
   currentDimStyle: string;
   currentAxisStyle: string;
+  /** The tag type TAG places (`ProjectDocument.tagTypes`); '' : the built-in mark / name / class field. */
+  currentTagType: string;
 }
 
 export interface DraftCommand {

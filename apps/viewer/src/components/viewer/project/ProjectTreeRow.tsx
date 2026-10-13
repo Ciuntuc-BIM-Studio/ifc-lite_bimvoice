@@ -9,12 +9,14 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, EyeOff } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 /** Drag-and-drop payload type of a project view dragged from the navigator. */
 export const VIEW_DRAG_TYPE = 'application/x-ifclite-view';
+/** Drag-and-drop payload type of a viewport region (its drafted entity id) dragged from the navigator. */
+export const REGION_DRAG_TYPE = 'application/x-lapin-viewport-region';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu';
 
 export interface ProjectFolderRowProps {
@@ -58,23 +60,27 @@ export interface ProjectItemRowProps {
   onDelete: () => void;
   /** A view id the row can be dragged as (onto a sheet). */
   dragViewId?: string;
+  /** A sheet left off the sheets canvas: dimmed, with Show / Hide in its menu. */
+  hidden?: boolean;
+  onToggleHidden?: () => void;
 }
 
 export function ProjectItemRow(props: ProjectItemRowProps) {
   const { t } = useTranslation();
-  const { label, icon, active, unresolvedHint, renaming, onOpen, onStartRename, onDuplicate, onDelete, dragViewId } = props;
+  const { label, icon, active, unresolvedHint, renaming, onOpen, onStartRename, onDuplicate, onDelete, dragViewId, hidden, onToggleHidden } = props;
   if (renaming) return <RenameField {...props} />;
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <button
           type="button"
-          title={unresolvedHint}
+          title={unresolvedHint ?? (hidden ? t('projectNavigator.hiddenSheet') : undefined)}
           className={cn(
             'flex w-full items-center gap-1.5 h-7 pl-8 pr-2 text-xs text-left truncate',
             'hover:bg-zinc-100 dark:hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
             active && 'bg-primary/10 text-primary font-medium',
             unresolvedHint && 'text-zinc-400 dark:text-zinc-600 italic',
+            hidden && 'text-zinc-400 dark:text-zinc-600',
           )}
           onDoubleClick={onOpen}
           draggable={dragViewId !== undefined}
@@ -91,12 +97,14 @@ export function ProjectItemRow(props: ProjectItemRowProps) {
         >
           <span className="shrink-0 text-zinc-500">{icon}</span>
           <span className="truncate">{label}</span>
+          {hidden ? <EyeOff aria-hidden="true" className="ml-auto size-3 shrink-0" /> : null}
         </button>
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onSelect={onOpen}>{t('projectNavigator.action.open')}</ContextMenuItem>
         <ContextMenuItem onSelect={onStartRename}>{t('projectNavigator.action.rename')}</ContextMenuItem>
         {onDuplicate ? <ContextMenuItem onSelect={onDuplicate}>{t('projectNavigator.action.duplicate')}</ContextMenuItem> : null}
+        {onToggleHidden ? <ContextMenuItem onSelect={onToggleHidden}>{t(hidden ? 'projectNavigator.action.showSheet' : 'projectNavigator.action.hideSheet')}</ContextMenuItem> : null}
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={onDelete}>{t('projectNavigator.action.delete')}</ContextMenuItem>
       </ContextMenuContent>
@@ -126,5 +134,56 @@ function RenameField({ label, renameValue, onRename, onCancelRename }: ProjectIt
         }}
       />
     </div>
+  );
+}
+
+export interface RegionRowProps {
+  name: string;
+  icon: ReactNode;
+  regionId: string;
+  onOpen: () => void;
+  onRename: (name: string) => void;
+  onDelete: () => void;
+}
+
+/** A viewport region under its view: dragged onto a sheet as often as needed, opens its view. */
+export function RegionRow({ name, icon, regionId, onOpen, onRename, onDelete }: RegionRowProps) {
+  const { t } = useTranslation();
+  const [renaming, setRenaming] = useState(false);
+  if (renaming) {
+    return <RenameField label={name} icon={icon} active={false} renaming onOpen={onOpen} onStartRename={() => undefined}
+      onRename={(value) => { setRenaming(false); if (value.trim() && value.trim() !== name) onRename(value.trim()); }}
+      onCancelRename={() => setRenaming(false)} onDelete={onDelete} />;
+  }
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          type="button"
+          title={t('projectNavigator.regionHint')}
+          className="flex w-full items-center gap-1.5 h-6 pl-12 pr-2 text-xs text-left truncate text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+          onDoubleClick={onOpen}
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData(REGION_DRAG_TYPE, regionId);
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onOpen();
+            else if (e.key === 'F2') setRenaming(true);
+            else if (e.key === 'Delete') onDelete();
+          }}
+        >
+          <span className="shrink-0">{icon}</span>
+          <span className="truncate">{name}</span>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={onOpen}>{t('projectNavigator.action.open')}</ContextMenuItem>
+        <ContextMenuItem onSelect={() => setRenaming(true)}>{t('projectNavigator.action.rename')}</ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={onDelete}>{t('projectNavigator.action.delete')}</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

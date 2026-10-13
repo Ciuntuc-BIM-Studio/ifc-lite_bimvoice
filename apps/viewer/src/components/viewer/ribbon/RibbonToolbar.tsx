@@ -36,7 +36,10 @@ import { ElementsTab } from './tabs/ElementsTab';
 import { AnalyzeTab } from './tabs/AnalyzeTab';
 import { AuthorTab } from './tabs/AuthorTab';
 import { DesignTab } from './tabs/DesignTab';
+import { BimTab } from './tabs/BimTab';
+import { WoodTab } from './tabs/WoodTab';
 import { StudioTab } from './tabs/StudioTab';
+import { ProjectSettingsTab } from './tabs/ProjectSettingsTab';
 import { AnnotationsTab } from './tabs/AnnotationsTab';
 import { InfrastructureTab } from './tabs/InfrastructureTab';
 import { RibbonSwitchNotice } from './RibbonSwitchNotice';
@@ -246,9 +249,12 @@ export function RibbonToolbar({ onShowShortcuts }: RibbonToolbarProps = {} as Ri
           {activeTab === 'analyze' && <AnalyzeTab />}
           {activeTab === 'author' && <AuthorTab />}
           {activeTab === 'design' && <DesignTab />}
+          {activeTab === 'bim' && <BimTab />}
           {activeTab === 'studio' && <StudioTab />}
+          {activeTab === 'wood' && <WoodTab />}
           {activeTab === 'annotations' && <AnnotationsTab />}
           {activeTab === 'infrastructure' && <InfrastructureTab />}
+          {activeTab === 'projectSettings' && <ProjectSettingsTab />}
         </TabsContent>
       )}
 

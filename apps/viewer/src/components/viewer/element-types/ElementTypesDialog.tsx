@@ -41,6 +41,7 @@ function summary(spec: ElementTypeSpec): string {
     case 'wall': case 'slab': return `${mm(layersThickness(spec.layers))} mm · ${spec.layers.length}`;
     case 'roof': return `${spec.pitch}° · ${mm(layersThickness(spec.layers))} mm`;
     case 'opening': return `${mm(spec.width)}×${mm(spec.height)}`;
+    case 'curtainWall': return `${mm(spec.curtain.mullion.width)}×${mm(spec.curtain.mullion.depth)} · ${spec.curtain.panel.kind}`;
     default: return spec.section.Type === 'Rectangle' ? `${mm(spec.section.XDim)}×${mm(spec.section.YDim)}` : spec.section.Type;
   }
 }

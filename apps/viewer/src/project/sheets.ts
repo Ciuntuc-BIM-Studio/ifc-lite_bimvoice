@@ -51,11 +51,11 @@ export function setTitleBlockField(id: string, key: string, value: string): void
   patchSheet(id, (s) => ({ ...s, titleBlock: { ...(s.titleBlock ?? {}), [key]: value } }));
 }
 
-/** Place a view on a sheet, centred at a paper point. Returns the viewport id. */
-export function addViewport(sheetId: string, viewId: string, at: { x: number; y: number }, scale = 100): string {
+/** Place a view on a sheet (or one of its viewport regions), centred at a paper point. Returns the viewport id. */
+export function addViewport(sheetId: string, viewId: string, at: { x: number; y: number }, scale = 100, regionId?: string): string {
   const id = freshProjectId('viewport');
-  // 0 × 0: the box fits the drawing once it is generated (see `viewportBox`).
-  const viewport: SheetViewport = { id, viewId, x: at.x, y: at.y, scale, width: 0, height: 0, center: null };
+  // 0 × 0: the box fits the drawing (or the region) once it is known (see `viewportBox`).
+  const viewport: SheetViewport = { id, viewId, x: at.x, y: at.y, scale, width: 0, height: 0, center: null, ...(regionId ? { regionId } : {}) };
   patchSheet(sheetId, (s) => ({ ...s, viewports: [...(s.viewports ?? []), viewport] }));
   return id;
 }
@@ -87,4 +87,17 @@ export function fitViewportBox(bounds: { min: { x: number; y: number }; max: { x
     width: Math.max(40, (bounds.max.x - bounds.min.x) * k + margin * 2),
     height: Math.max(30, (bounds.max.y - bounds.min.y) * k + margin * 2),
   };
+}
+
+/**
+ * A viewport as its region makes it: centred on the polygon's box, the box
+ * its size at the viewport's scale. Without a region (or a region since
+ * deleted) the viewport as it is.
+ */
+export function regionViewport(vp: SheetViewport, region: readonly { x: number; y: number }[] | null | undefined): SheetViewport {
+  if (!region || region.length < 3) return vp;
+  const xs = region.map((p) => p.x), ys = region.map((p) => p.y);
+  const min = { x: Math.min(...xs), y: Math.min(...ys) }, max = { x: Math.max(...xs), y: Math.max(...ys) };
+  const k = mmPerMetre(vp);
+  return { ...vp, center: { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2 }, width: Math.max(1, (max.x - min.x) * k), height: Math.max(1, (max.y - min.y) * k) };
 }

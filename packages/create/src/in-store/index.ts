@@ -70,6 +70,8 @@ export { hipRoofFaces, weightedSkeletonFaces } from './straight-skeleton.js';
 // Roof systems: per-edge rules → planes, structure, and the IfcRoof block of slabs and members.
 export { offsetEdges, orientRoof, roofGeometry, roofProblem, type RoofEdgeKind, type RoofEdgeRule, type RoofGeometry, type RoofLine, type RoofPlane } from './roof-system.js';
 export { defaultRoofStructure, defaultTruss, roofStructure, type MemberRole, type MemberSection, type RoofMember, type RoofStructureSpec, type TrussSpec } from './roof-structure.js';
+export { addCurtainWallSystemToStore, curtainWallOf, curtainWallParams, curtainWallParts, curtainWallSpecLayout, curtainWallTypeOf, CURTAIN_WALL_PSET, DEFAULT_CURTAIN_WALL_TYPE, readCurtainWallSystem, regenerateCurtainWallInStore, resolveGrid, type CurtainGridRule, type CurtainSection, type CurtainWallSpec, type CurtainWallSystemResult, type CurtainWallTypeSpec } from './curtain-wall-system.js';
+export { inferCurtainWallSpec } from './curtain-wall-infer.js';
 export { addRoofSystemToStore, readRoofSystem, regenerateRoofSystemInStore, removeRoofSystemFromStore, roofSystemOf, roofSystemParts, ROOF_SYSTEM_PSET, type GableWallSpec, type RoofSystemResult, type RoofSystemSpec } from './roof-system-store.js';
 export {
   addTimberMemberToStore, TIMBER_GRADES, TIMBER_PSET, timberMaterialInStore, timberMaterialName, type TimberMemberKind, type TimberMemberParams, type TimberMemberResult,

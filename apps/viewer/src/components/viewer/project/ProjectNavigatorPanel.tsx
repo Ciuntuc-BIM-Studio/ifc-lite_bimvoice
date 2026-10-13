@@ -10,8 +10,11 @@
  * `.ifclite-project.json` sidecar.
  */
 
-import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Spline, Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed, Table2 } from 'lucide-react';
+import { renameRegion, viewportRegions } from '@/project/viewport-regions';
+import { editDrafts } from '@/drafting/draft-store';
+import { setSheetHidden } from '@/project/sheet-book';
+import { Fragment, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Spline, Box, Building2, Camera, FileBox, FilePlus2, FolderOpen, LayoutTemplate, Plus, Rows3, Save, Scissors, Search, SquareDashed, SquareDashedMousePointer, Table2 } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -36,7 +39,7 @@ import { addSchedule } from '@/joinery/schedules';
 import { duplicateCivilDrawing } from '@/civil/civil-drawings';
 import { newCivilDrawing } from '@/civil/civil-drawing-actions';
 import type { ProjectView, ProjectViewKind } from '@/project/types';
-import { ProjectFolderRow, ProjectItemRow } from './ProjectTreeRow';
+import { ProjectFolderRow, ProjectItemRow, RegionRow } from './ProjectTreeRow';
 import { ViewPropertiesPanel } from './ViewPropertiesPanel';
 import { LevelsFolder } from './LevelsFolder';
 import { useNavigatorDialogs } from './useNavigatorDialogs';
@@ -73,6 +76,7 @@ export function ProjectNavigatorPanel() {
   const { t } = useTranslation();
   const name = useProjectStore((s) => s.name);
   const views = useProjectStore((s) => s.views);
+  const drafts = useProjectStore((s) => s.drafts);
   const sheets = useProjectStore((s) => s.sheets);
   const schedules = useProjectStore((s) => s.schedules) ?? [];
   const civilDrawings = useProjectStore((s) => s.civilDrawings) ?? [];
@@ -157,8 +161,8 @@ export function ProjectNavigatorPanel() {
   };
 
   const viewRow = (view: ProjectView) => (
+    <Fragment key={view.id}>
     <ProjectItemRow
-      key={view.id}
       label={view.name}
       icon={ICONS[view.kind]}
       active={activeItemId === view.id}
@@ -172,6 +176,18 @@ export function ProjectNavigatorPanel() {
       onDelete={() => removeProjectItem(view.id)}
       dragViewId={view.kind === '3d' ? undefined : view.id}
     />
+    {viewportRegions(view.id, drafts).map((region) => (
+      <RegionRow
+        key={region.id}
+        name={region.name || t('projectNavigator.regionUnnamed')}
+        icon={<SquareDashedMousePointer className="size-3" />}
+        regionId={region.id}
+        onOpen={() => open(view)}
+        onRename={(value) => renameRegion(region.id, value)}
+        onDelete={() => editDrafts({ remove: new Set([region.id]) })}
+      />
+    ))}
+    </Fragment>
   );
 
   const folderBody = (id: FolderId): { count: number; rows: ReactNode } => {
@@ -191,6 +207,8 @@ export function ProjectNavigatorPanel() {
             onRename={(value) => rename(sheet.id, value)}
             onCancelRename={() => setRenamingId(null)}
             onDuplicate={() => setRenamingId(duplicateProjectSheet(sheet.id))}
+            hidden={sheet.hidden === true}
+            onToggleHidden={() => setSheetHidden(sheet.id, !sheet.hidden)}
             onDelete={() => removeProjectItem(sheet.id)}
           />
         )),

@@ -12,11 +12,11 @@
  * become IFC type objects the same way (`model-sync.ts`).
  */
 
-import { defaultRoofStructure, type ProfileSection, type RoofStructureSpec } from '@ifc-lite/create';
+import { DEFAULT_CURTAIN_WALL_TYPE, defaultRoofStructure, type CurtainWallTypeSpec, type ProfileSection, type RoofStructureSpec } from '@ifc-lite/create';
 import { DEFAULT_SECTIONS } from '@/lib/profile-section/profile-kinds';
 
-export type ElementTypeKind = 'wall' | 'slab' | 'column' | 'beam' | 'roof' | 'opening';
-export const ELEMENT_TYPE_KINDS: readonly ElementTypeKind[] = ['wall', 'slab', 'column', 'beam', 'roof', 'opening'];
+export type ElementTypeKind = 'wall' | 'slab' | 'column' | 'beam' | 'roof' | 'opening' | 'curtainWall';
+export const ELEMENT_TYPE_KINDS: readonly ElementTypeKind[] = ['wall', 'slab', 'column', 'beam', 'roof', 'opening', 'curtainWall'];
 
 export interface TypeLayer {
   name: string;
@@ -50,15 +50,17 @@ export interface RoofTypeSpec extends TypeBase {
   structure: RoofStructureSpec;
 }
 export interface OpeningTypeSpec extends TypeBase { kind: 'opening'; width: number; height: number; sill: number }
+/** A curtain wall type: its grid, sections, panels and colours (`curtain`); the height new curtain walls of it take. Each curtain wall keeps its own line and height. */
+export interface CurtainWallElementTypeSpec extends TypeBase { kind: 'curtainWall'; height: number; curtain: CurtainWallTypeSpec }
 
-export type ElementTypeSpec = WallTypeSpec | SlabTypeSpec | ColumnTypeSpec | BeamTypeSpec | RoofTypeSpec | OpeningTypeSpec;
+export type ElementTypeSpec = WallTypeSpec | SlabTypeSpec | ColumnTypeSpec | BeamTypeSpec | RoofTypeSpec | OpeningTypeSpec | CurtainWallElementTypeSpec;
 
 /** The IFC type class an entry is written as. A roof system names its entry in its own spec; an opening has no type class. */
 export const TYPE_CLASS: Readonly<Record<ElementTypeKind, string | null>> = {
-  wall: 'IfcWallType', slab: 'IfcSlabType', column: 'IfcColumnType', beam: 'IfcBeamType', roof: null, opening: null,
+  wall: 'IfcWallType', slab: 'IfcSlabType', column: 'IfcColumnType', beam: 'IfcBeamType', roof: null, opening: null, curtainWall: null,
 };
 
-export const MARK_PREFIX: Readonly<Record<ElementTypeKind, string>> = { wall: 'WT', slab: 'ST', column: 'C', beam: 'B', roof: 'R', opening: 'O' };
+export const MARK_PREFIX: Readonly<Record<ElementTypeKind, string>> = { wall: 'WT', slab: 'ST', column: 'C', beam: 'B', roof: 'R', opening: 'O', curtainWall: 'CW' };
 
 export const layersThickness = (layers: readonly TypeLayer[]) => layers.reduce((s, l) => s + l.thickness, 0);
 
@@ -80,6 +82,7 @@ export function defaultTypeSpec(kind: ElementTypeKind): ElementTypeBody {
       layers: [{ name: 'Roof tiles', thickness: 0.04, color: '#8b4a3a' }, { name: 'Underlay membrane', thickness: 0.002, color: '#4a4a4a' }],
     };
     case 'opening': return { kind, width: 1, height: 1, sill: 1 };
+    case 'curtainWall': return { kind, height: 3, curtain: structuredClone(DEFAULT_CURTAIN_WALL_TYPE) };
   }
 }
 
@@ -131,6 +134,8 @@ export function readElementTypeSpec(raw: unknown): ElementTypeSpec | null {
       };
     }
     case 'opening': return { ...base, kind: 'opening', width: num(raw.width, d.width, 0.01), height: num(raw.height, d.height, 0.01), sill: num(raw.sill, d.sill) };
+    // The curtain wall configurator's own fields: kept as written, over the defaults for anything missing.
+    case 'curtainWall': return { ...base, kind: 'curtainWall', height: num(raw.height, d.height, 0.01), curtain: isObject(raw.curtain) ? { ...d.curtain, ...(raw.curtain as Partial<CurtainWallTypeSpec>) } : d.curtain };
   }
 }
 

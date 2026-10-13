@@ -28,6 +28,10 @@
  * `Start -> End`, for mullions and transoms alike, so an asymmetric section
  * faces the same side on both.
  *
+ * Every part carries a stable key in its Tag — `mullion:<i>`, `transom:<bay>:<row>`,
+ * `panel:<bay>:<row>` — so a parametric curtain wall (`curtain-wall-system.ts`)
+ * regenerates onto the same parts (same GlobalIds) when only their sizes change.
+ *
  * The IfcCurtainWall has no representation of its own; its geometry is its
  * parts' (IfcRelAggregates), and every part is placed relative to the curtain
  * wall, so moving the curtain wall moves the lot.
@@ -255,12 +259,13 @@ export function addCurtainWallToStore(
     Tag: params.Tag,
     ...(isIfc2x3 ? {} : { PredefinedType: params.PredefinedType ?? 'NOTDEFINED' }),
   });
-  const partValues = (name: string, placement: string | null, shape: string | null, predefinedType: string) => ({
+  const partValues = (name: string, placement: string | null, shape: string | null, predefinedType: string, tag?: string) => ({
     GlobalId: generateIfcGuid(anchor.guidRandom),
     OwnerHistory: owner,
     Name: name,
     ObjectPlacement: placement,
     Representation: shape,
+    Tag: tag,
     ...(isIfc2x3 ? {} : { PredefinedType: predefinedType }),
   });
   // Lay every record class out once before the first emit, so a bad
@@ -288,13 +293,15 @@ export function addCurtainWallToStore(
   const extrude = (profileId: number, depth: number) => editor.addEntity('IfcExtrudedAreaSolid', [
     `#${profileId}`, `#${solidPosition}`, `#${up}`, n(depth),
   ]).expressId;
-  const part = (type: 'IfcMember' | 'IfcPlate', name: string, placement: number, solid: number, predefinedType: string) => {
+  const part = (type: 'IfcMember' | 'IfcPlate', name: string, placement: number, solid: number, predefinedType: string, tag: string) => {
     const { productShapeId } = emitBodyRepresentation(editor, anchor.bodyContextId, solid);
     return editor.addEntity(
       type,
-      schemaAttributes(registry, type, partValues(name, `#${placement}`, `#${productShapeId}`, predefinedType), op) as Attrs,
+      schemaAttributes(registry, type, partValues(name, `#${placement}`, `#${productShapeId}`, predefinedType, tag), op) as Attrs,
     ).expressId;
   };
+  const rowsPerBay = layout.transoms.length / Math.max(1, layout.uLines.length - 1);
+  const bays = layout.uLines.length - 1;
 
   const mullionProfileId = emitProfileSection(editor, anchor, mullionSection, op);
   const transomProfileId = params.TransomProfile === undefined
@@ -304,13 +311,14 @@ export function addCurtainWallToStore(
   // Mullions: local Z up the wall, profile X along the path, Y across it.
   const mullionIds = layout.mullions.map((u, i) => {
     const placement = emitLocalPlacement(editor, placementId, [n(u), 0, 0]);
-    return part('IfcMember', `Mullion ${i + 1}`, placement, extrude(mullionProfileId, layout.height), 'MULLION');
+    return part('IfcMember', `Mullion ${i + 1}`, placement, extrude(mullionProfileId, layout.height), 'MULLION', `mullion:${i}`);
   });
   // Transoms: local Z along the path; RefDirection down, so profile X lies in
   // the wall plane and profile Y (Z x X) across it, the same side as the mullions'.
   const transomIds = layout.transoms.map((t, i) => {
     const placement = emitLocalPlacement(editor, placementId, [n(t.u0), 0, n(t.v)], [1, 0, 0], [0, 0, -1]);
-    return part('IfcMember', `Transom ${i + 1}`, placement, extrude(transomProfileId, snap(t.u1 - t.u0)), 'MULLION');
+    return part('IfcMember', `Transom ${i + 1}`, placement, extrude(transomProfileId, snap(t.u1 - t.u0)), 'MULLION',
+      `transom:${Math.floor(i / rowsPerBay)}:${i % rowsPerBay}`);
   });
   // Panels: one rectangle per clear width (shared between panels of the same width).
   const panelProfiles = new Map<number, number>();
@@ -322,7 +330,8 @@ export function addCurtainWallToStore(
       panelProfiles.set(width, profileId);
     }
     const placement = emitLocalPlacement(editor, placementId, [n(p.u0), 0, n(p.v0)]);
-    return part('IfcPlate', `Panel ${i + 1}`, placement, extrude(profileId, snap(p.v1 - p.v0)), 'CURTAIN_PANEL');
+    return part('IfcPlate', `Panel ${i + 1}`, placement, extrude(profileId, snap(p.v1 - p.v0)), 'CURTAIN_PANEL',
+      `panel:${i % bays}:${Math.floor(i / bays)}`);
   });
 
   const curtainWallId = editor.addEntity(

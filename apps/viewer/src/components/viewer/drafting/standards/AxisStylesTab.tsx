@@ -4,7 +4,8 @@
 
 /**
  * Axis types editor: the project's grid axis types on the left (the current
- * one — what AXIS draws — marked, duplicate / delete), the selected type's
+ * one — what AXIS draws — and the project default — what AXIS starts with
+ * and the BIM grids in views are drawn with — marked, duplicate / delete), the selected type's
  * bubble, ends, size, line type, colour, label text style and first label on
  * the right, applied at once to every axis of the type. Previews a vertical
  * and a horizontal axis at 1:100.
@@ -14,10 +15,10 @@ import { useTranslation, type TranslationKey } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useProjectStore } from '@/project/project-store';
-import { addAxisStyle, removeAxisStyle, updateAxisStyle } from '@/project/drafting-standards';
+import { addAxisStyle, removeAxisStyle, setDefaultAxisStyle, updateAxisStyle } from '@/project/drafting-standards';
 import { currentStyles, setCurrentStyles, useDraftingSession } from '@/drafting/session';
 import {
-  DEFAULT_AXIS_STYLE, DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE,
+  DEFAULT_AXIS_STYLE, DEFAULT_DIM_STYLE, DEFAULT_TEXT_STYLE, STANDARD,
   type AxisBubble, type AxisStyle, type LineType, type TextStyle,
 } from '@/drafting/styles';
 import { nextAxisLabel } from '@/drafting/annotation';
@@ -60,6 +61,7 @@ export function AxisStylesTab() {
   const set = (patch: Partial<AxisStyle>) => updateAxisStyle(style.id, patch);
   const text = textStyles.find((s) => s.id === style.textStyle) ?? DEFAULT_TEXT_STYLE;
   const current = currentStyles().axisStyle;
+  const projectDefault = useProjectStore((s) => s.defaultAxisStyle) ?? STANDARD;
   return (
     <div className="flex gap-4 text-xs">
       <StyleList styles={styles} selected={selected} current={current} onSelect={select}
@@ -92,9 +94,14 @@ export function AxisStylesTab() {
           <input aria-label={t('standards.axis.firstLabel')} className={INPUT} defaultValue={style.firstLabel} key={style.id + style.firstLabel}
             onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== style.firstLabel && set({ firstLabel: e.target.value.trim() })} />
         </Row>
-        <Button size="sm" variant="outline" disabled={current === style.id} onClick={() => setCurrentStyles({ axisStyle: style.id, firstAxisLabel: style.firstLabel })}>
-          {t('standards.style.makeCurrent')}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" disabled={current === style.id} onClick={() => setCurrentStyles({ axisStyle: style.id, firstAxisLabel: style.firstLabel })}>
+            {t('standards.style.makeCurrent')}
+          </Button>
+          <Button size="sm" variant="outline" disabled={projectDefault === style.id} onClick={() => setDefaultAxisStyle(style.id)}>
+            {projectDefault === style.id ? t('standards.axis.isDefault') : t('standards.axis.makeDefault')}
+          </Button>
+        </div>
       </div>
       <div className="w-[320px] shrink-0 space-y-2">
         <AxisPreview style={style} text={text} />
