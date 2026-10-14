@@ -4,8 +4,9 @@
 
 /**
  * Corridor components: library profiles swept along the corridor over a
- * station range — a retaining wall at the edge of a cut, a box tunnel round
- * the road, a bridge deck under it, barriers, kerbs, ditches. A component
+ * station range — a retaining wall at the edge of a cut, a pergola over
+ * the path (built as posts, beams and joists, `pergola.ts`), a bridge deck
+ * under it, barriers, kerbs, ditches. A component
  * carries a copy of its profile (so the corridor regenerates from the model
  * alone) and says where it is placed at every station:
  *
@@ -62,7 +63,7 @@ export function defaultDaylight(kind: StructureKind): ComponentDaylight {
 }
 
 export function defaultSide(kind: StructureKind): ComponentSide {
-  return kind === 'tunnel' || kind === 'bridge-deck' ? 'centre' : 'right';
+  return kind === 'tunnel' || kind === 'bridge-deck' || kind === 'pergola' ? 'centre' : 'right';
 }
 
 /** Whether a component takes away the daylight slope of `side` at `station`. */

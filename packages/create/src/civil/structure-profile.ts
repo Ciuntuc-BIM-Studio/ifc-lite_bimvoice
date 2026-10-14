@@ -4,8 +4,9 @@
 
 /**
  * Structure profiles for civil works — the cross-sections a corridor
- * sweeps besides its pavement: retaining walls, tunnel linings, bridge
- * decks, safety barriers, kerbs, lined ditches, or any drawn shape. A
+ * sweeps besides its pavement: retaining walls, pergolas, bridge decks,
+ * safety barriers, kerbs, lined ditches, or any drawn shape (tunnel
+ * linings remain for the profiles that already use them). A
  * profile is a closed outline (with holes) in its own frame: x across (away
  * from the road for a side element, to the right for a centred one), y up,
  * metres; the origin is the insertion point, set where the profile meets
@@ -19,7 +20,7 @@
 
 export type P2 = [number, number];
 
-export type StructureKind = 'retaining-wall' | 'tunnel' | 'bridge-deck' | 'abutment' | 'barrier' | 'kerb' | 'ditch' | 'custom';
+export type StructureKind = 'retaining-wall' | 'pergola' | 'tunnel' | 'bridge-deck' | 'abutment' | 'barrier' | 'kerb' | 'ditch' | 'custom';
 
 export interface ProfileAnchor {
   name: string;
@@ -44,7 +45,7 @@ export interface StructureProfile {
   objectType?: string;
 }
 
-export type PresetId = 'cantilever-wall' | 'gravity-wall' | 'box-tunnel' | 'arch-tunnel' | 'deck-slab' | 'wall-abutment' | 'gravity-abutment' | 'concrete-barrier' | 'kerb' | 'lined-ditch';
+export type PresetId = 'cantilever-wall' | 'gravity-wall' | 'timber-pergola' | 'box-tunnel' | 'arch-tunnel' | 'deck-slab' | 'wall-abutment' | 'gravity-abutment' | 'concrete-barrier' | 'kerb' | 'lined-ditch';
 
 export interface PresetParam {
   key: string;
@@ -94,6 +95,26 @@ export const PROFILE_PRESETS: Readonly<Record<PresetId, PresetDef>> = {
       holes: [],
       anchors: [{ name: 'top', at: [0, H] }, { name: 'heel', at: [b, 0] }],
     }),
+  },
+  // A pergola over a path: posts either side under longitudinal beams, joists across on top (built
+  // as separate members along the path, `pergola.ts`); the outline is its cross-section. Origin:
+  // the path axis at grade.
+  'timber-pergola': {
+    kind: 'pergola', name: 'Timber pergola', material: 'Timber', color: '#a16207',
+    ifcClass: 'IfcBuildingElementProxy', predefinedType: 'USERDEFINED', objectType: 'Pergola',
+    params: [
+      { key: 'width', default: 3, min: 0.5 }, { key: 'height', default: 2.4, min: 1 }, { key: 'post', default: 0.15, min: 0.05 },
+      { key: 'postSpacing', default: 3, min: 0.5 }, { key: 'beamDepth', default: 0.2, min: 0.05 }, { key: 'joistWidth', default: 0.05, min: 0.02 },
+      { key: 'joistDepth', default: 0.15, min: 0.03 }, { key: 'joistSpacing', default: 0.6, min: 0.1 }, { key: 'overhang', default: 0.3, min: 0 },
+    ],
+    build: ({ width: W, height: H, post: p, beamDepth: bd, joistDepth: jd, overhang: o }) => {
+      const x = W / 2, top = H + bd + jd;
+      return {
+        outer: [[-x - p, 0], [-x, 0], [-x, H], [x, H], [x, 0], [x + p, 0], [x + p, H + bd], [x + p + o, H + bd], [x + p + o, top], [-x - p - o, top], [-x - p - o, H + bd], [-x - p, H + bd]],
+        holes: [],
+        anchors: [{ name: 'top', at: [0, top] }, { name: 'left', at: [-x, 0] }, { name: 'right', at: [x, 0] }],
+      };
+    },
   },
   'box-tunnel': {
     kind: 'tunnel', name: 'Box tunnel', material: 'Reinforced concrete', color: '#94a3b8',
@@ -195,7 +216,11 @@ export const PROFILE_PRESETS: Readonly<Record<PresetId, PresetDef>> = {
   },
 };
 
-export const PRESET_IDS = Object.keys(PROFILE_PRESETS) as PresetId[];
+/** Presets kept only so the profiles made from them still regenerate: no longer offered. */
+export const LEGACY_PRESETS: ReadonlySet<PresetId> = new Set(['box-tunnel', 'arch-tunnel']);
+
+/** The presets offered for new profiles. */
+export const PRESET_IDS = (Object.keys(PROFILE_PRESETS) as PresetId[]).filter((id) => !LEGACY_PRESETS.has(id));
 
 export function presetParams(id: PresetId): Record<string, number> {
   return Object.fromEntries(PROFILE_PRESETS[id].params.map((p) => [p.key, p.default]));
@@ -310,7 +335,7 @@ export function profileIfcClass(p: Pick<StructureProfile, 'ifcClass' | 'predefin
 
 export const PROFILE_LIBRARY_FORMAT = 'ifc-lite-structure-profiles';
 export const PROFILE_LIBRARY_VERSION = 1;
-const KINDS: readonly StructureKind[] = ['retaining-wall', 'tunnel', 'bridge-deck', 'abutment', 'barrier', 'kerb', 'ditch', 'custom'];
+const KINDS: readonly StructureKind[] = ['retaining-wall', 'pergola', 'tunnel', 'bridge-deck', 'abutment', 'barrier', 'kerb', 'ditch', 'custom'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);

@@ -17,7 +17,7 @@ import { INPUT, Section } from '../joinery/JoineryFields';
 import { moveOrigin, reflectProfile } from '@/civil/profile-library';
 import { Cell } from './CorridorFields';
 
-const KINDS: StructureKind[] = ['retaining-wall', 'tunnel', 'bridge-deck', 'abutment', 'barrier', 'kerb', 'ditch', 'custom'];
+const KINDS: StructureKind[] = ['retaining-wall', 'pergola', 'bridge-deck', 'abutment', 'barrier', 'kerb', 'ditch', 'custom'];
 const CLASSES = ['IfcWall', 'IfcSlab', 'IfcKerb', 'IfcRailing', 'IfcBeam', 'IfcColumn', 'IfcFooting', 'IfcCourse', 'IfcBuildingElementProxy'];
 
 interface Props {
@@ -45,7 +45,7 @@ export function IdentityFields({ profile: p, onChange }: Pick<Props, 'profile' |
       </Row>
       <Row label={t('profiles.field.kind')}>
         <select aria-label={t('profiles.field.kind')} className={INPUT} value={p.kind} onChange={(e) => onChange({ ...p, kind: e.target.value as StructureKind })}>
-          {KINDS.map((k) => <option key={k} value={k}>{t(`profiles.kind.${k}`)}</option>)}
+          {(p.kind === 'tunnel' ? [...KINDS, 'tunnel' as const] : KINDS).map((k) => <option key={k} value={k}>{t(`profiles.kind.${k}`)}</option>)}
         </select>
       </Row>
       <Row label={t('profiles.field.material')}>

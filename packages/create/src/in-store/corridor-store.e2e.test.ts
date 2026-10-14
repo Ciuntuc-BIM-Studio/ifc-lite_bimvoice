@@ -122,6 +122,17 @@ describe('corridor in store', () => {
     expect(count('IfcCourse')).toBe(0);
   });
 
+  it('IFC4X3: writes a pergola as posts (IfcColumn), beams and joists (IfcBeam)', async () => {
+    const { store, view, editor, anchor } = await ifc4x3Scene();
+    const pergola = componentFromProfile('pg', profileFromPreset('timber-pergola', 'lib-pg'), 20, 50);
+    addCorridorToStore(store, editor, anchor, { ...spec(), components: [pergola] }, groundTin());
+    const live = view.getNewEntities().filter((e) => !view.isDeleted(e.expressId));
+    expect(live.filter((e) => e.type === 'IfcColumn')).toHaveLength(22);
+    const beams = live.filter((e) => e.type === 'IfcBeam');
+    expect(beams.filter((e) => String(e.attributes.at(-1)).includes('JOIST')).length).toBeGreaterThan(40);
+    expect(beams.filter((e) => String(e.attributes.at(-1)).includes('.BEAM.'))).toHaveLength(2);
+  });
+
   it('IFC4X3: writes each vertical curve as its kind — parabolas, and a circular arc with its signed radius', async () => {
     const { store, view, editor, anchor } = await ifc4x3Scene();
     const curved: CorridorSpec = { ...spec(), profile: { pvis: [

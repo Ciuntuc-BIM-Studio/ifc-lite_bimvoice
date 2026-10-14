@@ -22,6 +22,7 @@ import { storeyOfElement } from '@/project/effective-storey';
 import { useViewerStore } from '@/store';
 import { applyCorridor, listTerrains, readCorridorSpec, terrainTin } from '@/civil/corridor-element';
 import { closeCorridorDialog, useCorridorDialog } from '@/civil/corridor-dialog-store';
+import { ensureStarterProfiles } from '@/civil/profile-library';
 import { exportCorridorLandXml } from '@/civil/landxml-exchange';
 import { deleteCorridorWithConfirm } from './delete-corridor';
 import { AlignmentFields, GeneralFields, ProfileFields } from './CorridorFields';
@@ -43,6 +44,8 @@ export function CorridorDialog() {
   const [station, setStation] = useState(0);
   const [pvi, setPvi] = useState<number | null>(null);
   useEffect(() => { setDraft(saved ? structuredClone(saved) : null); }, [saved]);
+  // The library offers what the components are picked from (a pergola, in a library from before them).
+  useEffect(() => { if (target) ensureStarterProfiles(); }, [target]);
 
   const terrain = useMemo(() => (target && storeyId !== null && draft ? terrainTin(target.modelId, storeyId, draft.terrainGlobalId) : null), [target, storeyId, draft?.terrainGlobalId, mutationVersion]);
   const problem = draft ? alignmentProblem(draft.alignment) ?? profileProblem(draft.profile) : null;

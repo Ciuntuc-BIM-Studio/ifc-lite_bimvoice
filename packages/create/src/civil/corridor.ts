@@ -20,6 +20,7 @@ import { slopesAt, templateAt, type AssemblySpec, type SideSlopes, type Superele
 import type { Terrain, V3 } from './tin.js';
 import { componentSection, suppressesDaylight, sweepComponent, type CorridorComponent, type StationFrame } from './components.js';
 import type { CorridorBridge } from './bridge.js';
+import { isPergola, pergolaParts } from './pergola.js';
 import { bridgeCut, bridgeElevation, bridgeParts, deckRange, type BridgeContext, type BridgeElevation, type BridgeParts } from './bridge-solids.js';
 import type { P2, StructureProfile } from './structure-profile.js';
 
@@ -286,6 +287,10 @@ export function buildCorridor(spec: CorridorSpec, terrain: Terrain | null): Corr
     return [section(lo), ...inner, section(hi)].map((st) => frame(c, st));
   };
   for (const c of components) {
+    if (isPergola(c)) {
+      for (const part of pergolaParts(c, framesOf(c), (s) => frame(c, section(s)))) solids.push({ ...part, kind: 'component', closed: true });
+      continue;
+    }
     const swept = sweepComponent(c, framesOf(c), terrain);
     if (!swept) continue;
     solids.push({ key: `comp:${c.id}`, name: c.profile.name, color: c.profile.color, kind: 'component', ifc: { ifcClass: c.profile.ifcClass, predefinedType: c.profile.predefinedType, objectType: c.profile.objectType }, ...swept, closed: true });

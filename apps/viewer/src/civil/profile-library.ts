@@ -10,7 +10,7 @@
  */
 
 import { create } from 'zustand';
-import { PRESET_IDS, PROFILE_PRESETS, profileFromPreset, readProfileLibrary, starterProfiles, toCustomProfile, writeProfileLibrary, type P2, type PresetId, type StructureKind, type StructureProfile } from '@ifc-lite/create';
+import { PRESET_IDS, PROFILE_PRESETS, presetParams, profileFromPreset, readProfileLibrary, starterProfiles, toCustomProfile, writeProfileLibrary, type P2, type PresetId, type StructureKind, type StructureProfile } from '@ifc-lite/create';
 import { useProjectStore } from '@/project/project-store';
 import { freshProjectId } from '@/project/view-defaults';
 import { contourLoops } from '@/drafting/commands/model';
@@ -25,9 +25,22 @@ function save(list: StructureProfile[]): void {
   useProjectStore.setState({ structureProfiles: list, dirty: true });
 }
 
-/** A library with nothing in it gets the starter profiles (one per preset). */
+/** A starter profile never changed: made from a preset, every parameter still its default. */
+const untouched = (p: StructureProfile) => !!p.preset && Object.entries(presetParams(p.preset.id)).every(([k, v]) => p.preset!.params[k] === v);
+
+/**
+ * A library with nothing in it gets the starter profiles (one per preset).
+ * One from before pergolas replaced tunnels gets a pergola, and loses the
+ * tunnel starters nobody changed (corridors keep their own copies).
+ */
 export function ensureStarterProfiles(): void {
-  if (structureProfiles().length === 0) save(starterProfiles().map((p) => ({ ...p, id: freshProjectId('profile') })));
+  if (structureProfiles().length === 0) {
+    save(starterProfiles().map((p) => ({ ...p, id: freshProjectId('profile') })));
+    return;
+  }
+  const kept = structureProfiles().filter((p) => !(p.kind === 'tunnel' && untouched(p)));
+  if (kept.length !== structureProfiles().length) save(kept);
+  ensureProfilesOfKind('pergola');
 }
 
 /** A library with no profile of a kind gets that kind's presets (the bridge configurator needs decks and abutments). */

@@ -34,6 +34,20 @@ describe('structure profile library', () => {
     assert.equal(useProjectStore.getState().dirty, true);
   });
 
+  it('gives a library from before pergolas a pergola, dropping only the tunnel starters nobody changed', () => {
+    const untouchedTunnel = addProfile('box-tunnel');
+    const changed = addProfile('arch-tunnel');
+    const p = structureProfile(changed)!;
+    updateProfile({ ...p, preset: { id: p.preset!.id, params: { ...p.preset!.params, width: 7 } } });
+    addProfile('kerb');
+    ensureStarterProfiles();
+    assert.equal(structureProfile(untouchedTunnel), null);
+    assert.ok(structureProfile(changed));
+    assert.equal(structureProfiles().filter((x) => x.kind === 'pergola').length, 1);
+    ensureStarterProfiles();
+    assert.equal(structureProfiles().filter((x) => x.kind === 'pergola').length, 1, 'only once');
+  });
+
   it('mirrors and flips a profile for good, keeping it counter-clockwise and valid', () => {
     const id = addProfile('cantilever-wall');
     const p = structureProfile(id)!;

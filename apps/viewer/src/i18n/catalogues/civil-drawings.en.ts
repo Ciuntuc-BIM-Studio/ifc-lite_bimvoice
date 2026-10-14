@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 import type { TranslationValue } from '../types';
 export const civilDrawingsEn = {
-  'civilDwg.folder': 'Road drawings',
+  'civilDwg.folder': 'Path drawings',
   'civilDwg.cmd.profile': 'Profile view',
   'civilDwg.cmd.sections': 'Section views',
   'civilDwg.newProfileAction': 'New profile view of the selected corridor',
