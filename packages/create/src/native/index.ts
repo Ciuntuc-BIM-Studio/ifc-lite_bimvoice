@@ -18,4 +18,6 @@ export {
   nativeElementProblems, nativeIndex, nativeModelProblems, nativeSection, resolveNativeParam, ringArea2 as nativeRingArea2,
   type NativeIndex,
 } from './validate.js';
-export { beamStoreParams, columnStoreParams, openingStoreParams, slabStoreParams, wallStoreParams } from './to-store-params.js';
+export { beamStoreParams, columnStoreParams, joineryStoreParams, openingStoreParams, slabStoreParams, wallStoreParams } from './to-store-params.js';
+export { liftNativeModel } from './lift.js';
+export { nativeIdOf, type LiftResult, type LiftSkip } from './lift-base.js';

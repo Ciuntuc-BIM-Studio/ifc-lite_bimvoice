@@ -19,7 +19,8 @@ import type { SlabPolygonParams } from '../in-store/slab.js';
 import type { ProfiledBeamInStoreParams } from '../in-store/beam.js';
 import type { ProfiledColumnInStoreParams } from '../in-store/column.js';
 import type { SlabOpeningInStoreParams, WallOpeningInStoreParams } from '../in-store/opening.js';
-import type { NativeBeam, NativeColumn, NativeElement, NativeOpening, NativeSlab, NativeWall } from './schema.js';
+import type { HostedDoorInStoreParams, HostedWindowInStoreParams } from '../in-store/hosted-fill.js';
+import type { NativeBeam, NativeColumn, NativeElement, NativeJoinery, NativeOpening, NativeSlab, NativeWall } from './schema.js';
 import { nativeGlobalId } from './ifc-mapping.js';
 import { nativeElementProblems, nativeSection, resolveNativeParam, type NativeIndex } from './validate.js';
 
@@ -120,4 +121,18 @@ export function openingStoreParams(opening: NativeOpening, index: NativeIndex): 
     Width: opening.width,
     Depth: opening.depth,
   };
+}
+
+/**
+ * A door or window in its wall (`addHostedElementInStore`): its size is its
+ * type's. The caller writes the type (`addJoineryTypeToStore`, GlobalId from
+ * the type's id), passes its map as `MappedBody` and types the occurrence.
+ */
+export function joineryStoreParams(joinery: NativeJoinery, index: NativeIndex):
+  { kind: 'door'; params: HostedDoorInStoreParams } | { kind: 'window'; params: HostedWindowInStoreParams } {
+  assertValid(joinery, index);
+  const type = index.type(joinery.typeId!);
+  if (type?.kind !== joinery.kind) throw new Error(`native ${joinery.kind} ${joinery.id}: its type is not a ${joinery.kind} type`);
+  const placed = { ...root(joinery), Offset: joinery.along, Sill: num(joinery, 'sill', index), Width: type.spec.width, Height: type.spec.height };
+  return joinery.kind === 'door' ? { kind: 'door', params: placed } : { kind: 'window', params: placed };
 }
