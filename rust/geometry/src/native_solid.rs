@@ -19,7 +19,12 @@
 //! cut    := profile placement[16] depth            (cuts carry no cuts)
 //! profile:= 0 outerCount (x y)* holeCount (n (x y)*)*   polygon
 //!         | code dimCount dim*                         section (codes below)
+//!         | 100 faceCount (loopCount (n (x y z)*)*)*  faces (outer loop, then holes)
 //! ```
+//! A `faces` solid is a closed polyhedron (a faceted element: a rafter with
+//! cut ends, a sloped roof, the prism a roof trim removes from a wall),
+//! triangulated face by face as the IFC path triangulates an IfcFacetedBrep;
+//! its points are in the profile frame and its depth is ignored.
 //! `placement` is a column-major 4x4 matrix taking the profile frame (profile
 //! in XY, extruded along +Z) to the element frame. A section dimension that
 //! is NaN is absent (an optional fillet).
@@ -31,6 +36,8 @@ use crate::mesh::Mesh;
 use crate::rect_fast::{subtract_rect_openings, RectFastStats};
 use crate::profile::Profile2D;
 use crate::profiles::ProfileProcessor;
+use crate::processors::FacetedBrepProcessor;
+use crate::csg::calculate_normals;
 use crate::tessellation::TessellationQuality;
 use ifc_lite_core::{AttributeValue, DecodedEntity, EntityDecoder, IfcSchema, IfcType};
 use nalgebra::{Matrix4, Point2, Point3, Vector3};
@@ -42,7 +49,12 @@ pub enum NativeProfile {
     /// The IFC class and its dimension attributes in schema order (after
     /// ProfileType, ProfileName and Position); `None` for an absent optional.
     Section { ifc_type: IfcType, dims: Vec<Option<f64>> },
+    /// Planar faces, each an outer loop and its holes.
+    Faces(Vec<(Vec<Point3<f64>>, Vec<Vec<Point3<f64>>>)>),
 }
+
+/// The wire code of a `faces` profile.
+const FACES: usize = 100;
 
 #[derive(Debug, Clone)]
 pub struct NativeSolid {
@@ -98,8 +110,29 @@ impl Reader<'_> {
         let n = self.count(self.data.len() / 2)?;
         (0..n).map(|_| Ok(Point2::new(self.finite()?, self.finite()?))).collect()
     }
+    fn points(&mut self) -> Result<Vec<Point3<f64>>> {
+        let n = self.count(self.data.len() / 3)?;
+        (0..n).map(|_| Ok(Point3::new(self.finite()?, self.finite()?, self.finite()?))).collect()
+    }
     fn profile(&mut self) -> Result<NativeProfile> {
-        let code = self.count(SECTION_TYPES.len())?;
+        let code = self.count(FACES)?;
+        if code == FACES {
+            let faces = (0..self.count(self.data.len())?)
+                .map(|_| {
+                    let loops = self.count(self.data.len())?;
+                    if loops == 0 {
+                        return Err(Error::geometry("native solids: a face without a loop"));
+                    }
+                    let outer = self.points()?;
+                    let holes = (1..loops).map(|_| self.points()).collect::<Result<Vec<_>>>()?;
+                    Ok((outer, holes))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            return Ok(NativeProfile::Faces(faces));
+        }
+        if code > SECTION_TYPES.len() {
+            return Err(Error::geometry(format!("native solids: unknown profile code {code}")));
+        }
         if code == 0 {
             let mut profile = Profile2D::new(self.ring()?);
             let holes = self.count(self.data.len())?;
@@ -146,6 +179,7 @@ pub fn decode_native_solids(data: &[f64]) -> Result<Vec<NativeSolid>> {
 fn profile_2d(profile: &NativeProfile, quality: TessellationQuality) -> Result<Profile2D> {
     match profile {
         NativeProfile::Polygon(p) => Ok(p.clone()),
+        NativeProfile::Faces(_) => Err(Error::geometry("native solids: faces have no profile")),
         NativeProfile::Section { ifc_type, dims } => {
             // The same parametric builder the IFC path runs, on a synthetic
             // entity: ProfileType AREA, no name, no position (centred).
@@ -160,6 +194,18 @@ fn profile_2d(profile: &NativeProfile, quality: TessellationQuality) -> Result<P
 }
 
 fn extrude(solid: &NativeSolid, quality: TessellationQuality) -> Result<Mesh> {
+    if let NativeProfile::Faces(faces) = &solid.profile {
+        let mut mesh = FacetedBrepProcessor::mesh_faces(faces);
+        if mesh.indices.is_empty() {
+            return Err(Error::geometry("native solid faces make no triangles"));
+        }
+        for p in mesh.positions.chunks_exact_mut(3) {
+            let q = solid.placement.transform_point(&Point3::new(p[0] as f64, p[1] as f64, p[2] as f64));
+            p.copy_from_slice(&[q.x as f32, q.y as f32, q.z as f32]);
+        }
+        calculate_normals(&mut mesh);
+        return Ok(mesh);
+    }
     if !(solid.depth > 0.0) {
         return Err(Error::InvalidExtrusion("native solid depth must be positive".into()));
     }

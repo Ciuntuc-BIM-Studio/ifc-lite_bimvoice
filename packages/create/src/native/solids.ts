@@ -23,9 +23,16 @@ import { wallBodyOutline } from '../in-store/wall-join.js';
 import type { NativeElement, NativeId, PlanPoint } from './schema.js';
 import { nativeSection, resolveNativeParam, type NativeIndex } from './validate.js';
 
+export type SpacePoint = [number, number, number];
+
+/** One planar face of a `faces` solid: its outer loop and holes, in the profile frame. */
+export interface SolidFace { outer: SpacePoint[]; holes?: SpacePoint[][] }
+
 export type SolidProfile =
   | { kind: 'polygon'; outer: PlanPoint[]; holes?: PlanPoint[][] }
-  | { kind: 'section'; section: ProfileSection };
+  | { kind: 'section'; section: ProfileSection }
+  /** A closed polyhedron (a faceted body), placed by `placement`; its depth is ignored. */
+  | { kind: 'faces'; faces: SolidFace[] };
 
 export interface NativeSolidSpec {
   profile: SolidProfile;
@@ -35,6 +42,9 @@ export interface NativeSolidSpec {
   /** Subtracted from this solid. */
   cuts?: NativeSolidSpec[];
 }
+
+/** The wire code of a `faces` profile (`native_solid.rs`). */
+const FACES = 100;
 
 /** How far a cut overshoots its host's faces, so no skin survives (as the IFC opening writer). */
 const CUT_CLEARANCE = 0.05;
@@ -163,6 +173,12 @@ function encodeSolid(out: number[], solid: NativeSolidSpec, withCuts: boolean): 
   if (p.kind === 'polygon') {
     out.push(0, p.outer.length, ...p.outer.flat(), p.holes?.length ?? 0);
     for (const hole of p.holes ?? []) out.push(hole.length, ...hole.flat());
+  } else if (p.kind === 'faces') {
+    out.push(FACES, p.faces.length);
+    for (const face of p.faces) {
+      out.push(1 + (face.holes?.length ?? 0));
+      for (const loop of [face.outer, ...(face.holes ?? [])]) out.push(loop.length, ...loop.flat());
+    }
   } else {
     const spec = SECTIONS[p.section.Type];
     const dims = p.section as unknown as Record<string, number | undefined>;

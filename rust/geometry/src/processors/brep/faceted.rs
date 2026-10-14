@@ -370,6 +370,36 @@ impl FacetedBrepProcessor {
 }
 
 impl FacetedBrepProcessor {
+    /// Planar faces (an outer loop, then its holes) meshed as an
+    /// IfcFacetedBrep's are: the same per-face triangulation, merged in
+    /// order. What the native mesher builds a faceted element from (N3).
+    pub fn mesh_faces(faces: &[(Vec<Point3<f64>>, Vec<Vec<Point3<f64>>>)]) -> Mesh {
+        let mut positions = Vec::new();
+        let mut indices = Vec::new();
+        for (outer, holes) in faces {
+            if outer.len() < 3 {
+                continue;
+            }
+            let face = FaceData { outer_points: outer.clone(), hole_points: holes.clone() };
+            let result = Self::triangulate_face(&face, (0.0, 0.0, 0.0));
+            let base = (positions.len() / 3) as u32;
+            positions.extend(result.positions);
+            indices.extend(result.indices.into_iter().map(|i| base + i));
+        }
+        Mesh {
+            positions,
+            normals: Vec::new(),
+            indices,
+            rtc_applied: false,
+            origin: [0.0; 3],
+            instance_meta: None,
+            local_bounds: None,
+            local_to_world: None,
+            welded_in_object_frame: false,
+            plane_tags: None,
+        }
+    }
+
     /// Mesh the Brep rebased by `rtc` (file units) before f32 narrowing; the
     /// same work as [`GeometryProcessor::process_in_rtc_frame`].
     pub fn process_with_rtc(

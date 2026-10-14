@@ -143,6 +143,20 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     const { retypeOccurrencesInStore } = await import('../in-store/joinery-sync.js');
     const retyped = retypeOccurrencesInStore(store, editor, { ...defaultWindowSpec('W-R'), id: 'w-r', width: 1, height: 1.2 }, [express.get('window')!]);
     expect(retyped.refused).toEqual([]);
+    // A roof system (sloped planes, rafters with plumb-cut ends: faceted bodies) and a wall attached to it.
+    const roofs = await import('../in-store/roof-system-store.js');
+    const trims = await import('../in-store/wall-roof-trim.js');
+    const { defaultRoofStructure } = await import('../in-store/roof-structure.js');
+    const roof = roofs.addRoofSystemToStore(editor, anchor, {
+      name: 'Roof', outline: [[20, 0], [30, 0], [30, 6], [20, 6]], eaveHeight: 3,
+      rules: [{ kind: 'eave', pitch: 30, overhang: 0.5 }, { kind: 'gable', pitch: 0, overhang: 0.3 }, { kind: 'eave', pitch: 30, overhang: 0.5 }, { kind: 'gable', pitch: 0, overhang: 0.3 }],
+      covering: { thickness: 0.08, color: '#a0522d' }, structure: defaultRoofStructure(), timberColor: '#c8a070',
+    });
+    const roofParts = roofs.roofSystemParts(store, roof.roofId, view);
+    roofParts.forEach((part, k) => express.set(`roof:${k}`, part));
+    const gable = create.addWallToStore(editor, anchor, { Start: [25, 0, 0], End: [25, 6, 0], Thickness: 0.2, Height: 2.5 }).wallId;
+    trims.setWallRoofTrimInStore(store, editor, anchor, gable, { roof: roof.globalId, top: 'structure' });
+    express.set('trimmed', gable);
     express.set('member', addMemberToStore(editor, anchor, { Start: [10, 6, 0], End: [13, 7, 1.8], Width: 0.06, Height: 0.2 }).memberId);
     const sampleWall = [...new resolveAnchor.AnchorEntityReader(store, view).ids('IFCWALL')].find((w) => ![...express.values()].includes(w));
     const targets = new Set([...express.values(), ...(sampleWall ? [sampleWall] : [])]);

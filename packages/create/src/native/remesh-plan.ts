@@ -28,6 +28,7 @@ import { resolveLinearElementChain } from '../in-store/edit/linear-element-edit.
 import { readElementPlacement } from '../in-store/element-relocate.js';
 import { placedBodyExtent } from '../in-store/resolve-host.js';
 import { getModelLengthUnitScale } from '../in-store/edit/length-unit-scale.js';
+import { brepSolid, roofTrimCuts } from './remesh-faces.js';
 import { extrusionSolid, isAxisRectangle, mappedSolids, multiply, numeric, outline, type MappedPart } from './remesh-extrusion.js';
 import { localFrame, worldFrame } from '../in-store/placement-3d.js';
 import { parentPlacementOf } from '../in-store/element-transform-frames.js';
@@ -231,17 +232,25 @@ function cutsOf(ctx: Context, hostId: number, hostFrame: number[]): NativeSolidS
 function wallSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec | string {
   const read = readWallJoinTarget(ctx.store, ctx.view, id, ctx.scale);
   if (!read || !Number.isFinite(read.height)) return 'a wall that is not a straight extrusion';
-  if (plainExtrusion(ctx, id) !== read.solidId) return 'a trimmed or clipped wall body';
   const own = ownFrame(ctx, id);
   if (!own) return 'a wall whose placement cannot be read';
   const frame = multiply(world, own);
+  // A wall attached to a roof: its extrusion inside the trim, the trim's prisms cut from it.
+  let trim: NativeSolidSpec[] = [];
+  if (plainExtrusion(ctx, id) !== read.solidId) {
+    const item = bodyItem(ctx, id);
+    const trimmed = item === null ? null : roofTrimCuts(ctx.reader, item, frame, ctx.scale);
+    if (!trimmed || typeof trimmed === 'string' || trimmed.inner !== read.solidId) return typeof trimmed === 'string' ? trimmed : 'a trimmed or clipped wall body';
+    trim = trimmed.cuts;
+  }
   const w = read.wall;
   const outline = wallBodyOutline(w);
   // The axis starts `a0` along the placement's X (the start the lift reads, minus its origin).
   const a0 = Math.hypot(w.start[0] - read.origin[0], w.start[1] - read.origin[1])
     * Math.sign((w.start[0] - read.origin[0]) * (w.end[0] - w.start[0]) + (w.start[1] - read.origin[1]) * (w.end[1] - w.start[1]) || 1);
-  const cuts = cutsOf(ctx, id, frame);
-  if (typeof cuts === 'string') return cuts;
+  const openings = cutsOf(ctx, id, frame);
+  if (typeof openings === 'string') return openings;
+  const cuts = [...openings, ...trim];
   return {
     profile: { kind: 'polygon', outer: outline.corners.map(([x, y]) => [x, y]) },
     placement: multiply(frame, translate(a0, 0, 0)), depth: read.height, ...(cuts.length ? { cuts } : {}),
@@ -260,6 +269,23 @@ function slabSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec |
   const cuts = cutsOf(ctx, id, multiply(world, own));
   if (typeof cuts === 'string') return cuts;
   return { profile: { kind: 'polygon', outer }, placement: multiply(world, translate(0, 0, base)), depth: chain.thickness, ...(cuts.length ? { cuts } : {}) };
+}
+
+function isFaceted(ctx: Context, id: number): boolean {
+  const item = bodyItem(ctx, id);
+  return item !== null && ctx.reader.entity(item)?.type.toUpperCase() === 'IFCFACETEDBREP';
+}
+
+/** A faceted element (a rafter with cut ends, a sloped roof plane): its polyhedron, with its openings cut. */
+function facetedSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec | string {
+  const own = ownFrame(ctx, id);
+  if (!own) return 'an element whose placement cannot be read';
+  const frame = multiply(world, own);
+  const solid = brepSolid(ctx.reader, bodyItem(ctx, id)!, frame, ctx.scale);
+  if (typeof solid === 'string') return solid;
+  const cuts = cutsOf(ctx, id, frame);
+  if (typeof cuts === 'string') return cuts;
+  return cuts.length ? { ...solid, cuts } : solid;
 }
 
 /** A door or window: its one extrusion, or its joinery type's boxes through the mapped item. */
@@ -309,13 +335,14 @@ export function planNativeRemesh(
     const stack = world && own ? layerStack(ctx, id, multiply(world, own)) : null;
     const veto = !ifcClass ? 'not a class the native path builds' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id, stack !== null);
     const built = veto ?? (!world ? 'a placement chain that cannot be read'
+      : isFaceted(ctx, id) ? facetedSolid(ctx, id, world)
       : SLAB_LIKE.has(type) ? slabSolid(ctx, id, world)
         : LINEAR.has(type) ? linearSolid(ctx, id, world)
           : EXTRUDED.has(type) ? extrudedParts(ctx, id, world)
             : wallSolid(ctx, id, world));
     if (typeof built === 'string') { plan.fallback.set(id, built); continue; }
     // One solid per part: a mapped body's parts are each their own mesh, as the IFC path draws them.
-    const parts = Array.isArray(built) ? built : [{ solid: built, item: plainExtrusion(ctx, id) ?? 0 }];
+    const parts = Array.isArray(built) ? built : [{ solid: built, item: bodyItem(ctx, id) ?? 0 }];
     for (const part of parts) {
       solids.push(part.solid);
       plan.expressIds.push(id);

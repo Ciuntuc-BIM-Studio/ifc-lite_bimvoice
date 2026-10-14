@@ -130,3 +130,68 @@ fn layers_slice_the_body_at_their_interfaces_with_the_ifc_slicer() {
     let thin = NativeLayers { layers: vec![(11, 0.299), (12, 0.001)], ..stack };
     assert!(slice_native_layers(&mesh, &thin).is_none());
 }
+
+/// A faces profile: `faces` loops of (x y z), no holes.
+fn faces(loops: &[&[[f64; 3]]]) -> Vec<f64> {
+    let mut buf = vec![100., loops.len() as f64];
+    for l in loops {
+        buf.extend([1., l.len() as f64]);
+        for p in *l {
+            buf.extend(p);
+        }
+    }
+    buf
+}
+
+/// The six faces of the box [x0,x1]x[y0,y1] between a flat bottom z0 and a top plane z = top(x).
+fn slanted_box(x: [f64; 2], y: [f64; 2], z0: f64, top: impl Fn(f64) -> f64) -> Vec<f64> {
+    let p = |i: usize, j: usize, up: bool| [x[i], y[j], if up { top(x[i]) } else { z0 }];
+    faces(&[
+        &[p(0, 0, false), p(0, 1, false), p(1, 1, false), p(1, 0, false)],
+        &[p(0, 0, true), p(1, 0, true), p(1, 1, true), p(0, 1, true)],
+        &[p(0, 0, false), p(1, 0, false), p(1, 0, true), p(0, 0, true)],
+        &[p(1, 0, false), p(1, 1, false), p(1, 1, true), p(1, 0, true)],
+        &[p(1, 1, false), p(0, 1, false), p(0, 1, true), p(1, 1, true)],
+        &[p(0, 1, false), p(0, 0, false), p(0, 0, true), p(0, 1, true)],
+    ])
+}
+
+#[test]
+fn faces_build_a_polyhedron_and_cut_like_a_roof_trim() {
+    // A 2 x 1 x 1 box from faces, placed 3 m up.
+    let mut buf = vec![1.];
+    buf.extend(slanted_box([0., 2.], [0., 1.], 0., |_| 1.));
+    buf.extend(translated(0., 0., 3.));
+    buf.extend([0., 0.]);
+    let mesh = &mesh_native_solids(&buf, TessellationQuality::Medium).unwrap()[0];
+    let mesh = mesh.as_ref().unwrap();
+    assert!((volume(mesh) - 2.).abs() < 1e-5, "{}", volume(mesh));
+    let min_z = mesh.positions.chunks_exact(3).map(|p| p[2]).fold(f32::MAX, f32::min);
+    assert!((min_z - 3.).abs() < 1e-6);
+
+    // A 4 x 0.3 x 3 wall with the space above the plane z = 2 + x/4 taken off (a mono-pitch roof over it).
+    let mut buf = vec![1.];
+    buf.extend(rect(4., 0.3));
+    buf.extend(IDENTITY);
+    buf.extend([3., 1.]);
+    // The removed prism: between the roof plane (its slanted bottom) and z = 5.
+    let removed = {
+        let p = |x: f64, y: f64, up: bool| [x, y, if up { 5. } else { 2. + x / 4. }];
+        let (x0, x1, y0, y1) = (-0.5, 4.5, -0.5, 0.8);
+        faces(&[
+            &[p(x0, y0, false), p(x0, y1, false), p(x1, y1, false), p(x1, y0, false)],
+            &[p(x0, y0, true), p(x1, y0, true), p(x1, y1, true), p(x0, y1, true)],
+            &[p(x0, y0, false), p(x1, y0, false), p(x1, y0, true), p(x0, y0, true)],
+            &[p(x1, y0, false), p(x1, y1, false), p(x1, y1, true), p(x1, y0, true)],
+            &[p(x1, y1, false), p(x0, y1, false), p(x0, y1, true), p(x1, y1, true)],
+            &[p(x0, y1, false), p(x0, y0, false), p(x0, y0, true), p(x0, y1, true)],
+        ])
+    };
+    buf.extend(removed);
+    buf.extend(IDENTITY);
+    buf.push(0.);
+    let mesh = &mesh_native_solids(&buf, TessellationQuality::Medium).unwrap()[0];
+    let mesh = mesh.as_ref().unwrap();
+    // Under the plane: 0.3 * integral_0^4 (2 + x/4) dx = 0.3 * (8 + 2) = 3.
+    assert!((volume(mesh) - 3.).abs() < 1e-4, "{}", volume(mesh));
+}
