@@ -24,7 +24,7 @@ import {
   defaultNewProjectSpec, generateLevels, NEW_PROJECT_EVENT, newProjectFile, validateNewProject, type NewProjectSpec,
 } from '@/project/new-project';
 
-const SCHEMAS: readonly NewProjectSpec['schema'][] = ['IFC4', 'IFC4X3', 'IFC2X3'];
+const SCHEMAS: readonly NewProjectSpec['schema'][] = ['IFC4X3', 'IFC4', 'IFC2X3'];
 const INPUT = 'w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

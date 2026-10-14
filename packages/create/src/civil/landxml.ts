@@ -12,7 +12,7 @@
  */
 
 import { buildAlignment, type AlignmentPI, type HorizontalAlignmentSpec } from './alignment.js';
-import type { ProfilePVI, VerticalProfileSpec } from './profile.js';
+import { parabolaLength, segmentGrades, type ProfilePVI, type VerticalProfileSpec } from './profile.js';
 import type { Tin, V3 } from './tin.js';
 
 export interface XmlNode {
@@ -114,9 +114,22 @@ export function writeLandXml(doc: { surfaces?: LandXmlSurfaceOut[]; alignments?:
       if (a.profile?.pvis.length) {
         lines.push(`      <Profile name="${esc(a.name)}"><ProfAlign name="${esc(a.name)}">`);
         const pvis = [...a.profile.pvis].sort((x, y) => x.station - y.station);
+        const grades = segmentGrades(pvis).map((g) => g / 100);
         pvis.forEach((p, i) => {
-          const L = i > 0 && i < pvis.length - 1 ? p.length ?? 0 : 0;
-          lines.push(L > 0 ? `        <ParaCurve length="${f(L)}">${f(p.station)} ${f(p.elevation)}</ParaCurve>` : `        <PVI>${f(p.station)} ${f(p.elevation)}</PVI>`);
+          const at = `${f(p.station)} ${f(p.elevation)}`;
+          const inner = i > 0 && i < pvis.length - 1;
+          const kind = p.curve ?? 'parabolic';
+          if (inner && kind === 'asymmetric' && (p.lengthIn ?? 0) > 0 && (p.lengthOut ?? 0) > 0) {
+            lines.push(`        <UnsymParaCurve lengthIn="${f(p.lengthIn!)}" lengthOut="${f(p.lengthOut!)}">${at}</UnsymParaCurve>`);
+            return;
+          }
+          if (inner && kind === 'circular' && (p.radius ?? 0) > 0) {
+            const dt = Math.abs(Math.atan(grades[i]) - Math.atan(grades[i - 1]));
+            lines.push(`        <CircCurve radius="${f(p.radius!)}" length="${f(p.radius! * dt)}">${at}</CircCurve>`);
+            return;
+          }
+          const L = inner && kind === 'parabolic' ? parabolaLength(p, grades[i - 1], grades[i]) : 0;
+          lines.push(L > 0 ? `        <ParaCurve length="${f(L)}">${at}</ParaCurve>` : `        <PVI>${at}</PVI>`);
         });
         lines.push('      </ProfAlign></Profile>');
       }
@@ -243,7 +256,12 @@ export function readLandXml(text: string): LandXmlDocument {
         if (v.length < 2) continue;
         if (c.name === 'PVI') pvis.push({ station: v[0], elevation: v[1] });
         else if (c.name === 'ParaCurve') pvis.push({ station: v[0], elevation: v[1], length: Number(c.attrs.length) || 0 });
-        else if (c.name === 'CircCurve') { pvis.push({ station: v[0], elevation: v[1], length: Number(c.attrs.length) || 0 }); warnings.push('A circular vertical curve was read as a parabola of the same length'); }
+        else if (c.name === 'UnsymParaCurve') pvis.push({ station: v[0], elevation: v[1], curve: 'asymmetric', lengthIn: Number(c.attrs.lengthIn) || 0, lengthOut: Number(c.attrs.lengthOut) || 0 });
+        else if (c.name === 'CircCurve') {
+          const radius = Math.abs(Number(c.attrs.radius) || 0);
+          if (radius > 0) pvis.push({ station: v[0], elevation: v[1], curve: 'circular', radius });
+          else { pvis.push({ station: v[0], elevation: v[1], length: Number(c.attrs.length) || 0 }); warnings.push('A circular vertical curve without a radius was read as a parabola of the same length'); }
+        }
       }
       if (pvis.length >= 2) profile = { pvis };
     }

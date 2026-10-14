@@ -112,10 +112,10 @@ function emittedHorizontal(a: HorizontalAlignment, anchor: SpatialAnchor): Emitt
   });
 }
 
-/** The emitter's vertical segments from the profile: grades and parabolas between its critical stations. */
+/** The emitter's vertical segments from the profile: grades, parabolas and circular arcs between its critical stations. */
 function emittedVertical(p: VerticalProfile, start: number, end: number, anchor: SpatialAnchor): EmittedVerticalSegment[] {
   const n = (v: number) => toNativeLength(anchor, v);
-  const stations = [start, ...p.criticalStations().filter((s) => s > start && s < end), end];
+  const stations = [start, ...p.segmentStations().filter((s) => s > start && s < end), end];
   const out: EmittedVerticalSegment[] = [];
   stations.slice(1).forEach((s1, i) => {
     const s0 = stations[i];
@@ -123,9 +123,11 @@ function emittedVertical(p: VerticalProfile, start: number, end: number, anchor:
     if (L <= 1e-9) return;
     const g0 = p.gradeAt(s0 + 1e-9), g1 = p.gradeAt(s1 - 1e-9);
     const curved = Math.abs(g1 - g0) > 1e-9;
+    const circle = curved ? p.circularRadiusAt((s0 + s1) / 2) : null;
     out.push({
-      sourceId: `v:${i}`, type: curved ? 'PARABOLICARC' : 'CONSTANTGRADIENT', startDistAlong: n(s0 - start), horizontalLength: n(L),
-      startHeight: n(p.elevationAt(s0)), startGradient: g0, endGradient: curved ? g1 : g0, radiusOfCurvature: curved ? n(L / (g1 - g0)) : null,
+      sourceId: `v:${i}`, type: circle !== null ? 'CIRCULARARC' : curved ? 'PARABOLICARC' : 'CONSTANTGRADIENT', startDistAlong: n(s0 - start), horizontalLength: n(L),
+      startHeight: n(p.elevationAt(s0)), startGradient: g0, endGradient: curved ? g1 : g0,
+      radiusOfCurvature: circle !== null ? n(circle) : curved ? n(L / (g1 - g0)) : null,
     });
   });
   return out;

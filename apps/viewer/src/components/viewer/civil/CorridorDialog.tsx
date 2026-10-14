@@ -28,7 +28,8 @@ import { AlignmentFields, GeneralFields, ProfileFields } from './CorridorFields'
 import { AssemblyFields } from './AssemblyFields';
 import { ComponentFields } from './ComponentFields';
 import { BridgeFields } from './BridgeFields';
-import { PlanPreview, ProfilePreview, SectionPreview } from './CorridorPreview';
+import { PlanPreview, SectionPreview } from './CorridorPreview';
+import { ProfileEditor } from './ProfileEditor';
 import { BridgePreview } from './BridgePreview';
 
 export function CorridorDialog() {
@@ -40,6 +41,7 @@ export function CorridorDialog() {
   const terrains = useMemo(() => (target ? listTerrains(target.modelId) : []), [target, mutationVersion]);
   const [draft, setDraft] = useState<CorridorSpec | null>(null);
   const [station, setStation] = useState(0);
+  const [pvi, setPvi] = useState<number | null>(null);
   useEffect(() => { setDraft(saved ? structuredClone(saved) : null); }, [saved]);
 
   const terrain = useMemo(() => (target && storeyId !== null && draft ? terrainTin(target.modelId, storeyId, draft.terrainGlobalId) : null), [target, storeyId, draft?.terrainGlobalId, mutationVersion]);
@@ -75,7 +77,7 @@ export function CorridorDialog() {
             <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
               <GeneralFields spec={draft} onChange={setDraft} terrains={terrains} />
               <AlignmentFields spec={draft} onChange={setDraft} />
-              <ProfileFields spec={draft} onChange={setDraft} terrain={terrain} />
+              <ProfileFields spec={draft} onChange={setDraft} terrain={terrain} selected={pvi} onSelect={setPvi} />
               {!bridgeMode ? <BridgeFields spec={draft} onChange={setDraft} /> : null}
             </div>
             <div className="min-h-0 space-y-2 overflow-y-auto pr-1">
@@ -97,7 +99,8 @@ export function CorridorDialog() {
                     <BridgePreview model={model} bridge={shownBridge} width={440} height={200} label={t('civil.preview.bridge', { name: shownBridge.name })} station={station}
                       caption={(span, heights, ve) => t('civil.preview.bridgeCaption', { span, heights, ve })} />
                   ) : null}
-                  <ProfilePreview model={model} terrain={terrain} width={440} height={140} label={t('civil.preview.profile')} station={station} />
+                  <ProfileEditor model={model} terrain={terrain} pvis={draft.profile.pvis} onChange={(pvis) => setDraft({ ...draft, profile: { pvis } })}
+                    selected={pvi} onSelect={setPvi} station={station} onStation={setStation} width={440} height={200} />
                   <label className="flex items-center gap-2">
                     <span className="text-zinc-500">{t('civil.preview.station')}</span>
                     <input type="range" className="flex-1" min={model.alignment.startStation} max={model.alignment.endStation} step={1} value={Math.min(Math.max(station, model.alignment.startStation), model.alignment.endStation)}

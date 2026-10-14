@@ -31,7 +31,8 @@ describe('civil drawings', () => {
     const d = profileDrawing(model, terrain(), { scale: 1000, vExaggeration: 10, stationStep: 20, elevationStep: 1 }, labels);
     const t = texts(d);
     expect(t).toContain('DN1');
-    expect(t).toContain('L=40.0');
+    // The curve's length and its K-value.
+    expect(t.some((x) => /^L=40.0  K = [\d.]+$/.test(x))).toBe(true);
     expect(t).toContain('R=60.0');
     expect(t).toContain('0+100.00');
     expect(t.filter((x) => /^\d\+\d{3}\.\d\d$/.test(x)).length).toBeGreaterThanOrEqual(Math.floor(model.alignment.length / 20));

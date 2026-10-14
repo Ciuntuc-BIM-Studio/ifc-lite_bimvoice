@@ -47,6 +47,27 @@ describe('LandXML exchange', () => {
     expect(a.profile).toEqual(profile);
   });
 
+  it('round-trips every vertical curve kind: parabola by K, asymmetric parabola, circular arc', () => {
+    const spec: HorizontalAlignmentSpec = { pis: [{ x: 0, y: 0 }, { x: 2000, y: 0 }] };
+    const profile = { pvis: [
+      { station: 0, elevation: 100 },
+      { station: 400, elevation: 112, k: 20 },
+      { station: 800, elevation: 104, curve: 'asymmetric' as const, lengthIn: 60, lengthOut: 140 },
+      { station: 1200, elevation: 112, curve: 'circular' as const, radius: 3000 },
+      { station: 2000, elevation: 100 },
+    ] };
+    const xml = writeLandXml({ surfaces: [], alignments: [{ name: 'R', spec, profile }] });
+    // K = 20 m/% across +3 % → -2 % (A = 5 %): L = 100 m.
+    expect(xml).toContain('<ParaCurve length="100">400 112</ParaCurve>');
+    expect(xml).toContain('<UnsymParaCurve lengthIn="60" lengthOut="140">800 104</UnsymParaCurve>');
+    expect(xml).toMatch(/<CircCurve radius="3000" length="[\d.]+">1200 112<\/CircCurve>/);
+    const [a] = readLandXml(xml).alignments;
+    expect(a.warnings).toEqual([]);
+    expect(a.profile?.pvis[1]).toEqual({ station: 400, elevation: 112, length: 100 });
+    expect(a.profile?.pvis[2]).toEqual(profile.pvis[2]);
+    expect(a.profile?.pvis[3]).toEqual(profile.pvis[3]);
+  });
+
   it('reads a Civil 3D style alignment of lines and a curve with a PI', () => {
     const xml = `<?xml version="1.0"?><LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" version="1.2"><Alignments><Alignment name="L1" staStart="0" length="1">
       <CoordGeom><Line><Start>0 0</Start><End>0 100</End></Line>

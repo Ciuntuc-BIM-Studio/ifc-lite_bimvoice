@@ -5,10 +5,11 @@
 /** Civil / road modelling: alignments, profiles, terrains, assemblies, corridors and LandXML. */
 
 export {
-  alignmentFromPolyline, alignmentProblem, buildAlignment, clothoidPoint, fitRadius, formatStation, sampleAlignment,
+  alignmentFollowingPolyline, alignmentFromPolyline, alignmentProblem, buildAlignment, clothoidPoint, fitRadius, formatStation, sampleAlignment,
   type AlignmentPI, type AlignmentPoint, type HorizontalAlignment, type HorizontalAlignmentSpec, type AlignmentSegment, type AlignmentSegmentKind,
 } from './alignment.js';
-export { buildProfile, profileFromGround, profileProblem, segmentGrades, withSegmentGrade, type ProfilePVI, type VerticalProfile, type VerticalProfileSpec } from './profile.js';
+export { buildLayout, curveThrough, layoutFromPis, layoutProblem, type LayoutConstraint, type LayoutEntity } from './alignment-layout.js';
+export { buildProfile, kValue, parabolaLength, profileFromGround, profileProblem, segmentGrades, withSegmentGrade, type ProfilePVI, type VerticalCurveInfo, type VerticalCurveKind, type VerticalProfile, type VerticalProfileSpec } from './profile.js';
 export { Terrain, delaunay, parseSurveyPoints, tinFromMesh, type Tin } from './tin.js';
 export {
   assemblyWidth, defaultAssembly, defaultDesign, pavementThickness, requiredSuperelevation, slopesAt, templateAt, templateSide,

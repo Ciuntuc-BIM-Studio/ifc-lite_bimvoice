@@ -62,7 +62,7 @@ export function defaultNewProjectSpec(): NewProjectSpec {
     buildingLongName: '',
     levels: generateLevels(2, 0, 3),
     lengthUnit: 'METRE',
-    schema: 'IFC4',
+    schema: 'IFC4X3',
   };
 }
 

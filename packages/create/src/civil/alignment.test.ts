@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { describe, expect, it } from 'vitest';
-import { alignmentFromPolyline, alignmentProblem, buildAlignment, clothoidPoint, formatStation, type HorizontalAlignmentSpec } from './alignment.js';
+import { alignmentFollowingPolyline, alignmentFromPolyline, alignmentProblem, buildAlignment, clothoidPoint, formatStation, type HorizontalAlignmentSpec } from './alignment.js';
 
 const close = (a: number, b: number, eps = 1e-6) => expect(Math.abs(a - b)).toBeLessThan(eps);
 
@@ -95,6 +95,24 @@ describe('horizontal alignment', () => {
     expect(spec.pis[2].radius!).toBeLessThan(100);
     expect(alignmentProblem(spec)).toBeNull();
     expect(alignmentFromPolyline([[0, 0], [500, 0], [500, 500]], 100).pis[1].radius).toBe(100);
+  });
+
+  it('keeps the radius and spirals of each PI when its polyline is edited', () => {
+    const old: HorizontalAlignmentSpec = { pis: [{ x: 0, y: 0 }, { x: 500, y: 0, radius: 150, spiralIn: 40 }, { x: 500, y: 500 }] };
+    // A vertex moved: same count, matched by order; the radius is not cut to the default.
+    const moved = alignmentFollowingPolyline(old, [[0, 0], [520, 10], [500, 500]], 50);
+    expect(moved.pis[1]).toEqual({ x: 520, y: 10, radius: 150, spiralIn: 40, spiralOut: undefined });
+    // A vertex added before it: matched by the nearest old PI, the new one rounded with the default.
+    const added = alignmentFollowingPolyline(old, [[0, 0], [250, -100], [500, 0], [500, 500]], 50);
+    expect(added.pis[2].radius).toBe(150);
+    expect(added.pis[1].radius).toBe(50);
+    // A layout follows its points.
+    const laid = alignmentFollowingPolyline({ ...old, layout: [
+      { kind: 'line', constraint: 'fixed', a: [0, 0], b: [500, 0] }, { kind: 'curve', constraint: 'free', radius: 150 },
+      { kind: 'line', constraint: 'fixed', a: [500, 0], b: [500, 500] },
+    ] }, [[0, 0], [520, 10], [500, 500]], 50);
+    expect(laid.layout?.[0]).toEqual({ kind: 'line', constraint: 'fixed', a: [0, 0], b: [520, 10] });
+    expect(laid.layout?.[2]).toEqual({ kind: 'line', constraint: 'fixed', a: [520, 10], b: [500, 500] });
   });
 
   it('formats stations', () => {

@@ -6,17 +6,19 @@
  * The corridor configurator's data zones: the corridor itself (name,
  * sampling, design speed, terrain), the horizontal alignment as a PI table
  * and the vertical profile as a PVI table — each tangent's grade typed in
- * % (the later PVIs follow), or a profile taken from the terrain in one
- * click.
+ * % (the later PVIs follow), each PVI's curve set in its own panel, or a
+ * profile taken from the terrain in one click.
  */
 
 import { useState } from 'react';
-import { buildAlignment, profileFromGround, segmentGrades, Terrain, withSegmentGrade, type CorridorSpec, type Tin } from '@ifc-lite/create';
+import { buildAlignment, buildProfile, profileFromGround, segmentGrades, Terrain, withSegmentGrade, type CorridorSpec, type Tin, type VerticalCurveInfo } from '@ifc-lite/create';
 import { useTranslation } from '@/i18n';
 import { IconButton } from '@/components/ui/icon-button';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2 } from 'lucide-react';
 import { INPUT, Section } from '../joinery/JoineryFields';
+import { curveSummary, PviCurveFields } from './PviCurveFields';
+import { AlignmentLayoutFields } from './AlignmentLayoutFields';
 
 export const CELL = 'h-7 w-full rounded-sm border border-zinc-300 dark:border-zinc-700 bg-transparent px-1 text-xs tabular-nums';
 
@@ -83,7 +85,8 @@ export function AlignmentFields({ spec, onChange }: Props) {
   return (
     <Section title={t('civil.zone.alignment')}>
       <Row label={t('civil.field.startStation')}><Cell label={t('civil.field.startStation')} value={spec.alignment.startStation ?? 0} onCommit={(startStation) => onChange({ ...spec, alignment: { ...spec.alignment, startStation } })} /></Row>
-      <table className="w-full text-xs">
+      <AlignmentLayoutFields spec={spec} onChange={onChange} />
+      {spec.alignment.layout?.length ? null : <table className="w-full text-xs">
         <thead>
           <tr className="text-left text-zinc-500">
             <th className="w-7 font-medium">{t('civil.col.pi')}</th>
@@ -114,15 +117,17 @@ export function AlignmentFields({ spec, onChange }: Props) {
             );
           })}
         </tbody>
-      </table>
+      </table>}
     </Section>
   );
 }
 
-export function ProfileFields({ spec, onChange, terrain }: Props & { terrain: Tin | null }) {
+export function ProfileFields({ spec, onChange, terrain, selected, onSelect }: Props & { terrain: Tin | null; selected: number | null; onSelect: (i: number | null) => void }) {
   const { t } = useTranslation();
   const pvis = spec.profile.pvis;
   const grades = segmentGrades(pvis);
+  let built: VerticalCurveInfo[] = [];
+  try { built = buildProfile(spec.profile).curves(); } catch { /* reported by the preview */ }
   const set = (next: CorridorSpec['profile']['pvis']) => onChange({ ...spec, profile: { pvis: next } });
   const patch = (i: number, p: Partial<(typeof pvis)[number]>) => set(pvis.map((x, k) => (k === i ? { ...x, ...p } : x)));
   const add = () => {
@@ -164,11 +169,16 @@ export function ProfileFields({ spec, onChange, terrain }: Props & { terrain: Ti
           {pvis.map((p, i) => {
             const inner = i > 0 && i < pvis.length - 1;
             return (
-              <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
+              <tr key={i} className={`border-t border-zinc-100 dark:border-zinc-800 ${selected === i ? 'bg-blue-50 dark:bg-blue-950' : ''}`} onFocus={() => onSelect(i)}>
                 <td><Cell label={`${t('civil.col.station')} ${i}`} value={p.station} onCommit={(station) => patch(i, { station })} /></td>
                 <td><Cell label={`${t('civil.col.elevation')} ${i}`} value={p.elevation} onCommit={(elevation) => patch(i, { elevation })} /></td>
                 <td><Cell label={`${t('civil.col.grade')} ${i}`} value={i > 0 ? Math.round(grades[i - 1] * 1000) / 1000 : undefined} disabled={i === 0} onCommit={(g) => set(withSegmentGrade(pvis, i, g))} /></td>
-                <td><Cell label={`${t('civil.col.curve')} ${i}`} value={inner ? p.length ?? 0 : undefined} disabled={!inner} min={0} onCommit={(length) => patch(i, { length: length || undefined })} /></td>
+                <td>
+                  <button type="button" className="h-7 w-full truncate rounded-sm border border-zinc-300 px-1 text-left tabular-nums disabled:opacity-40 dark:border-zinc-700" disabled={!inner} onClick={() => onSelect(i)}
+                    aria-label={`${t('civil.col.curve')} ${i}`}>
+                    {inner ? curveSummary(p, t) : ''}
+                  </button>
+                </td>
                 <td><IconButton label={t('civil.row.remove')} className="size-6" disabled={pvis.length <= 2} onClick={() => set(pvis.filter((_, k) => k !== i))}><Trash2 className="size-3" /></IconButton></td>
               </tr>
             );
@@ -178,6 +188,7 @@ export function ProfileFields({ spec, onChange, terrain }: Props & { terrain: Ti
       <button type="button" className="flex items-center gap-1 rounded-sm border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800" onClick={add}>
         <Plus className="size-3" />{t('civil.row.add')}
       </button>
+      <PviCurveFields pvis={pvis} index={selected} built={built} onChange={(pvi) => selected !== null && set(pvis.map((x, k) => (k === selected ? pvi : x)))} />
     </Section>
   );
 }

@@ -3,7 +3,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * Generate a minimal blank IFC4 model as a synthetic `File`, so the
+ * Generate a minimal blank model (IFC4X3 unless asked otherwise: Lapin
+ * models infrastructure next to buildings) as a synthetic `File`, so the
  * welcome card's "Start blank" action can feed it through the regular
  * `loadFile()` pipeline (format detection → WASM → store federation)
  * without diverging code paths.
@@ -42,7 +43,7 @@ export function createBlankIfcFile(options: BlankIfcOptions = {}): File {
     Description: options.description || undefined,
     Author: options.author || undefined,
     Organization: options.organization || undefined,
-    Schema: options.schema,
+    Schema: options.schema ?? 'IFC4X3',
     LengthUnit: options.lengthUnit,
     Site: options.site,
     Building: options.building,

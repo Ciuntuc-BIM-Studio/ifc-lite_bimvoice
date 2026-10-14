@@ -14,7 +14,7 @@
 
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
 import {
-  addCorridorToStore, addTerrainToStore, alignmentFromPolyline, buildAlignment, corridorOf, corridorParts, corridorsInStore, defaultAssembly, defaultDesign, delaunay, elementByGlobalId,
+  addCorridorToStore, addTerrainToStore, alignmentFollowingPolyline, alignmentFromPolyline, buildAlignment, corridorOf, corridorParts, corridorsInStore, defaultAssembly, defaultDesign, delaunay, elementByGlobalId,
   profileFromGround, readCorridor, readTerrainTin, regenerateCorridorInStore, removeCorridorFromStore, resolveSpatialAnchor, Terrain, terrainsInStore, tinFromMesh,
   type CorridorSpec, type Tin,
 } from '@ifc-lite/create';
@@ -173,19 +173,18 @@ export function applyCorridor(ref: Pick<CorridorRef, 'modelId' | 'corridorId'>, 
   }
 }
 
-/** The polyline was edited: the same radii (as far as the PIs go) on the new vertices. */
+/** The radius a vertex added to a road's polyline is rounded with, metres (the drafting default). */
+const NEW_PI_RADIUS = 50;
+
+/** The polyline was edited: each vertex keeps its PI's curve (`alignmentFollowingPolyline`), a new one `NEW_PI_RADIUS`. */
 export function updateCorridorPolyline(view: ProjectView, plane: SectionPlaneConfig, pts: Pt[], modelId: string, globalId: string): CivilResult {
   const ref = corridorByGlobalId(modelId, globalId);
   if (!ref) return { ok: false, error: 'The linked corridor is no longer in the model.' };
   const ready = prepareTarget(view, Math.min(...pts.map((p) => drawingToWorld(plane, p).y)));
   if (!ready.ok) return { ok: false, error: ready.error };
   const local = pts.map((p) => ready.toLocal(drawingToWorld(plane, p)));
-  const fresh = alignmentFromPolyline(local.map((p) => [p.x, p.y]), 50, ref.spec.alignment.startStation ?? 0);
-  const pis = fresh.pis.map((pi, i) => {
-    const old = ref.spec.alignment.pis[i];
-    return old && i > 0 && i < fresh.pis.length - 1 && old.radius ? { ...pi, radius: Math.min(old.radius, pi.radius ?? old.radius), spiralIn: old.spiralIn, spiralOut: old.spiralOut } : pi;
-  });
-  const result = applyCorridor(ref, { ...ref.spec, alignment: { ...ref.spec.alignment, pis } });
+  const alignment = alignmentFollowingPolyline(ref.spec.alignment, local.map((p) => [p.x, p.y]), NEW_PI_RADIUS);
+  const result = applyCorridor(ref, { ...ref.spec, alignment });
   return result.ok ? { ok: true, modelId, elementId: ref.corridorId, globalId } : result;
 }
 

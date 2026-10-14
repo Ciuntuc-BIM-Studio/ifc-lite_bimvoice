@@ -5,20 +5,55 @@
 /**
  * A road's vertical profile (the "red line") in station / elevation space:
  * PVIs (points of vertical intersection) joined by constant grades, each
- * inner PVI rounded by a symmetric parabolic curve of length L — the
- * standard vertical curve, whose grade changes at a constant rate. The
- * curve spans L/2 either side of its PVI (BVC … EVC).
+ * inner PVI rounded by a vertical curve of one of the three kinds roads use:
+ *
+ *  - parabolic (symmetric): the standard curve, whose grade changes at a
+ *    constant rate; it spans L/2 either side of its PVI. L is given, or
+ *    follows from K (metres per 1 % of grade change: L = K · |ΔG %|).
+ *  - asymmetric parabolic: two parabolas meeting at the PVI, L1 before it
+ *    and L2 after (constrained transitions, clearances).
+ *  - circular: an arc of radius R tangent to both grades (railways,
+ *    low-speed paths).
  */
+
+export type VerticalCurveKind = 'parabolic' | 'asymmetric' | 'circular';
 
 export interface ProfilePVI {
   station: number;
   elevation: number;
+  /** The curve rounding this PVI (parabolic when absent). */
+  curve?: VerticalCurveKind;
   /** Parabolic curve length, metres (0 / absent: a grade break). */
   length?: number;
+  /** Parabolic by K instead of L, metres per 1 % of grade change; wins over `length` when set. */
+  k?: number;
+  /** Asymmetric: the lengths before and after the PVI, metres. */
+  lengthIn?: number;
+  lengthOut?: number;
+  /** Circular: the radius, metres. */
+  radius?: number;
 }
 
 export interface VerticalProfileSpec {
   pvis: ProfilePVI[];
+}
+
+/** One vertical curve as built: where it runs and what defines it. */
+export interface VerticalCurveInfo {
+  /** Index of its PVI in station order. */
+  pvi: number;
+  station: number;
+  kind: VerticalCurveKind;
+  /** Begin and end of the curve (BVC, EVC). */
+  bvc: number;
+  evc: number;
+  gradeIn: number;
+  gradeOut: number;
+  /** K-value, m per % of grade change. */
+  k: number | null;
+  radius?: number;
+  lengthIn?: number;
+  lengthOut?: number;
 }
 
 export interface VerticalProfile {
@@ -29,16 +64,103 @@ export interface VerticalProfile {
   gradeAt(station: number): number;
   /** BVC / PVI / EVC stations, start and end included. */
   criticalStations(): number[];
+  /** Where one geometric segment ends and the next begins: each curve whole (an asymmetric one in its two parabolas), each grade between. */
+  segmentStations(): number[];
+  /** Inside a circular curve: its radius, positive for a sag, negative for a crest; else null. */
+  circularRadiusAt(station: number): number | null;
+  /** The vertical curves, in station order. */
+  curves(): VerticalCurveInfo[];
+}
+
+/** One piece of a vertical curve: a parabola, or a circular arc. */
+type Piece =
+  | { kind: 'parabola'; s0: number; s1: number; z0: number; g0: number; g1: number }
+  | { kind: 'arc'; s0: number; s1: number; cx: number; cz: number; r: number; sag: boolean };
+
+/** A curve's reach either side of its PVI, and its pieces. */
+interface Rounding { before: number; after: number; pieces: Piece[] }
+
+/** The length of a parabolic curve: L, or K · |ΔG %|. */
+export function parabolaLength(pvi: ProfilePVI, gradeIn: number, gradeOut: number): number {
+  if (pvi.k !== undefined && pvi.k > 0) return pvi.k * Math.abs(gradeOut - gradeIn) * 100;
+  return pvi.length ?? 0;
+}
+
+/** The K-value (m per %) of a parabola of length L between two grades (ratios), or null for no grade change. */
+export function kValue(length: number, gradeIn: number, gradeOut: number): number | null {
+  const a = Math.abs(gradeOut - gradeIn) * 100;
+  return a < 1e-9 ? null : length / a;
+}
+
+function rounding(pvi: ProfilePVI, g0: number, g1: number): Rounding {
+  const none = { before: 0, after: 0, pieces: [] };
+  if (Math.abs(g1 - g0) < 1e-12) return none;
+  const { station: d, elevation: h } = pvi;
+  switch (pvi.curve ?? 'parabolic') {
+    case 'asymmetric': {
+      const a = pvi.lengthIn ?? 0, b = pvi.lengthOut ?? 0;
+      if (a <= 0 || b <= 0) return none;
+      // Two parabolas sharing height and grade at the PVI.
+      const mid = g0 + ((g1 - g0) * b) / (a + b);
+      const z0 = h - g0 * a;
+      return {
+        before: a, after: b,
+        pieces: [
+          { kind: 'parabola', s0: d - a, s1: d, z0, g0, g1: mid },
+          { kind: 'parabola', s0: d, s1: d + b, z0: z0 + ((g0 + mid) / 2) * a, g0: mid, g1 },
+        ],
+      };
+    }
+    case 'circular': {
+      const R = pvi.radius ?? 0;
+      if (R <= 0) return none;
+      const t1 = Math.atan(g0), t2 = Math.atan(g1);
+      const T = R * Math.tan(Math.abs(t2 - t1) / 2);
+      const sag = g1 > g0;
+      const bvc = { s: d - T * Math.cos(t1), z: h - T * Math.sin(t1) };
+      // The centre lies R from the BVC, square to the incoming grade: above for a sag, below for a crest.
+      const n = sag ? [-Math.sin(t1), Math.cos(t1)] : [Math.sin(t1), -Math.cos(t1)];
+      return {
+        before: T * Math.cos(t1), after: T * Math.cos(t2),
+        pieces: [{ kind: 'arc', s0: bvc.s, s1: d + T * Math.cos(t2), cx: bvc.s + R * n[0], cz: bvc.z + R * n[1], r: R, sag }],
+      };
+    }
+    default: {
+      const L = parabolaLength(pvi, g0, g1);
+      if (L <= 0) return none;
+      return { before: L / 2, after: L / 2, pieces: [{ kind: 'parabola', s0: d - L / 2, s1: d + L / 2, z0: h - (g0 * L) / 2, g0, g1 }] };
+    }
+  }
+}
+
+function pieceAt(q: Piece, s: number): { z: number; g: number } {
+  if (q.kind === 'parabola') {
+    const L = q.s1 - q.s0, x = s - q.s0;
+    return { z: q.z0 + q.g0 * x + ((q.g1 - q.g0) * x * x) / (2 * L), g: q.g0 + ((q.g1 - q.g0) * x) / L };
+  }
+  const dx = s - q.cx, root = Math.sqrt(Math.max(q.r * q.r - dx * dx, 1e-12));
+  return q.sag ? { z: q.cz - root, g: dx / root } : { z: q.cz + root, g: -dx / root };
+}
+
+const sorted = (spec: VerticalProfileSpec) => [...spec.pvis].sort((a, b) => a.station - b.station);
+const gradesOf = (p: readonly ProfilePVI[]) => p.slice(1).map((pvi, i) => (pvi.elevation - p[i].elevation) / (pvi.station - p[i].station));
+
+/** Each PVI's rounding (none at the ends). */
+function roundings(p: readonly ProfilePVI[]): Rounding[] {
+  const grades = gradesOf(p);
+  return p.map((pvi, i) => (i === 0 || i === p.length - 1 ? { before: 0, after: 0, pieces: [] } : rounding(pvi, grades[i - 1], grades[i])));
 }
 
 /** Why the profile cannot be built, or null. */
 export function profileProblem(spec: VerticalProfileSpec): string | null {
-  const p = [...spec.pvis].sort((a, b) => a.station - b.station);
+  const p = sorted(spec);
   if (p.length < 2) return 'A profile needs at least two PVIs';
   for (let i = 1; i < p.length; i++) {
     if (p[i].station - p[i - 1].station < 1e-6) return `PVIs ${i - 1} and ${i} share a station`;
-    const l0 = i === 1 ? 0 : (p[i - 1].length ?? 0) / 2, l1 = i === p.length - 1 ? 0 : (p[i].length ?? 0) / 2;
-    if (l0 + l1 > p[i].station - p[i - 1].station + 1e-9) return `The vertical curves of PVIs ${i - 1} and ${i} overlap`;
+  }
+  const r = roundings(p);
+  for (let i = 1; i < p.length; i++) {
+    if (r[i - 1].after + r[i].before > p[i].station - p[i - 1].station + 1e-9) return `The vertical curves of PVIs ${i - 1} and ${i} overlap`;
   }
   return null;
 }
@@ -46,44 +168,52 @@ export function profileProblem(spec: VerticalProfileSpec): string | null {
 export function buildProfile(spec: VerticalProfileSpec): VerticalProfile {
   const problem = profileProblem(spec);
   if (problem) throw new Error(problem);
-  const p = [...spec.pvis].sort((a, b) => a.station - b.station);
-  const grades = p.slice(1).map((pvi, i) => (pvi.elevation - p[i].elevation) / (pvi.station - p[i].station));
-  const gradeAt = (s: number): number => {
-    for (let i = 1; i < p.length - 1; i++) {
-      const L = p[i].length ?? 0;
-      if (L > 0 && s >= p[i].station - L / 2 && s <= p[i].station + L / 2) {
-        return grades[i - 1] + (grades[i] - grades[i - 1]) * (s - (p[i].station - L / 2)) / L;
-      }
-    }
-    for (let i = 1; i < p.length; i++) if (s < p[i].station) return grades[i - 1];
-    return grades[grades.length - 1];
+  const p = sorted(spec);
+  const grades = gradesOf(p);
+  const pieces = roundings(p).flatMap((r) => r.pieces);
+  const pieceOf = (s: number) => pieces.find((q) => s >= q.s0 && s <= q.s1) ?? null;
+  const clamp = (s: number) => Math.min(Math.max(s, p[0].station), p[p.length - 1].station);
+  const tangent = (s: number): number => {
+    for (let i = 1; i < p.length; i++) if (s < p[i].station) return i - 1;
+    return grades.length - 1;
   };
-  const elevationAt = (s: number): number => {
-    const clamped = Math.min(Math.max(s, p[0].station), p[p.length - 1].station);
-    for (let i = 1; i < p.length - 1; i++) {
-      const L = p[i].length ?? 0;
-      const bvc = p[i].station - L / 2;
-      if (L > 0 && clamped >= bvc && clamped <= p[i].station + L / 2) {
-        const x = clamped - bvc;
-        const zBvc = p[i].elevation - grades[i - 1] * L / 2;
-        return zBvc + grades[i - 1] * x + (grades[i] - grades[i - 1]) * x * x / (2 * L);
-      }
-    }
-    for (let i = 1; i < p.length; i++) {
-      if (clamped <= p[i].station) return p[i - 1].elevation + grades[i - 1] * (clamped - p[i - 1].station);
-    }
-    return p[p.length - 1].elevation;
+  const gradeAt = (s: number): number => {
+    const q = pieceOf(s);
+    return q ? pieceAt(q, s).g : grades[tangent(s)];
+  };
+  const elevationAt = (station: number): number => {
+    const s = clamp(station);
+    const q = pieceOf(s);
+    if (q) return pieceAt(q, s).z;
+    const i = tangent(s);
+    return p[i].elevation + grades[i] * (s - p[i].station);
   };
   const criticalStations = () => {
-    const out = new Set<number>();
-    p.forEach((pvi, i) => {
-      out.add(pvi.station);
-      const L = i > 0 && i < p.length - 1 ? pvi.length ?? 0 : 0;
-      if (L > 0) { out.add(pvi.station - L / 2); out.add(pvi.station + L / 2); }
-    });
+    const out = new Set<number>(p.map((pvi) => pvi.station));
+    for (const q of pieces) { out.add(q.s0); out.add(q.s1); }
     return [...out].sort((a, b) => a - b);
   };
-  return { startStation: p[0].station, endStation: p[p.length - 1].station, elevationAt, gradeAt, criticalStations };
+  const segmentStations = () => {
+    const out = new Set<number>(p.map((pvi) => pvi.station).filter((s) => !pieces.some((q) => s > q.s0 + 1e-9 && s < q.s1 - 1e-9)));
+    for (const q of pieces) { out.add(q.s0); out.add(q.s1); }
+    return [...out].sort((a, b) => a - b);
+  };
+  const curveInfo = roundings(p).flatMap((r, i): VerticalCurveInfo[] => {
+    if (r.pieces.length === 0) return [];
+    const pvi = p[i], g0 = grades[i - 1], g1 = grades[i];
+    const kind = pvi.curve ?? 'parabolic';
+    return [{
+      pvi: i, station: pvi.station, kind, bvc: pvi.station - r.before, evc: pvi.station + r.after, gradeIn: g0, gradeOut: g1,
+      k: kValue(r.before + r.after, g0, g1),
+      ...(kind === 'circular' ? { radius: pvi.radius } : {}),
+      ...(kind === 'asymmetric' ? { lengthIn: r.before, lengthOut: r.after } : {}),
+    }];
+  });
+  const circularRadiusAt = (s: number): number | null => {
+    const q = pieceOf(s);
+    return q?.kind === 'arc' ? (q.sag ? q.r : -q.r) : null;
+  };
+  return { startStation: p[0].station, endStation: p[p.length - 1].station, elevationAt, gradeAt, criticalStations, segmentStations, circularRadiusAt, curves: () => curveInfo };
 }
 
 /**

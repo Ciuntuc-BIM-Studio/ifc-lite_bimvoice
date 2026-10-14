@@ -96,16 +96,19 @@ export function profileDrawing(model: CorridorModel, terrain: Terrain | null, op
       prims.push({ kind: 'text', at: [X(s) + mm(0.8), Y(z) + mm(8)], text: `${formatStation(s)}  ${fmt(z, 2)}`, size: 1.8, anchor: 'start', pen: 'label', rotate: 90 });
     }
   }
-  // A vertical curve: its chord marks (BVC … EVC) and its length, above the grade.
-  for (let i = 0; i + 2 < crit.length; i++) {
-    const [b, m, e] = [crit[i], crit[i + 1], crit[i + 2]];
-    const curved = Math.abs(p.gradeAt(m) - p.gradeAt(b + 1e-6)) > 1e-9 && Math.abs(p.gradeAt(e - 1e-6) - p.gradeAt(m)) > 1e-9;
-    if (!curved || m - b <= 1e-6 || Math.abs((m - b) - (e - m)) > 1e-6) continue;
+  // A vertical curve: its chord marks (BVC … EVC) and what defines it, above the grade —
+  // a parabola's L and K, an asymmetric one's two lengths, a circular one's radius.
+  for (const c of p.curves()) {
+    const [b, e] = [c.bvc, c.evc];
     const yTop = Math.max(Y(p.elevationAt(b)), Y(p.elevationAt(e))) + mm(12);
     prims.push({ kind: 'line', a: [X(b), yTop], b: [X(e), yTop], pen: 'geometry' });
     prims.push({ kind: 'line', a: [X(b), yTop], b: [X(b), Y(p.elevationAt(b))], pen: 'geometry' });
     prims.push({ kind: 'line', a: [X(e), yTop], b: [X(e), Y(p.elevationAt(e))], pen: 'geometry' });
-    prims.push({ kind: 'text', at: [X(m), yTop + mm(1)], text: labels.curve(fmt(e - b, 1)), size: 2, anchor: 'middle', pen: 'label' });
+    const k = c.k === null ? '' : `  K = ${fmt(c.k, 1)}`;
+    const text = c.kind === 'circular' ? `${labels.radius(fmt(c.radius ?? 0, 0))}  ${labels.curve(fmt(e - b, 1))}`
+      : c.kind === 'asymmetric' ? `${labels.curve(`${fmt(c.lengthIn ?? 0, 1)} + ${fmt(c.lengthOut ?? 0, 1)}`)}${k}`
+        : `${labels.curve(fmt(e - b, 1))}${k}`;
+    prims.push({ kind: 'text', at: [X(c.station), yTop + mm(1)], text, size: 2, anchor: 'middle', pen: 'label' });
   }
   // Grades: on each constant-grade run, its percentage above the line.
   const breaks = [s0, ...crit.filter((s) => s > s0 && s < s1), s1];

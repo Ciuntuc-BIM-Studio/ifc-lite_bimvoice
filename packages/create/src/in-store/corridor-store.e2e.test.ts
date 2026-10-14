@@ -121,6 +121,21 @@ describe('corridor in store', () => {
     expect(count('IfcCurveSegment')).toBe(0);
     expect(count('IfcCourse')).toBe(0);
   });
+
+  it('IFC4X3: writes each vertical curve as its kind — parabolas, and a circular arc with its signed radius', async () => {
+    const { store, view, editor, anchor } = await ifc4x3Scene();
+    const curved: CorridorSpec = { ...spec(), profile: { pvis: [
+      { station: 0, elevation: 2 }, { station: 80, elevation: 4, k: 10 }, { station: 160, elevation: 2, curve: 'circular', radius: 800 }, { station: 300, elevation: 3 },
+    ] } };
+    addCorridorToStore(store, editor, anchor, curved, groundTin());
+    const segments = view.getNewEntities().filter((e) => e.type === 'IfcAlignmentVerticalSegment');
+    const kinds = segments.map((e) => String(e.attributes.at(-1)).replace(/\./g, ''));
+    expect(kinds.filter((k) => k === 'PARABOLICARC')).toHaveLength(1);
+    const arcs = segments.filter((e) => String(e.attributes.at(-1)).includes('CIRCULARARC'));
+    expect(arcs).toHaveLength(1);
+    // A sag (-2.5 % to +0.71 %): positive radius.
+    expect((arcs[0].attributes.at(-2) as { real: number }).real).toBeCloseTo(800, 6);
+  });
 });
 
 describe('corridor components in store', () => {
