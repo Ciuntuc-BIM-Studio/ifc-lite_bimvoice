@@ -8,14 +8,17 @@
  * model, and what it reshaped is drawn with its real geometry (openings,
  * layers) instead of the plain prism.
  *
- * A new thickness for a wall or slab with material layers is left to the
- * prism: the commit also rewrites the element's layer set
- * (`element-size-commit.ts`), which the draft does not.
+ * A new thickness for a wall or slab with material layers gives the element
+ * its own layer set, as the commit does (`layerChangeFor`), so the preview is
+ * sliced into the layers the commit leaves.
  */
 
-import { setElementSizeInStore } from '@ifc-lite/create';
+import {
+  addMaterialLayerSetToStore, addMaterialLayerSetUsageToStore, assignMaterialInStore,
+  readRelatedLists, resolveAuthoringAnchor, setElementSizeInStore,
+} from '@ifc-lite/create';
 import { useViewerStore } from '@/store';
-import { layerSetOf } from '@/lib/commands/modeling/authored-kinds';
+import { layerChangeFor } from '@/lib/element-size-commit';
 import { previewEditNatively, schedulePreview } from '@/lib/remesh/native-preview';
 import { faceOf, sizeOf, type PushPullGesture } from './push-pull-gesture';
 
@@ -29,13 +32,17 @@ export function previewPushPull(commandId: string, g: PushPullGesture): void {
   const s = useViewerStore.getState();
   const dataStore = s.models.get(modelId)?.ifcDataStore;
   if (!dataStore) return;
-  if ((patch.kind === 'wall' || patch.kind === 'slab') && patch.thickness !== undefined) {
-    const layers = layerSetOf({ dataStore, view: s.mutationViews.get(modelId) }, expressId)?.layers;
-    const total = layers?.reduce((sum, l) => sum + l.thickness, 0);
-    if (total !== undefined && Math.abs(total - patch.thickness) > 1e-6) return;
-  }
+  const change = layerChangeFor({ dataStore, view: s.mutationViews.get(modelId) }, expressId, patch);
   schedulePreview(commandId, () => previewEditNatively(modelId, (ctx) => {
     const result = setElementSizeInStore(ctx, expressId, patch);
-    return result.ok ? result.remesh : [];
+    if (!result.ok) return [];
+    if (change && result.remesh.includes(expressId)) {
+      // What `bim.store`'s addMaterialLayerSet / addMaterialLayerSetUsage / assignMaterial write.
+      const anchor = resolveAuthoringAnchor(ctx.dataStore, ctx.view);
+      const setId = addMaterialLayerSetToStore(ctx.editor, anchor, change.set).layerSetId;
+      const usage = addMaterialLayerSetUsageToStore(ctx.editor, anchor, change.usage(setId)).usageId;
+      assignMaterialInStore(ctx.editor, anchor, usage, [expressId], readRelatedLists(ctx.dataStore, 'IfcRelAssociatesMaterial', ctx.view));
+    }
+    return result.remesh;
   }));
 }

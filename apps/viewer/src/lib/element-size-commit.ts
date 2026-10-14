@@ -32,27 +32,38 @@ export function layersForThickness(layers: readonly number[], thickness: number)
   return layers.map((v) => (v * thickness) / total);
 }
 
+/** The layer set a size patch leaves an element with: its own copy, the last layer taking the change. */
+export interface LayerChange {
+  readonly set: { MaterialLayers: Array<{ LayerThickness: number; Material?: number }> };
+  usage(setId: number): { ForLayerSet: number; LayerSetDirection: 'AXIS2' | 'AXIS3'; OffsetFromReferenceLine: number };
+}
+
+/** What `patch` does to `expressId`'s layers (null: nothing — no layers, or the thickness is theirs already). */
+export function layerChangeFor(live: LiveModel, expressId: number, patch: ElementSizePatch): LayerChange | null {
+  const thickness = patch.kind === 'wall' || patch.kind === 'slab' ? patch.thickness : undefined;
+  const kind = thickness !== undefined ? authoredKindOf(live, expressId) : null;
+  const direction = kind === null ? undefined : AUTHORED_KINDS[kind].layers;
+  const before = direction ? layerSetOf(live, expressId) : null;
+  if (!before || !direction || thickness === undefined) return null;
+  const total = before.layers.reduce((sum, l) => sum + l.thickness, 0);
+  if (Math.abs(total - thickness) < 1e-6) return null;
+  const next = layersForThickness(before.layers.map((l) => l.thickness), thickness);
+  return {
+    set: { MaterialLayers: before.layers.map((layer, i) => ({ LayerThickness: next[i], Material: layer.materialId ?? undefined })) },
+    usage: (setId) => ({ ForLayerSet: setId, LayerSetDirection: direction, OffsetFromReferenceLine: direction === 'AXIS2' ? -thickness / 2 : 0 }),
+  };
+}
+
 export function commitElementSize(store: ModellingStore, modelId: string, expressId: number, patch: ElementSizePatch): ElementSizeOutcome {
   const get = store.getState;
   const dataStore = get().models.get(modelId)?.ifcDataStore;
   const live: LiveModel | null = dataStore ? { dataStore, view: get().mutationViews.get(modelId) } : null;
-  const thickness = patch.kind === 'wall' || patch.kind === 'slab' ? patch.thickness : undefined;
-  const kind = live && thickness !== undefined ? authoredKindOf(live, expressId) : null;
-  const direction = kind === null ? undefined : AUTHORED_KINDS[kind].layers;
-  const before = live && direction ? layerSetOf(live, expressId) : null;
+  const change = live ? layerChangeFor(live, expressId, patch) : null;
   const outcome = setElementSize(store, modelId, expressId, patch);
-  if (!outcome.ok || !before || !direction || thickness === undefined || !outcome.remesh.includes(expressId)) return outcome;
-
-  const total = before.layers.reduce((sum, l) => sum + l.thickness, 0);
-  if (Math.abs(total - thickness) < 1e-6) return outcome;
-  const next = layersForThickness(before.layers.map((l) => l.thickness), thickness);
+  if (!outcome.ok || !change || !outcome.remesh.includes(expressId)) return outcome;
   recordModellingEdit(store, modelId, (m) => {
-    const setId = m.addMaterialLayerSet(modelId, {
-      MaterialLayers: before.layers.map((layer, i) => ({ LayerThickness: next[i], Material: layer.materialId ?? undefined })),
-    }).expressId;
-    const usage = m.addMaterialLayerSetUsage(modelId, {
-      ForLayerSet: setId, LayerSetDirection: direction, OffsetFromReferenceLine: direction === 'AXIS2' ? -thickness / 2 : 0,
-    }).expressId;
+    const setId = m.addMaterialLayerSet(modelId, change.set).expressId;
+    const usage = m.addMaterialLayerSetUsage(modelId, change.usage(setId)).expressId;
     m.assignMaterial(modelId, usage, [expressId]);
   });
   return outcome;
