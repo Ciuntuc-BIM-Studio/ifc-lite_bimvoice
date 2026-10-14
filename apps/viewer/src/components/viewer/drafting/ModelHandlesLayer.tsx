@@ -6,7 +6,8 @@
  * The selected BIM element's grips on a floor-plan drawing tab — the Model
  * workspace plan's handles (`plan/plan-handles.ts`): a wall's two axis ends
  * (`wall.moveEndpoint`), a door's, window's or opening's slide along its wall
- * (`hosted.slide`) and a move grip at the element's middle (`plan.move`).
+ * (`hosted.slide`), a move grip at the element's middle (`plan.move`) and,
+ * for a wall, a flip grip beside it (a click flips the wall across its axis).
  *
  * They show for one selected element of an editable model on the plan's
  * storey, whatever the Edit mode: grabbing one switches Edit mode on, points
@@ -23,7 +24,7 @@ import { useCommandRuntime } from '@/lib/commands/modeling/runtime';
 import { buildStoreyWorkplane, isWorkplane } from '@/lib/commands/modeling/workplane';
 import type { Workplane } from '@/lib/commands/modeling/types';
 import type { Vec2 } from '@/lib/snap/types';
-import { beginPlanHandleDrag } from '@/components/viewer/plan/PlanPointer';
+import { beginPlanHandleDrag, clickPlanHandle } from '@/components/viewer/plan/PlanPointer';
 import { PLAN_HANDLE_RADIUS_PX, PLAN_HANDLE_REACH_PX, selectedPlanHandles, type PlanHandle } from '@/components/viewer/plan/plan-handles';
 import { modelEditTarget } from '@/store/slices/mutation-modelling-records';
 import { aimSessionAtPlan, localScreenMap, type LocalScreenMap } from '@/project/model-command-bridge';
@@ -46,6 +47,11 @@ interface Params {
 export interface ModelHandles {
   /** The grips, on screen. */
   shown: readonly { handle: PlanHandle; x: number; y: number }[];
+  /** The plan's storey and the local ↔ screen map grips are placed with (null off a plan). */
+  target: { modelId: string; storeyId: number } | null;
+  map: LocalScreenMap | null;
+  /** No grips now (a command runs, a drafting tool is out). */
+  idle: boolean;
   /** A press at screen (x, y): grab the grip there and start its command. True when one was grabbed. */
   grab(x: number, y: number): boolean;
 }
@@ -117,10 +123,12 @@ export function useModelHandles({ view, plane, drawing, transform, axis, draftin
       if (d <= PLAN_HANDLE_REACH_PX && (!best || d < best.d)) best = { handle: h.handle, d };
     }
     if (!best || !ensureEditMode() || !aimSessionAtPlan(view)) return false;
+    // A grip that acts on a click (flip) acts on the press.
+    if (clickPlanHandle(best.handle)) return true;
     return beginPlanHandleDrag(best.handle);
   };
 
-  return { shown, grab };
+  return { shown, grab, target: target ? { modelId: target.modelId, storeyId: target.storeyId } : null, map, idle: drafting || command !== null };
 }
 
 export function ModelHandlesLayer({ handles }: { handles: ModelHandles }) {
@@ -131,7 +139,28 @@ export function ModelHandlesLayer({ handles }: { handles: ModelHandles }) {
     <svg data-bim-handles className="absolute inset-0 h-full w-full pointer-events-none">
       {handles.shown.map(({ handle, x, y }) => {
         const key = handle.kind === 'wallEnd' ? `end-${handle.which}` : handle.kind;
-        const title = t(handle.kind === 'move' ? 'planHandles.handle.move' : handle.kind === 'wallEnd' ? 'planHandles.handle.wallEnd' : 'planHandles.handle.slide');
+        const title = t(handle.kind === 'move' ? 'planHandles.handle.move' : handle.kind === 'wallEnd' ? 'planHandles.handle.wallEnd'
+          : handle.kind === 'flip' ? 'planHandles.handle.flip' : 'planHandles.handle.slide');
+        if (handle.kind === 'flip' && handles.map) {
+          // The arrows across the wall, on screen.
+          const [x1, y1] = handles.map.toScreen([handle.at[0] + handle.normal[0], handle.at[1] + handle.normal[1]]);
+          const len = Math.hypot(x1 - x, y1 - y) || 1;
+          const [nx, ny] = [(x1 - x) / len, (y1 - y) / len];
+          const tip = (k: 1 | -1) => [x + k * nx * (r - 1.5), y + k * ny * (r - 1.5)];
+          const head = (k: 1 | -1) => {
+            const [tx, ty] = tip(k), bx = tx - k * nx * 3, by = ty - k * ny * 3;
+            return `M${tx.toFixed(1)} ${ty.toFixed(1)}L${(bx - ny * 2.5).toFixed(1)} ${(by + nx * 2.5).toFixed(1)}L${(bx + ny * 2.5).toFixed(1)} ${(by - nx * 2.5).toFixed(1)}Z`;
+          };
+          const [ax, ay] = tip(-1), [bx, by] = tip(1);
+          return (
+            <g key={key} data-plan-handle={key}>
+              <title>{title}</title>
+              <circle cx={x} cy={y} r={r} fill="#ffffff" stroke="#2563eb" strokeWidth={2} />
+              <path d={`M${ax.toFixed(1)} ${ay.toFixed(1)}L${bx.toFixed(1)} ${by.toFixed(1)}`} stroke="#2563eb" strokeWidth={1.5} />
+              <path d={head(1) + head(-1)} fill="#2563eb" />
+            </g>
+          );
+        }
         return (
           <g key={key} data-plan-handle={key}>
             <title>{title}</title>

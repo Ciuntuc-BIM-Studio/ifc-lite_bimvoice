@@ -39,6 +39,25 @@ export function HandleLayer({ fit, handles, active }: { fit: Fit; handles: reado
         const [x, y] = toScreen(fit, handle.at);
         const hot = active !== null && active.kind === handle.kind && (handle.kind !== 'wallEnd' || (active.kind === 'wallEnd' && active.which === handle.which));
         const key = handle.kind === 'wallEnd' ? `end-${handle.which}` : handle.kind;
+        if (handle.kind === 'flip') {
+          const r = PLAN_HANDLE_RADIUS_PX;
+          // Screen y runs down: the plan's +y is the screen's -y.
+          const [nx, ny] = [handle.normal[0], -handle.normal[1]];
+          const tip = (sign: 1 | -1) => [x + sign * nx * (r - 1.5), y + sign * ny * (r - 1.5)];
+          const head = (sign: 1 | -1) => {
+            const [tx, ty] = tip(sign), bx = tx - sign * nx * 3, by = ty - sign * ny * 3;
+            return `M${tx.toFixed(1)} ${ty.toFixed(1)}L${(bx - ny * 2.5).toFixed(1)} ${(by + nx * 2.5).toFixed(1)}L${(bx + ny * 2.5).toFixed(1)} ${(by - nx * 2.5).toFixed(1)}Z`;
+          };
+          const [ax, ay] = tip(-1), [bx, by] = tip(1);
+          return (
+            <g key={key} data-plan-handle="flip" data-plan-handle-hot={hot || undefined}>
+              <title>{t('planHandles.handle.flip')}</title>
+              <circle cx={x} cy={y} r={r} className="fill-overlay-halo stroke-overlay-accent" strokeWidth={hot ? 3 : 2} />
+              <path d={`M${ax.toFixed(1)} ${ay.toFixed(1)}L${bx.toFixed(1)} ${by.toFixed(1)}`} className="stroke-overlay-accent" strokeWidth={1.5} />
+              <path d={head(1) + head(-1)} className="fill-overlay-accent" />
+            </g>
+          );
+        }
         if (handle.kind === 'move') {
           const r = PLAN_HANDLE_RADIUS_PX;
           return (

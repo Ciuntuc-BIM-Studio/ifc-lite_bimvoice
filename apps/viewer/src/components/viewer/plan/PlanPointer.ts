@@ -26,6 +26,9 @@ import { beginHostedSlide } from '@/lib/commands/modeling/commands/hosted-slide'
 import { beginPlanMove } from '@/lib/commands/modeling/commands/plan-move';
 import { PLAN_CUT_SOURCE_ID } from './plan-cut-source';
 import type { PlanHandle } from './plan-handles';
+import { flipElements } from '@/project/element-flip';
+import { toast } from '@/components/ui/toast';
+import { resolve } from '@/i18n/registry';
 
 export interface PlanPointerInput {
   /** The cursor, workplane-local metres. */
@@ -82,12 +85,21 @@ export function selectFromPlan(globalId: number | null, toggle: boolean): void {
   selectPickedGlobalId(globalId);
 }
 
+/** A plan handle was clicked (pressed and released in place): true when it acted. */
+export function clickPlanHandle(handle: PlanHandle): boolean {
+  if (handle.kind !== 'flip') return false;
+  const report = flipElements('y');
+  if (report.refused.length) toast.info(resolve('drafting.msg.flipRefused', { count: report.refused.length, reason: report.refused[0] }));
+  return true;
+}
+
 /**
  * A plan handle was grabbed: start its command. The command runs until the
  * pointer is released anywhere (a window `pointerup`), writing one undo step.
  * True when the command started.
  */
 export function beginPlanHandleDrag(handle: PlanHandle): boolean {
+  if (handle.kind === 'flip') return false; // clicked, not dragged
   if (handle.kind === 'wallEnd') beginWallEndpointDrag(handle.which);
   else if (handle.kind === 'slide') beginHostedSlide();
   else beginPlanMove(handle.at);

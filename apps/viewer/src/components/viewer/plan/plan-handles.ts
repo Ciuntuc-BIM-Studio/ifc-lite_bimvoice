@@ -15,6 +15,8 @@
  *   on the wall's axis (`hosted.slide`).
  * - Anything else the plan can move: a move handle at its centre (a wall's
  *   axis midpoint, else the middle of its cut outline) (`plan.move`).
+ * - A wall: a flip handle beside its middle, off one face; a click flips the
+ *   wall across its axis (its layers run from the other face, `flipElements`).
  *
  * Only a single selected element of the session model, on the plan's storey,
  * in Select, and on a model the user may edit, gets handles.
@@ -34,7 +36,12 @@ export type PlanHandle =
   | { readonly kind: 'wallEnd'; readonly which: WallEnd; readonly at: Vec2 }
   /** `axis`: the host wall's direction in the plan (unit), for the handle's arrows. */
   | { readonly kind: 'slide'; readonly at: Vec2; readonly axis: Vec2 }
-  | { readonly kind: 'move'; readonly at: Vec2 };
+  | { readonly kind: 'move'; readonly at: Vec2 }
+  /** Clicked, not dragged. `normal`: across the wall in the plan (unit), for the handle's arrows. */
+  | { readonly kind: 'flip'; readonly at: Vec2; readonly normal: Vec2 };
+
+/** How far the flip handle sits off the wall's face, metres. */
+const FLIP_OFFSET = 0.35;
 
 /** A handle's drawn radius, px. */
 export const PLAN_HANDLE_RADIUS_PX = 6;
@@ -96,7 +103,14 @@ export function selectedPlanHandles(s: ViewerState, plane: Workplane | null, out
     { kind: 'wallEnd', which: 'start', at: start },
     { kind: 'wallEnd', which: 'end', at: end },
   ];
-  if (movable) handles.push({ kind: 'move', at: [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2] });
+  const mid: Vec2 = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
+  if (movable) handles.push({ kind: 'move', at: mid });
+  const len = Math.hypot(end[0] - start[0], end[1] - start[1]);
+  if (len > 1e-9) {
+    const normal: Vec2 = [-(end[1] - start[1]) / len, (end[0] - start[0]) / len];
+    const off = wall.thickness / 2 + FLIP_OFFSET;
+    handles.push({ kind: 'flip', at: [mid[0] + normal[0] * off, mid[1] + normal[1] * off], normal });
+  }
   return handles;
 }
 

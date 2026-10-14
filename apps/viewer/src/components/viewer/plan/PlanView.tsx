@@ -40,7 +40,7 @@ import { usePlanCut } from './usePlanCut';
 import { fitPlan, pickPlanEntity, planGrid, screenToLocal } from './plan-fit';
 import { createPlanCutSource, planCutLinework } from './plan-cut-source';
 import { ghostFootprints } from './plan-ghost';
-import { beginPlanHandleDrag, routePlanPointer, selectFromPlan } from './PlanPointer';
+import { beginPlanHandleDrag, clickPlanHandle, routePlanPointer, selectFromPlan } from './PlanPointer';
 import { pickPlanHandle, type PlanHandle } from './plan-handles';
 import { HandleLayer, usePlanHandles } from './PlanHandles';
 import { usePlanViewport } from './usePlanViewport';
@@ -239,6 +239,8 @@ export function PlanView({ layout }: { layout: ModelLayout }) {
     const p = press.current;
     press.current = null;
     releasePointer(e.currentTarget, e.pointerId);
+    // A click on a handle that acts on a click (flip) does that instead of selecting.
+    if (p?.handle && !p.moved && clickPlanHandle(p.handle)) return;
     if (!p || p.moved || p.pan || !selecting()) return;
     const at = localAt(e);
     if (at) selectFromPlan(pickPlanEntity(cut.polygons, at.local), e.shiftKey);
