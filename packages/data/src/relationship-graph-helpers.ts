@@ -121,3 +121,26 @@ export function binarySearchU32(arr: Uint32Array, target: number): number {
   }
   return -1;
 }
+
+/**
+ * The targets of `entityId`'s edges (of `type`, when given), read straight
+ * from the CSR columns: a storey containing a million elements no longer
+ * allocates a million `Edge` objects to answer with their ids.
+ */
+export function targetsOf(
+  offsets: ReadonlyMap<number, number>,
+  counts: ReadonlyMap<number, number>,
+  edgeTargets: Uint32Array,
+  edgeTypes: Uint16Array,
+  entityId: number,
+  type: number | undefined,
+): number[] {
+  const o = offsets.get(entityId);
+  if (o === undefined) return [];
+  const end = o + counts.get(entityId)!;
+  const out: number[] = [];
+  for (let i = o; i < end; i++) {
+    if (type === undefined || edgeTypes[i] === type) out.push(edgeTargets[i]);
+  }
+  return out;
+}

@@ -8,7 +8,7 @@
  */
 
 import { RelationshipType, relationshipTypeName } from './relationship-type.js';
-import { binarySearchU32, buildShadowedColumns } from './relationship-graph-helpers.js';
+import { binarySearchU32, buildShadowedColumns, targetsOf } from './relationship-graph-helpers.js';
 
 export interface Edge {
   target: number;
@@ -191,45 +191,65 @@ export function buildCSR(
 ): RelationshipEdges {
   if (n === 0) return emptyRelationshipEdges();
 
-  // Step 1: count per key
-  const countMap = new Map<number, number>();
+  // Step 1: count per key. Each key gets a dense slot, and each edge remembers
+  // its key's slot, so the scatter below runs on typed arrays instead of a
+  // Map lookup and update per edge (a million-element model's inverse half
+  // has a million keys).
+  const slotOf = new Map<number, number>();
+  const edgeSlot = new Uint32Array(n);
+  let slotCounts = new Uint32Array(Math.min(n, 1024));
   for (let i = 0; i < n; i++) {
     const k = keys[i];
-    countMap.set(k, (countMap.get(k) ?? 0) + 1);
+    let slot = slotOf.get(k);
+    if (slot === undefined) {
+      slot = slotOf.size;
+      slotOf.set(k, slot);
+      if (slot === slotCounts.length) {
+        const grown = new Uint32Array(Math.min(n, slotCounts.length * 2));
+        grown.set(slotCounts);
+        slotCounts = grown;
+      }
+    }
+    edgeSlot[i] = slot;
+    slotCounts[slot]++;
   }
 
-  // Step 2: prefix-sum offsets, sorted for deterministic order
+  // Step 2: prefix-sum offsets, sorted for deterministic order (express ids
+  // are u32, so a typed sort orders them numerically).
   const offsets = new Map<number, number>();
   const counts = new Map<number, number>();
-  const uniqueKeys = Array.from(countMap.keys()).sort((a, b) => a - b);
+  const uniqueKeys = Float64Array.from(slotOf.keys()).sort();
+  const writeAt = new Uint32Array(slotOf.size);
   let offset = 0;
   for (const k of uniqueKeys) {
+    const slot = slotOf.get(k)!;
+    const count = slotCounts[slot];
     offsets.set(k, offset);
-    counts.set(k, countMap.get(k)!);
-    offset += countMap.get(k)!;
+    counts.set(k, count);
+    writeAt[slot] = offset;
+    offset += count;
   }
 
   // Step 3: scatter edges into sorted positions
   const edgeTargets = new Uint32Array(n);
   const edgeTypes = new Uint16Array(n);
   const edgeRelIds = new Uint32Array(n);
-  const writePos = new Map<number, number>();
-  for (const [k, o] of offsets) writePos.set(k, o);
 
   // Collected in scatter (final-position) order below, then sorted — cheap
   // since this list is expected to stay tiny (rare duplicates) regardless
   // of how large `n` gets.
   const shadowedPairs: Array<[position: number, ids: number[]]> = [];
 
+  const anyShadowed = shadowedRelIds.size > 0;
   for (let i = 0; i < n; i++) {
-    const k = keys[i];
-    const pos = writePos.get(k)!;
+    const pos = writeAt[edgeSlot[i]]++;
     edgeTargets[pos] = values[i];
     edgeTypes[pos] = types[i];
     edgeRelIds[pos] = relIds[i];
-    const shadow = shadowedRelIds.get(i);
-    if (shadow !== undefined) shadowedPairs.push([pos, shadow]);
-    writePos.set(k, pos + 1);
+    if (anyShadowed) {
+      const shadow = shadowedRelIds.get(i);
+      if (shadow !== undefined) shadowedPairs.push([pos, shadow]);
+    }
   }
 
   const columns: RelationshipEdgesColumns = { offsets, counts, edgeTargets, edgeTypes, edgeRelIds };
@@ -286,7 +306,7 @@ export function relationshipEdgesFromColumns(columns: RelationshipEdgesColumns):
     },
 
     getTargets(entityId: number, type?: RelationshipType): number[] {
-      return edges.getEdges(entityId, type).map(e => e.target);
+      return targetsOf(offsets, counts, edgeTargets, edgeTypes, entityId, type);
     },
 
     hasAnyEdges(entityId: number): boolean {
@@ -310,12 +330,8 @@ export function relationshipGraphFromEdges(
     forward,
     inverse,
 
-    getRelated: (entityId, relType, direction) => {
-      const e = direction === 'forward'
-        ? forward.getEdges(entityId, relType)
-        : inverse.getEdges(entityId, relType);
-      return e.map((edge: Edge) => edge.target);
-    },
+    getRelated: (entityId, relType, direction) =>
+      (direction === 'forward' ? forward : inverse).getTargets(entityId, relType),
 
     hasRelationship: (sourceId, targetId, relType) => {
       const e = forward.getEdges(sourceId, relType);

@@ -1992,7 +1992,8 @@ export function useIfcLoader() {
                   // A recovered load is missing elements (#4884); a cache hit would
                   // serve it silently, without the notice, so re-process instead.
                   !skippedHungElements &&
-                  allMeshes.length > 0 &&
+                  // A fully instanced model has no flat mesh at all.
+                  (allMeshes.length > 0 || allInstancedShards.length > 0) &&
                   finalCoordinateInfo
                 ) {
                   // Final safety pass so cache always contains post-style colors.
