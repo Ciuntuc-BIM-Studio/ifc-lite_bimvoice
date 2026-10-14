@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { safeUtf8Decode } from '@ifc-lite/data';
 import { getInheritanceChainAcrossSchemas, type IfcDataStore } from '@ifc-lite/parser';
 import { type MutablePropertyView } from '@ifc-lite/mutations';
 import { collectRefsInByteRange } from './reference-collector.js';
@@ -45,7 +46,7 @@ export function editOwnershipRefusal(
   const baseline = sourceInverse(store), inverse = new Map<number, number[]>();
   const changed = new Set(view.getEffectiveChanges().map(change => change.entityId));
   for (const entity of view.getNewEntities()) changed.add(entity.expressId);
-  const encoder = new TextEncoder(), decoder = new TextDecoder();
+  const encoder = new TextEncoder();
   for (const expressId of changed) {
     if (view.getTombstones().has(expressId)) continue;
     const created = effectiveCreatedRecord(view, expressId, store.schemaVersion);
@@ -57,7 +58,8 @@ export function editOwnershipRefusal(
       refs = collectRefsInByteRange(bytes, 0, bytes.length);
     } else if (source) {
       if (view.getPositionalMutationsForEntity(expressId)?.size || view.getAttributeMutationsForEntity(expressId).length || view.getEntityTypeMutation(expressId)) {
-        const text = decoder.decode(store.source.slice(source.byteOffset, source.byteOffset + source.byteLength));
+        // SAB-safe: a model opened from a project package keeps its source in a SharedArrayBuffer.
+        const text = safeUtf8Decode(store.source.slice(source.byteOffset, source.byteOffset + source.byteLength));
         const effective = effectiveSourceRecord(view, expressId, text, source.type, store.schemaVersion);
         const bytes = encoder.encode(effective.text);
         refs = collectRefsInByteRange(bytes, 0, bytes.length);
