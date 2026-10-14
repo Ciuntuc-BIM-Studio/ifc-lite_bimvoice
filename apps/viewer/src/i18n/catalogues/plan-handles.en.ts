@@ -18,4 +18,8 @@ export const planHandlesEn = {
   'planHandles.handle.wallEnd': 'Drag the wall end',
   'planHandles.handle.slide': 'Drag along the wall',
   'planHandles.handle.move': 'Drag to move',
+  'planHandles.handle.flip': 'Click to flip the wall (its layers to the other face)',
+  'slabOutline.corner': 'Drag to move this corner · double-click to remove it',
+  'slabOutline.addCorner': 'Drag to add a corner here',
+  'slabOutline.problem': "The slab's outline could not be changed: {reason}",
 } as const satisfies Record<string, TranslationValue>;

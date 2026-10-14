@@ -186,6 +186,7 @@ export { arrayCopyTransforms, type CopyArrayParams } from './in-store/copy-array
 export type { CopyTransform } from './in-store/copy-product.js';
 
 export { setElementSizeInStore } from './in-store/element-size-edit.js';
+export { setSlabOutlineInStore, slabOutlineProblem, type SlabOutlineOutcome } from './in-store/edit/slab-outline-edit.js';
 export { readWallMetres, resizeWallInStore } from './in-store/wall-size-edit.js';
 
 export { transformElementsInStore, type ElementTransformInput, type StoreyTransformOp } from './in-store/element-transform-edit.js';

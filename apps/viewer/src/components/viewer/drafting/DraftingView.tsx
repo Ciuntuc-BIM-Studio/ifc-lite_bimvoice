@@ -54,6 +54,7 @@ import { screenToDrawing } from '@/drafting/frame';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { routeModifyToModel } from '@/project/model-edit-route';
 import { ModelHandlesLayer, useModelHandles } from './ModelHandlesLayer';
+import { SlabOutlineGrips } from './SlabOutlineGrips';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
 import { CutHatchLayer } from './CutHatchLayer';
 import { MembraneLayer } from './MembraneLayer';
@@ -334,6 +335,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         {selected.length === 1 && !state.gripDrag ? (
           <SelectionBar entity={selected[0]} transform={viewTransform} axis={axis} editing={editingText} onEditingChange={setEditingText} areaWidth={containerRef.current?.clientWidth ?? 800} />
         ) : null}
+        <SlabOutlineGrips handles={modelHandles} />
         <ModelHandlesLayer handles={modelHandles} />
         <ModelCommandLayer map={bim.map} />
         <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} extraPatterns={extraPatterns} />
