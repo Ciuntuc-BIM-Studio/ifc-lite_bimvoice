@@ -111,6 +111,7 @@ import { roofBlockEn } from './catalogues/roof-block.en';
 import { viewGraphicsEn } from './catalogues/view-graphics.en';
 import { draftingStandardsEn } from './catalogues/drafting-standards.en';
 import { curtainConfigEn } from './catalogues/curtain-config.en';
+import { studioFeatureEn } from './catalogues/studio-feature.en';
 import { joineryEn } from './catalogues/joinery.en';
 import { elementTypesEn } from './catalogues/element-types.en';
 import { roofEn } from './catalogues/roof.en';
@@ -185,6 +186,7 @@ export const en = {
   ...viewGraphicsEn,
   ...draftingStandardsEn,
   ...curtainConfigEn,
+  ...studioFeatureEn,
   ...joineryEn,
   ...elementTypesEn,
   ...roofEn,

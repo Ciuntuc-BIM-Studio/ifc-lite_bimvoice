@@ -8,6 +8,8 @@
  * editable as one undoable drafting edit each.
  */
 
+import { isFace } from '@/drafting/faces';
+import { contourMeasures } from '@/project/contour-quantities';
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { useTranslation } from '@/i18n';
@@ -52,6 +54,8 @@ export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { enti
   // Style links and overrides are edited with the style fields, not as free parameters.
   const keys = Object.keys(entities[0].params).filter((k) => entities.every((e) => k in e.params) && !STYLE_KEYS.has(k) && !k.startsWith('o.'));
   const measure = single && isGeometry(single.shape) ? measureShape(single.shape) : null;
+  // A face's own measures: its surface without its holes (always current: the face follows its contours).
+  const face = single && isFace(single) && single.shape.type === 'hatch' ? contourMeasures(single.shape.loops) : null;
 
   const addParam = () => {
     const key = newKey.trim();
@@ -92,6 +96,16 @@ export function DraftPropertiesPanel({ entities, layers, extraPatterns }: { enti
           {measure.radius !== undefined ? <Row label={t('drafting.props.radius')}>{t('drafting.unit.metres', { value: fmt(measure.radius) })}</Row> : null}
           {measure.area !== undefined ? <Row label={t('drafting.props.area')}>{t('drafting.unit.squareMetres', { value: fmt(measure.area) })}</Row> : null}
           {measure.angleDeg !== undefined ? <Row label={t('drafting.props.angle')}>{t('drafting.unit.degrees', { value: measure.angleDeg.toFixed(2) })}</Row> : null}
+        </>
+      ) : null}
+      {face ? (
+        <>
+          <h4 className="pt-1 font-semibold text-zinc-700 dark:text-zinc-300">{t('drafting.props.faceGeometry')}</h4>
+          <Row label={t('drafting.props.netArea')}>{t('drafting.unit.squareMetres', { value: fmt(face.netArea) })}</Row>
+          <Row label={t('drafting.props.grossArea')}>{t('drafting.unit.squareMetres', { value: fmt(face.grossArea) })}</Row>
+          <Row label={t('drafting.props.outerPerimeter')}>{t('drafting.unit.metres', { value: fmt(face.outerPerimeter) })}</Row>
+          <Row label={t('drafting.props.perimeter')}>{t('drafting.unit.metres', { value: fmt(face.perimeter) })}</Row>
+          <Row label={t('drafting.props.holes')}>{face.holes}</Row>
         </>
       ) : null}
       {single && isGeometry(single.shape) ? <DraftBimFields key={single.id} entity={single} /> : null}

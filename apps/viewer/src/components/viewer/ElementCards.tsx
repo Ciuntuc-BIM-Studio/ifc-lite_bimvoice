@@ -4,14 +4,15 @@
 
 /**
  * The editable cards at the top of the properties for one element: its type
- * from the libraries, its roof system when it has one, and the symbol a door
- * or window is drawn with.
+ * from the libraries, its roof system when it has one, the steps a Studio
+ * solid was built from, and the symbol a door or window is drawn with.
  */
 
 import { ElementTypeCard } from './ElementTypeCard';
 import { RoofBlockCards } from './roof/RoofBlockCards';
 import { CurtainWallCard } from './curtain-wall/CurtainWallCard';
 import { JoinerySymbolCard } from './JoinerySymbolCard';
+import { StudioFeatureCard } from './StudioFeatureCard';
 
 export function ElementCards({ modelId, expressId }: { modelId: string; expressId: number }) {
   if (modelId === 'legacy') return null;
@@ -19,6 +20,7 @@ export function ElementCards({ modelId, expressId }: { modelId: string; expressI
     <>
       <RoofBlockCards modelId={modelId} expressId={expressId} />
       <CurtainWallCard modelId={modelId} expressId={expressId} />
+      <StudioFeatureCard modelId={modelId} expressId={expressId} />
       <ElementTypeCard modelId={modelId} expressId={expressId} />
       <JoinerySymbolCard modelId={modelId} expressId={expressId} />
     </>

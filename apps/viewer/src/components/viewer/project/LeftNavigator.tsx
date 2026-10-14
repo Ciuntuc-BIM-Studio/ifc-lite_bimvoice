@@ -40,11 +40,13 @@ import '@/joinery/placement';
 import '@/element-types/model-sync';
 import '@/project/cut-priorities';
 import { ElementTypesDialog } from '../element-types/ElementTypesDialog';
+import { installStudioFeatures } from '@/project/studio-feature';
 
 // Clicking a member selects its group; a group in edit mode keeps the rest locked.
 installGroupBehaviour();
 installRoofBlocks();
 installCurtainWallBlocks();
+installStudioFeatures();
 
 type LeftTab = 'model' | 'project';
 

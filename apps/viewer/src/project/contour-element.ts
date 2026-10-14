@@ -16,7 +16,10 @@
  */
 
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
-import { addExtrusionToStore, replaceExtrusionGeometryInStore, resolveSpatialAnchor, type ExtrusionInStoreParams } from '@ifc-lite/create';
+import { addExtrusionToStore, replaceExtrusionGeometryInStore, resolveSpatialAnchor, toNativeLength, type ExtrusionInStoreParams, type SpatialAnchor } from '@ifc-lite/create';
+import type { StoreEditor } from '@ifc-lite/mutations';
+import { QuantityType } from '@ifc-lite/data';
+import { contourMeasures, extrusionQuantities } from './contour-quantities';
 import { useViewerStore } from '@/store';
 import { modelEditTarget, recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 import { ensureStoreyPlacement } from '@/store/slices/storeyPlacement';
@@ -155,6 +158,20 @@ export function prepareTarget(view: ProjectView, worldMinY: number): Prepared {
   return { ok: true, ...target, edit, toLocal };
 }
 
+const QUANTITY_TYPE = { LENGTH: QuantityType.Length, AREA: QuantityType.Area, VOLUME: QuantityType.Volume } as const;
+
+/**
+ * The element's base quantities from its profile and depth (`contour-quantities.ts`):
+ * areas and volumes in m² / m³, lengths in the model's length unit. Rewritten on every rebuild.
+ */
+function writeQuantities(editor: StoreEditor, anchor: SpatialAnchor, elementId: number, view: ProjectView, loops: Pt[][], spec: ContourElementSpec): void {
+  const q = extrusionQuantities(spec.ifcClass, view.kind === 'plan', contourMeasures(loops), spec.depth);
+  const mutations = editor.getMutationView();
+  for (const { name, value, kind } of q.values) {
+    mutations.setQuantity(elementId, q.set, name, kind === 'LENGTH' ? toNativeLength(anchor, value) : value, QUANTITY_TYPE[kind]);
+  }
+}
+
 /** Create the IFC element of a closed contour. One undo step; the 3D view updates. */
 export function createContourElement(view: ProjectView, plane: SectionPlaneConfig, loops: Pt[][], spec: ContourElementSpec, sourceId: string): ContourElementResult {
   const ready = prepare(view, plane, loops);
@@ -169,6 +186,7 @@ export function createContourElement(view: ProjectView, plane: SectionPlaneConfi
         { name: 'SourceView', value: view.name, type: 'LABEL' },
         { name: 'ExtrusionDepth', value: spec.depth, type: 'REAL' },
       ]);
+      writeQuantities(editor, anchor, result.elementId, view, loops, spec);
       return result;
     });
     const hierarchy = ready.edit.dataStore.spatialHierarchy;
@@ -202,6 +220,7 @@ export function updateContourElement(view: ProjectView, plane: SectionPlaneConfi
       ensureStoreyPlacement(ds, editor, ready.storeyId);
       const anchor = resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView());
       replaceExtrusionGeometryInStore(editor, anchor, elementId, { IfcClass: spec.ifcClass, ...extrusionParams(loops, plane, ready.toLocal, spec) });
+      writeQuantities(editor, anchor, elementId, view, loops, spec);
     });
     void requestRemesh(useViewerStore.getState, modelId, [elementId], 'shape');
     return { ok: true, modelId, elementId, globalId, ifcClass: spec.ifcClass };

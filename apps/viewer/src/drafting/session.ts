@@ -21,7 +21,7 @@ import type { DraftCommand, DraftCommandDef, DraftContext, DraftSettings, Prompt
 import { entityBounds, nearestOnEntity, setAnnotationScreenUp } from './annotation';
 import { applyOrtho, parseCoordinateInput, pointAlong } from './input';
 import { drawingToUserVec, userToDrawingVec, type SectionAxisName } from './frame';
-import { draftsOfView } from './draft-store';
+import { draftsOfView, drawRank } from './draft-store';
 import type { DraftEntity, DraftShape, Pt } from './types';
 
 export interface HistoryLine {
@@ -234,17 +234,24 @@ export function cancelCommand(): void {
   refresh();
 }
 
-/** The entity nearest to `p` within `tolerance` drawing units. */
+/**
+ * The entity under `p` within `tolerance` drawing units: the front-most one
+ * (a contour before the face or hatch it bounds, though inside the fill
+ * counts as on it), then the nearest.
+ */
 export function pickEntity(p: Pt, tolerance: number): DraftEntity | null {
   const { viewId } = get();
   if (!viewId) return null;
   let best: DraftEntity | null = null;
   let bestDist = tolerance;
+  let bestRank = -1;
   for (const entity of visibleEntities(viewId)) {
     const d = nearestOnEntity(entity.shape, p).dist;
-    if (d <= bestDist) {
+    const rank = drawRank(entity);
+    if (d <= tolerance && (rank > bestRank || d <= bestDist)) {
       best = entity;
       bestDist = d;
+      bestRank = rank;
     }
   }
   return best;

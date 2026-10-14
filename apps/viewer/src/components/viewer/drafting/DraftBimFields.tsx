@@ -18,7 +18,7 @@ import { bimKindsFor, convertDraftToBim, type DraftBimKind } from '@/project/dra
 import type { DraftEntity } from '@/drafting/types';
 import { currentRoofPreset } from '@/element-types/roof-preset';
 
-const EXTRUDE_CLASSES = [
+export const EXTRUDE_CLASSES = [
   'IfcBuildingElementProxy', 'IfcWall', 'IfcSlab', 'IfcColumn', 'IfcBeam', 'IfcMember', 'IfcPlate', 'IfcFooting',
   'IfcCovering', 'IfcRailing', 'IfcStair', 'IfcRamp', 'IfcChimney', 'IfcFurnishingElement',
 ];

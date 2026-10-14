@@ -39,6 +39,9 @@ import {
   toggleOrtho, toggleSnap, useDraftingSession, pickEntity, setDraftSelection,
 } from '@/drafting/session';
 import { DraftOverlay } from './DraftOverlay';
+import { useSketchFocusFrame } from './useSketchFocus';
+import { isFace } from '@/drafting/faces';
+import { sketchOfFace } from '@/project/studio-feature';
 import { CommandLine } from './CommandLine';
 import { useDraftingPointer } from './useDraftingPointer';
 import { useDraftingKeys } from './useDraftingKeys';
@@ -139,6 +142,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
     return map;
   }, [runtimeGeometry]);
 
+  useSketchFocusFrame(view.id, axis, entities, status !== 'generating', containerRef, setViewTransform);
   useEffect(() => {
     // Annotation sizes are paper sizes at the view's scale (the settings read as at 1:100).
     attachDraftingView(view.id, axis, (min, max) => (references ? referencesIn(references, min, max) : []), (view.scale ?? 100) / 100);
@@ -266,6 +270,11 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
           const rect = containerRef.current?.getBoundingClientRect();
           const p = screenToDrawing({ x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) }, viewTransform, axis);
           const hit = runningCommand() ? null : pickEntity(p, 6 / viewTransform.scale);
+          // Double-click a face: its sketch — the contour and its holes — selected for editing.
+          if (hit && isFace(hit)) {
+            setDraftSelection(new Set(sketchOfFace(hit, entities)));
+            return;
+          }
           if (hit && !isGeometry(hit.shape)) {
             setDraftSelection(new Set([hit.id]));
             setTimeout(() => setEditingText(true), 0);

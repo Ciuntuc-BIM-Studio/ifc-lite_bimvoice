@@ -11,7 +11,7 @@
 
 import { useProjectStore } from '@/project/project-store';
 import { freshProjectId } from '@/project/view-defaults';
-import type { DraftEntity, DraftParamValue, EntityShape, Pt } from './types';
+import { isGeometry, type DraftEntity, type DraftParamValue, type EntityShape, type Pt } from './types';
 
 const HISTORY_LIMIT = 200;
 
@@ -100,8 +100,19 @@ export function clearDraftHistory(): void {
   future = [];
 }
 
+/**
+ * Where an entity stands in the drawing's stack: hatches and faces at the
+ * back, the contours and lines they fill in front of them, annotations on
+ * top — whatever order they were drawn in.
+ */
+export function drawRank(e: Pick<DraftEntity, 'shape'>): number {
+  if (e.shape.type === 'hatch') return 0;
+  return isGeometry(e.shape) ? 1 : 2;
+}
+
+/** A view's entities in draw order (back to front; drawing order within a rank). */
 export function draftsOfView(viewId: string, drafts: readonly DraftEntity[] = useProjectStore.getState().drafts): DraftEntity[] {
-  return drafts.filter((d) => d.viewId === viewId);
+  return drafts.filter((d) => d.viewId === viewId).map((d, i) => ({ d, i, r: drawRank(d) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.d);
 }
 
 export function newDraft(viewId: string, layerId: string, shape: EntityShape, params: Record<string, DraftParamValue> = {}): DraftEntity {
