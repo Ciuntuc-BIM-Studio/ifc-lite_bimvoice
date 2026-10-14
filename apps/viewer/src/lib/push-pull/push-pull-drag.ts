@@ -24,6 +24,7 @@
 import { useViewerStore } from '@/store';
 import { commitCommand, getCommandRuntime, updateCommandGesture } from '@/lib/commands/modeling/runtime';
 import type { PushPullGesture } from './push-pull-gesture';
+import { previewPushPull } from './push-pull-preview';
 import type { Vec3 } from '@/lib/commands/modeling/types';
 import { levelHeights, snapSize } from './push-pull-snap';
 import type { PushPullFace, PushPullTarget } from './push-pull-target';
@@ -88,6 +89,7 @@ export function beginPushPullDrag(faceId: PushPullFace['id'], press: { x: number
       levels,
     });
     updateCommandGesture((g) => ({ ...(g as PushPullGesture), size: snap.size, snapped: snap.kind }));
+    previewPushPull(PUSH_PULL_COMMAND_ID, getCommandRuntime().gesture as PushPullGesture);
     return true;
   };
   const move = (e: PointerEvent) => { if (!steer(e)) window.removeEventListener('pointermove', move); };

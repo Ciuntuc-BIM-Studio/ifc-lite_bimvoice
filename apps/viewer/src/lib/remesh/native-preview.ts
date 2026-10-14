@@ -23,6 +23,9 @@ import { useViewerStore } from '@/store';
 import { toGlobalIdFromModels } from '@/store/globalId';
 import { modelEditTarget } from '@/store/slices/mutation-modelling-records';
 import { commandGhostId } from '@/lib/commands/modeling/ghost';
+import { meshInRender, toRenderFor } from '@/lib/commands/modeling/commands/element-transform-shared';
+import type { Vec3 } from '@/lib/commands/modeling/types';
+import { getCommandRuntime, updateCommandGesture } from '@/lib/commands/modeling/runtime';
 import { loadRtcFrame, toRenderFrame } from './render-frame';
 import { drawnMeshes, nativeRemeshEnabled, planColors } from './native-remesh';
 import { remeshWorkerFor } from './remesh-service';
@@ -32,6 +35,13 @@ export interface PreviewEditContext {
   dataStore: IfcDataStore;
   view: MutablePropertyView;
   editor: StoreEditor;
+}
+
+/** Real elements carried along unchanged: drawn as they are now, shifted by `delta` (render frame). */
+export interface CarriedElements {
+  /** Express ids in the model. */
+  ids: readonly number[];
+  delta: readonly [number, number, number];
 }
 
 export interface NativePreview {
@@ -48,7 +58,11 @@ const ABANDON = Symbol('native-preview');
  * `modelId`; null when the flag is off, the edit refuses, or nothing it
  * changes can be meshed natively.
  */
-export async function previewEditNatively(modelId: string, edit: (ctx: PreviewEditContext) => readonly number[]): Promise<NativePreview | null> {
+export async function previewEditNatively(
+  modelId: string,
+  edit: (ctx: PreviewEditContext) => readonly number[],
+  carried?: CarriedElements,
+): Promise<NativePreview | null> {
   if (!nativeRemeshEnabled()) return null;
   const state = useViewerStore.getState();
   const model = state.models.get(modelId);
@@ -69,7 +83,8 @@ export async function previewEditNatively(modelId: string, edit: (ctx: PreviewEd
   const planned = plan as NativeRemeshPlan | null;
   if (!planned || planned.expressIds.length === 0) return null;
   const toGlobal = (id: number) => toGlobalIdFromModels(state.models, modelId, id);
-  const { colors, materialColors } = planColors(drawnMeshes(model), planned, toGlobal);
+  const drawn = drawnMeshes(model);
+  const { colors, materialColors } = planColors(drawn, planned, toGlobal);
   const pending = remeshWorkerFor(state, model);
   const worker = pending instanceof Promise ? await pending : pending;
   if (!worker.remeshNative) return null;
@@ -82,8 +97,54 @@ export async function previewEditNatively(modelId: string, edit: (ctx: PreviewEd
   if (!framed.ok) return null;
   // Ghost ids: one per previewed element, never a real model's id.
   const ghostOf = new Map(planned.expressIds.map((id, k) => [toGlobal(id), commandGhostId(current, k)]));
-  for (const mesh of framed.meshes) mesh.expressId = ghostOf.get(mesh.expressId) ?? mesh.expressId;
-  return { meshes: framed.meshes, replaces: [...ghostOf.keys()] };
+  // The ghost channel draws in render space: each mesh's origin and the model's placement applied.
+  const toRender = toRenderFor(current, modelId);
+  const same = (p: Vec3) => p;
+  const meshes = framed.meshes.map((mesh) => meshInRender(toRender, same, mesh, ghostOf.get(mesh.expressId) ?? mesh.expressId, mesh.color));
+  for (const id of carried?.ids ?? []) {
+    const global = toGlobal(id);
+    const ghost = commandGhostId(current, ghostOf.size);
+    ghostOf.set(global, ghost);
+    const [dx, dy, dz] = carried!.delta;
+    const shift = (p: Vec3): Vec3 => [p[0] + dx, p[1] + dy, p[2] + dz];
+    for (const mesh of drawn.get(global) ?? []) meshes.push(meshInRender(toRender, shift, mesh, ghost, mesh.color));
+  }
+  return { meshes, replaces: [...ghostOf.keys()] };
+}
+
+/** A gesture that can show a native preview as its ghost. */
+export interface PreviewingGesture {
+  readonly preview: MeshData[] | null;
+}
+
+/** One native preview at a time; the newest request replaces any waiting one. */
+let previewBusy = false;
+let previewWaiting: (() => Promise<void>) | null = null;
+
+/**
+ * Build a preview with `build` and, if the command `commandId` still runs
+ * when it is ready, stand it in for the real elements and put it on the
+ * gesture. Requests made while one builds collapse into the newest.
+ */
+export function schedulePreview(commandId: string, build: () => Promise<NativePreview | null>): void {
+  const run = async () => {
+    previewBusy = true;
+    try {
+      const preview = await build();
+      if (!preview || getCommandRuntime().command?.id !== commandId) return;
+      standInFor(preview);
+      updateCommandGesture((current) => ({ ...(current as PreviewingGesture), preview: preview.meshes }));
+    } catch {
+      // A preview that cannot be built leaves the command's own ghost.
+    } finally {
+      previewBusy = false;
+      const waiting = previewWaiting;
+      previewWaiting = null;
+      if (waiting) void waiting();
+    }
+  };
+  if (previewBusy) previewWaiting = run;
+  else void run();
 }
 
 /** Real elements hidden while their preview stands in for them; shown again by `endPreview`. */

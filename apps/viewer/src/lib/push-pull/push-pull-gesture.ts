@@ -7,6 +7,7 @@
  * command so its handles, bar and drag can read it without importing it back.
  */
 
+import type { MeshData } from '@ifc-lite/geometry';
 import type { PushPullFace, PushPullTarget } from './push-pull-target';
 
 export interface PushPullGesture {
@@ -19,6 +20,8 @@ export interface PushPullGesture {
   readonly typed: boolean;
   /** What the drag snapped to, for the readout. */
   readonly snapped: 'level' | 'step' | null;
+  /** The reshaped element with its real geometry (native preview), when it could be built. */
+  readonly preview: MeshData[] | null;
 }
 
 export const faceOf = (g: PushPullGesture): PushPullFace | null => g.target?.faces.find((f) => f.id === g.faceId) ?? null;

@@ -12,7 +12,8 @@
  * pointer, snapped to the floor levels or a step, and release writes ONE
  * `setElementSize`. A click without a drag arms the face instead: move, click
  * or type a size (the field, or digits) and Enter commits. Escape leaves with
- * nothing written.
+ * nothing written. With `?perf.nativeRemesh=1` the ghost is the element's
+ * real geometry at the new size (`push-pull-preview.ts`).
  *
  * The write is the inspector's (`setElementSize`, `store/slices/
  * mutation-element-size.ts`): what a handle produces and what typing the
@@ -31,13 +32,15 @@ import { faceOf, sizeOf, type PushPullGesture } from '@/lib/push-pull/push-pull-
 import { readPushPullTarget } from '@/lib/push-pull/push-pull-target';
 import { PUSH_PULL_COMMAND_ID } from '@/lib/push-pull/push-pull-drag';
 import { MIN_SIZE } from '@/lib/push-pull/push-pull-snap';
+import { previewPushPull } from '@/lib/push-pull/push-pull-preview';
+import { endPreview, endPreviewAfterRemesh } from '@/lib/remesh/native-preview';
 import { commandGhostId } from '../ghost.js';
 import { prismGhostMesh } from '../ghost-shapes.js';
 import type { CommandContext, CommandField, ModelingCommand } from '../types.js';
 
 function init(ctx: CommandContext): PushPullGesture {
   const s = ctx.get();
-  const empty: PushPullGesture = { target: null, faceId: null, size: null, typed: false, snapped: null };
+  const empty: PushPullGesture = { target: null, faceId: null, size: null, typed: false, snapped: null, preview: null };
   if (s.selectedEntityId === null) return empty;
   const { modelId, expressId } = resolveEntityRef(s.selectedEntityId);
   return { ...empty, target: s.models.has(modelId) ? readPushPullTarget(s, modelId, expressId) : null };
@@ -49,7 +52,11 @@ const SIZE_FIELD: CommandField<PushPullGesture> = {
   unit: 'm',
   hidden: (g) => g.faceId === null,
   read: sizeOf,
-  write: (g, v) => ({ ...g, size: Math.max(MIN_SIZE, Math.abs(v)), typed: true, snapped: null }),
+  write(g, v) {
+    const typed = { ...g, size: Math.max(MIN_SIZE, Math.abs(v)), typed: true, snapped: null };
+    previewPushPull(PUSH_PULL_COMMAND_ID, typed);
+    return typed;
+  },
 };
 
 export const ELEMENT_PUSH_PULL: ModelingCommand<PushPullGesture> = {
@@ -83,9 +90,18 @@ export const ELEMENT_PUSH_PULL: ModelingCommand<PushPullGesture> = {
     if (!outcome.ok) throw new Error(outcome.reason);
     return { modelId, created: [], deleted: [], remesh: outcome.remesh, select: [expressId] };
   },
-  afterCommit: () => ({ exit: true }),
-  cancel: () => 'exit',
+  afterCommit: (_g, result) => {
+    // The real element shows again once its new geometry is in the scene.
+    if (result?.modelId) endPreviewAfterRemesh(result.modelId);
+    else endPreview();
+    return { exit: true };
+  },
+  cancel: () => {
+    endPreview();
+    return 'exit';
+  },
   ghost(g, ctx) {
+    if (g.preview?.length) return g.preview;
     const face = faceOf(g);
     const size = sizeOf(g);
     if (!g.target || !face || size === null || g.size === null) return [];

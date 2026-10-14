@@ -26,7 +26,7 @@ import { modelEditTarget } from '@/store/slices/mutation-modelling-records';
 import { resizeWallMetres } from '@/store/slices/mutation-wall-resize';
 import { resizeWallInStore } from '@ifc-lite/create';
 import type { MeshData } from '@ifc-lite/geometry';
-import { endPreview, endPreviewAfterRemesh, previewEditNatively, standInFor } from '@/lib/remesh/native-preview';
+import { endPreview, endPreviewAfterRemesh, previewEditNatively, schedulePreview } from '@/lib/remesh/native-preview';
 import { commandGhostId, wallGhostMesh } from '../ghost.js';
 import { commitCommand, getCommandRuntime, updateCommandGesture } from '../runtime.js';
 import { buildStoreyWorkplane, elementStoreyId, isWorkplane } from '../workplane.js';
@@ -81,34 +81,15 @@ function ends(g: WallEndpointGesture): { start: Point3; end: Point3 } | null {
   return g.which === 'start' ? { start: moved, end: copy(g.end) } : { start: copy(g.start), end: moved };
 }
 
-/** One native preview at a time; the newest request replaces any waiting one. */
-let previewBusy = false;
-let previewWaiting: (() => Promise<void>) | null = null;
-
 /** Build the moved walls' real geometry for `g` (the resize run on a draft, `native-preview.ts`). */
-function schedulePreview(g: WallEndpointGesture): void {
+function previewMove(g: WallEndpointGesture): void {
   const next = ends(g);
   if (!g.target || !next) return;
   const { modelId, expressId } = g.target;
-  const run = async () => {
-    previewBusy = true;
-    try {
-      const preview = await previewEditNatively(modelId, (ctx) => {
-        const result = resizeWallInStore(ctx, expressId, next.start, next.end, { moveJoinedEnds: true });
-        return result.ok ? result.walls : [];
-      });
-      if (!preview || getCommandRuntime().command?.id !== WALL_MOVE_ENDPOINT.id) return;
-      standInFor(preview);
-      updateCommandGesture((current) => ({ ...(current as WallEndpointGesture), preview: preview.meshes }));
-    } finally {
-      previewBusy = false;
-      const waiting = previewWaiting;
-      previewWaiting = null;
-      if (waiting) void waiting();
-    }
-  };
-  if (previewBusy) previewWaiting = run;
-  else void run();
+  schedulePreview(WALL_MOVE_ENDPOINT.id, () => previewEditNatively(modelId, (ctx) => {
+    const result = resizeWallInStore(ctx, expressId, next.start, next.end, { moveJoinedEnds: true });
+    return result.ok ? result.walls : [];
+  }));
 }
 
 export const WALL_MOVE_ENDPOINT: ModelingCommand<WallEndpointGesture> = {
@@ -125,7 +106,7 @@ export const WALL_MOVE_ENDPOINT: ModelingCommand<WallEndpointGesture> = {
     if (!g.which || !g.plane || !s.render) return g;
     const local = g.plane.renderToLocal(s.render);
     const moved: WallEndpointGesture = { ...g, moving: [local[0], local[1]] };
-    schedulePreview(moved);
+    previewMove(moved);
     return moved;
   },
   pointerDown: (g) => g,

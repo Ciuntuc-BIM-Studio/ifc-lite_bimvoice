@@ -56,7 +56,7 @@ export function readTransformSelection(s: ViewerState): TransformSelection | nul
  * Model-frame mesh vertex → render point: the mesh's own origin (a per-element
  * local frame, absent = absolute), then the model's reposition placement.
  */
-function toRenderFor(s: ViewerState, modelId: string): (mesh: MeshData, x: number, y: number, z: number) => Vec3 {
+export function toRenderFor(s: ViewerState, modelId: string): (mesh: MeshData, x: number, y: number, z: number) => Vec3 {
   const placement = { translation: displayedTranslation(s.modelPlacement, modelId), rotation: placementFor(s.modelPlacement, modelId).rotation };
   return (mesh, x, y, z) => {
     const o = mesh.origin;
@@ -140,19 +140,30 @@ export function transformedGhosts(s: ViewerState, selection: TransformSelection,
     const count = mesh.positions.length / 3;
     if (count > budget) break;
     budget -= count;
-    const positions = new Float32Array(mesh.positions.length);
-    const normals = new Float32Array(mesh.normals.length);
-    const p = mesh.positions, n = mesh.normals;
-    for (let i = 0; i + 2 < p.length; i += 3) {
-      const base = toRender(mesh, p[i], p[i + 1], p[i + 2]);
-      const moved = apply(base);
-      positions.set(moved, i);
-      if (i + 2 < n.length) {
-        const tip = apply(toRender(mesh, p[i] + n[i], p[i + 1] + n[i + 1], p[i + 2] + n[i + 2]));
-        normals.set([tip[0] - moved[0], tip[1] - moved[1], tip[2] - moved[2]], i);
-      }
-    }
-    out.push({ expressId: ghostId, positions, normals, indices: mesh.indices, color: GHOST_COLOR });
+    out.push(meshInRender(toRender, apply, mesh, ghostId, GHOST_COLOR));
   }
   return out;
+}
+
+/** `mesh` taken to render space (`toRender`) and then through `apply`, under `expressId` in `color`. */
+export function meshInRender(
+  toRender: ReturnType<typeof toRenderFor>,
+  apply: (p: Vec3) => Vec3,
+  mesh: MeshData,
+  expressId: number,
+  color: [number, number, number, number],
+): MeshData {
+  const positions = new Float32Array(mesh.positions.length);
+  const normals = new Float32Array(mesh.normals.length);
+  const p = mesh.positions, n = mesh.normals;
+  for (let i = 0; i + 2 < p.length; i += 3) {
+    const base = toRender(mesh, p[i], p[i + 1], p[i + 2]);
+    const moved = apply(base);
+    positions.set(moved, i);
+    if (i + 2 < n.length) {
+      const tip = apply(toRender(mesh, p[i] + n[i], p[i + 1] + n[i + 1], p[i + 2] + n[i + 2]));
+      normals.set([tip[0] - moved[0], tip[1] - moved[1], tip[2] - moved[2]], i);
+    }
+  }
+  return { expressId, positions, normals, indices: mesh.indices, color };
 }
