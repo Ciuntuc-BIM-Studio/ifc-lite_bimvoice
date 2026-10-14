@@ -52,7 +52,12 @@ export interface NativeRemeshPlan {
 
 const CLASS: Record<string, string> = {
   IFCWALL: 'IfcWall', IFCWALLSTANDARDCASE: 'IfcWallStandardCase', IFCSLAB: 'IfcSlab', IFCBEAM: 'IfcBeam', IFCCOLUMN: 'IfcColumn',
+  IFCPLATE: 'IfcPlate', IFCROOF: 'IfcRoof', IFCSPACE: 'IfcSpace', IFCMEMBER: 'IfcMember',
 };
+/** Built as a slab is: an outline extruded vertically. */
+const SLAB_LIKE = new Set(['IFCSLAB', 'IFCPLATE', 'IFCROOF', 'IFCSPACE']);
+/** Built as a beam is: a section extruded along an axis. */
+const LINEAR = new Set(['IFCBEAM', 'IFCCOLUMN', 'IFCMEMBER']);
 
 type V3 = [number, number, number];
 type Ref = (value: unknown) => number | null;
@@ -275,10 +280,10 @@ export function planNativeRemesh(
     const world = ifcClass ? parentWorld(ctx, id) : null;
     const own = world ? ownFrame(ctx, id) : null;
     const stack = world && own ? layerStack(ctx, id, multiply(world, own)) : null;
-    const veto = !ifcClass ? 'not a wall, slab, beam or column' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id, stack !== null);
+    const veto = !ifcClass ? 'not a wall, slab, plate, roof, space, beam, column or member' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id, stack !== null);
     const solid = veto ?? (!world ? 'a placement chain that cannot be read'
-      : type === 'IFCSLAB' ? slabSolid(ctx, id, world)
-        : type === 'IFCBEAM' || type === 'IFCCOLUMN' ? linearSolid(ctx, id, world)
+      : SLAB_LIKE.has(type) ? slabSolid(ctx, id, world)
+        : LINEAR.has(type) ? linearSolid(ctx, id, world)
           : wallSolid(ctx, id, world));
     if (typeof solid === 'string') { plan.fallback.set(id, solid); continue; }
     solids.push(solid);

@@ -103,6 +103,15 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     const usage = addMaterialLayerSetUsageToStore(editor, anchor, { ForLayerSet: set, LayerSetDirection: 'AXIS2', DirectionSense: 'POSITIVE', OffsetFromReferenceLine: -0.15 }).usageId;
     assignMaterialInStore(editor, anchor, usage, [layered], []);
     express.set('layered', layered);
+    // The classes built like a slab (outline extruded up) and like a beam (section along an axis).
+    const { addPlateToStore } = await import('../in-store/plate.js');
+    const { addRoofToStore } = await import('../in-store/roof.js');
+    const { addSpaceToStore } = await import('../in-store/space.js');
+    const { addMemberToStore } = await import('../in-store/member.js');
+    express.set('plate', addPlateToStore(editor, anchor, { Profile: 'polygon', OuterCurve: [[10, 0], [12, 0], [12, 1.5], [10.5, 2]], Thickness: 0.02 }).plateId);
+    express.set('roof', addRoofToStore(editor, anchor, { Position: [10, 3, 3], Width: 4, Depth: 3, Thickness: 0.3 }).roofId);
+    express.set('space', addSpaceToStore(editor, anchor, { Position: [14, 0, 0], Width: 3, Depth: 4, Height: 2.6 }).spaceId);
+    express.set('member', addMemberToStore(editor, anchor, { Start: [10, 6, 0], End: [13, 7, 1.8], Width: 0.06, Height: 0.2 }).memberId);
     const sampleWall = [...new resolveAnchor.AnchorEntityReader(store, view).ids('IFCWALL')].find((w) => ![...express.values()].includes(w));
     const targets = new Set([...express.values(), ...(sampleWall ? [sampleWall] : [])]);
 
