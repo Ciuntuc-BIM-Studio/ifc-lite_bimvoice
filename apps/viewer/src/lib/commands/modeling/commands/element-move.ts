@@ -17,6 +17,8 @@
 
 import { ElementMovePlan, ElementMoveScene } from '@/components/viewer/tools/command/ElementMoveLayers';
 import { commitElementTransform } from '@/lib/element-transform/commit';
+import { previewTransform } from '@/lib/element-transform/transform-preview';
+import { endPreviewAfterRemesh } from '@/lib/remesh/native-preview';
 import type { Vec2 } from '@/lib/snap/types';
 import { commandGhostId } from '../ghost.js';
 import { currentAngle, currentLength, endPoint } from './wall-place-geometry.js';
@@ -102,10 +104,18 @@ export const ELEMENT_MOVE: ModelingCommand<ElementMoveGesture> = {
     if (!g.selection || !move) throw new Error('Nothing to move');
     return commitElementTransform(tx, g.selection.modelId, g.selection.ids, move);
   },
-  afterCommit: () => ({ exit: true }),
+  afterCommit: (_g, result) => {
+    // The real elements show again once their new geometry is in the scene.
+    if (result?.modelId) endPreviewAfterRemesh(result.modelId);
+    return { exit: true };
+  },
   ghost(g, ctx) {
     const move = ctx.workplane ? op(g, ctx.workplane) : null;
-    if (!g.selection || !move || !ctx.workplane) return [];
+    if (!g.selection || !ctx.workplane) return [];
+    // With `?perf.nativeRemesh=1`: the move run on a draft, joined walls following (`transform-preview.ts`).
+    previewTransform(ELEMENT_MOVE.id, ctx.get(), g.selection, move, ctx.workplane.plane.normal);
+    if (!move) return [];
+    if (g.preview?.length) return g.preview;
     return transformedGhosts(ctx.get(), g.selection, move, ctx.workplane.plane.normal, commandGhostId(ctx.get()));
   },
 };

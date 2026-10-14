@@ -88,7 +88,7 @@ function publish(next: Partial<CommandRuntimeState>): void {
   for (const listener of listeners) listener();
 }
 
-function subscribeCommandRuntime(listener: () => void): () => void {
+export function subscribeCommandRuntime(listener: () => void): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }

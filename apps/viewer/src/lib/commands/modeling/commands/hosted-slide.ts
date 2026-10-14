@@ -29,7 +29,7 @@ import { endPreview, endPreviewAfterRemesh, previewEditNatively, schedulePreview
 import { commandGhostId } from '../ghost.js';
 import { prismGhostMesh } from '../ghost-shapes.js';
 import { commitCommand, getCommandRuntime } from '../runtime.js';
-import type { CommandContext, ModelingCommand, Workplane } from '../types.js';
+import type { CommandContext, ModelingCommand, Vec3, Workplane } from '../types.js';
 import { planeZ } from './placement-shared.js';
 import { fromHostLocal, readHost, toHostLocal, type HostHit } from './hosted-host.js';
 
@@ -114,8 +114,9 @@ function previewSlide(g: HostedSlideGesture): void {
   if (!fill) return;
   const d = offset - target.offset;
   const a = plane.localToRender([0, 0, 0]), b = plane.localToRender([host.axisX[0] * d, host.axisX[1] * d, 0]);
+  const [dx, dy, dz] = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   const carried = fill.fillingId === null ? undefined
-    : { ids: [fill.fillingId], delta: [b[0] - a[0], b[1] - a[1], b[2] - a[2]] as const };
+    : { ids: [fill.fillingId], apply: (p: Vec3): Vec3 => [p[0] + dx, p[1] + dy, p[2] + dz] };
   schedulePreview(HOSTED_SLIDE.id, () => previewEditNatively(modelId, (ctx) => {
     const read = editHostedElementInStore(ctx.dataStore, ctx.editor, expressId, { Offset: offset });
     return [read.hostId];

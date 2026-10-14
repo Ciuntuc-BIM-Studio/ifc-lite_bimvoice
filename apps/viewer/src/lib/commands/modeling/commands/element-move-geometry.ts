@@ -12,6 +12,7 @@
  * copy of that rule.
  */
 
+import type { MeshData } from '@ifc-lite/geometry';
 import type { Vec2 } from '@/lib/snap/types';
 import type { TransformSelection } from './element-transform-shared.js';
 import type { WallPlaceGesture } from './wall-place-geometry.js';
@@ -25,6 +26,8 @@ export interface ElementMoveGesture {
   /** Typed locks: metres, degrees (0 = +x, CCW). */
   readonly distance: number | null;
   readonly angle: number | null;
+  /** The moved elements with their real geometry (native preview), when it could be built. */
+  readonly preview?: MeshData[] | null;
 }
 
 /** The move as a one-segment wall chain: base → target. */

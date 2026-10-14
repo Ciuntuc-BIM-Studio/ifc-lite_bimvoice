@@ -80,6 +80,24 @@ function storeyLocal(s: ViewerState, modelId: string, storeyId: number, cache: M
 }
 
 /**
+ * `op` (render space) as the store core takes it: folded through each owning
+ * storey's workplane. Shared with the live preview, which runs the same core
+ * on a draft (`transform-preview.ts`).
+ */
+export function storeyOperation(s: ViewerState, modelId: string, op: ElementTransformOp) {
+  const planes = new Map<number, (p: Vec3) => Vec2>();
+  return {
+    op: op.kind === 'move' ? { kind: 'move' as const, delta: [0, 0] as Vec2 } : { kind: 'rotate' as const, pivot: [0, 0] as Vec2, angle: op.angle },
+    storeyOf: (id: number) => elementStoreyId(s, modelId, id),
+    operationForStorey: (storeyId: number) => {
+      const toLocal = storeyLocal(s, modelId, storeyId, planes);
+      return op.kind === 'move' ? { kind: 'move' as const, delta: sub2(toLocal(op.to), toLocal(op.from)) }
+        : { kind: 'rotate' as const, pivot: toLocal(op.pivot), angle: op.angle };
+    },
+  };
+}
+
+/**
  * Write `op` for `selected` of `modelId` in `tx`. Throws (so the transaction
  * reverts everything) when any element cannot be moved or turned.
  */
@@ -91,16 +109,9 @@ export function commitElementTransform(
 ): CommitResult {
   const target = modelEditTarget(tx.store, modelId);
   if (!target) throw new Error('The model has no editable IFC data.');
-  const planes = new Map<number, (p: Vec3) => Vec2>();
   const result = transformElementsInStore({
     ...target, selected,
-    op: op.kind === 'move' ? { kind: 'move', delta: [0, 0] } : { kind: 'rotate', pivot: [0, 0], angle: op.angle },
-    storeyOf: id => elementStoreyId(tx.store, modelId, id),
-    operationForStorey: storeyId => {
-      const toLocal = storeyLocal(tx.store, modelId, storeyId, planes);
-      return op.kind === 'move' ? { kind: 'move', delta: sub2(toLocal(op.to), toLocal(op.from)) }
-        : { kind: 'rotate', pivot: toLocal(op.pivot), angle: op.angle };
-    },
+    ...storeyOperation(tx.store, modelId, op),
     ...placementHooks(tx, modelId),
     carryJoins: plan => joinCarrier?.({ tx, modelId, plan, op }) ?? [],
   });

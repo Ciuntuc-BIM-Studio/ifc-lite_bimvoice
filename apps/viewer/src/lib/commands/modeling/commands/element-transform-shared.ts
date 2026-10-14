@@ -28,6 +28,8 @@ export interface TransformSelection {
   readonly ids: readonly number[];
   /** Global ids of everything that moves (selection + hosted), for the preview. */
   readonly movedGlobalIds: readonly number[];
+  /** The same, model-local. */
+  readonly movedIds: readonly number[];
   /** Why it cannot move (null: it can). */
   readonly refusal: string | null;
 }
@@ -49,7 +51,7 @@ export function readTransformSelection(s: ViewerState): TransformSelection | nul
   if (!plan) return null;
   const moved = [...plan.roots.map((r) => r.expressId), ...plan.carried];
   const refusal = plan.refused.length > 0 ? `#${plan.refused[0].expressId}` : null;
-  return { modelId, ids, movedGlobalIds: moved.map((id) => toGlobalIdFromModels(s.models, modelId, id)), refusal };
+  return { modelId, ids, movedGlobalIds: moved.map((id) => toGlobalIdFromModels(s.models, modelId, id)), movedIds: moved, refusal };
 }
 
 /**

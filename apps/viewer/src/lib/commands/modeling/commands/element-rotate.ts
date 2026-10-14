@@ -16,6 +16,8 @@
 
 import { ElementRotateBar, ElementRotatePlan, ElementRotateScene } from '@/components/viewer/tools/command/ElementRotateLayers';
 import { commitElementTransform } from '@/lib/element-transform/commit';
+import { previewTransform } from '@/lib/element-transform/transform-preview';
+import { endPreviewAfterRemesh } from '@/lib/remesh/native-preview';
 import { commandGhostId } from '../ghost.js';
 import { readTransformSelection, selectionExtent, transformedGhosts } from './element-transform-shared.js';
 import { directionDeg, rotationDeg, togglePivotPick, type ElementRotateGesture } from './element-rotate-geometry.js';
@@ -94,10 +96,18 @@ export const ELEMENT_ROTATE: ModelingCommand<ElementRotateGesture> = {
     if (!g.selection || !turn) throw new Error('Nothing to turn');
     return commitElementTransform(tx, g.selection.modelId, g.selection.ids, turn);
   },
-  afterCommit: () => ({ exit: true }),
+  afterCommit: (_g, result) => {
+    // The real elements show again once their new geometry is in the scene.
+    if (result?.modelId) endPreviewAfterRemesh(result.modelId);
+    return { exit: true };
+  },
   ghost(g, ctx) {
     const turn = ctx.workplane ? op(g, ctx.workplane) : null;
-    if (!g.selection || !turn || !ctx.workplane) return [];
+    if (!g.selection || !ctx.workplane) return [];
+    // With `?perf.nativeRemesh=1`: the turn run on a draft, joined walls following (`transform-preview.ts`).
+    previewTransform(ELEMENT_ROTATE.id, ctx.get(), g.selection, turn, ctx.workplane.plane.normal);
+    if (!turn) return [];
+    if (g.preview?.length) return g.preview;
     return transformedGhosts(ctx.get(), g.selection, turn, ctx.workplane.plane.normal, commandGhostId(ctx.get()));
   },
 };

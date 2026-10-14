@@ -106,7 +106,7 @@ function transformGhosts(state: ViewerState, batch: ModelAuthoringBatch, row: Au
   if (!root || !wp) return [];
   const moved = [...plan.roots.map((r) => r.expressId), ...plan.carried];
   const selection: TransformSelection = { modelId: reader.modelId, ids: [target], refusal: null,
-    movedGlobalIds: moved.map((e) => toGlobalIdFromModels(state.models, reader.modelId, e)) };
+    movedGlobalIds: moved.map((e) => toGlobalIdFromModels(state.models, reader.modelId, e)), movedIds: moved };
   const op = row.op;
   const origin = wp.localToRender([0, 0, 0]);
   if (op.op === 'element.move') {

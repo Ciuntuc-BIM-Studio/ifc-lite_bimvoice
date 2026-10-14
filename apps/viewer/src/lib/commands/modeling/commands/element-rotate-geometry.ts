@@ -8,6 +8,7 @@
  * the same angle the commit writes, without importing the command.
  */
 
+import type { MeshData } from '@ifc-lite/geometry';
 import type { Vec2 } from '@/lib/snap/types';
 import type { TransformSelection } from './element-transform-shared.js';
 
@@ -29,6 +30,8 @@ export interface ElementRotateGesture {
   readonly snapAngle: boolean;
   /** A typed angle, degrees CCW; wins over the cursor. */
   readonly typed: number | null;
+  /** The moved elements with their real geometry (native preview), when it could be built. */
+  readonly preview?: MeshData[] | null;
 }
 
 /** Direction of `p` seen from `from`, degrees in [0, 360); null when they coincide. */
