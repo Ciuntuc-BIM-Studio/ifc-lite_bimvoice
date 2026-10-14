@@ -30,7 +30,7 @@ import { extractGeoreferencingOnDemand, extractProjectUnits, ProjectUnits, type 
 import { useViewerStore } from '@/store';
 import { getIfcLengthUnitScale } from '@/lib/geo/effective-georef';
 import { computeModelStats } from './modelMetadataStats';
-import { collectEffectivePhysicalEntityIds } from '@/lib/physical-objects';
+import { effectivePhysicalEntityIds } from '@/lib/physical-objects';
 import { useTranslation } from '@/i18n';
 import { formatLocaleDate, formatLocaleNumber } from '@/i18n/intlFormat';
 import { EXPRESS_DESCRIPTION_ATTRIBUTE, EXPRESS_GLOBAL_ID_ATTRIBUTE, EXPRESS_NAME_ATTRIBUTE } from './express-labels';
@@ -93,7 +93,7 @@ export function ModelMetadataPanel({ model }: { model: FederatedModel }) {
   // Membership changes with source/overlay edits, not with each streamed
   // geometry batch. Keep it stable while the shaped count catches up.
   const physicalIds = useMemo(
-    () => dataStore?.spatialHierarchy ? collectEffectivePhysicalEntityIds(dataStore, mutationView) : new Set<number>(),
+    () => dataStore?.spatialHierarchy ? effectivePhysicalEntityIds(dataStore, mutationView, mutationVersion) : new Set<number>(),
     [dataStore, mutationView, mutationVersion],
   );
 
@@ -117,6 +117,7 @@ export function ModelMetadataPanel({ model }: { model: FederatedModel }) {
         statsGeometry != null ||
         model.loadState === 'complete' ||
         model.geometryLoadState === 'complete',
+      localIdsAreGlobal: model.idOffset === 0,
       toLocalId: (globalId) => {
         if (model.id === 'legacy' || model.id === 'default' || model.id === '__legacy__') {
           return globalId;
@@ -125,7 +126,7 @@ export function ModelMetadataPanel({ model }: { model: FederatedModel }) {
         return ref?.modelId === model.id ? ref.expressId : undefined;
       },
     }),
-    [dataStore, fromGlobalId, model.geometryLoadState, statsGeometry, model.id, model.loadState, mutationView, physicalIds],
+    [dataStore, fromGlobalId, model.geometryLoadState, statsGeometry, model.id, model.idOffset, model.loadState, mutationView, physicalIds],
   );
 
   // Extract georeferencing info

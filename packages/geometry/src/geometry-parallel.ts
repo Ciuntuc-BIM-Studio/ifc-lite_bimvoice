@@ -42,6 +42,9 @@ import { compileSharedWasmModule } from './wasm-shared-module.js';
 import { stitchShards, type ShardColumns } from './shard-stitch.js';
 import { NOOP_LOAD_TRACE, accountWorkerMessages, countCopy, enableWorkerTrace, isTraceSpansMessage } from '@ifc-lite/load-trace';
 import { resolveRtcFrame } from './rtc-frame.js';
+import { planAffinityRouting } from './affinity-routing.js';
+
+export { planAffinityRouting };
 import {
   emptyStylesPrepassEvent,
   frozenStallPhase,
@@ -124,37 +127,6 @@ export function extractPrepassSpanLists(
   const spans = new Map<number, Uint32Array>();
   for (const [k, slot] of slots) spans.set(k, slot.arr);
   return spans;
-}
-
-/**
- * Plan content-affinity routing for one chunk: assign each job (by index) to a
- * worker bucket so that every job sharing an affinity key lands on the SAME
- * worker — across the whole stream, since `keyToWorker` is the caller's sticky
- * map. New keys are handed out round-robin from `startWorker`, so each worker
- * owns roughly `1/workerCount` of the distinct keys (≈ distinct geometries, the
- * dominant meshing cost). Pure: mutates only the passed `keyToWorker` and returns
- * the advanced round-robin cursor. (#1130 follow-up — see `affinity_key` in Rust.)
- */
-export function planAffinityRouting(
-  affinity: Uint32Array,
-  totalJobs: number,
-  workerCount: number,
-  keyToWorker: Map<number, number>,
-  startWorker: number,
-): { buckets: number[][]; nextWorker: number } {
-  const buckets: number[][] = Array.from({ length: workerCount }, () => []);
-  let nextWorker = startWorker % workerCount;
-  for (let j = 0; j < totalJobs; j++) {
-    const key = affinity[j];
-    let w = keyToWorker.get(key);
-    if (w === undefined) {
-      w = nextWorker;
-      nextWorker = (nextWorker + 1) % workerCount;
-      keyToWorker.set(key, w);
-    }
-    buckets[w].push(j);
-  }
-  return { buckets, nextWorker };
 }
 
 /**
@@ -357,6 +329,8 @@ export async function* processParallel(
   // round-robin so each worker owns ~1/N of the distinct geometries (the dominant
   // cost). Falls back to interleaving when the pre-pass sends no affinity array.
   const keyToWorker = new Map<number, number>();
+  // Jobs routed per key so far: a hot key spills across the pool (affinity-routing.ts).
+  const keyJobs = new Map<number, number>();
   let nextAffinityWorker = 0;
 
   // Per-worker first-batch timestamps (filled lazily so we don't need
@@ -764,6 +738,7 @@ export async function* processParallel(
       n,
       keyToWorker,
       nextAffinityWorker,
+      keyJobs,
     );
     nextAffinityWorker = nextWorker;
     for (let i = 0; i < n; i++) {

@@ -146,6 +146,28 @@ export function collectEffectivePhysicalEntityIds(
   return ids;
 }
 
+const physicalIdsCache = new WeakMap<IfcDataStore, {
+  view: MutablePropertyView | null; version: number; ids: ReadonlySet<number>;
+}>();
+
+/**
+ * `collectEffectivePhysicalEntityIds` shared by every reader of one store, view
+ * and mutation version. The status bar, the viewport summary and the model
+ * panel each walked the whole model on its own — four walks over a million
+ * entities on one load. Read-only: callers must not add to the set.
+ */
+export function effectivePhysicalEntityIds(
+  store: IfcDataStore,
+  view: MutablePropertyView | null | undefined,
+  version: number,
+): ReadonlySet<number> {
+  const cached = physicalIdsCache.get(store);
+  if (cached && cached.view === (view ?? null) && cached.version === version) return cached.ids;
+  const ids = collectEffectivePhysicalEntityIds(store, view);
+  physicalIdsCache.set(store, { view: view ?? null, version, ids });
+  return ids;
+}
+
 /** The visibility filters that decide whether a physical object is on screen. */
 export interface VisibilityFilters {
   /** Explicitly hidden ids. */

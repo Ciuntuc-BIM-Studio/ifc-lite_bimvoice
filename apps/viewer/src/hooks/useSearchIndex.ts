@@ -58,6 +58,11 @@ export function useSearchIndex(): void {
     // Kick off builds for models that are loaded but not yet indexed.
     for (const [modelId, model] of models) {
       if (!model.ifcDataStore) continue;
+      // Wait for the load to finish: indexing the partial store competed with
+      // the full metadata hydration on the main thread and held it back for
+      // seconds on a large model. Search answers from Tier-0 meanwhile.
+      if (model.loadState === 'pending' || model.loadState === 'streaming-geometry'
+        || model.loadState === 'hydrating-metadata') continue;
       const existing = useViewerStore.getState().searchIndexes.get(modelId);
       if (existing && existing.status !== 'pending') continue;
       if (controllers.has(modelId)) continue;

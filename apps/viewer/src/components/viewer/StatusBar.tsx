@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useStreamingThrottled } from '@/hooks/useStreamingThrottled';
 import { sameModelsExceptGeometry } from '@/lib/streaming-refresh';
 import { Boxes, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
@@ -20,13 +20,12 @@ import { StatusBarPresentationButton } from './StatusBarPresentationButton';
 import { StatusBarWorkspaceChip } from './StatusBarWorkspaceChip';
 import { FpsMemoryStats, TriangleCount } from './PerformanceStats';
 import { FlavorDialog } from '@/components/extensions/FlavorDialog';
-import { collectEffectivePhysicalEntityIds } from '@/lib/physical-objects';
-import { collectMeshedIds, countShapedObjects, createShapePredicate } from '@/lib/object-count';
+import { effectivePhysicalEntityIds } from '@/lib/physical-objects';
+import { collectMeshedIds, countShapedObjects, createShapePredicate, meshedIdsOf } from '@/lib/object-count';
 import type { AggregationRelationships } from '@/utils/aggregation';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import { toGlobalIdFromModels } from '@/store/globalId';
 import type { EntityRef } from '@/store/types';
-import type { MutablePropertyView } from '@ifc-lite/mutations';
 import { LEGACY_MODEL_ID, LEGACY_MUTATION_MODEL_ID } from '@/sdk/adapters/model-compat';
 import { isStoreyLikeSpatialTypeName } from '@ifc-lite/data';
 import { effectiveContextType } from './EntityContextMenu.effective-selection';
@@ -36,7 +35,7 @@ import { effectiveStoreyMemberIds } from './EntityContextMenu.effective-storey';
 interface CountedModel {
   modelId: string;
   store: IfcDataStore;
-  meshedIds: Set<number>;
+  meshedIds: ReadonlySet<number>;
   geometryReady: boolean;
 }
 
@@ -93,7 +92,8 @@ export function StatusBar() {
         out.push({
           modelId: model.id,
           store: model.ifcDataStore,
-          meshedIds: collectMeshedIds(model.geometryResult, toLocalId),
+          // At offset 0 a global id is the local one: share the cached set.
+          meshedIds: model.idOffset === 0 ? meshedIdsOf(model.geometryResult) : collectMeshedIds(model.geometryResult, toLocalId),
           geometryReady: model.geometryResult != null,
         });
       }
@@ -102,7 +102,7 @@ export function StatusBar() {
     return ifcDataStore ? [{
       modelId: 'legacy',
       store: ifcDataStore,
-      meshedIds: collectMeshedIds(geometryResult),
+      meshedIds: meshedIdsOf(geometryResult),
       geometryReady: geometryResult != null,
     }] : [];
   }, [countSource]);
@@ -112,27 +112,15 @@ export function StatusBar() {
   // geometryResult), so nothing memoised on it survives a stream. A model's
   // `ifcDataStore` identity IS stable across those commits, so the expensive
   // half — the schema walk over the whole effective entity set — is cached
-  // per store, view and mutation version. Streaming only reruns the cheap
-  // mesh-set lookup; an edit invalidates the physical-id set.
-  const physicalIdsRef = useRef(new WeakMap<IfcDataStore, Map<string, {
-    view: MutablePropertyView | null; version: number; ids: Set<number>;
-  }>>());
+  // per store, view and mutation version (shared with the viewport summary
+  // and the model panel). Streaming only reruns the cheap mesh-set lookup;
+  // an edit invalidates the physical-id set.
   const physicalIdsByModel = useMemo(() => {
-    const result = new Map<string, Set<number>>();
+    const result = new Map<string, ReadonlySet<number>>();
     for (const { modelId, store } of countedModels) {
       const view = models.size > 0 ? mutationViews.get(modelId) ?? null
         : mutationViews.get(LEGACY_MUTATION_MODEL_ID) ?? mutationViews.get(LEGACY_MODEL_ID) ?? null;
-      let byModel = physicalIdsRef.current.get(store);
-      if (!byModel) {
-        byModel = new Map();
-        physicalIdsRef.current.set(store, byModel);
-      }
-      let cached = byModel.get(modelId);
-      if (!cached || cached.view !== view || cached.version !== mutationVersion) {
-        cached = { view, version: mutationVersion, ids: collectEffectivePhysicalEntityIds(store, view) };
-        byModel.set(modelId, cached);
-      }
-      result.set(modelId, cached.ids);
+      result.set(modelId, effectivePhysicalEntityIds(store, view, mutationVersion));
     }
     return result;
   }, [countedModels, models.size, mutationViews, mutationVersion]);

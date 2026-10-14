@@ -8,30 +8,53 @@ import { createElementFieldReader } from '@/lib/charts/element-field-reader';
 import { effectiveScheduleGroups } from '@/lib/effective-spatial-groups';
 import type { OverlayRtcContext } from '../lib/overlay-parse/rtc-context.js';
 
-/** Stable value key for the live lookups used by buildParseResult's buckets. */
+const FLOAT_BITS = new Float64Array(1);
+const FLOAT_WORDS = new Uint32Array(FLOAT_BITS.buffer);
+
+/** One 32-bit word folded into an FNV-1a lane. */
+const fold = (h: number, word: number): number => Math.imul(h ^ word, 0x01000193) >>> 0;
+
+/** A well-mixed 32-bit hash of one `id → value` pair under `seed` (murmur3 finaliser). */
+function pairHash(seed: number, id: number, value: number): number {
+  FLOAT_BITS[0] = value;
+  let h = fold(fold(seed, id >>> 0), Math.floor(id / 0x100000000) >>> 0);
+  h = fold(fold(h, FLOAT_WORDS[0]), FLOAT_WORDS[1]);
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/**
+ * Stable value key for the live lookups used by buildParseResult's buckets:
+ * a 64-bit digest of every lookup pair, bounded even for large models (the
+ * source's contentKey contract). The pairs are summed, so equivalent maps
+ * give the same key whatever their insertion order — without sorting, and
+ * in integer arithmetic: a million-element model keyed in milliseconds, not
+ * the seconds a sorted BigInt walk over its pairs took on every load.
+ */
 export function spatialBucketKey(
   elementToStorey: ReadonlyMap<number, number> | undefined,
   storeyElevations: ReadonlyMap<number, number> | undefined,
 ): string {
-  // Keep cache keys bounded even for large models. This mirrors the source's
-  // contentKey contract: a stable 64-bit digest of every lookup pair.
-  let hash = 0xcbf29ce484222325n;
-  const feed = (value: string): void => {
-    for (let i = 0; i < value.length; i++) {
-      hash ^= BigInt(value.charCodeAt(i));
-      hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  let a = 0x811c9dc5;
+  let b = 0x050c5d1f;
+  const pairs = (tag: number, map: ReadonlyMap<number, number> | undefined): void => {
+    // The map's tag and size keep the two maps and an absent map distinct.
+    a = fold(fold(a, tag), map ? map.size + 1 : 0);
+    b = fold(fold(b, tag), map ? map.size + 1 : 0);
+    if (!map) return;
+    let sumA = 0;
+    let sumB = 0;
+    for (const [id, value] of map) {
+      sumA = (sumA + pairHash(0x9e3779b9 ^ tag, id, value)) >>> 0;
+      sumB = (sumB + pairHash(0x7f4a7c15 ^ tag, id, value)) >>> 0;
     }
+    a = fold(a, sumA);
+    b = fold(b, sumB);
   };
-  const pairs = (map: ReadonlyMap<number, number> | undefined): void => {
-    if (!map) { feed('-;'); return; }
-    // Sort so equivalent maps produce the same key independent of insertion
-    // order. Delimiters make the two maps and numeric pairs unambiguous.
-    for (const [id, value] of [...map].sort(([a], [b]) => a - b)) feed(`${id}:${value},`);
-    feed(';');
-  };
-  pairs(elementToStorey);
-  pairs(storeyElevations);
-  return hash.toString(16).padStart(16, '0');
+  pairs(1, elementToStorey);
+  pairs(2, storeyElevations);
+  return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
 }
 
 export function sourceFlatKey(

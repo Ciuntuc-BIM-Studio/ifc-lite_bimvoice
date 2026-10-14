@@ -19,8 +19,8 @@ import { useMemo } from 'react';
 import { useViewerStore } from '@/store';
 import { useIfc } from '@/hooks/useIfc';
 import {
-  collectEffectivePhysicalEntityIds,
   countPhysicalObjects,
+  effectivePhysicalEntityIds,
   type PhysicalObjectCounts,
 } from '@/lib/physical-objects';
 import { LEGACY_MODEL_ID, LEGACY_MUTATION_MODEL_ID } from '@/sdk/adapters/model-compat';
@@ -89,7 +89,7 @@ export function useViewportStatusSummary(): ViewportStatusSummary {
     ? (countModelId ? mutationViews.get(countModelId) : null)
     : mutationViews.get(LEGACY_MUTATION_MODEL_ID) ?? mutationViews.get(LEGACY_MODEL_ID);
   const physicalIds = useMemo(
-    () => (ifcDataStore ? collectEffectivePhysicalEntityIds(ifcDataStore, countView) : new Set<number>()),
+    () => (ifcDataStore ? effectivePhysicalEntityIds(ifcDataStore, countView, mutationVersion) : new Set<number>()),
     [ifcDataStore, countView, mutationVersion],
   );
 

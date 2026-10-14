@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { planAffinityRouting } from './geometry-parallel.js';
+import { HOT_KEY_SPILL_JOBS } from './affinity-routing.js';
 
 describe('planAffinityRouting (content-affinity worker routing)', () => {
   it('routes every job exactly once', () => {
@@ -63,5 +64,30 @@ describe('planAffinityRouting (content-affinity worker routing)', () => {
     expect(buckets[1]).toEqual([0]);
     expect(buckets.every((b, i) => i === 1 || b.length === 0)).toBe(true);
     expect(nextWorker).toBe(2);
+  });
+
+  it('spills a hot key across the pool once it passes HOT_KEY_SPILL_JOBS (one shared geometry)', () => {
+    // A million identical cubes: every job has the same key. Without the spill
+    // one worker takes all of them while the rest idle.
+    const total = HOT_KEY_SPILL_JOBS * 9;
+    const keyJobs = new Map<number, number>();
+    const { buckets } = planAffinityRouting(new Uint32Array(total).fill(5), total, 4, new Map(), 0, keyJobs);
+    const sizes = buckets.map((b) => b.length);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(total);
+    // The first HOT_KEY_SPILL_JOBS stay home, the rest split evenly.
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBe(HOT_KEY_SPILL_JOBS);
+    expect(keyJobs.get(5)).toBe(total);
+  });
+
+  it('keeps the spill sticky across chunks and leaves cold keys on their worker', () => {
+    const keyToWorker = new Map<number, number>();
+    const keyJobs = new Map<number, number>();
+    const hot = new Uint32Array(HOT_KEY_SPILL_JOBS).fill(1);
+    planAffinityRouting(hot, hot.length, 4, keyToWorker, 0, keyJobs);
+    // Chunk 2: key 1 is already hot, key 2 is new and cold.
+    const r = planAffinityRouting(new Uint32Array([1, 1, 1, 1, 2, 2]), 6, 4, keyToWorker, 1, keyJobs);
+    const workerOf = (job: number) => r.buckets.findIndex((b) => b.includes(job));
+    expect(new Set([0, 1, 2, 3].map(workerOf)).size).toBe(4);
+    expect(workerOf(4)).toBe(workerOf(5));
   });
 });

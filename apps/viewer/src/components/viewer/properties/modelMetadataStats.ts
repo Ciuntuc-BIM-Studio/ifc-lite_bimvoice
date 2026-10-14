@@ -22,7 +22,7 @@ import type { GeometryResult } from '@ifc-lite/geometry';
 import type { MutablePropertyView } from '@ifc-lite/mutations';
 import { countEffectiveEntityTypes } from '@ifc-lite/data';
 import { collectEffectivePhysicalEntityIds } from '@/lib/physical-objects';
-import { collectMeshedIds, countShapedObjects } from '@/lib/object-count';
+import { countShapedObjects, meshedIdsOf } from '@/lib/object-count';
 import type { AggregationRelationships } from '@/utils/aggregation';
 
 export interface ModelStats {
@@ -39,6 +39,8 @@ export interface ModelStatsGeometryContext {
   geometryReady: boolean;
   /** Resolve a renderer/global id only when it belongs to the displayed model. */
   toLocalId: (globalId: number) => number | undefined;
+  /** The model sits at id offset 0: its geometry ids are already local, so the shared mesh-id set is used as is. */
+  localIdsAreGlobal?: boolean;
 }
 
 /**
@@ -56,10 +58,14 @@ export function computeModelStats(
     return { storeys: 0, elementsWithGeometry: 0 };
   }
   const storeys = countEffectiveEntityTypes(dataStore, geometry.mutationView).get('IFCBUILDINGSTOREY') ?? 0;
-  const meshedIds = new Set<number>();
-  for (const globalId of collectMeshedIds(geometryResult)) {
-    const localId = geometry.toLocalId(globalId);
-    if (localId !== undefined) meshedIds.add(localId);
+  let meshedIds = meshedIdsOf(geometryResult);
+  if (!geometry.localIdsAreGlobal) {
+    const local = new Set<number>();
+    for (const globalId of meshedIds) {
+      const localId = geometry.toLocalId(globalId);
+      if (localId !== undefined) local.add(localId);
+    }
+    meshedIds = local;
   }
   const physicalIds = geometry.physicalIds ?? collectEffectivePhysicalEntityIds(dataStore, geometry.mutationView);
   const elementsWithGeometry = countShapedObjects(physicalIds, {

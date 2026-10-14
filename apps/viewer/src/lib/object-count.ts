@@ -135,14 +135,33 @@ export function countObjects(expressIds: Iterable<number>, model: ObjectCountMod
   return count;
 }
 
+type MeshedIdSource = {
+  meshes?: readonly { expressId: number }[];
+  instancedGeometryHashes?: ReadonlyMap<number, unknown>;
+  instancedGeometryAabbs?: ReadonlyMap<number, unknown>;
+  instancedGeometryVolumes?: ReadonlyMap<number, unknown>;
+};
+
+const meshedIdsCache = new WeakMap<MeshedIdSource, ReadonlySet<number>>();
+
+/**
+ * `collectMeshedIds` with no id mapping, built once per geometry result: the
+ * status bar and the model panel each walked a million meshes of the same
+ * result. Read-only: callers must not add to the set.
+ */
+export function meshedIdsOf(geometryResult: MeshedIdSource | null | undefined): ReadonlySet<number> {
+  if (!geometryResult) return new Set<number>();
+  let ids = meshedIdsCache.get(geometryResult);
+  if (!ids) {
+    ids = collectMeshedIds(geometryResult);
+    meshedIdsCache.set(geometryResult, ids);
+  }
+  return ids;
+}
+
 /** Geometry-bearing express ids, including entities rendered only through GPU instancing. */
 export function collectMeshedIds(
-  geometryResult: {
-    meshes?: readonly { expressId: number }[];
-    instancedGeometryHashes?: ReadonlyMap<number, unknown>;
-    instancedGeometryAabbs?: ReadonlyMap<number, unknown>;
-    instancedGeometryVolumes?: ReadonlyMap<number, unknown>;
-  } | null | undefined,
+  geometryResult: MeshedIdSource | null | undefined,
   toLocalId: (id: number) => number = (id) => id,
 ): Set<number> {
   const ids = new Set<number>();

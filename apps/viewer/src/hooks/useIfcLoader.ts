@@ -1567,7 +1567,8 @@ export function useIfcLoader() {
       // First batch renders immediately, then accumulate for throughput
       // Adaptive interval: larger files get less frequent updates to reduce React re-render overhead
       let pendingMeshes: MeshData[] = [];
-      let lastRenderTime = 0;
+      let pendingShards: ArrayBuffer[] = [];
+      let lastRenderTime = 0, lastShardFlush = 0;
       const RENDER_INTERVAL_MS = getRenderIntervalMs(fileSizeMB);
       const markFirstVisibleGeometry = () => {
         if (firstVisibleGeometryMs !== null) return;
@@ -1780,9 +1781,14 @@ export function useIfcLoader() {
                 // so useGeometryStreaming decodes + uploads them via the
                 // instanced path AS THEY STREAM IN. Primary-only: its id-offset
                 // is always 0 (the federation registry is cleared before every
-                // primary load), so there is nothing to wait on.
-                if (event.instancedShards && event.instancedShards.length > 0) {
-                  appendInstancedShards(modelId, event.instancedShards);
+                // primary load), so there is nothing to wait on. Held to the
+                // meshes' render cadence: each store write copies the whole
+                // state and wakes every subscriber, once per batch otherwise.
+                for (const shard of event.instancedShards ?? []) pendingShards.push(shard);
+                if (pendingShards.length > 0 && (batchCount === 1 || eventReceived - lastShardFlush >= RENDER_INTERVAL_MS)) {
+                  appendInstancedShards(modelId, pendingShards);
+                  pendingShards = [];
+                  lastShardFlush = eventReceived;
                 }
                 // Accumulate meshes for batched rendering
                 for (let i = 0; i < event.meshes.length; i++) pendingMeshes.push(event.meshes[i]);
@@ -1826,6 +1832,7 @@ export function useIfcLoader() {
               streamCompleteMs = trace.milestone('geometry.streamComplete');
               // Flush remaining pending meshes — PRIMARY only. A federated add
               // never pushed to pendingMeshes; it paints atomically at finalize.
+              if (target.kind === 'primary' && pendingShards.length > 0) appendInstancedShards(modelId, pendingShards.splice(0));
               if (target.kind === 'primary' && pendingMeshes.length > 0) {
                 if (firstAppendGeometryBatchMs === null) {
                   firstAppendGeometryBatchMs = trace.milestone('geometry.firstAppend');
