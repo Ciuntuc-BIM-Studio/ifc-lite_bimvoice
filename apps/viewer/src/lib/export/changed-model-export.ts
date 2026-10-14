@@ -17,6 +17,7 @@
  */
 
 import { StepExporter, Ifc5Exporter } from '@ifc-lite/export';
+import { withNativeExportSets } from './native-export-sets.js';
 import { prepareAppearanceSerialization } from '../appearance/serialization.js';
 import { packagePortableIfcAsync } from './portable-ifc.js';
 import type { IfcDataStore } from '@ifc-lite/parser';
@@ -41,7 +42,7 @@ export async function exportChangedModelToStep(
   view: MutablePropertyView | undefined,
   invocation: StepExportInvocation,
 ): Promise<ChangesExportArtifact> {
-  const serialized = prepareAppearanceSerialization(modelId, dataStore, view);
+  const serialized = prepareAppearanceSerialization(modelId, dataStore, view ? withNativeExportSets(dataStore, view) : view);
   const exporter = new StepExporter(dataStore, serialized.view);
   const result = await exporter.exportAsync({
     schema: invocation.schema,

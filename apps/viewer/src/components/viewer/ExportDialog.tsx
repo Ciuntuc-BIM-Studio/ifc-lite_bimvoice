@@ -5,6 +5,7 @@
 import type { ExportFormat, ExportSurface } from '@/lib/analytics-export-events';
 import { modelDisplayLabels } from '@/lib/model-labels.js';
 import { stepExportProgress } from '@/lib/export/step-progress.js';
+import { withNativeExportSets } from '@/lib/export/native-export-sets.js';
 import { exportModelStep } from '@/lib/export/model-step-export';
 import { packagePortableIfcAsync, assertPortableMergeSupported } from '@/lib/export/portable-ifc';
 import { lostPropertyCollisionsNote, unrepresentedPsetsNote } from '@/lib/export/changed-model-export';
@@ -490,7 +491,8 @@ export function ExportDialog({ surface, trigger, initialChangesOnly = false }: E
         const result = await exportModelStep({
           modelId: selectedModelId,
           dataStore: exportDataStore,
-          mutationView: mutationView ?? undefined,
+          // With the edits applied, the native elements also carry their quantities and parameters (N6).
+          mutationView: mutationView && applyMutations ? withNativeExportSets(exportDataStore, mutationView) : mutationView ?? undefined,
           options: {
             schema,
             includeGeometry,

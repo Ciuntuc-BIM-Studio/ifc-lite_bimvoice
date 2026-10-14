@@ -13,7 +13,7 @@
  */
 
 import type { OverlaySnapshot } from './cooperative-overlay-access.js';
-import { registerCooperativeOverlay } from './cooperative-overlay-access.js';
+import { cooperativeOverlay, registerCooperativeOverlay } from './cooperative-overlay-access.js';
 import type { PropertyTable, PropertySet, Property, QuantitySet, Quantity } from '@ifc-lite/data';
 import { quantityHistoryBefore } from './quantity-history-before.js';
 import { computeSetClaims, mutatedMembersForInstance } from './same-name-set-claims.js';
@@ -1828,6 +1828,8 @@ export class MutablePropertyView extends MutableOverlayState {
    * view over the same source, which then reads as this one did (the journal, N5).
    */
   captureOverlaySnapshot(): OverlaySnapshot { return this.copyOverlayState(); }
+  /** An independent copy (same source and extractors, its own overlay): what is written on it never reaches this view. */
+  detachedCopy(): MutablePropertyView { return cooperativeOverlay(this).draft(this.copyOverlayState()); }
 
   /** Replace this view's overlay with `snapshot` (from {@link captureOverlaySnapshot} over the same source). */
   restoreOverlaySnapshot(snapshot: OverlaySnapshot): void {

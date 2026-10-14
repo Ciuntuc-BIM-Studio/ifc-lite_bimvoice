@@ -23,3 +23,4 @@ export { liftNativeModel } from './lift.js';
 export { nativeIdOf, type LiftResult, type LiftSkip } from './lift-base.js';
 export { encodeNativeSolids, nativeElementSolids, nativeModelSolids, type NativeSolidSpec, type SolidProfile } from './solids.js';
 export { planNativeRemesh, type NativeRemeshPlan } from './remesh-plan.js';
+export { nativePset, nativeQuantities, sectionArea, writeNativeExportSets, type NativeExportSets } from './export-sets.js';
