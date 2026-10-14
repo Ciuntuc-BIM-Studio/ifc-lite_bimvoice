@@ -9,9 +9,10 @@
  * the IFC remesh as before. Both come back as the same `MeshData`, so
  * framing and the swap into the scene are shared.
  *
- * An element drawn today with more than one mesh (one per material layer) or
- * through GPU instancing stays on the IFC path: the native mesher builds one
- * body, in the colour the element is drawn in now.
+ * An element drawn through GPU instancing, or drawn otherwise than the native
+ * path will draw it (whole vs. one mesh per material layer), stays on the IFC
+ * path. Each native mesh takes the colour its element's mesh of the same
+ * representation item is drawn in now (a joinery type's frame, glass, ...).
  */
 
 import { MutablePropertyView } from '@ifc-lite/mutations';
@@ -49,10 +50,16 @@ export function drawnMeshes(model: FederatedModel): Map<number, MeshData[]> {
 /** A light neutral grey for an element not drawn yet. */
 const UNDRAWN: [number, number, number, number] = [0.8, 0.8, 0.8, 1];
 
-/** Each planned element, and each of its layer materials, in the colour it is drawn in now. */
+/** Each planned part, and each layer material, in the colour it is drawn in now. */
 export function planColors(drawn: ReadonlyMap<number, MeshData[]>, plan: NativeRemeshPlan, toGlobal: (id: number) => number) {
   const colors = new Float32Array(plan.expressIds.length * 4);
-  plan.expressIds.forEach((id, i) => colors.set(drawn.get(toGlobal(id))?.[0]?.color ?? UNDRAWN, i * 4));
+  plan.expressIds.forEach((id, i) => {
+    const meshes = drawn.get(toGlobal(id)) ?? [];
+    // Drawn item ids are re-homed like express ids in a federated session.
+    const item = plan.itemIds[i];
+    const same = item ? meshes.find((m) => m.geometryItemId === toGlobal(item)) : undefined;
+    colors.set((same ?? meshes[0])?.color ?? UNDRAWN, i * 4);
+  });
   const materialColors = new Float32Array(plan.materialIds.length * 4);
   const byMaterial = new Map<number, MeshData>();
   for (const id of plan.expressIds) for (const m of drawn.get(toGlobal(id)) ?? []) if (m.materialId !== undefined) byMaterial.set(m.materialId, m);
@@ -79,7 +86,7 @@ export function nativeSplit(
     // Drawn as the native path will draw it: whole, or one mesh per layer material.
     const perLayer = meshes.every((m) => m.materialId !== undefined);
     if (layered) return meshes.length >= 2 && perLayer ? null : 'drawn whole although it has material layers';
-    return meshes.length === 1 && !perLayer ? null : 'drawn with one mesh per material layer';
+    return meshes.some((m) => m.materialId !== undefined) ? 'drawn with one mesh per material layer' : null;
   });
   if (plan.expressIds.length === 0) return null;
   const { colors, materialColors } = planColors(drawn, plan, toGlobal);

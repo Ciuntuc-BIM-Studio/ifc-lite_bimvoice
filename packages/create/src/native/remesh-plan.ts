@@ -28,7 +28,7 @@ import { resolveLinearElementChain } from '../in-store/edit/linear-element-edit.
 import { readElementPlacement } from '../in-store/element-relocate.js';
 import { placedBodyExtent } from '../in-store/resolve-host.js';
 import { getModelLengthUnitScale } from '../in-store/edit/length-unit-scale.js';
-import { extrusionSolid, multiply, numeric } from './remesh-extrusion.js';
+import { extrusionSolid, isAxisRectangle, mappedSolids, multiply, numeric, outline, type MappedPart } from './remesh-extrusion.js';
 import { localFrame, worldFrame } from '../in-store/placement-3d.js';
 import { parentPlacementOf } from '../in-store/element-transform-frames.js';
 import type { ProfileSection } from '../in-store/profile.js';
@@ -37,13 +37,16 @@ import { encodeNativeSolids, type NativeSolidSpec } from './solids.js';
 import { ringArea2 } from './validate.js';
 
 export interface NativeRemeshPlan {
-  /** Planned elements, in the buffer's order. */
+  /**
+   * Planned elements, one entry per solid in the buffer's order: an element
+   * built of several parts (a joinery type's boxes) repeats its id.
+   */
   expressIds: number[];
   /** Their IFC class, as the mesher names it (`IfcWall`, ...). */
   ifcTypes: string[];
-  /** `meshNativeElements`' solids buffer (one solid per planned element). */
+  /** `meshNativeElements`' solids buffer (one solid per entry). */
   buffer: Float64Array;
-  /** Per element the Body item its mesh is drawn from (`geometryItemId`, as the IFC path names it), or 0. */
+  /** Per entry the representation item its mesh is drawn from (`geometryItemId`, as the IFC path names it), or 0. */
   itemIds: number[];
   /** Their material layer stacks (`meshNativeElements`' layers buffer). */
   layers: Float64Array;
@@ -120,8 +123,8 @@ function context(store: IfcDataStore, view: MutablePropertyView): Context {
   return { store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store), openingsOf, interfering, usageOf };
 }
 
-/** The element's first Body item, when it is a plain extrusion. */
-function plainExtrusion(ctx: Context, expressId: number): number | null {
+/** The element's one Body item, or null (no Body, or several items). */
+function bodyItem(ctx: Context, expressId: number): number | null {
   const shape = ctx.reader.entity(refId(ctx.reader.entity(expressId)?.attributes[6]) ?? -1);
   const reps = shape?.attributes[2];
   if (!Array.isArray(reps)) return null;
@@ -129,11 +132,15 @@ function plainExtrusion(ctx: Context, expressId: number): number | null {
     const rep = ctx.reader.entity(refId(ref) ?? -1);
     if (rep?.attributes[1] !== 'Body') continue;
     const items = rep.attributes[3];
-    if (!Array.isArray(items) || items.length !== 1) return null;
-    const item = refId(items[0]);
-    return item !== null && ctx.reader.entity(item)?.type.toUpperCase() === 'IFCEXTRUDEDAREASOLID' ? item : null;
+    return Array.isArray(items) && items.length === 1 ? refId(items[0]) : null;
   }
   return null;
+}
+
+/** The element's one Body item, when it is a plain extrusion. */
+function plainExtrusion(ctx: Context, expressId: number): number | null {
+  const item = bodyItem(ctx, expressId);
+  return item !== null && ctx.reader.entity(item)?.type.toUpperCase() === 'IFCEXTRUDEDAREASOLID' ? item : null;
 }
 
 /** The world frame of the element's parent placement, as a column-major matrix. */
@@ -177,23 +184,36 @@ function ownFrame(ctx: Context, expressId: number): number[] | null {
   return frame ? matrix(frame.r, frame.t as V3) : null;
 }
 
-/** An opening's cut as a box in its host's frame (metres), or a reason it is not one. */
-function boxCut(ctx: Context, openingId: number, hostFrame: number[]): NativeSolidSpec | string {
+/**
+ * An opening's cut: a box in its host's frame (metres), or a reason it is
+ * not one. A joinery type's opening maps its cut from the type: its boxes,
+ * placed as the opening is.
+ */
+function boxCut(ctx: Context, openingId: number, hostFrame: number[]): NativeSolidSpec[] | string {
+  const mapped = bodyItem(ctx, openingId);
+  if (mapped !== null && ctx.reader.entity(mapped)?.type.toUpperCase() === 'IFCMAPPEDITEM') {
+    const world = parentWorld(ctx, openingId), own = ownFrame(ctx, openingId);
+    if (!world || !own) return 'an opening whose placement cannot be read';
+    const parts = mappedSolids(ctx.reader, mapped, multiply(world, own), ctx.scale);
+    if (typeof parts === 'string') return parts;
+    const boxes = parts.every((p) => p.solid.profile.kind === 'polygon' && isAxisRectangle(p.solid.profile.outer));
+    return boxes ? parts.map((p) => p.solid) : 'an opening that is not a rectangular cut';
+  }
   const item = plainExtrusion(ctx, openingId);
   const solid = item === null ? null : ctx.reader.entity(item);
-  const profile = solid ? ctx.reader.entity(refId(solid.attributes[0]) ?? -1) : null;
-  if (profile?.type.toUpperCase() !== 'IFCRECTANGLEPROFILEDEF') return 'an opening that is not a rectangular cut';
+  const ring = solid ? outline(ctx.reader, refId(solid.attributes[0])) : null;
+  if (!ring || typeof ring === 'string' || !isAxisRectangle(ring)) return 'an opening that is not a rectangular cut';
   const placement = readElementPlacement(ctx.store, ctx.editor, openingId);
   const square = (deg: number) => Math.abs(deg / 90 - Math.round(deg / 90)) < 1e-9;
   if (!placement || !square(placement.rx) || !square(placement.ry) || !square(placement.rz)) return 'a turned opening';
   const bounds = placedBodyExtent(ctx.store, openingId, ctx.view);
   if (!bounds) return 'an opening whose cut cannot be read';
   const [min, max] = [bounds.min.map((v) => v * ctx.scale), bounds.max.map((v) => v * ctx.scale)];
-  return {
+  return [{
     profile: { kind: 'polygon', outer: [[min[0], min[1]], [max[0], min[1]], [max[0], max[1]], [min[0], max[1]]] },
     placement: multiply(hostFrame, translate(0, 0, min[2])),
     depth: max[2] - min[2],
-  };
+  }];
 }
 
 /** The host's cuts, or a reason the native path cannot make them. */
@@ -203,7 +223,7 @@ function cutsOf(ctx: Context, hostId: number, hostFrame: number[]): NativeSolidS
     if (!ctx.reader.entity(openingId)) continue;
     const cut = boxCut(ctx, openingId, hostFrame);
     if (typeof cut === 'string') return cut;
-    cuts.push(cut);
+    cuts.push(...cut);
   }
   return cuts;
 }
@@ -242,12 +262,17 @@ function slabSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec |
   return { profile: { kind: 'polygon', outer }, placement: multiply(world, translate(0, 0, base)), depth: chain.thickness, ...(cuts.length ? { cuts } : {}) };
 }
 
-function extrudedSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec | string {
-  const item = plainExtrusion(ctx, id);
-  if (item === null) return 'a body that is not one extrusion (a joinery type, a mapped or composite body)';
+/** A door or window: its one extrusion, or its joinery type's boxes through the mapped item. */
+function extrudedParts(ctx: Context, id: number, world: number[]): MappedPart[] | string {
+  const item = bodyItem(ctx, id);
+  const type = item === null ? '' : ctx.reader.entity(item)?.type.toUpperCase();
   const own = ownFrame(ctx, id);
   if (!own) return 'an element whose placement cannot be read';
-  return extrusionSolid(ctx.reader, item, multiply(world, own), ctx.scale);
+  const frame = multiply(world, own);
+  if (type === 'IFCMAPPEDITEM') return mappedSolids(ctx.reader, item!, frame, ctx.scale);
+  if (type !== 'IFCEXTRUDEDAREASOLID') return 'a body that is not one extrusion or one mapped item';
+  const solid = extrusionSolid(ctx.reader, item!, frame, ctx.scale);
+  return typeof solid === 'string' ? solid : [{ solid, item: item! }];
 }
 
 function linearSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec | string {
@@ -283,21 +308,25 @@ export function planNativeRemesh(
     const own = world ? ownFrame(ctx, id) : null;
     const stack = world && own ? layerStack(ctx, id, multiply(world, own)) : null;
     const veto = !ifcClass ? 'not a class the native path builds' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id, stack !== null);
-    const solid = veto ?? (!world ? 'a placement chain that cannot be read'
+    const built = veto ?? (!world ? 'a placement chain that cannot be read'
       : SLAB_LIKE.has(type) ? slabSolid(ctx, id, world)
         : LINEAR.has(type) ? linearSolid(ctx, id, world)
-          : EXTRUDED.has(type) ? extrudedSolid(ctx, id, world)
-          : wallSolid(ctx, id, world));
-    if (typeof solid === 'string') { plan.fallback.set(id, solid); continue; }
-    solids.push(solid);
-    plan.expressIds.push(id);
-    plan.ifcTypes.push(ifcClass);
-    plan.itemIds.push(plainExtrusion(ctx, id) ?? 0);
-    if (stack) {
-      layers.push(...stack);
-      for (let k = 0; k < stack[0]; k++) materials.add(stack[20 + 2 * k]);
-    } else {
-      layers.push(0);
+          : EXTRUDED.has(type) ? extrudedParts(ctx, id, world)
+            : wallSolid(ctx, id, world));
+    if (typeof built === 'string') { plan.fallback.set(id, built); continue; }
+    // One solid per part: a mapped body's parts are each their own mesh, as the IFC path draws them.
+    const parts = Array.isArray(built) ? built : [{ solid: built, item: plainExtrusion(ctx, id) ?? 0 }];
+    for (const part of parts) {
+      solids.push(part.solid);
+      plan.expressIds.push(id);
+      plan.ifcTypes.push(ifcClass);
+      plan.itemIds.push(part.item);
+      if (stack && parts.length === 1) {
+        layers.push(...stack);
+        for (let k = 0; k < stack[0]; k++) materials.add(stack[20 + 2 * k]);
+      } else {
+        layers.push(0);
+      }
     }
   }
   plan.buffer = encodeNativeSolids(solids);

@@ -23,7 +23,7 @@ let create: typeof import('../index.js');
 let resolveAnchor: typeof import('../in-store/resolve-anchor.js');
 let plan: typeof import('./remesh-plan.js');
 
-interface Body { volume: number; min: number[]; max: number[]; item?: number }
+interface Body { volume: number; min: number[]; max: number[]; items: number[]; colors: string[] }
 
 /** Each express id's body (all its meshes), from a collection, render frame. */
 function bodies(collection: MeshCollection): Map<string, Body> {
@@ -35,7 +35,7 @@ function bodies(collection: MeshCollection): Map<string, Body> {
       const o = Array.from(m.origin ?? [0, 0, 0]);
       const pos = m.positions, idx = m.indices;
       const key = `${m.expressId}:${(m as unknown as { materialId?: number }).materialId ?? ''}`;
-      const b = acc.get(key) ?? { volume: 0, min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+      const b = acc.get(key) ?? { volume: 0, min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity], items: [], colors: [] };
       const p = (k: number) => [0, 1, 2].map((a) => o[a] + pos[k * 3 + a]);
       for (let k = 0; k < pos.length / 3; k++) {
         const v = p(k);
@@ -46,11 +46,13 @@ function bodies(collection: MeshCollection): Map<string, Body> {
         b.volume += (a[0] * (c[1] * d[2] - c[2] * d[1]) - a[1] * (c[0] * d[2] - c[2] * d[0]) + a[2] * (c[0] * d[1] - c[1] * d[0])) / 6;
       }
       const item = (m as unknown as { geometryItemId?: number }).geometryItemId;
-      acc.set(key, item === undefined ? b : { ...b, item });
+      if (item !== undefined) b.items.push(item);
+      b.colors.push(Array.from(m.color).map((c) => c.toFixed(2)).join(','));
+      acc.set(key, b);
     } finally { m.free(); }
   }
   collection.free();
-  return new Map([...acc].map(([id, b]) => [id, { ...b, volume: Math.abs(b.volume) }]));
+  return new Map([...acc].map(([id, b]) => [id, { ...b, volume: Math.abs(b.volume), items: b.items.sort((x, y) => x - y) }]));
 }
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
@@ -116,6 +118,31 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     const { addHostedElementInStore } = await import('../in-store/hosted-element.js');
     express.set('door', addHostedElementInStore(store, editor, express.get(id(1))!, { kind: 'door', params: { Offset: 4, Width: 0.9, Height: 2.1 } }).expressId);
     express.set('window', addHostedElementInStore(store, editor, layered, { kind: 'window', params: { Offset: 1, Sill: 0.9, Width: 1, Height: 1.2 } }).expressId);
+    // Typed joinery: the type's boxes through a mapped item, a door mirrored and turned (flips 3).
+    const { addJoineryTypeToStore } = await import('../in-store/joinery-type.js');
+    const { assignTypeInStore } = await import('../in-store/element-type.js');
+    const { defaultWindowSpec, defaultDoorSpec } = await import('../in-store/joinery-spec.js');
+    const hostAnchor = create.resolveHostAnchor(store, express.get(id(3))!, view);
+    const windowSpec = { ...defaultWindowSpec('W-N3'), board: { interior: 0.2, exterior: 0.05 } };
+    const windowType = addJoineryTypeToStore(editor, hostAnchor, windowSpec);
+    const typedWindow = addHostedElementInStore(store, editor, express.get(id(3))!, {
+      kind: 'window', params: { Offset: 0.6, Sill: 0.9, Width: windowSpec.width, Height: windowSpec.height, MappedBody: windowType.mapId },
+    }).expressId;
+    assignTypeInStore(editor, hostAnchor, windowType.typeId, [typedWindow], []);
+    express.set('typedWindow', typedWindow);
+    const doorSpec = defaultDoorSpec('D-N3');
+    const doorType = addJoineryTypeToStore(editor, hostAnchor, doorSpec);
+    const typedDoor = addHostedElementInStore(store, editor, express.get(id(3))!, {
+      kind: 'door', params: { Offset: 3.6, Width: doorSpec.width, Height: doorSpec.height, MappedBody: doorType.mapId },
+    }).expressId;
+    assignTypeInStore(editor, hostAnchor, doorType.typeId, [typedDoor], []);
+    const { setJoineryFlipsInStore } = await import('../in-store/joinery-sync.js');
+    expect(setJoineryFlipsInStore(store, editor, typedDoor, 3)).toBe(true);
+    express.set('typedDoor', typedDoor);
+    // Retyping a placed window maps its opening's cut from the type, scaled to the occurrence.
+    const { retypeOccurrencesInStore } = await import('../in-store/joinery-sync.js');
+    const retyped = retypeOccurrencesInStore(store, editor, { ...defaultWindowSpec('W-R'), id: 'w-r', width: 1, height: 1.2 }, [express.get('window')!]);
+    expect(retyped.refused).toEqual([]);
     express.set('member', addMemberToStore(editor, anchor, { Start: [10, 6, 0], End: [13, 7, 1.8], Width: 0.06, Height: 0.2 }).memberId);
     const sampleWall = [...new resolveAnchor.AnchorEntityReader(store, view).ids('IFCWALL')].find((w) => ![...express.values()].includes(w));
     const targets = new Set([...express.values(), ...(sampleWall ? [sampleWall] : [])]);
@@ -136,6 +163,9 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     const p = plan.planNativeRemesh(store, view, targets);
     expect([...p.fallback.keys()].filter((k) => k !== sampleWall), JSON.stringify([...p.fallback])).toEqual([]);
     const colors = new Float32Array(p.expressIds.length * 4).fill(0.5);
+    const partsOf = (k: string) => p.expressIds.filter((e) => e === express.get(k)).length;
+    expect(partsOf('window'), 'the retyped window: its type\'s boxes').toBeGreaterThan(1);
+    expect([partsOf('typedWindow'), partsOf('typedDoor')], 'a joinery type: one part per box').toEqual([ifc.get(`${express.get('typedWindow')}:`)?.items.length, ifc.get(`${express.get('typedDoor')}:`)?.items.length]);
     const nativeBodies = bodies(runtime.meshNativeElements(p.buffer, Uint32Array.from(p.expressIds), p.ifcTypes, colors, Uint32Array.from(p.itemIds), p.layers,
       Uint32Array.from(p.materialIds), new Float32Array(p.materialIds.length * 4).fill(0.5), 0, 0, 0, false));
     expect([...nativeBodies.keys()].filter((k) => k.startsWith(`${layered}:`)).sort(), 'the layered wall in one mesh per material')
@@ -144,7 +174,7 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
       const b = ifc.get(key)!;
       expect(b, `IFC mesh ${key}`).toBeDefined();
       if (!key.startsWith(`${layered}:`)) expect(a.volume, `${key} volume`).toBeCloseTo(b.volume, 3);
-      expect(a.item, `${key} geometryItemId`).toBe(b.item);
+      expect(a.items, `${key} geometryItemIds`).toEqual(b.items);
       for (let k = 0; k < 3; k++) {
         expect(a.min[k], `${key} min ${k}`).toBeCloseTo(b.min[k], 3);
         expect(a.max[k], `${key} max ${k}`).toBeCloseTo(b.max[k], 3);
