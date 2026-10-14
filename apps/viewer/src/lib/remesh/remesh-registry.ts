@@ -15,7 +15,7 @@
  */
 
 import type { ViewerState } from '@/store';
-import { requestRemesh, type RemeshCause } from './remesh-service';
+import { observeRemeshRequests, requestRemesh, type RemeshCause } from './remesh-service';
 
 type Get = () => ViewerState;
 interface Entry { modelId: string; expressIds: readonly number[]; cause: RemeshCause }
@@ -59,3 +59,30 @@ export function remeshForBatch(get: Get, modelId: string, batchId: string | unde
   if (!entry || entry.modelId !== modelId) return;
   void requestRemesh(get, entry.modelId, entry.expressIds, entry.cause);
 }
+
+/** What `modelId`'s batches re-shaped, for the journal (N5): `[batchId, model-local ids, cause]`. */
+export function remeshEntriesOf(get: Get, modelId: string): Array<[string, readonly number[], RemeshCause]> {
+  return [...entries(get)].filter(([, e]) => e.modelId === modelId).map(([batch, e]) => [batch, e.expressIds, e.cause]);
+}
+
+/** Put back what a journal remembered for a model now loaded as `modelId`. */
+export function restoreRemeshEntries(get: Get, modelId: string, saved: ReadonlyArray<readonly [string, readonly number[], RemeshCause]>): void {
+  for (const [batch, ids, cause] of saved) rememberRemesh(get, batch, modelId, ids, cause);
+}
+
+/**
+ * A re-mesh asked for outside `remeshAfterCommit` (an action that commits,
+ * then calls `requestRemesh` itself: a joinery retype, a flip, a delete, a
+ * roof or timber regeneration) is remembered for the batch on top of the
+ * model's undo stack — the one it just committed — so undo and redo of that
+ * batch re-mesh too. A request that is not a commit's (undo's own re-mesh)
+ * only adds those elements to the top batch: undoing it re-meshes them as
+ * well, which costs a re-mesh and changes nothing drawn.
+ */
+observeRemeshRequests((get, modelId, ids, cause) => {
+  const s = get();
+  const stack = s.undoStacks.get(modelId);
+  const top = stack?.length ? stack[stack.length - 1] : undefined;
+  const batch = top ? s.mutationBatchTags.get(top.id) : undefined;
+  if (batch && ids.length) rememberRemesh(get, batch, modelId, ids, cause);
+});
