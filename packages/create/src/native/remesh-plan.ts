@@ -60,14 +60,14 @@ export interface NativeRemeshPlan {
 const CLASS: Record<string, string> = {
   IFCWALL: 'IfcWall', IFCWALLSTANDARDCASE: 'IfcWallStandardCase', IFCSLAB: 'IfcSlab', IFCBEAM: 'IfcBeam', IFCCOLUMN: 'IfcColumn',
   IFCPLATE: 'IfcPlate', IFCROOF: 'IfcRoof', IFCSPACE: 'IfcSpace', IFCMEMBER: 'IfcMember',
-  IFCDOOR: 'IfcDoor', IFCWINDOW: 'IfcWindow',
+  IFCDOOR: 'IfcDoor', IFCWINDOW: 'IfcWindow', IFCSTAIRFLIGHT: 'IfcStairFlight',
 };
 /** Built as a slab is: an outline extruded vertically. */
 const SLAB_LIKE = new Set(['IFCSLAB', 'IFCPLATE', 'IFCROOF', 'IFCSPACE']);
 /** Built as a beam is: a section extruded along an axis. */
 const LINEAR = new Set(['IFCBEAM', 'IFCCOLUMN', 'IFCMEMBER']);
-/** Built from their one Body extrusion as it stands (a door or window without a joinery type). */
-const EXTRUDED = new Set(['IFCDOOR', 'IFCWINDOW']);
+/** Built from their one Body extrusion as it stands (a door or window without a joinery type, a stair flight's stepped profile). */
+const EXTRUDED = new Set(['IFCDOOR', 'IFCWINDOW', 'IFCSTAIRFLIGHT']);
 
 type V3 = [number, number, number];
 type Ref = (value: unknown) => number | null;
