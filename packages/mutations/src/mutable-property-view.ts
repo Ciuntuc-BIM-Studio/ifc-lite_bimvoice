@@ -1823,17 +1823,11 @@ export class MutablePropertyView extends MutableOverlayState {
   }
 
   /**
-   * A structured-clone copy of this view's whole overlay (created entities,
-   * attribute, property, quantity and type edits, tombstones, the history):
-   * what the session has changed over its source, and nothing of the
-   * source. It can be stored as is (IndexedDB takes structured clones) and
-   * put back with {@link restoreOverlaySnapshot} on a view over the same
-   * source, which then reads exactly as this one did (the journal, N5).
-   * The history's records keep this view's `modelId`.
+   * A structured-clone copy of this view's whole overlay (what the session changed over its
+   * source, history included), storable as is; {@link restoreOverlaySnapshot} puts it back on a
+   * view over the same source, which then reads as this one did (the journal, N5).
    */
-  captureOverlaySnapshot(): OverlaySnapshot {
-    return this.copyOverlayState();
-  }
+  captureOverlaySnapshot(): OverlaySnapshot { return this.copyOverlayState(); }
 
   /** Replace this view's overlay with `snapshot` (from {@link captureOverlaySnapshot} over the same source). */
   restoreOverlaySnapshot(snapshot: OverlaySnapshot): void {
