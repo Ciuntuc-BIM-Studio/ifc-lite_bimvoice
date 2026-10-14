@@ -233,6 +233,47 @@ pub fn mesh_native_solid(solid: &NativeSolid, quality: TessellationQuality) -> R
     })
 }
 
+/// A native element's material layers, as an `IfcMaterialLayerSetUsage` describes them.
+#[derive(Debug, Clone)]
+pub struct NativeLayers {
+    /// `(IfcMaterial id, thickness in metres)`, in stack order.
+    pub layers: Vec<(u32, f64)>,
+    /// The axis the layers stack along, in the element's frame (AXIS1/2/3 as a unit vector).
+    pub axis: [f64; 3],
+    /// `+1` for POSITIVE, `-1` for NEGATIVE.
+    pub sense: f64,
+    /// OffsetFromReferenceLine, metres.
+    pub offset: f64,
+    /// The element's placement in the frame the mesh is in.
+    pub frame: Matrix4<f64>,
+}
+
+/// Slice `mesh` into one mesh per visual layer, with the IFC path's own
+/// slicer (thin layers merged, uncapped interface cuts), each with its
+/// `IfcMaterial` id. `None` when there is nothing to slice.
+pub fn slice_native_layers(mesh: &Mesh, layers: &NativeLayers) -> Option<Vec<(u32, Mesh)>> {
+    use crate::material_layer_index::LayerInfo;
+    let infos: Vec<LayerInfo> = layers.layers.iter().map(|&(material_id, thickness)| LayerInfo { material_id, thickness }).collect();
+    let visual = crate::router::merge_thin_layers(&infos, 1.0);
+    if visual.len() < 2 {
+        return None;
+    }
+    let axis = Vector3::new(layers.axis[0], layers.axis[1], layers.axis[2]);
+    let rotation = layers.frame.fixed_view::<3, 3>(0, 0);
+    let normal = (rotation * axis).try_normalize(1e-12)? * layers.sense;
+    let mut planes = Vec::with_capacity(visual.len() - 1);
+    let mut cumulative = 0.0;
+    for layer in &visual[..visual.len() - 1] {
+        cumulative += layer.thickness_m;
+        let d = layers.offset + layers.sense * cumulative;
+        let origin = layers.frame.transform_point(&Point3::new(axis.x * d, axis.y * d, axis.z * d));
+        planes.push(crate::csg::Plane::new(origin, normal));
+    }
+    let sliced = crate::router::slice_mesh_into_layers(mesh, &visual, &planes);
+    let out: Vec<(u32, Mesh)> = sliced.sub_meshes.into_iter().map(|s| (s.geometry_id, s.mesh)).collect();
+    (out.len() >= 2).then_some(out)
+}
+
 /// Every solid of a buffer, meshed; a solid that cannot be built is `Err` in its slot.
 pub fn mesh_native_solids(data: &[f64], quality: TessellationQuality) -> Result<Vec<Result<Mesh>>> {
     Ok(decode_native_solids(data)?.iter().map(|s| mesh_native_solid(s, quality)).collect())

@@ -42,6 +42,10 @@ export interface NativeRemeshPlan {
   ifcTypes: string[];
   /** `meshNativeElements`' solids buffer (one solid per planned element). */
   buffer: Float64Array;
+  /** Their material layer stacks (`meshNativeElements`' layers buffer). */
+  layers: Float64Array;
+  /** Every `IfcMaterial` a planned layer stack names: the caller colours them. */
+  materialIds: number[];
   /** Elements left to the IFC remesh, with why. */
   fallback: Map<number, string>;
 }
@@ -52,6 +56,13 @@ const CLASS: Record<string, string> = {
 
 type V3 = [number, number, number];
 type Ref = (value: unknown) => number | null;
+
+/** A number as parsed (bare) or authored (`{ real }`, `{ integer }`). */
+const numeric = (value: unknown): number | null => {
+  const v = value && typeof value === 'object' && 'real' in value ? (value as { real: unknown }).real
+    : value && typeof value === 'object' && 'integer' in value ? (value as { integer: unknown }).integer : value;
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+};
 
 const refId: Ref = (value) => {
   if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
@@ -82,6 +93,8 @@ interface Context {
   openingsOf: Map<number, number[]>;
   /** Elements in an IfcRelInterferesElements. */
   interfering: Set<number>;
+  /** Element -> its IfcMaterialLayerSetUsage. */
+  usageOf: Map<number, number>;
 }
 
 function context(store: IfcDataStore, view: MutablePropertyView): Context {
@@ -98,7 +111,14 @@ function context(store: IfcDataStore, view: MutablePropertyView): Context {
     const rel = reader.entity(relId);
     for (const at of [4, 5]) { const id = refId(rel?.attributes[at]); if (id !== null) interfering.add(id); }
   }
-  return { store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store), openingsOf, interfering };
+  const usageOf = new Map<number, number>();
+  for (const relId of reader.ids('IFCRELASSOCIATESMATERIAL')) {
+    const rel = reader.entity(relId);
+    const usage = refId(rel?.attributes[5]);
+    if (usage === null || reader.entity(usage)?.type.toUpperCase() !== 'IFCMATERIALLAYERSETUSAGE') continue;
+    for (const ref of Array.isArray(rel?.attributes[4]) ? rel.attributes[4] : []) { const id = refId(ref); if (id !== null) usageOf.set(id, usage); }
+  }
+  return { store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store), openingsOf, interfering, usageOf };
 }
 
 /** The element's first Body item, when it is a plain extrusion. */
@@ -124,6 +144,31 @@ function parentWorld(ctx: Context, expressId: number): number[] | null {
   if (parent === null) return translate(0, 0, 0);
   const frame = worldFrame({ dataStore: ctx.store, view: ctx.view }, parent);
   return frame ? matrix(frame.r, frame.t as V3) : null;
+}
+
+/**
+ * The element's layer stack as the IFC path slices it (`MaterialLayerIndex`):
+ * a usage on the element over a set of plain `IfcMaterialLayer`s; null for
+ * anything that path keeps whole (no usage, layers with offsets, one layer).
+ * Lengths in metres; the frame is the element's placement in the world.
+ */
+function layerStack(ctx: Context, id: number, elementWorld: number[]): number[] | null {
+  const usage = ctx.reader.entity(ctx.usageOf.get(id) ?? -1);
+  const set = usage ? ctx.reader.entity(refId(usage.attributes[0]) ?? -1) : null;
+  if (!usage || set?.type.toUpperCase() !== 'IFCMATERIALLAYERSET' || !Array.isArray(set.attributes[0])) return null;
+  const layers: number[] = [];
+  for (const ref of set.attributes[0] as unknown[]) {
+    const layer = ctx.reader.entity(refId(ref) ?? -1);
+    const thickness = numeric(layer?.attributes[1]);
+    if (layer?.type.toUpperCase() !== 'IFCMATERIALLAYER' || thickness === null) return null;
+    layers.push(refId(layer.attributes[0]) ?? 0, thickness * ctx.scale);
+  }
+  if (layers.length < 4) return null;
+  const word = (v: unknown) => (typeof v === 'string' ? v.replace(/\./g, '') : '');
+  const axis = { AXIS1: 1, AXIS2: 2, AXIS3: 3 }[word(usage.attributes[1])] ?? 2;
+  const sense = word(usage.attributes[2]) === 'NEGATIVE' ? -1 : 1;
+  const offset = (numeric(usage.attributes[3]) ?? 0) * ctx.scale;
+  return [layers.length / 2, axis, sense, offset, ...elementWorld, ...layers];
 }
 
 /** The element's own placement frame in its parent's (metres), as a column-major matrix. */
@@ -209,23 +254,28 @@ function linearSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec
 }
 
 /**
- * Plan the native remesh of `expressIds`. `eligible(id)` lets the caller veto
- * an element (e.g. one drawn with several meshes, one per material layer).
+ * Plan the native remesh of `expressIds`. `eligible(id, layered)` lets the
+ * caller veto an element: one drawn differently from how the native path
+ * will draw it (`layered`: sliced into one mesh per material layer).
  */
 export function planNativeRemesh(
   store: IfcDataStore,
   view: MutablePropertyView,
   expressIds: Iterable<number>,
-  eligible: (expressId: number) => string | null = () => null,
+  eligible: (expressId: number, layered: boolean) => string | null = () => null,
 ): NativeRemeshPlan {
   const ctx = context(store, view);
   const solids: NativeSolidSpec[] = [];
-  const plan: NativeRemeshPlan = { expressIds: [], ifcTypes: [], buffer: new Float64Array(), fallback: new Map() };
+  const layers: number[] = [];
+  const materials = new Set<number>();
+  const plan: NativeRemeshPlan = { expressIds: [], ifcTypes: [], buffer: new Float64Array(), layers: new Float64Array(), materialIds: [], fallback: new Map() };
   for (const id of expressIds) {
     const type = ctx.reader.entity(id)?.type.toUpperCase() ?? '';
     const ifcClass = CLASS[type];
-    const veto = !ifcClass ? 'not a wall, slab, beam or column' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id);
-    const world = veto ? null : parentWorld(ctx, id);
+    const world = ifcClass ? parentWorld(ctx, id) : null;
+    const own = world ? ownFrame(ctx, id) : null;
+    const stack = world && own ? layerStack(ctx, id, multiply(world, own)) : null;
+    const veto = !ifcClass ? 'not a wall, slab, beam or column' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id, stack !== null);
     const solid = veto ?? (!world ? 'a placement chain that cannot be read'
       : type === 'IFCSLAB' ? slabSolid(ctx, id, world)
         : type === 'IFCBEAM' || type === 'IFCCOLUMN' ? linearSolid(ctx, id, world)
@@ -234,7 +284,15 @@ export function planNativeRemesh(
     solids.push(solid);
     plan.expressIds.push(id);
     plan.ifcTypes.push(ifcClass);
+    if (stack) {
+      layers.push(...stack);
+      for (let k = 0; k < stack[0]; k++) materials.add(stack[20 + 2 * k]);
+    } else {
+      layers.push(0);
+    }
   }
   plan.buffer = encodeNativeSolids(solids);
+  plan.layers = Float64Array.from(layers);
+  plan.materialIds = [...materials].filter((m) => m > 0);
   return plan;
 }

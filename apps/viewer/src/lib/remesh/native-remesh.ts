@@ -25,6 +25,7 @@ import { readPerfFlag } from '@/lib/perf/flags';
 export interface NativeSplit {
   plan: NativeRemeshPlan;
   colors: Float32Array;
+  materialColors: Float32Array;
   /** What the IFC remesh still has to do. */
   stepTargets: Set<number>;
 }
@@ -50,17 +51,29 @@ export function nativeSplit(
     else drawn.set(mesh.expressId, [mesh]);
   }
   const instanced = model.geometryResult?.instancedGeometryHashes;
-  const plan = planNativeRemesh(store, view ?? new MutablePropertyView(null, model.id), targets, (id) => {
+  const plan = planNativeRemesh(store, view ?? new MutablePropertyView(null, model.id), targets, (id, layered) => {
     const global = toGlobal(id);
     if (instanced?.has(global)) return 'drawn through GPU instancing';
-    const meshes = drawn.get(global)?.length ?? 0;
-    return meshes === 1 ? null : meshes === 0 ? 'not drawn yet' : 'drawn with one mesh per material layer';
+    const meshes = drawn.get(global) ?? [];
+    if (meshes.length === 0) return 'not drawn yet';
+    // Drawn as the native path will draw it: whole, or one mesh per layer material.
+    const perLayer = meshes.every((m) => m.materialId !== undefined);
+    if (layered) return meshes.length >= 2 && perLayer ? null : 'drawn whole although it has material layers';
+    return meshes.length === 1 && !perLayer ? null : 'drawn with one mesh per material layer';
   });
   if (plan.expressIds.length === 0) return null;
   const colors = new Float32Array(plan.expressIds.length * 4);
   plan.expressIds.forEach((id, i) => colors.set(drawn.get(toGlobal(id))![0].color, i * 4));
+  // Each layer material in the colour it is drawn in now.
+  const materialColors = new Float32Array(plan.materialIds.length * 4);
+  const byMaterial = new Map<number, MeshData>();
+  for (const id of plan.expressIds) for (const m of drawn.get(toGlobal(id)) ?? []) if (m.materialId !== undefined) byMaterial.set(m.materialId, m);
+  plan.materialIds.forEach((material, i) => {
+    const mesh = byMaterial.get(toGlobal(material));
+    if (mesh) materialColors.set(mesh.color, i * 4);
+  });
   const stepTargets = new Set([...targets].filter((id) => !plan.expressIds.includes(id)));
-  return { plan, colors, stepTargets };
+  return { plan, colors, materialColors, stepTargets };
 }
 
 /** The native meshes joined to the IFC remesh's (`step`, null when it had nothing to do). */
@@ -69,7 +82,8 @@ export async function withNative(worker: { remeshNative?: RemeshClient['remeshNa
   if (!worker.remeshNative) throw new Error('native remesh: the remesh worker cannot mesh native elements');
   const native = await worker.remeshNative({
     buffer: split.plan.buffer, expressIds: Uint32Array.from(split.plan.expressIds),
-    ifcTypes: split.plan.ifcTypes, colors: split.colors, frame,
+    ifcTypes: split.plan.ifcTypes, colors: split.colors, layers: split.plan.layers,
+    materialIds: Uint32Array.from(split.plan.materialIds), materialColors: split.materialColors, frame,
   });
   return {
     meshes: [...(step?.meshes ?? []), ...native.meshes],

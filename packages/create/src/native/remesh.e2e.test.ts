@@ -26,15 +26,16 @@ let plan: typeof import('./remesh-plan.js');
 interface Body { volume: number; min: number[]; max: number[] }
 
 /** Each express id's body (all its meshes), from a collection, render frame. */
-function bodies(collection: MeshCollection): Map<number, Body> {
-  const acc = new Map<number, { volume: number; min: number[]; max: number[] }>();
+function bodies(collection: MeshCollection): Map<string, Body> {
+  const acc = new Map<string, { volume: number; min: number[]; max: number[] }>();
   for (let i = 0; i < collection.length; i++) {
     const m = collection.takeMesh(i);
     if (!m) continue;
     try {
       const o = Array.from(m.origin ?? [0, 0, 0]);
       const pos = m.positions, idx = m.indices;
-      const b = acc.get(m.expressId) ?? { volume: 0, min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+      const key = `${m.expressId}:${(m as unknown as { materialId?: number }).materialId ?? ''}`;
+      const b = acc.get(key) ?? { volume: 0, min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
       const p = (k: number) => [0, 1, 2].map((a) => o[a] + pos[k * 3 + a]);
       for (let k = 0; k < pos.length / 3; k++) {
         const v = p(k);
@@ -44,7 +45,7 @@ function bodies(collection: MeshCollection): Map<number, Body> {
         const [a, c, d] = [p(idx[t]), p(idx[t + 1]), p(idx[t + 2])];
         b.volume += (a[0] * (c[1] * d[2] - c[2] * d[1]) - a[1] * (c[0] * d[2] - c[2] * d[0]) + a[2] * (c[0] * d[1] - c[1] * d[0])) / 6;
       }
-      acc.set(m.expressId, b);
+      acc.set(key, b);
     } finally { m.free(); }
   }
   collection.free();
@@ -93,13 +94,22 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
       if (el.kind === 'column') express.set(el.id, create.addColumnToStore(editor, anchor, create.columnStoreParams(el, index)).columnId);
       if (el.kind === 'opening') create.addOpeningToStore(editor, create.resolveHostAnchor(store, express.get(el.hostId)!, view), create.openingStoreParams(el, index));
     }
+    // A wall with two material layers (0.2 + 0.1) on a usage centred on its axis.
+    const { addMaterialToStore, addMaterialLayerSetToStore, addMaterialLayerSetUsageToStore, assignMaterialInStore } = await import('../in-store/material.js');
+    const layered = create.addWallToStore(editor, anchor, { Start: [8, 0, 0], End: [8, 5, 0], Thickness: 0.3, Height: 2.7 }).wallId;
+    const brick = addMaterialToStore(editor, anchor, { Name: 'Brick' }).materialId;
+    const plaster = addMaterialToStore(editor, anchor, { Name: 'Plaster' }).materialId;
+    const set = addMaterialLayerSetToStore(editor, anchor, { MaterialLayers: [{ Material: brick, LayerThickness: 0.2 }, { Material: plaster, LayerThickness: 0.1 }] }).layerSetId;
+    const usage = addMaterialLayerSetUsageToStore(editor, anchor, { ForLayerSet: set, LayerSetDirection: 'AXIS2', DirectionSense: 'POSITIVE', OffsetFromReferenceLine: -0.15 }).usageId;
+    assignMaterialInStore(editor, anchor, usage, [layered], []);
+    express.set('layered', layered);
     const sampleWall = [...new resolveAnchor.AnchorEntityReader(store, view).ids('IFCWALL')].find((w) => ![...express.values()].includes(w));
     const targets = new Set([...express.values(), ...(sampleWall ? [sampleWall] : [])]);
 
     // The IFC remesh: the edited elements' subgraph, pre-passed and meshed (no RTC shift).
     const sub = serializeEntitySubgraph(store, view, { targets });
     const api = new runtime.IfcAPI();
-    let ifc: Map<number, Body>;
+    let ifc: Map<string, Body>;
     try {
       const pre = api.buildPrePassOnce(sub.bytes) as { jobs: Uint32Array; unitScale: number; voidKeys: Uint32Array; voidCounts: Uint32Array; voidValues: Uint32Array; styleIds: Uint32Array; styleColors: Uint8Array };
       const jobs: number[] = [];
@@ -112,14 +122,17 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     const p = plan.planNativeRemesh(store, view, targets);
     expect([...p.fallback.keys()].filter((k) => k !== sampleWall), JSON.stringify([...p.fallback])).toEqual([]);
     const colors = new Float32Array(p.expressIds.length * 4).fill(0.5);
-    const nativeBodies = bodies(runtime.meshNativeElements(p.buffer, Uint32Array.from(p.expressIds), p.ifcTypes, colors, 0, 0, 0, false));
-    for (const expressId of p.expressIds) {
-      const a = nativeBodies.get(expressId)!, b = ifc.get(expressId)!;
-      expect(b, `IFC mesh of #${expressId}`).toBeDefined();
-      expect(a.volume, `#${expressId} volume`).toBeCloseTo(b.volume, 3);
+    const nativeBodies = bodies(runtime.meshNativeElements(p.buffer, Uint32Array.from(p.expressIds), p.ifcTypes, colors, p.layers,
+      Uint32Array.from(p.materialIds), new Float32Array(p.materialIds.length * 4).fill(0.5), 0, 0, 0, false));
+    expect([...nativeBodies.keys()].filter((k) => k.startsWith(`${layered}:`)).sort(), 'the layered wall in one mesh per material')
+      .toEqual([`${layered}:${brick}`, `${layered}:${plaster}`]);
+    for (const [key, a] of nativeBodies) {
+      const b = ifc.get(key)!;
+      expect(b, `IFC mesh ${key}`).toBeDefined();
+      if (!key.startsWith(`${layered}:`)) expect(a.volume, `${key} volume`).toBeCloseTo(b.volume, 3);
       for (let k = 0; k < 3; k++) {
-        expect(a.min[k], `#${expressId} min ${k}`).toBeCloseTo(b.min[k], 3);
-        expect(a.max[k], `#${expressId} max ${k}`).toBeCloseTo(b.max[k], 3);
+        expect(a.min[k], `${key} min ${k}`).toBeCloseTo(b.min[k], 3);
+        expect(a.max[k], `${key} max ${k}`).toBeCloseTo(b.max[k], 3);
       }
     }
     if (sampleWall) console.log(`[N3] sample wall #${sampleWall}: ${p.fallback.get(sampleWall) ?? 'meshed natively'}`);

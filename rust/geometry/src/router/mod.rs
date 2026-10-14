@@ -19,6 +19,8 @@ mod frame_parts;
 mod instancing;
 mod item_dedup_cache;
 mod layers;
+// Native elements slice their layers the way an IFC element's are sliced (native_solid.rs).
+pub(crate) use layers::{merge_thin_layers, slice_mesh_into_layers};
 mod mapped_item;
 mod processing;
 mod processor;

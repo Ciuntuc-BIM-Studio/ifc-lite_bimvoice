@@ -2430,13 +2430,16 @@ export function intersection2d(a: Contours2D, b: Contours2D): Contours2D;
  * Native elements as the remesh path's `MeshCollection` (N3): solid `i` is
  * element `express_ids[i]` of class `ifc_types[i]`, coloured `colors[4i..]`.
  * The solids' placements already take them into the model's IFC frame in
- * metres; this subtracts the load's RTC offset (as `processGeometryBatch`
- * does) and converts Z-up to Y-up through `MeshDataJs::new`, so the result
- * goes through `convertMeshCollectionToBatch` like any re-meshed batch.
- * Throws when a solid cannot be built: the caller re-meshes those elements
- * the IFC way.
+ * metres. An element with material layers (`layers`, see `read_layers`) is
+ * sliced into one mesh per visual layer with the IFC path's slicer, each
+ * tagged with its `IfcMaterial` id and coloured from `material_colors`
+ * (RGBA per `material_ids` entry; the element's colour when absent). Then the
+ * load's RTC offset is subtracted (as `processGeometryBatch` does) and Z-up
+ * becomes Y-up through `MeshDataJs::new`, so the result goes through
+ * `convertMeshCollectionToBatch` like any re-meshed batch. Throws when a
+ * solid cannot be built: the caller re-meshes those elements the IFC way.
  */
-export function meshNativeElements(data: Float64Array, express_ids: Uint32Array, ifc_types: string[], colors: Float32Array, rtc_x: number, rtc_y: number, rtc_z: number, needs_shift: boolean): MeshCollection;
+export function meshNativeElements(data: Float64Array, express_ids: Uint32Array, ifc_types: string[], colors: Float32Array, layers: Float64Array, material_ids: Uint32Array, material_colors: Float32Array, rtc_x: number, rtc_y: number, rtc_z: number, needs_shift: boolean): MeshCollection;
 
 /**
  * Mesh every solid of `data`. Returns an array with, per solid, either
@@ -2734,7 +2737,7 @@ export interface InitOutput {
     readonly landxmltinstreamsession_outputPending: (a: number) => number;
     readonly landxmltinstreamsession_queuedBytes: (a: number) => number;
     readonly landxmltinstreamsession_queuedEvents: (a: number) => number;
-    readonly meshNativeElements: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
+    readonly meshNativeElements: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number) => void;
     readonly meshNativeSolids: (a: number, b: number, c: number) => void;
     readonly meshOutline2d: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly meshcollection_buildingRotation: (a: number, b: number) => void;

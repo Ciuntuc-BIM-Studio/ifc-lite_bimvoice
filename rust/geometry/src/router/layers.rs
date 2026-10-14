@@ -553,7 +553,7 @@ fn matrix_is_identity(m: &Matrix4<f64>) -> bool {
 /// Empty slabs (plane missed the mesh, or clipper returned nothing) are
 /// dropped — callers should treat an empty result as "fall back to
 /// unsliced mesh".
-fn slice_mesh_into_layers(
+pub(crate) fn slice_mesh_into_layers(
     mesh: &Mesh,
     visual_layers: &[VisualLayer],
     planes: &[Plane],

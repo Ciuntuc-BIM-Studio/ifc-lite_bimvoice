@@ -104,3 +104,29 @@ fn a_turned_box_wall_takes_the_box_cut_in_its_own_frame() {
     let max_y = mesh.positions.chunks_exact(3).map(|p| p[1]).fold(f32::MIN, f32::max);
     assert!(max_y > 2.9, "{max_y}");
 }
+
+#[test]
+fn layers_slice_the_body_at_their_interfaces_with_the_ifc_slicer() {
+    // A 4 x 0.3 x 3 wall body centred on its axis (y from -0.15), two layers stacked along +Y.
+    let mut buf = vec![1., 0., 4., 0., -0.15, 4., -0.15, 4., 0.15, 0., 0.15, 0.];
+    buf.extend(IDENTITY);
+    buf.extend([3., 0.]);
+    let solid = &decode_native_solids(&buf).unwrap()[0];
+    let mesh = mesh_native_solid(solid, TessellationQuality::Medium).unwrap();
+    let stack = NativeLayers {
+        layers: vec![(11, 0.2), (12, 0.1)], axis: [0., 1., 0.], sense: 1., offset: -0.15, frame: Matrix4::identity(),
+    };
+    let parts = slice_native_layers(&mesh, &stack).unwrap();
+    assert_eq!(parts.iter().map(|p| p.0).collect::<Vec<_>>(), vec![11, 12]);
+    let y_range = |m: &Mesh| {
+        let ys: Vec<f32> = m.positions.chunks_exact(3).map(|p| p[1]).collect();
+        (ys.iter().cloned().fold(f32::MAX, f32::min), ys.iter().cloned().fold(f32::MIN, f32::max))
+    };
+    let (a0, a1) = y_range(&parts[0].1);
+    let (b0, b1) = y_range(&parts[1].1);
+    assert!((a0 + 0.15).abs() < 1e-5 && (a1 - 0.05).abs() < 1e-5, "{a0} {a1}");
+    assert!((b0 - 0.05).abs() < 1e-5 && (b1 - 0.15).abs() < 1e-5, "{b0} {b1}");
+    // A sub-2 mm layer merges into its neighbour: nothing left to slice.
+    let thin = NativeLayers { layers: vec![(11, 0.299), (12, 0.001)], ..stack };
+    assert!(slice_native_layers(&mesh, &thin).is_none());
+}
