@@ -291,15 +291,16 @@ async function remesh(
   const epoch = disposals;
 
   try {
-    const split = nativeSplit(model, store, view, targets, (id) => toGlobalIdFromModels(state.models, modelId, id));
-    const stepTargets = split?.stepTargets ?? targets;
-    const sub = serializeEntitySubgraph(store, view, { targets: stepTargets });
-    if (sub.unreadable.length > 0) return refuse(modelId, 'unreadable');
-    const walked = performance.now();
     // Awaited only while the worker or the wire is still starting, so a warm
     // request is posted within the commit that asked for it.
     const pendingWorker = clientFor(configFor(state, model));
     const worker = pendingWorker instanceof Promise ? await pendingWorker : pendingWorker;
+    // A worker that cannot mesh native elements re-meshes everything the IFC way.
+    const split = worker.remeshNative ? nativeSplit(model, store, view, targets, (id) => toGlobalIdFromModels(state.models, modelId, id)) : null;
+    const stepTargets = split?.stepTargets ?? targets;
+    const sub = serializeEntitySubgraph(store, view, { targets: stepTargets });
+    if (sub.unreadable.length > 0) return refuse(modelId, 'unreadable');
+    const walked = performance.now();
     const pendingWire = styleWireFor(worker, store);
     const wire = pendingWire instanceof Promise ? await pendingWire : pendingWire;
     const styled = performance.now();

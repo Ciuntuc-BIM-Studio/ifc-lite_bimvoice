@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * Native remesh (N3, docs/format-lapin-nativ.md), behind `?perf.nativeRemesh=1`:
+ * Native remesh (N3, docs/format-lapin-nativ.md), on by default (`?perf.nativeRemesh=0` turns it off):
  * the edited elements the native mesher rebuilds exactly (`planNativeRemesh`)
  * are meshed from their parameters, without the STEP subgraph; the rest take
  * the IFC remesh as before. Both come back as the same `MeshData`, so
@@ -21,7 +21,7 @@ import type { MeshData, RtcFrame } from '@ifc-lite/geometry';
 import type { RemeshClient, RemeshResult } from '@ifc-lite/geometry/remesh';
 import { planNativeRemesh, type NativeRemeshPlan } from '@ifc-lite/create';
 import type { FederatedModel } from '@/store/types';
-import { readPerfFlag } from '@/lib/perf/flags';
+import { getPerfFlagDefinition, readPerfFlag } from '@/lib/perf/flags';
 
 export interface NativeSplit {
   plan: NativeRemeshPlan;
@@ -31,9 +31,11 @@ export interface NativeSplit {
   stepTargets: Set<number>;
 }
 
+/** On unless `?perf.nativeRemesh=0` (sticky) turns it off: the registry's default when unset. */
 export function nativeRemeshEnabled(): boolean {
   const value = readPerfFlag('nativeRemesh');
-  return value === true || value === 1 || value === '1' || value === 'true';
+  if (value === undefined || value === null || value === '') return getPerfFlagDefinition('nativeRemesh').default === true;
+  return !(value === false || value === 0 || value === '0' || value === 'false');
 }
 
 /** Meshes on screen by global express id. */

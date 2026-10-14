@@ -194,7 +194,8 @@ export const PERF_FLAGS = [
     owner: '@ionuting',
     removalCondition: 'Delete the flag and keep the native path once native remesh (N3, docs/format-lapin-nativ.md) has matched the IFC remesh in use for two releases.',
     introducedAt: '2026-10-14',
-    default: false,
+    // On by default since 2026-10-14; `?perf.nativeRemesh=0` turns it off (sticky).
+    default: true,
     bindings: { urlParam: 'perf.nativeRemesh', stickyKey: 'ifc-lite-native-remesh' },
   },
 ] as const satisfies readonly PerfFlagDefinition[];
