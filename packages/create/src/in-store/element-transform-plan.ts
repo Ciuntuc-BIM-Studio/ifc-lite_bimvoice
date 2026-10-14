@@ -27,6 +27,7 @@ import { IfcTypeEnum, IfcTypeEnumFromString } from '@ifc-lite/data';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import type { MutablePropertyView } from '@ifc-lite/mutations';
 import { expandAffectedSet } from '@ifc-lite/export';
+import { AnchorEntityReader } from './resolve-anchor.js';
 import {
   IDENTITY_FRAME, applyFrame, frameInStorey, objectPlacementOf, placementAncestors, placementOrigin, uprightFrame,
   type PlacementReader, type PlanFrame,
@@ -78,17 +79,43 @@ function typeOf(input: TransformPlanInput, id: number): string {
 
 const isOpening = (type: string) => IfcTypeEnumFromString(type) === IfcTypeEnum.IfcOpeningElement;
 
+const refOf = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
+  return typeof value === 'string' && /^#\d+$/.test(value) ? Number(value.slice(1)) : null;
+};
+
 /**
- * The moved set: each selected element and what moves with it, mapped to the
- * storey whose frame it is written in (the selected element's).
+ * The elements `ids` interfere with (IfcRelInterferesElements, either side):
+ * what a structural cut priority joins a wall to (the slab, beam or roof it
+ * cuts or is cut by). They are re-cut when a moved element moves, never moved.
+ */
+function interferencePartners(input: TransformPlanInput, ids: ReadonlySet<number>): Set<number> {
+  const reader = new AnchorEntityReader(input.dataStore, input.view);
+  const partners = new Set<number>();
+  for (const relId of reader.ids('IFCRELINTERFERESELEMENTS')) {
+    const rel = reader.entity(relId);
+    const a = refOf(rel?.attributes[4]), b = refOf(rel?.attributes[5]);
+    if (a !== null && b !== null && ids.has(a)) partners.add(b);
+    if (a !== null && b !== null && ids.has(b)) partners.add(a);
+  }
+  return partners;
+}
+
+/**
+ * The moved set: each selected element and what moves with it (its openings
+ * and their fillings), mapped to the storey whose frame it is written in (the
+ * selected element's).
  */
 function movedSet(input: TransformPlanInput): Map<number, number | null> {
   const moved = new Map<number, number | null>();
   for (const id of input.selected) moved.set(id, input.storeyOf(id));
+  // The re-mesh set also holds what the selection interferes with; those stay where they are.
+  const partners = interferencePartners(input, new Set(input.selected));
   for (const id of input.selected) {
     // A bare opening moves on its own: expanding it would take its host along.
     if (isOpening(typeOf(input, id))) continue;
     for (const dependent of expandAffectedSet(input.dataStore, input.view, [id], 'hostsChanged')) {
+      if (partners.has(dependent)) continue;
       // The walk also returns what is not placed (a material relationship the
       // parser has no type name for): only placed products move.
       if (!moved.has(dependent) && placementOf(input, dependent) !== null) moved.set(dependent, moved.get(id) ?? null);
