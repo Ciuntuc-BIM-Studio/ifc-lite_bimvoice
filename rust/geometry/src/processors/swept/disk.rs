@@ -236,6 +236,43 @@ fn build_tube(
 
 /// SweptDiskSolid processor
 /// Handles IfcSweptDiskSolid - sweeps a circular profile along a curve
+/// A disk of `radius` (a tube when `inner_radius` bores it) swept along
+/// `curve_points`, smooth normals: what an IfcSweptDiskSolid meshes to, and
+/// what the native mesher builds a railing's handrail from (N3).
+pub fn mesh_swept_disk(curve_points: &[Point3<f64>], radius: f64, inner_radius: Option<f64>, quality: TessellationQuality) -> Result<Mesh> {
+    if !directrix_is_sweepable(curve_points)? {
+        return Ok(Mesh::new());
+    }
+
+    // Generate tube mesh by sweeping circle along curve
+    // 24 segments around the circle at Medium; scaled by quality.
+    let segments = scale_segments(24, 8, 96, quality);
+    let (positions, indices) = build_tube(curve_points, radius, inner_radius, segments);
+
+    let mut mesh = Mesh {
+        positions,
+        normals: Vec::new(),
+        indices,
+        rtc_applied: false,
+        origin: [0.0; 3],
+        welded_in_object_frame: false,
+        plane_tags: None,
+        instance_meta: None, local_bounds: None, local_to_world: None };
+
+    // Ship smooth per-vertex normals, computed here in the directrix-local
+    // frame where the coordinates are small (0..directrix-length) and so
+    // precise. Without this the swept-disk mesh carried empty normals and
+    // downstream consumers recomputed them from world-space f32 positions.
+    // At a georef-scale placement (national-grid rebar sits ~6 km from the
+    // origin) the edge differences `v1 - v0` cancel catastrophically — the
+    // tube renders as a field of specular sparkles. A round tube wants
+    // smooth (area-weighted) normals, unlike the crease-heavy revolved
+    // solid which is flat-shaded. (#1164)
+    crate::calculate_normals(&mut mesh);
+
+    Ok(mesh)
+}
+
 pub struct SweptDiskSolidProcessor {
     profile_processor: ProfileProcessor,
 }
@@ -296,37 +333,7 @@ impl GeometryProcessor for SweptDiskSolidProcessor {
             quality,
         )?;
 
-        if !directrix_is_sweepable(&curve_points)? {
-            return Ok(Mesh::new());
-        }
-
-        // Generate tube mesh by sweeping circle along curve
-        // 24 segments around the circle at Medium; scaled by quality.
-        let segments = scale_segments(24, 8, 96, quality);
-        let (positions, indices) = build_tube(&curve_points, radius, inner_radius, segments);
-
-        let mut mesh = Mesh {
-            positions,
-            normals: Vec::new(),
-            indices,
-            rtc_applied: false,
-            origin: [0.0; 3],
-            welded_in_object_frame: false,
-            plane_tags: None,
-        instance_meta: None, local_bounds: None, local_to_world: None };
-
-        // Ship smooth per-vertex normals, computed here in the directrix-local
-        // frame where the coordinates are small (0..directrix-length) and so
-        // precise. Without this the swept-disk mesh carried empty normals and
-        // downstream consumers recomputed them from world-space f32 positions.
-        // At a georef-scale placement (national-grid rebar sits ~6 km from the
-        // origin) the edge differences `v1 - v0` cancel catastrophically — the
-        // tube renders as a field of specular sparkles. A round tube wants
-        // smooth (area-weighted) normals, unlike the crease-heavy revolved
-        // solid which is flat-shaded. (#1164)
-        crate::calculate_normals(&mut mesh);
-
-        Ok(mesh)
+        mesh_swept_disk(&curve_points, radius, inner_radius, quality)
     }
 
     fn supported_types(&self) -> Vec<IfcType> {

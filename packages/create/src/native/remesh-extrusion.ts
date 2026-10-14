@@ -14,7 +14,8 @@
 
 import { axis2d, axis3d, pointOf, refId, type GeometryEntityReader } from '../in-store/host-geometry-frame.js';
 import type { PlanPoint } from './schema.js';
-import type { NativeSolidSpec } from './solids.js';
+import type { NativeSolidSpec, SpacePoint } from './solids.js';
+import { brepSolid } from './remesh-faces.js';
 import { ringArea2 } from './validate.js';
 
 /** A number as parsed (bare) or authored (`{ real }`, `{ integer }`). */
@@ -28,6 +29,15 @@ export function multiply(a: readonly number[], b: readonly number[]): number[] {
   const out = new Array<number>(16).fill(0);
   for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) out[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
   return out;
+}
+
+/** An IfcCircleProfileDef's centre and radius (native units), or null for another profile. */
+function circleOf(reader: GeometryEntityReader, profileId: number | null): { o: [number, number]; r: number } | null {
+  const profile = profileId === null ? null : reader.entity(profileId);
+  if (profile?.type.toUpperCase() !== 'IFCCIRCLEPROFILEDEF') return null;
+  const at = axis2d(reader, profile.attributes[2]);
+  const r = numeric(profile.attributes[3]);
+  return at && r !== null && r > 0 ? { o: at.o, r } : null;
 }
 
 /** The profile's outline in the solid's XY, native units; or a reason. */
@@ -67,7 +77,9 @@ export function outline(reader: GeometryEntityReader, profileId: number | null):
 export function extrusionSolid(reader: GeometryEntityReader, itemId: number, outer: readonly number[], scale: number): NativeSolidSpec | string {
   const solid = reader.entity(itemId);
   if (solid?.type.toUpperCase() !== 'IFCEXTRUDEDAREASOLID') return 'a body that is not an extrusion';
-  const ring = outline(reader, refId(solid.attributes[0]));
+  const profileId = refId(solid.attributes[0]);
+  const circle = circleOf(reader, profileId);
+  const ring = circle ? [] : outline(reader, profileId);
   if (typeof ring === 'string') return ring;
   const position = axis3d(reader, solid.attributes[1]);
   const direction = pointOf(reader, solid.attributes[2], 'IFCDIRECTION');
@@ -87,6 +99,20 @@ export function extrusionSolid(reader: GeometryEntityReader, itemId: number, out
   const [c0, c1, c2] = [column(0), column(1), column(2)];
   if (Math.abs(dot(c0, c1)) > 1e-9 * sx * sy || Math.abs(dot(c0, c2)) > 1e-9 * sx * sz || Math.abs(dot(c1, c2)) > 1e-9 * sy * sz) return 'an extrusion placed by a shearing frame';
   for (let k = 0; k < 3; k++) { placement[k] /= sx; placement[4 + k] /= sy; placement[8 + k] /= sz; }
+  if (circle) {
+    // A circle (a railing post): the parametric section, centred where the profile puts it.
+    if (Math.abs(sx - sy) > 1e-9 * sx) return 'a circle profile stretched to an ellipse';
+    let cx = circle.o[0] * scale * sx;
+    const cy = circle.o[1] * scale * sy;
+    if (determinant(placement) < 0) {
+      for (let k = 0; k < 3; k++) placement[k] = -placement[k];
+      cx = -cx;
+    }
+    return {
+      profile: { kind: 'section', section: { Type: 'Circle', Radius: circle.r * scale * sx } },
+      placement: multiply(placement, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, cx, cy, 0, 1]), depth: depth * scale * sz,
+    };
+  }
   let outer2 = ring.map(([u, v]): PlanPoint => [u * scale * sx, v * scale * sy]);
   // A mirroring placement (a mapped item's left-handed operator): flip the profile's X and the
   // frame's with it, the same body in a right-handed frame the mesher's fast paths can trust.
@@ -149,12 +175,59 @@ function rigidInverse(m: readonly number[]): number[] {
   return [...r, inv(0), inv(1), inv(2), 1];
 }
 
-/** One part of a mapped body: its solid and the representation item it is drawn from. */
+/** One part of a body: its solid and the representation item it is drawn from. */
 export interface MappedPart { solid: NativeSolidSpec; item: number }
+
+/** IfcSweptDiskSolid `itemId` along a polyline as a `disk` solid placed by `frame` (metres, rigid); or a reason. */
+export function diskSolid(reader: GeometryEntityReader, itemId: number, frame: readonly number[], scale: number): NativeSolidSpec | string {
+  const disk = reader.entity(itemId);
+  if (disk?.type.toUpperCase() !== 'IFCSWEPTDISKSOLID') return 'a body that is not a swept disk';
+  const curve = reader.entity(refId(disk.attributes[0]) ?? -1);
+  if (curve?.type.toUpperCase() !== 'IFCPOLYLINE' || !Array.isArray(curve.attributes[0])) return 'a swept disk along a curve that is not a polyline';
+  const points: SpacePoint[] = [];
+  for (const ref of curve.attributes[0]) {
+    const p = pointOf(reader, ref);
+    if (!p) return 'a swept disk directrix that cannot be read';
+    points.push([p[0] * scale, p[1] * scale, p[2] * scale]);
+  }
+  const radius = numeric(disk.attributes[1]);
+  const inner = disk.attributes[2] === null || disk.attributes[2] === undefined ? null : numeric(disk.attributes[2]);
+  // Only the whole polyline (IFC2X3 writes its full parameter range).
+  const start = disk.attributes[3] === null || disk.attributes[3] === undefined ? 0 : numeric(disk.attributes[3]);
+  const end = disk.attributes[4] === null || disk.attributes[4] === undefined ? points.length - 1 : numeric(disk.attributes[4]);
+  if (radius === null || radius <= 0 || start !== 0 || end !== points.length - 1) return 'a swept disk that cannot be read';
+  const rigid = [0, 1, 2].every((c) => Math.abs(Math.hypot(frame[c * 4], frame[c * 4 + 1], frame[c * 4 + 2]) - 1) < 1e-9);
+  if (!rigid) return 'a swept disk placed by a scaled frame';
+  return { profile: { kind: 'disk', points, radius: radius * scale, ...(inner !== null && inner > 0 ? { inner: inner * scale } : {}) }, placement: [...frame], depth: 0 };
+}
+
+/**
+ * The parts of a body of several items (a railing's handrail and posts):
+ * each an extrusion, a swept disk, a faceted body or a mapped item; or a reason.
+ */
+export function itemParts(reader: GeometryEntityReader, items: readonly number[], frame: readonly number[], scale: number): MappedPart[] | string {
+  const parts: MappedPart[] = [];
+  for (const item of items) {
+    const type = reader.entity(item)?.type.toUpperCase();
+    if (type === 'IFCMAPPEDITEM') {
+      const mapped = mappedSolids(reader, item, frame, scale);
+      if (typeof mapped === 'string') return mapped;
+      parts.push(...mapped);
+      continue;
+    }
+    const solid = type === 'IFCEXTRUDEDAREASOLID' ? extrusionSolid(reader, item, frame, scale)
+      : type === 'IFCSWEPTDISKSOLID' ? diskSolid(reader, item, frame, scale)
+        : type === 'IFCFACETEDBREP' ? brepSolid(reader, item, frame, scale)
+          : `a body item the native path does not build (${type ?? 'missing'})`;
+    if (typeof solid === 'string') return solid;
+    parts.push({ solid, item });
+  }
+  return parts;
+}
 
 /**
  * The parts of IfcMappedItem `itemId` placed by `outer`: every item of the
- * mapped representation must be a plain extrusion; or a reason.
+ * mapped representation one part (`itemParts`); or a reason.
  */
 export function mappedSolids(reader: GeometryEntityReader, itemId: number, outer: readonly number[], scale: number): MappedPart[] | string {
   const mapped = reader.entity(itemId);
@@ -169,12 +242,7 @@ export function mappedSolids(reader: GeometryEntityReader, itemId: number, outer
   const rep = reader.entity(refId(map.attributes[1]) ?? -1);
   const items = rep?.type.toUpperCase() === 'IFCSHAPEREPRESENTATION' ? rep.attributes[3] : null;
   if (!Array.isArray(items) || items.length === 0) return 'a mapped representation that cannot be read';
-  const parts: MappedPart[] = [];
-  for (const ref of items) {
-    const item = refId(ref);
-    const solid = item === null ? 'a mapped item that cannot be read' : extrusionSolid(reader, item, frame, scale);
-    if (typeof solid === 'string') return solid;
-    parts.push({ solid, item: item! });
-  }
-  return parts;
+  const ids = items.map(refId);
+  if (ids.some((id) => id === null)) return 'a mapped item that cannot be read';
+  return itemParts(reader, ids as number[], frame, scale);
 }

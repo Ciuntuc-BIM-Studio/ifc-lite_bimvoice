@@ -195,3 +195,19 @@ fn faces_build_a_polyhedron_and_cut_like_a_roof_trim() {
     // Under the plane: 0.3 * integral_0^4 (2 + x/4) dx = 0.3 * (8 + 2) = 3.
     assert!((volume(mesh) - 3.).abs() < 1e-4, "{}", volume(mesh));
 }
+
+#[test]
+fn a_disk_sweeps_along_its_polyline_like_the_ifc_sweep() {
+    // A 0.02 m handrail, 2 m along X then 1 m up a slope, placed 1 m up.
+    let mut buf = vec![1., 101., 3., 0., 0., 0., 2., 0., 0., 3., 0., 1., 0.02, f64::NAN];
+    buf.extend(translated(0., 0., 1.));
+    buf.extend([0., 0.]);
+    let mesh = &mesh_native_solids(&buf, TessellationQuality::Medium).unwrap()[0];
+    let mesh = mesh.as_ref().unwrap();
+    let expected = crate::processors::mesh_swept_disk(
+        &[Point3::new(0., 0., 1.), Point3::new(2., 0., 1.), Point3::new(3., 0., 2.)], 0.02, None, TessellationQuality::Medium,
+    ).unwrap();
+    assert_eq!(mesh.indices.len(), expected.indices.len());
+    assert!((volume(mesh) - volume(&expected)).abs() < 1e-9, "{} {}", volume(mesh), volume(&expected));
+    assert!(volume(mesh) > 0.0);
+}

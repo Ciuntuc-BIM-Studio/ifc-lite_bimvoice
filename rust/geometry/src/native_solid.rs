@@ -20,11 +20,14 @@
 //! profile:= 0 outerCount (x y)* holeCount (n (x y)*)*   polygon
 //!         | code dimCount dim*                         section (codes below)
 //!         | 100 faceCount (loopCount (n (x y z)*)*)*  faces (outer loop, then holes)
+//!         | 101 n (x y z)* radius innerRadius          disk swept along a polyline
 //! ```
 //! A `faces` solid is a closed polyhedron (a faceted element: a rafter with
 //! cut ends, a sloped roof, the prism a roof trim removes from a wall),
 //! triangulated face by face as the IFC path triangulates an IfcFacetedBrep;
-//! its points are in the profile frame and its depth is ignored.
+//! its points are in the profile frame and its depth is ignored. A `disk`
+//! solid is an IfcSweptDiskSolid along a polyline (a railing's handrail),
+//! meshed by the IFC path's own sweep; innerRadius NaN for none, depth ignored.
 //! `placement` is a column-major 4x4 matrix taking the profile frame (profile
 //! in XY, extruded along +Z) to the element frame. A section dimension that
 //! is NaN is absent (an optional fillet).
@@ -36,7 +39,7 @@ use crate::mesh::Mesh;
 use crate::rect_fast::{subtract_rect_openings, RectFastStats};
 use crate::profile::Profile2D;
 use crate::profiles::ProfileProcessor;
-use crate::processors::FacetedBrepProcessor;
+use crate::processors::{mesh_swept_disk, FacetedBrepProcessor};
 use crate::csg::calculate_normals;
 use crate::tessellation::TessellationQuality;
 use ifc_lite_core::{AttributeValue, DecodedEntity, EntityDecoder, IfcSchema, IfcType};
@@ -51,10 +54,14 @@ pub enum NativeProfile {
     Section { ifc_type: IfcType, dims: Vec<Option<f64>> },
     /// Planar faces, each an outer loop and its holes.
     Faces(Vec<(Vec<Point3<f64>>, Vec<Vec<Point3<f64>>>)>),
+    /// A disk of `radius` (bored to `inner` when given) swept along a polyline.
+    Disk { points: Vec<Point3<f64>>, radius: f64, inner: Option<f64> },
 }
 
 /// The wire code of a `faces` profile.
 const FACES: usize = 100;
+/// The wire code of a `disk` profile.
+const DISK: usize = 101;
 
 #[derive(Debug, Clone)]
 pub struct NativeSolid {
@@ -115,7 +122,17 @@ impl Reader<'_> {
         (0..n).map(|_| Ok(Point3::new(self.finite()?, self.finite()?, self.finite()?))).collect()
     }
     fn profile(&mut self) -> Result<NativeProfile> {
-        let code = self.count(FACES)?;
+        let code = self.count(DISK)?;
+        if code == DISK {
+            let points = self.points()?;
+            let radius = self.finite()?;
+            let inner = self.next()?;
+            if !(radius > 0.0) {
+                return Err(Error::geometry("native solids: a swept disk needs a positive radius"));
+            }
+            let inner = (inner.is_finite() && inner > 0.0 && inner < radius).then_some(inner);
+            return Ok(NativeProfile::Disk { points, radius, inner });
+        }
         if code == FACES {
             let faces = (0..self.count(self.data.len())?)
                 .map(|_| {
@@ -179,7 +196,7 @@ pub fn decode_native_solids(data: &[f64]) -> Result<Vec<NativeSolid>> {
 fn profile_2d(profile: &NativeProfile, quality: TessellationQuality) -> Result<Profile2D> {
     match profile {
         NativeProfile::Polygon(p) => Ok(p.clone()),
-        NativeProfile::Faces(_) => Err(Error::geometry("native solids: faces have no profile")),
+        NativeProfile::Faces(_) | NativeProfile::Disk { .. } => Err(Error::geometry("native solids: faces and disks have no profile")),
         NativeProfile::Section { ifc_type, dims } => {
             // The same parametric builder the IFC path runs, on a synthetic
             // entity: ProfileType AREA, no name, no position (centred).
@@ -205,6 +222,13 @@ fn extrude(solid: &NativeSolid, quality: TessellationQuality) -> Result<Mesh> {
         }
         calculate_normals(&mut mesh);
         return Ok(mesh);
+    }
+    if let NativeProfile::Disk { points, radius, inner } = &solid.profile {
+        let mesh = mesh_swept_disk(points, *radius, *inner, quality)?;
+        if mesh.indices.is_empty() {
+            return Err(Error::geometry("native swept disk sweeps nothing"));
+        }
+        return Ok(transformed(mesh, &solid.placement));
     }
     if !(solid.depth > 0.0) {
         return Err(Error::InvalidExtrusion("native solid depth must be positive".into()));

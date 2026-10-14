@@ -32,7 +32,9 @@ export type SolidProfile =
   | { kind: 'polygon'; outer: PlanPoint[]; holes?: PlanPoint[][] }
   | { kind: 'section'; section: ProfileSection }
   /** A closed polyhedron (a faceted body), placed by `placement`; its depth is ignored. */
-  | { kind: 'faces'; faces: SolidFace[] };
+  | { kind: 'faces'; faces: SolidFace[] }
+  /** A disk of `radius` (bored to `inner`) swept along the polyline `points`, placed by `placement`; depth ignored. */
+  | { kind: 'disk'; points: SpacePoint[]; radius: number; inner?: number };
 
 export interface NativeSolidSpec {
   profile: SolidProfile;
@@ -45,6 +47,8 @@ export interface NativeSolidSpec {
 
 /** The wire code of a `faces` profile (`native_solid.rs`). */
 const FACES = 100;
+/** The wire code of a `disk` profile. */
+const DISK = 101;
 
 /** How far a cut overshoots its host's faces, so no skin survives (as the IFC opening writer). */
 const CUT_CLEARANCE = 0.05;
@@ -173,6 +177,8 @@ function encodeSolid(out: number[], solid: NativeSolidSpec, withCuts: boolean): 
   if (p.kind === 'polygon') {
     out.push(0, p.outer.length, ...p.outer.flat(), p.holes?.length ?? 0);
     for (const hole of p.holes ?? []) out.push(hole.length, ...hole.flat());
+  } else if (p.kind === 'disk') {
+    out.push(DISK, p.points.length, ...p.points.flat(), p.radius, p.inner ?? Number.NaN);
   } else if (p.kind === 'faces') {
     out.push(FACES, p.faces.length);
     for (const face of p.faces) {

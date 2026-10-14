@@ -29,7 +29,7 @@ import { readElementPlacement } from '../in-store/element-relocate.js';
 import { placedBodyExtent } from '../in-store/resolve-host.js';
 import { getModelLengthUnitScale } from '../in-store/edit/length-unit-scale.js';
 import { brepSolid, roofTrimCuts } from './remesh-faces.js';
-import { extrusionSolid, isAxisRectangle, mappedSolids, multiply, numeric, outline, type MappedPart } from './remesh-extrusion.js';
+import { isAxisRectangle, itemParts, mappedSolids, multiply, numeric, outline, type MappedPart } from './remesh-extrusion.js';
 import { localFrame, worldFrame } from '../in-store/placement-3d.js';
 import { parentPlacementOf } from '../in-store/element-transform-frames.js';
 import type { ProfileSection } from '../in-store/profile.js';
@@ -60,14 +60,14 @@ export interface NativeRemeshPlan {
 const CLASS: Record<string, string> = {
   IFCWALL: 'IfcWall', IFCWALLSTANDARDCASE: 'IfcWallStandardCase', IFCSLAB: 'IfcSlab', IFCBEAM: 'IfcBeam', IFCCOLUMN: 'IfcColumn',
   IFCPLATE: 'IfcPlate', IFCROOF: 'IfcRoof', IFCSPACE: 'IfcSpace', IFCMEMBER: 'IfcMember',
-  IFCDOOR: 'IfcDoor', IFCWINDOW: 'IfcWindow', IFCSTAIRFLIGHT: 'IfcStairFlight',
+  IFCDOOR: 'IfcDoor', IFCWINDOW: 'IfcWindow', IFCSTAIRFLIGHT: 'IfcStairFlight', IFCRAILING: 'IfcRailing',
 };
 /** Built as a slab is: an outline extruded vertically. */
 const SLAB_LIKE = new Set(['IFCSLAB', 'IFCPLATE', 'IFCROOF', 'IFCSPACE']);
 /** Built as a beam is: a section extruded along an axis. */
 const LINEAR = new Set(['IFCBEAM', 'IFCCOLUMN', 'IFCMEMBER']);
-/** Built from their one Body extrusion as it stands (a door or window without a joinery type, a stair flight's stepped profile). */
-const EXTRUDED = new Set(['IFCDOOR', 'IFCWINDOW', 'IFCSTAIRFLIGHT']);
+/** Built from their body items as they stand (`extrudedParts`). */
+const EXTRUDED = new Set(['IFCDOOR', 'IFCWINDOW', 'IFCSTAIRFLIGHT', 'IFCRAILING']);
 
 type V3 = [number, number, number];
 type Ref = (value: unknown) => number | null;
@@ -124,18 +124,24 @@ function context(store: IfcDataStore, view: MutablePropertyView): Context {
   return { store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store), openingsOf, interfering, usageOf };
 }
 
-/** The element's one Body item, or null (no Body, or several items). */
-function bodyItem(ctx: Context, expressId: number): number | null {
+/** The element's Body items (empty without a Body). */
+function bodyItems(ctx: Context, expressId: number): number[] {
   const shape = ctx.reader.entity(refId(ctx.reader.entity(expressId)?.attributes[6]) ?? -1);
   const reps = shape?.attributes[2];
-  if (!Array.isArray(reps)) return null;
+  if (!Array.isArray(reps)) return [];
   for (const ref of reps) {
     const rep = ctx.reader.entity(refId(ref) ?? -1);
     if (rep?.attributes[1] !== 'Body') continue;
-    const items = rep.attributes[3];
-    return Array.isArray(items) && items.length === 1 ? refId(items[0]) : null;
+    const items = Array.isArray(rep.attributes[3]) ? rep.attributes[3].map(refId) : [];
+    return items.every((id) => id !== null) ? items as number[] : [];
   }
-  return null;
+  return [];
+}
+
+/** The element's one Body item, or null (no Body, or several items). */
+function bodyItem(ctx: Context, expressId: number): number | null {
+  const items = bodyItems(ctx, expressId);
+  return items.length === 1 ? items[0] : null;
 }
 
 /** The element's one Body item, when it is a plain extrusion. */
@@ -288,17 +294,17 @@ function facetedSolid(ctx: Context, id: number, world: number[]): NativeSolidSpe
   return cuts.length ? { ...solid, cuts } : solid;
 }
 
-/** A door or window: its one extrusion, or its joinery type's boxes through the mapped item. */
+/**
+ * An element built from its body items as they stand: a door or window (its
+ * extrusion, or its joinery type's boxes through the mapped item), a stair
+ * flight, a railing (handrail and posts): one part per item.
+ */
 function extrudedParts(ctx: Context, id: number, world: number[]): MappedPart[] | string {
-  const item = bodyItem(ctx, id);
-  const type = item === null ? '' : ctx.reader.entity(item)?.type.toUpperCase();
+  const items = bodyItems(ctx, id);
+  if (items.length === 0) return 'an element without a body';
   const own = ownFrame(ctx, id);
   if (!own) return 'an element whose placement cannot be read';
-  const frame = multiply(world, own);
-  if (type === 'IFCMAPPEDITEM') return mappedSolids(ctx.reader, item!, frame, ctx.scale);
-  if (type !== 'IFCEXTRUDEDAREASOLID') return 'a body that is not one extrusion or one mapped item';
-  const solid = extrusionSolid(ctx.reader, item!, frame, ctx.scale);
-  return typeof solid === 'string' ? solid : [{ solid, item: item! }];
+  return itemParts(ctx.reader, items, multiply(world, own), ctx.scale);
 }
 
 function linearSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec | string {

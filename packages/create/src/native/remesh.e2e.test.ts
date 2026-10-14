@@ -159,6 +159,8 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     express.set('trimmed', gable);
     const { addStairToStore } = await import('../in-store/stair.js');
     express.set('stair', addStairToStore(editor, anchor, { Position: [14, 8, 0], Direction: 0.3, NumberOfRisers: 16, RiserHeight: 0.175, TreadLength: 0.28, Width: 1.1 }).flightId);
+    const { addRailingToStore } = await import('../in-store/railing.js');
+    express.set('railing', addRailingToStore(editor, anchor, { Path: [[14, 12, 0], [17, 12, 0], [18, 14, 1.2]], Height: 1, PostSpacing: 1.2 }).railingId);
     express.set('member', addMemberToStore(editor, anchor, { Start: [10, 6, 0], End: [13, 7, 1.8], Width: 0.06, Height: 0.2 }).memberId);
     const sampleWall = [...new resolveAnchor.AnchorEntityReader(store, view).ids('IFCWALL')].find((w) => ![...express.values()].includes(w));
     const targets = new Set([...express.values(), ...(sampleWall ? [sampleWall] : [])]);

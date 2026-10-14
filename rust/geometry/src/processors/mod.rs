@@ -57,6 +57,7 @@ pub use structural_edge::IfcEdgeProcessor;
 pub use structural_face::IfcFaceSurfaceProcessor;
 pub use surface::SurfaceOfLinearExtrusionProcessor;
 pub use swept::{
+    mesh_swept_disk,
     RevolvedAreaSolidProcessor, SurfaceCurveSweptAreaSolidProcessor, SweptDiskSolidProcessor,
 };
 pub use tessellated::{PolygonalFaceSetProcessor, TriangulatedFaceSetProcessor};
