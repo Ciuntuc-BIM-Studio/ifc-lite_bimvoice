@@ -37,6 +37,7 @@ mod grid_lines;
 mod landxml;
 mod landxml_stream;
 mod mesh_outline;
+mod native_mesh;
 mod overlay_frame;
 mod parsing;
 mod pipeline_diagnostics;

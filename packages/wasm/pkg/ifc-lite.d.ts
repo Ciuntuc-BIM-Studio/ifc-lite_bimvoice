@@ -2427,6 +2427,13 @@ export function init(): void;
 export function intersection2d(a: Contours2D, b: Contours2D): Contours2D;
 
 /**
+ * Mesh every solid of `data`. Returns an array with, per solid, either
+ * `{ positions: Float32Array, normals: Float32Array, indices: Uint32Array }`
+ * or `{ error: string }`; throws only when the buffer itself is malformed.
+ */
+export function meshNativeSolids(data: Float64Array): Array<any>;
+
+/**
  * Compute the winding-robust 2D footprint outline of a triangle mesh.
  *
  * `positions` is flat XYZ; `indices` is flat triangle indices. `axis` is
@@ -2715,6 +2722,7 @@ export interface InitOutput {
     readonly landxmltinstreamsession_outputPending: (a: number) => number;
     readonly landxmltinstreamsession_queuedBytes: (a: number) => number;
     readonly landxmltinstreamsession_queuedEvents: (a: number) => number;
+    readonly meshNativeSolids: (a: number, b: number, c: number) => void;
     readonly meshOutline2d: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly meshcollection_buildingRotation: (a: number, b: number) => void;
     readonly meshcollection_diagnostics: (a: number) => number;
