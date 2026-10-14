@@ -2427,6 +2427,18 @@ export function init(): void;
 export function intersection2d(a: Contours2D, b: Contours2D): Contours2D;
 
 /**
+ * Native elements as the remesh path's `MeshCollection` (N3): solid `i` is
+ * element `express_ids[i]` of class `ifc_types[i]`, coloured `colors[4i..]`.
+ * The solids' placements already take them into the model's IFC frame in
+ * metres; this subtracts the load's RTC offset (as `processGeometryBatch`
+ * does) and converts Z-up to Y-up through `MeshDataJs::new`, so the result
+ * goes through `convertMeshCollectionToBatch` like any re-meshed batch.
+ * Throws when a solid cannot be built: the caller re-meshes those elements
+ * the IFC way.
+ */
+export function meshNativeElements(data: Float64Array, express_ids: Uint32Array, ifc_types: string[], colors: Float32Array, rtc_x: number, rtc_y: number, rtc_z: number, needs_shift: boolean): MeshCollection;
+
+/**
  * Mesh every solid of `data`. Returns an array with, per solid, either
  * `{ positions: Float32Array, normals: Float32Array, indices: Uint32Array }`
  * or `{ error: string }`; throws only when the buffer itself is malformed.
@@ -2722,6 +2734,7 @@ export interface InitOutput {
     readonly landxmltinstreamsession_outputPending: (a: number) => number;
     readonly landxmltinstreamsession_queuedBytes: (a: number) => number;
     readonly landxmltinstreamsession_queuedEvents: (a: number) => number;
+    readonly meshNativeElements: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
     readonly meshNativeSolids: (a: number, b: number, c: number) => void;
     readonly meshOutline2d: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly meshcollection_buildingRotation: (a: number, b: number) => void;

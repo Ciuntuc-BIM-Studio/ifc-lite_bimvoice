@@ -10,6 +10,7 @@
 export { RemeshClient, type RemeshClientOptions } from './remesh-client.js';
 export {
   filterStyleWire,
+  type NativeRemeshRequest,
   type RemeshConfig,
   type RemeshRequest,
   type RemeshResult,

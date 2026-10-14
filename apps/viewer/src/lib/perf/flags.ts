@@ -188,6 +188,15 @@ export const PERF_FLAGS = [
     default: false,
     bindings: { global: '__IFC_LITE_PERF_TRACE', urlParam: 'perfTrace' },
   },
+  {
+    id: 'nativeRemesh',
+    kind: 'ramp',
+    owner: '@ionuting',
+    removalCondition: 'Delete the flag and keep the native path once native remesh (N3, docs/format-lapin-nativ.md) has matched the IFC remesh in use for two releases.',
+    introducedAt: '2026-10-14',
+    default: false,
+    bindings: { urlParam: 'perf.nativeRemesh', stickyKey: 'ifc-lite-native-remesh' },
+  },
 ] as const satisfies readonly PerfFlagDefinition[];
 
 export type PerfFlagId = (typeof PERF_FLAGS)[number]['id'];

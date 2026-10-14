@@ -12,11 +12,11 @@
  * the primary error. The next request gets a fresh handle with current config.
  */
 
-import init, { initSync, IfcAPI } from '@ifc-lite/wasm';
+import init, { initSync, IfcAPI, meshNativeElements } from '@ifc-lite/wasm';
 import { initWasmWithRetry } from '../wasm-init-retry.js';
 import { freeWasmInstanceQuietly } from '../wasm-instance-free.js';
 import { restashWasmPanicLocation, takeWasmPanicStash } from '../wasm-panic-forward.js';
-import { applyRemeshConfig, remeshOnApi, styleWireOnApi, type RemeshConfig } from './remesh-core.js';
+import { applyRemeshConfig, remeshNativeOnApi, remeshOnApi, styleWireOnApi, type RemeshConfig } from './remesh-core.js';
 import {
   meshTransferables, serialQueue, styleWireTransferables, type RemeshWorkerInbound, type RemeshWorkerOutbound,
 } from './remesh-protocol.js';
@@ -89,9 +89,13 @@ async function handle(message: RemeshWorkerInbound): Promise<void> {
       return;
     }
     case 'remesh':
+    case 'remesh-native':
     case 'style-wire': {
       try {
-        if (message.type === 'remesh') {
+        if (message.type === 'remesh-native') {
+          const result = remeshNativeOnApi(meshNativeElements, message.request);
+          post({ type: 'result', requestId: message.requestId, result }, meshTransferables(result.meshes));
+        } else if (message.type === 'remesh') {
           const result = remeshOnApi(currentApi(), message.request);
           post({ type: 'result', requestId: message.requestId, result }, meshTransferables(result.meshes));
         } else {

@@ -51,6 +51,35 @@ export interface RemeshRequest {
 }
 
 /**
+ * Native elements to rebuild from their parameters (N3, `meshNativeElements`):
+ * the solids buffer (`encodeNativeSolids` in `@ifc-lite/create`, placed in the
+ * model's IFC frame, metres), one express id, IFC class and RGBA colour per
+ * solid, and the frame the model was meshed in on load.
+ */
+export interface NativeRemeshRequest {
+  buffer: Float64Array;
+  expressIds: Uint32Array;
+  ifcTypes: string[];
+  colors: Float32Array;
+  frame: RtcFrame;
+}
+
+/** `meshNativeElements` of `@ifc-lite/wasm` (a free function, not an `IfcAPI` method). */
+export type MeshNativeElements = (
+  data: Float64Array, expressIds: Uint32Array, ifcTypes: string[], colors: Float32Array,
+  rtcX: number, rtcY: number, rtcZ: number, needsShift: boolean,
+) => MeshCollection;
+
+/** Rebuild native elements: the same `MeshData` the IFC remesh produces, without STEP. */
+export function remeshNativeOnApi(meshNative: MeshNativeElements, req: NativeRemeshRequest, now: () => number = () => performance.now()): RemeshResult {
+  const start = now();
+  const { frame } = req;
+  const collection = meshNative(req.buffer, req.expressIds, req.ifcTypes, req.colors, frame.x, frame.y, frame.z, frame.needsShift);
+  const meshes = convertMeshCollectionToBatch(collection);
+  return { meshes, csgFailures: 0, ms: { prepass: 0, produce: now() - start } };
+}
+
+/**
  * The style and material colour wire a whole-file pre-pass resolves: what a
  * re-mesh request must carry, since a subgraph holds no styles.
  */

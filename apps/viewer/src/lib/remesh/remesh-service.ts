@@ -42,6 +42,7 @@ import { resolve } from '@/i18n/registry';
 import type { TranslationKey } from '@/i18n';
 import { expandAffectedSet, type RemeshCause } from './affected-set';
 import { loadRtcFrame, toRenderFrame } from './render-frame';
+import { nativeSplit, withNative } from './native-remesh';
 
 
 /**
@@ -87,6 +88,7 @@ export type RemeshOutcome =
 export interface RemeshClientLike {
   readonly alive: boolean;
   remesh(request: RemeshRequest): Promise<RemeshResult>;
+  remeshNative?: RemeshClient['remeshNative'];
   styleWire(source: Uint8Array): Promise<StyleWire>;
   setConfig(config: RemeshConfig): void;
   dispose(): void;
@@ -332,7 +334,9 @@ async function remesh(
   const epoch = disposals;
 
   try {
-    const sub = serializeEntitySubgraph(store, view, { targets });
+    const split = nativeSplit(model, store, view, targets, (id) => toGlobalIdFromModels(state.models, modelId, id));
+    const stepTargets = split?.stepTargets ?? targets;
+    const sub = serializeEntitySubgraph(store, view, { targets: stepTargets });
     if (sub.unreadable.length > 0) return refuse(modelId, 'unreadable');
     const walked = performance.now();
     // Awaited only while the worker or the wire is still starting, so a warm
@@ -342,15 +346,15 @@ async function remesh(
     const pendingWire = styleWireFor(worker, store);
     const wire = pendingWire instanceof Promise ? await pendingWire : pendingWire;
     const styled = performance.now();
-    const result = await worker.remesh({
+    const result = await withNative(worker, split, frame, stepTargets.size === 0 ? null : await worker.remesh({
       buffer: sub.bytes,
-      targets: Uint32Array.from(targets),
+      targets: Uint32Array.from(stepTargets),
       frame,
-      ...filterStyleWire(...stylesWithOverlay(wire, store, view, targets), sub.ids),
+      ...filterStyleWire(...stylesWithOverlay(wire, store, view, stepTargets), sub.ids),
       materialElementIds: wire.materialElementIds,
       materialColorCounts: wire.materialColorCounts,
       materialColors: wire.materialColors,
-    });
+    }));
     const meshed = performance.now();
     if (!isCurrent(get, modelId, store, stamps, targets)) return { status: 'stale' };
     const current = get().models.get(modelId)!;

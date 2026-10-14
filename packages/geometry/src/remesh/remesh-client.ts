@@ -11,7 +11,7 @@
  * request still in flight. Requests are answered in the order they were sent.
  */
 
-import type { RemeshConfig, RemeshRequest, RemeshResult, StyleWire } from './remesh-core.js';
+import type { NativeRemeshRequest, RemeshConfig, RemeshRequest, RemeshResult, StyleWire } from './remesh-core.js';
 import type { RemeshWorkerInbound, RemeshWorkerOutbound } from './remesh-protocol.js';
 import { restashWasmPanicLocation } from '../wasm-panic-forward.js';
 
@@ -95,6 +95,11 @@ export class RemeshClient {
       ? [buffer.buffer]
       : [];
     return this.request<RemeshResult>((requestId) => ({ type: 'remesh', requestId, request }), transfer);
+  }
+
+  /** Rebuild native elements from their parameters (N3); the buffers are copied. */
+  remeshNative(request: NativeRemeshRequest): Promise<RemeshResult> {
+    return this.request<RemeshResult>((requestId) => ({ type: 'remesh-native', requestId, request }));
   }
 
   /**

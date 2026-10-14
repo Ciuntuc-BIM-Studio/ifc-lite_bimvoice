@@ -5,12 +5,13 @@
 /** Messages between `RemeshClient` and `remesh.worker.ts` (#6232 WP1). */
 
 import type { MeshData } from '../types.js';
-import type { RemeshConfig, RemeshRequest, RemeshResult, StyleWire } from './remesh-core.js';
+import type { NativeRemeshRequest, RemeshConfig, RemeshRequest, RemeshResult, StyleWire } from './remesh-core.js';
 
 export type RemeshWorkerInbound =
   | { type: 'init'; config: RemeshConfig; wasmModule?: WebAssembly.Module; wasmUrl?: string }
   | { type: 'config'; config: RemeshConfig }
   | { type: 'remesh'; requestId: number; request: RemeshRequest }
+  | { type: 'remesh-native'; requestId: number; request: NativeRemeshRequest }
   | { type: 'style-wire'; requestId: number; source: Uint8Array };
 
 export type RemeshWorkerOutbound =
