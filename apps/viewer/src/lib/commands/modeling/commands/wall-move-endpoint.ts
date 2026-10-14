@@ -4,7 +4,10 @@
 
 /**
  * `wall.moveEndpoint` (charter #6232, WP2): drag one end of the selected
- * wall. While the pointer is down only a ghost follows the (snapped) cursor;
+ * wall. While the pointer is down a ghost follows the (snapped) cursor: with
+ * `?perf.nativeRemesh=1`, the moved walls themselves (joins, layers,
+ * openings), built natively on a draft of the edit (`native-preview.ts`);
+ * otherwise a plain box.
  * release writes ONE `resizeWall` — one transaction, one undo step — and the
  * command ends. Escape during the drag cancels with nothing written.
  *
@@ -21,6 +24,9 @@ import { dist } from '@/lib/snap/constraints';
 import type { Vec2 } from '@/lib/snap/types';
 import { modelEditTarget } from '@/store/slices/mutation-modelling-records';
 import { resizeWallMetres } from '@/store/slices/mutation-wall-resize';
+import { resizeWallInStore } from '@ifc-lite/create';
+import type { MeshData } from '@ifc-lite/geometry';
+import { endPreview, endPreviewAfterRemesh, previewEditNatively, standInFor } from '@/lib/remesh/native-preview';
 import { commandGhostId, wallGhostMesh } from '../ghost.js';
 import { commitCommand, getCommandRuntime, updateCommandGesture } from '../runtime.js';
 import { buildStoreyWorkplane, elementStoreyId, isWorkplane } from '../workplane.js';
@@ -39,10 +45,12 @@ export interface WallEndpointGesture {
   which: WallEnd | null;
   /** Where the dragged end is now, storey-local plan. */
   moving: Vec2 | null;
+  /** The moved walls with their real geometry (native preview), when it could be built. */
+  preview: MeshData[] | null;
 }
 
 const EMPTY: WallEndpointGesture = {
-  target: null, plane: null, start: [0, 0, 0], end: [0, 0, 0], thickness: 0, height: 0, which: null, moving: null,
+  target: null, plane: null, start: [0, 0, 0], end: [0, 0, 0], thickness: 0, height: 0, which: null, moving: null, preview: null,
 };
 
 function init(ctx: CommandContext): WallEndpointGesture {
@@ -73,6 +81,36 @@ function ends(g: WallEndpointGesture): { start: Point3; end: Point3 } | null {
   return g.which === 'start' ? { start: moved, end: copy(g.end) } : { start: copy(g.start), end: moved };
 }
 
+/** One native preview at a time; the newest request replaces any waiting one. */
+let previewBusy = false;
+let previewWaiting: (() => Promise<void>) | null = null;
+
+/** Build the moved walls' real geometry for `g` (the resize run on a draft, `native-preview.ts`). */
+function schedulePreview(g: WallEndpointGesture): void {
+  const next = ends(g);
+  if (!g.target || !next) return;
+  const { modelId, expressId } = g.target;
+  const run = async () => {
+    previewBusy = true;
+    try {
+      const preview = await previewEditNatively(modelId, (ctx) => {
+        const result = resizeWallInStore(ctx, expressId, next.start, next.end, { moveJoinedEnds: true });
+        return result.ok ? result.walls : [];
+      });
+      if (!preview || getCommandRuntime().command?.id !== WALL_MOVE_ENDPOINT.id) return;
+      standInFor(preview);
+      updateCommandGesture((current) => ({ ...(current as WallEndpointGesture), preview: preview.meshes }));
+    } finally {
+      previewBusy = false;
+      const waiting = previewWaiting;
+      previewWaiting = null;
+      if (waiting) void waiting();
+    }
+  };
+  if (previewBusy) previewWaiting = run;
+  else void run();
+}
+
 export const WALL_MOVE_ENDPOINT: ModelingCommand<WallEndpointGesture> = {
   id: 'wall.moveEndpoint',
   labelKey: 'modelingCommand.wallEnd.label',
@@ -86,7 +124,9 @@ export const WALL_MOVE_ENDPOINT: ModelingCommand<WallEndpointGesture> = {
   pointerMove(g, s) {
     if (!g.which || !g.plane || !s.render) return g;
     const local = g.plane.renderToLocal(s.render);
-    return { ...g, moving: [local[0], local[1]] };
+    const moved: WallEndpointGesture = { ...g, moving: [local[0], local[1]] };
+    schedulePreview(moved);
+    return moved;
   },
   pointerDown: (g) => g,
   validate(g) {
@@ -107,9 +147,18 @@ export const WALL_MOVE_ENDPOINT: ModelingCommand<WallEndpointGesture> = {
     // 'hostsChanged': the openings and fillings of every moved wall move with it.
     return { modelId, created: [], deleted: [], remesh: result.walls, remeshCause: 'hostsChanged', select: [expressId] };
   },
-  afterCommit: () => ({ exit: true }),
-  cancel: () => 'exit',
+  afterCommit: (_g, result) => {
+    // The real walls show again once their new geometry is in the scene.
+    if (result?.modelId) endPreviewAfterRemesh(result.modelId);
+    else endPreview();
+    return { exit: true };
+  },
+  cancel: () => {
+    endPreview();
+    return 'exit';
+  },
   ghost(g, ctx) {
+    if (g.preview?.length) return g.preview;
     const next = ends(g);
     if (!g.plane || !next) return [];
     const mesh = wallGhostMesh(g.plane, [next.start[0], next.start[1]], [next.end[0], next.end[1]], g.thickness, g.height, commandGhostId(ctx.get()));
@@ -127,6 +176,9 @@ export function beginWallEndpointDrag(which: WallEnd): void {
     if (runtime.command?.id !== WALL_MOVE_ENDPOINT.id) return; // cancelled with Escape
     // A press without a drag writes nothing.
     if ((runtime.gesture as WallEndpointGesture).moving) commitCommand();
-    if (getCommandRuntime().command?.id === WALL_MOVE_ENDPOINT.id) useViewerStore.getState().endCommand('cancel');
+    if (getCommandRuntime().command?.id === WALL_MOVE_ENDPOINT.id) {
+      useViewerStore.getState().endCommand('cancel');
+      endPreview(); // not committed: the real walls were not replaced
+    }
   }, { once: true });
 }

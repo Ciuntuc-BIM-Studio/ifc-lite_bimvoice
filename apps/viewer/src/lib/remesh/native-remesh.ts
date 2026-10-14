@@ -35,6 +35,31 @@ export function nativeRemeshEnabled(): boolean {
   return value === true || value === 1 || value === '1' || value === 'true';
 }
 
+/** Meshes on screen by global express id. */
+export function drawnMeshes(model: FederatedModel): Map<number, MeshData[]> {
+  const drawn = new Map<number, MeshData[]>();
+  for (const mesh of model.geometryResult?.meshes ?? []) {
+    const list = drawn.get(mesh.expressId);
+    if (list) list.push(mesh);
+    else drawn.set(mesh.expressId, [mesh]);
+  }
+  return drawn;
+}
+
+/** A light neutral grey for an element not drawn yet. */
+const UNDRAWN: [number, number, number, number] = [0.8, 0.8, 0.8, 1];
+
+/** Each planned element, and each of its layer materials, in the colour it is drawn in now. */
+export function planColors(drawn: ReadonlyMap<number, MeshData[]>, plan: NativeRemeshPlan, toGlobal: (id: number) => number) {
+  const colors = new Float32Array(plan.expressIds.length * 4);
+  plan.expressIds.forEach((id, i) => colors.set(drawn.get(toGlobal(id))?.[0]?.color ?? UNDRAWN, i * 4));
+  const materialColors = new Float32Array(plan.materialIds.length * 4);
+  const byMaterial = new Map<number, MeshData>();
+  for (const id of plan.expressIds) for (const m of drawn.get(toGlobal(id)) ?? []) if (m.materialId !== undefined) byMaterial.set(m.materialId, m);
+  plan.materialIds.forEach((material, i) => materialColors.set(byMaterial.get(toGlobal(material))?.color ?? UNDRAWN, i * 4));
+  return { colors, materialColors };
+}
+
 /** Split `targets` into the native part and the IFC part; null when nothing goes native. */
 export function nativeSplit(
   model: FederatedModel,
@@ -44,12 +69,7 @@ export function nativeSplit(
   toGlobal: (expressId: number) => number,
 ): NativeSplit | null {
   if (!nativeRemeshEnabled()) return null;
-  const drawn = new Map<number, MeshData[]>();
-  for (const mesh of model.geometryResult?.meshes ?? []) {
-    const list = drawn.get(mesh.expressId);
-    if (list) list.push(mesh);
-    else drawn.set(mesh.expressId, [mesh]);
-  }
+  const drawn = drawnMeshes(model);
   const instanced = model.geometryResult?.instancedGeometryHashes;
   const plan = planNativeRemesh(store, view ?? new MutablePropertyView(null, model.id), targets, (id, layered) => {
     const global = toGlobal(id);
@@ -62,16 +82,7 @@ export function nativeSplit(
     return meshes.length === 1 && !perLayer ? null : 'drawn with one mesh per material layer';
   });
   if (plan.expressIds.length === 0) return null;
-  const colors = new Float32Array(plan.expressIds.length * 4);
-  plan.expressIds.forEach((id, i) => colors.set(drawn.get(toGlobal(id))![0].color, i * 4));
-  // Each layer material in the colour it is drawn in now.
-  const materialColors = new Float32Array(plan.materialIds.length * 4);
-  const byMaterial = new Map<number, MeshData>();
-  for (const id of plan.expressIds) for (const m of drawn.get(toGlobal(id)) ?? []) if (m.materialId !== undefined) byMaterial.set(m.materialId, m);
-  plan.materialIds.forEach((material, i) => {
-    const mesh = byMaterial.get(toGlobal(material));
-    if (mesh) materialColors.set(mesh.color, i * 4);
-  });
+  const { colors, materialColors } = planColors(drawn, plan, toGlobal);
   const stepTargets = new Set([...targets].filter((id) => !plan.expressIds.includes(id)));
   return { plan, colors, materialColors, stepTargets };
 }

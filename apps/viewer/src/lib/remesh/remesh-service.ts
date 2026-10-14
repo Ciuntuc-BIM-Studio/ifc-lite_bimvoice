@@ -192,6 +192,8 @@ function configFor(state: ViewerState, model: FederatedModel): RemeshConfig {
     rectParamFastPath: true,
   };
 }
+/** The remesh worker for `model` (started on first use), for the native preview (`native-preview.ts`). */
+export const remeshWorkerFor = (state: ViewerState, model: FederatedModel) => clientFor(configFor(state, model));
 
 /** The model's style wire, captured once per load; synchronous once captured. */
 function styleWireFor(worker: RemeshClientLike, store: IfcDataStore): StyleWire | Promise<StyleWire> {
