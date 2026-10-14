@@ -67,6 +67,24 @@ export function planColors(drawn: ReadonlyMap<number, MeshData[]>, plan: NativeR
   return { colors, materialColors };
 }
 
+/**
+ * Colour each planned part from the style wire `[ids, rgba8]` (the model's,
+ * with the session's styles on top): a part whose item is styled takes that
+ * style, as the IFC mesher would; the rest keep the colour they were given
+ * (the drawn mesh's). A new joinery type's boxes were never drawn, so only
+ * this gives them their frame, glass and handle colours.
+ */
+export function colourFromStyles(plan: NativeRemeshPlan, colors: Float32Array, [ids, rgba]: readonly [Uint32Array, Uint8Array]): void {
+  if (ids.length === 0) return;
+  const at = new Map<number, number>();
+  for (let i = 0; i < ids.length; i++) at.set(ids[i], i);
+  plan.itemIds.forEach((item, i) => {
+    const k = item ? at.get(item) : undefined;
+    if (k === undefined) return;
+    for (let c = 0; c < 4; c++) colors[i * 4 + c] = rgba[k * 4 + c] / 255;
+  });
+}
+
 /** Split `targets` into the native part and the IFC part; null when nothing goes native. */
 export function nativeSplit(
   model: FederatedModel,

@@ -27,7 +27,8 @@ import { meshInRender, toRenderFor } from '@/lib/commands/modeling/commands/elem
 import type { Vec3 } from '@/lib/commands/modeling/types';
 import { getCommandRuntime, subscribeCommandRuntime, updateCommandGesture } from '@/lib/commands/modeling/runtime';
 import { loadRtcFrame, toRenderFrame } from './render-frame';
-import { drawnMeshes, nativeRemeshEnabled, planColors } from './native-remesh';
+import { colourFromStyles, drawnMeshes, nativeRemeshEnabled, planColors } from './native-remesh';
+import { readyStyleWire, stylesWithOverlay } from './style-wires';
 import { remeshWorkerFor } from './remesh-service';
 
 /** What an edit sees: the model's store and the draft it writes to. */
@@ -89,6 +90,9 @@ export async function previewEditNatively(
   const toGlobal = (id: number) => toGlobalIdFromModels(state.models, modelId, id);
   const drawn = drawnMeshes(model);
   const { colors, materialColors } = planColors(drawn, planned, toGlobal);
+  // A part not drawn yet (a new joinery type's box) takes its style, as the commit's re-mesh will.
+  const wire = readyStyleWire(target.dataStore);
+  if (wire) colourFromStyles(planned, colors, stylesWithOverlay(wire, target.dataStore, target.view, new Set(planned.expressIds)));
   const pending = remeshWorkerFor(state, model);
   const worker = pending instanceof Promise ? await pending : pending;
   if (!worker.remeshNative) return null;

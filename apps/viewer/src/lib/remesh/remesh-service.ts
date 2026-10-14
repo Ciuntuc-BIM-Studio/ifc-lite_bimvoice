@@ -29,8 +29,6 @@ import type { MutablePropertyView } from '@ifc-lite/mutations';
 import { serializeEntitySubgraph } from '@ifc-lite/export';
 import { hostsOtherEntities } from '@ifc-lite/renderer';
 import type { MeshData } from '@ifc-lite/geometry';
-import { materialColourWire, overlayMaterialColours, overlayStyleWire, withOverlayStyles } from './overlay-style-wire';
-import { materialIdsByElement } from '@ifc-lite/create';
 import { RemeshClient, filterStyleWire, type RemeshConfig, type RemeshRequest, type RemeshResult, type StyleWire } from '@ifc-lite/geometry/remesh';
 import type { ViewerState } from '@/store';
 import type { FederatedModel } from '@/store/types';
@@ -42,37 +40,10 @@ import { resolve } from '@/i18n/registry';
 import type { TranslationKey } from '@/i18n';
 import { expandAffectedSet, type RemeshCause } from './affected-set';
 import { loadRtcFrame, toRenderFrame } from './render-frame';
-import { nativeSplit, withNative } from './native-remesh';
+import { colourFromStyles, nativeSplit, withNative } from './native-remesh';
+import { styleWireFor, stylesWithOverlay } from './style-wires';
 
 
-/**
- * The model's style wire with this session's styled items added
- * (`overlay-style-wire.ts`), and the material colours it gave (by material,
- * and by first material for the elements re-meshed), as filterStyleWire's
- * first two arguments.
- */
-function stylesWithOverlay(
-  wire: { styleIds: Uint32Array; styleColors: Uint8Array }, store: IfcDataStore, view: MutablePropertyView | null, targets: ReadonlySet<number>,
-): [Uint32Array, Uint8Array] {
-  if (!view) return [wire.styleIds, wire.styleColors];
-  const src = {
-    entities: () => view.getNewEntities().filter((e) => !view.isDeleted(e.expressId)),
-    attributes: (id: number) => {
-      if (view.isDeleted(id)) return null;
-      const base = view.getNewEntity(id)?.attributes ?? store.getEntity(id)?.attributes;
-      if (!base) return null;
-      const edits = view.getPositionalMutationsForEntity(id);
-      if (!edits?.size) return base;
-      const attrs = [...base];
-      for (const [index, value] of edits) attrs[index] = value;
-      return attrs;
-    },
-  };
-  let merged = withOverlayStyles(wire, overlayStyleWire(src));
-  const materials = overlayMaterialColours(src);
-  if (materials.size) merged = withOverlayStyles(merged, materialColourWire(materials, materialIdsByElement(store, view, targets)));
-  return [merged.styleIds, merged.styleColors];
-}
 export type { RemeshCause } from './affected-set';
 type Get = () => ViewerState;
 
@@ -101,8 +72,6 @@ let client: Promise<RemeshClientLike> | null = null;
 /** The started client, for the synchronous fast path below. */
 let readyClient: RemeshClientLike | null = null;
 let clientConfig = '';
-const styleWires = new WeakMap<IfcDataStore, Promise<StyleWire>>();
-const readyWires = new WeakMap<IfcDataStore, StyleWire>();
 const generations = new Map<string, number>();
 const noticed = new Set<string>();
 /** Bumped by every deliberate dispose, so a request it cut off reads as stale, not failed. */
@@ -194,20 +163,6 @@ function configFor(state: ViewerState, model: FederatedModel): RemeshConfig {
 }
 /** The remesh worker for `model` (started on first use), for the native preview (`native-preview.ts`). */
 export const remeshWorkerFor = (state: ViewerState, model: FederatedModel) => clientFor(configFor(state, model));
-
-/** The model's style wire, captured once per load; synchronous once captured. */
-function styleWireFor(worker: RemeshClientLike, store: IfcDataStore): StyleWire | Promise<StyleWire> {
-  const ready = readyWires.get(store);
-  if (ready) return ready;
-  let wire = styleWires.get(store);
-  if (!wire) {
-    wire = store.source.withMaterializedAsync((bytes) => worker.styleWire(bytes));
-    styleWires.set(store, wire);
-    wire.then((captured) => readyWires.set(store, captured), () => styleWires.delete(store));
-  }
-  return wire;
-}
-
 
 function notice(modelId: string, key: TranslationKey, params?: Record<string, string>): void {
   const id = `${modelId}:${key}`;
@@ -348,6 +303,7 @@ async function remesh(
     const pendingWire = styleWireFor(worker, store);
     const wire = pendingWire instanceof Promise ? await pendingWire : pendingWire;
     const styled = performance.now();
+    if (split) colourFromStyles(split.plan, split.colors, stylesWithOverlay(wire, store, view, new Set(split.plan.expressIds)));
     const result = await withNative(worker, split, frame, stepTargets.size === 0 ? null : await worker.remesh({
       buffer: sub.bytes,
       targets: Uint32Array.from(stepTargets),
