@@ -63,6 +63,8 @@ export interface NativeRemeshRequest {
   colors: Float32Array;
   /** Per element the representation item its mesh is drawn from (`geometryItemId`), or 0. */
   itemIds: Uint32Array;
+  /** Per element its frame (16 numbers, column-major, metres; NaN first: none): the meshes' `localToWorld`. */
+  frames: Float64Array;
   /** Per element its material layer stack, or 0 (`planNativeRemesh`). */
   layers: Float64Array;
   /** RGBA per material id, for the layers. */
@@ -74,7 +76,7 @@ export interface NativeRemeshRequest {
 /** `meshNativeElements` of `@ifc-lite/wasm` (a free function, not an `IfcAPI` method). */
 export type MeshNativeElements = (
   data: Float64Array, expressIds: Uint32Array, ifcTypes: string[], colors: Float32Array, itemIds: Uint32Array,
-  layers: Float64Array, materialIds: Uint32Array, materialColors: Float32Array,
+  frames: Float64Array, layers: Float64Array, materialIds: Uint32Array, materialColors: Float32Array,
   rtcX: number, rtcY: number, rtcZ: number, needsShift: boolean,
 ) => MeshCollection;
 
@@ -82,7 +84,7 @@ export type MeshNativeElements = (
 export function remeshNativeOnApi(meshNative: MeshNativeElements, req: NativeRemeshRequest, now: () => number = () => performance.now()): RemeshResult {
   const start = now();
   const { frame } = req;
-  const collection = meshNative(req.buffer, req.expressIds, req.ifcTypes, req.colors, req.itemIds, req.layers, req.materialIds, req.materialColors,
+  const collection = meshNative(req.buffer, req.expressIds, req.ifcTypes, req.colors, req.itemIds, req.frames, req.layers, req.materialIds, req.materialColors,
     frame.x, frame.y, frame.z, frame.needsShift);
   const meshes = convertMeshCollectionToBatch(collection);
   return { meshes, csgFailures: 0, ms: { prepass: 0, produce: now() - start } };

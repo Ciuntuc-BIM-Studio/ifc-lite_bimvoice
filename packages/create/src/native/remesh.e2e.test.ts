@@ -23,7 +23,7 @@ let create: typeof import('../index.js');
 let resolveAnchor: typeof import('../in-store/resolve-anchor.js');
 let plan: typeof import('./remesh-plan.js');
 
-interface Body { volume: number; min: number[]; max: number[]; items: number[]; colors: string[] }
+interface Body { volume: number; min: number[]; max: number[]; items: number[]; colors: string[]; l2w?: number[]; local?: number[] }
 
 /** Each express id's body (all its meshes), from a collection, render frame. */
 function bodies(collection: MeshCollection): Map<string, Body> {
@@ -47,6 +47,8 @@ function bodies(collection: MeshCollection): Map<string, Body> {
       }
       const item = (m as unknown as { geometryItemId?: number }).geometryItemId;
       if (item !== undefined) b.items.push(item);
+      const placed = m as unknown as { localToWorld?: Float64Array | number[]; localBounds?: { min: number[]; max: number[] } | Float32Array };
+      if (placed.localToWorld && !b.l2w) b.l2w = Array.from(placed.localToWorld);
       b.colors.push(Array.from(m.color).map((c) => c.toFixed(2)).join(','));
       acc.set(key, b);
     } finally { m.free(); }
@@ -195,7 +197,7 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     const partsOf = (k: string) => p.expressIds.filter((e) => e === express.get(k)).length;
     expect(partsOf('window'), 'the retyped window: its type\'s boxes').toBeGreaterThan(1);
     expect([partsOf('typedWindow'), partsOf('typedDoor')], 'a joinery type: one part per box').toEqual([ifc.get(`${express.get('typedWindow')}:`)?.items.length, ifc.get(`${express.get('typedDoor')}:`)?.items.length]);
-    const nativeBodies = bodies(runtime.meshNativeElements(p.buffer, Uint32Array.from(p.expressIds), p.ifcTypes, colors, Uint32Array.from(p.itemIds), p.layers,
+    const nativeBodies = bodies(runtime.meshNativeElements(p.buffer, Uint32Array.from(p.expressIds), p.ifcTypes, colors, Uint32Array.from(p.itemIds), p.frames, p.layers,
       Uint32Array.from(p.materialIds), new Float32Array(p.materialIds.length * 4).fill(0.5), 0, 0, 0, false));
     expect([...nativeBodies.keys()].filter((k) => k.startsWith(`${layered}:`)).sort(), 'the layered wall in one mesh per material')
       .toEqual([`${layered}:${brick}`, `${layered}:${plaster}`]);
@@ -204,6 +206,8 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
       expect(b, `IFC mesh ${key}`).toBeDefined();
       if (!key.startsWith(`${layered}:`)) expect(a.volume, `${key} volume`).toBeCloseTo(b.volume, 3);
       expect(a.items, `${key} geometryItemIds`).toEqual(b.items);
+      expect(a.l2w === undefined, `${key} localToWorld present`).toBe(b.l2w === undefined);
+      a.l2w?.forEach((v, k) => expect(v, `${key} localToWorld[${k}]`).toBeCloseTo(b.l2w![k], 6));
       for (let k = 0; k < 3; k++) {
         expect(a.min[k], `${key} min ${k}`).toBeCloseTo(b.min[k], 3);
         expect(a.max[k], `${key} max ${k}`).toBeCloseTo(b.max[k], 3);

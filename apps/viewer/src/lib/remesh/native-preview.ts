@@ -94,7 +94,7 @@ export async function previewEditNatively(
   if (!worker.remeshNative) return null;
   const result = await worker.remeshNative({
     buffer: planned.buffer, expressIds: Uint32Array.from(planned.expressIds), ifcTypes: planned.ifcTypes,
-    colors, itemIds: Uint32Array.from(planned.itemIds), layers: planned.layers, materialIds: Uint32Array.from(planned.materialIds), materialColors, frame,
+    colors, itemIds: Uint32Array.from(planned.itemIds), frames: planned.frames, layers: planned.layers, materialIds: Uint32Array.from(planned.materialIds), materialColors, frame,
   });
   const current = useViewerStore.getState();
   const framed = await toRenderFrame(result.meshes, model, target.dataStore, current.georefMutations.get(modelId));

@@ -60,10 +60,37 @@ fn read_layers(buf: &[f64], at: &mut usize) -> Result<Option<NativeLayers>, JsVa
     Ok(Some(NativeLayers { layers, axis, sense, offset, frame: ifc_lite_geometry::Matrix4::from_column_slice(&m) }))
 }
 
+/// `mesh` (world, metres, before the RTC shift) told its element frame: the
+/// placement as `local_to_world` (row-major) and its bounds in that frame.
+fn place_in_frame(mesh: &mut ifc_lite_geometry::Mesh, m: &ifc_lite_geometry::Matrix4<f64>) {
+    let mut row_major = [0.0; 16];
+    for r in 0..4 {
+        for c in 0..4 {
+            row_major[r * 4 + c] = m[(r, c)];
+        }
+    }
+    mesh.local_to_world = Some(row_major);
+    let Some(inverse) = m.try_inverse() else { return };
+    let (mut min, mut max) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
+    for p in mesh.positions.chunks_exact(3) {
+        let q = inverse.transform_point(&ifc_lite_geometry::Point3::new(p[0] as f64, p[1] as f64, p[2] as f64));
+        for (k, v) in [q.x, q.y, q.z].into_iter().enumerate() {
+            min[k] = min[k].min(v);
+            max[k] = max[k].max(v);
+        }
+    }
+    if min[0].is_finite() {
+        mesh.local_bounds = Some([min[0] as f32, min[1] as f32, min[2] as f32, max[0] as f32, max[1] as f32, max[2] as f32]);
+    }
+}
+
 /// Native elements as the remesh path's `MeshCollection` (N3): solid `i` is
 /// element `express_ids[i]` of class `ifc_types[i]`, coloured `colors[4i..]`,
 /// drawn from the representation item `item_ids[i]` (0: none), which its mesh
-/// names as `geometryItemId` as the IFC path's does.
+/// names as `geometryItemId` as the IFC path's does, and placed by the element
+/// frame `frames[16i..]` (column-major, metres, NaN first: none), which its
+/// mesh carries as `localToWorld` / `localBounds` as the IFC path's do (what
+/// a typed door's plan symbol is drawn in).
 /// The solids' placements already take them into the model's IFC frame in
 /// metres. An element with material layers (`layers`, see `read_layers`) is
 /// sliced into one mesh per visual layer with the IFC path's slicer, each
@@ -81,6 +108,7 @@ pub fn mesh_native_elements_js(
     ifc_types: Vec<String>,
     colors: &[f32],
     item_ids: &[u32],
+    frames: &[f64],
     layers: &[f64],
     material_ids: &[u32],
     material_colors: &[f32],
@@ -91,7 +119,7 @@ pub fn mesh_native_elements_js(
 ) -> Result<crate::zero_copy::MeshCollection, JsValue> {
     let meshes = mesh_native_solids(data, TessellationQuality::Medium).map_err(|e| JsValue::from_str(&e.to_string()))?;
     if meshes.len() != express_ids.len() || ifc_types.len() != meshes.len() || colors.len() != meshes.len() * 4
-        || item_ids.len() != meshes.len() || material_colors.len() != material_ids.len() * 4 {
+        || item_ids.len() != meshes.len() || frames.len() != meshes.len() * 16 || material_colors.len() != material_ids.len() * 4 {
         return Err(JsValue::from_str("meshNativeElements: ids, types and colours must match the solids"));
     }
     let material_color = |id: u32| material_ids.iter().position(|&m| m == id)
@@ -111,7 +139,11 @@ pub fn mesh_native_elements_js(
             },
             None => vec![(None, mesh)],
         };
+        let frame = frames[i * 16].is_finite().then(|| ifc_lite_geometry::Matrix4::from_column_slice(&frames[i * 16..i * 16 + 16]));
         for (material, mut part) in parts {
+            if let Some(m) = &frame {
+                place_in_frame(&mut part, m);
+            }
             if needs_shift {
                 for p in part.positions.chunks_exact_mut(3) {
                     p[0] = (p[0] as f64 - rtc_x) as f32;

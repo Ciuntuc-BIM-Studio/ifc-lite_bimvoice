@@ -49,6 +49,8 @@ export interface NativeRemeshPlan {
   buffer: Float64Array;
   /** Per entry the representation item its mesh is drawn from (`geometryItemId`, as the IFC path names it), or 0. */
   itemIds: number[];
+  /** Per entry its element's frame (column-major, metres; NaN when unknown or voided, as the IFC path): the meshes' `localToWorld`. */
+  frames: Float64Array;
   /** Their material layer stacks (`meshNativeElements`' layers buffer). */
   layers: Float64Array;
   /** Every `IfcMaterial` a planned layer stack names: the caller colours them. */
@@ -335,7 +337,8 @@ export function planNativeRemesh(
   const solids: NativeSolidSpec[] = [];
   const layers: number[] = [];
   const materials = new Set<number>();
-  const plan: NativeRemeshPlan = { expressIds: [], ifcTypes: [], buffer: new Float64Array(), itemIds: [], layers: new Float64Array(), materialIds: [], fallback: new Map() };
+  const frames: number[] = [];
+  const plan: NativeRemeshPlan = { expressIds: [], ifcTypes: [], buffer: new Float64Array(), itemIds: [], frames: new Float64Array(), layers: new Float64Array(), materialIds: [], fallback: new Map() };
   for (const id of expressIds) {
     const type = ctx.reader.entity(id)?.type.toUpperCase() ?? '';
     const ifcClass = CLASS[type];
@@ -357,6 +360,9 @@ export function planNativeRemesh(
       plan.expressIds.push(id);
       plan.ifcTypes.push(ifcClass);
       plan.itemIds.push(part.item);
+      // As the IFC path: an element its openings void comes out of the void cut without its frame.
+      const voided = (ctx.openingsOf.get(id) ?? []).some((o) => ctx.reader.entity(o));
+      frames.push(...(world && own && !voided ? multiply(world, own) : new Array<number>(16).fill(Number.NaN)));
       if (stack && parts.length === 1) {
         layers.push(...stack);
         for (let k = 0; k < stack[0]; k++) materials.add(stack[20 + 2 * k]);
@@ -367,6 +373,7 @@ export function planNativeRemesh(
   }
   plan.buffer = encodeNativeSolids(solids);
   plan.layers = Float64Array.from(layers);
+  plan.frames = Float64Array.from(frames);
   plan.materialIds = [...materials].filter((m) => m > 0);
   return plan;
 }
