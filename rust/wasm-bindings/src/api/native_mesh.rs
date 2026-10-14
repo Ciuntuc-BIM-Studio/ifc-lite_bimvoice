@@ -61,7 +61,9 @@ fn read_layers(buf: &[f64], at: &mut usize) -> Result<Option<NativeLayers>, JsVa
 }
 
 /// Native elements as the remesh path's `MeshCollection` (N3): solid `i` is
-/// element `express_ids[i]` of class `ifc_types[i]`, coloured `colors[4i..]`.
+/// element `express_ids[i]` of class `ifc_types[i]`, coloured `colors[4i..]`,
+/// drawn from the representation item `item_ids[i]` (0: none), which its mesh
+/// names as `geometryItemId` as the IFC path's does.
 /// The solids' placements already take them into the model's IFC frame in
 /// metres. An element with material layers (`layers`, see `read_layers`) is
 /// sliced into one mesh per visual layer with the IFC path's slicer, each
@@ -78,6 +80,7 @@ pub fn mesh_native_elements_js(
     express_ids: &[u32],
     ifc_types: Vec<String>,
     colors: &[f32],
+    item_ids: &[u32],
     layers: &[f64],
     material_ids: &[u32],
     material_colors: &[f32],
@@ -88,7 +91,7 @@ pub fn mesh_native_elements_js(
 ) -> Result<crate::zero_copy::MeshCollection, JsValue> {
     let meshes = mesh_native_solids(data, TessellationQuality::Medium).map_err(|e| JsValue::from_str(&e.to_string()))?;
     if meshes.len() != express_ids.len() || ifc_types.len() != meshes.len() || colors.len() != meshes.len() * 4
-        || material_colors.len() != material_ids.len() * 4 {
+        || item_ids.len() != meshes.len() || material_colors.len() != material_ids.len() * 4 {
         return Err(JsValue::from_str("meshNativeElements: ids, types and colours must match the solids"));
     }
     let material_color = |id: u32| material_ids.iter().position(|&m| m == id)
@@ -119,8 +122,11 @@ pub fn mesh_native_elements_js(
             part.rtc_applied = true;
             let tint = material.and_then(material_color).unwrap_or(color);
             let mut js = crate::zero_copy::MeshDataJs::new(express_ids[i], ifc_types[i].clone(), part, tint);
+            // A layer slice names its material, a whole body its item: never both.
             if material.is_some() {
                 js.set_source_ids(None, material);
+            } else if item_ids[i] != 0 {
+                js.set_source_ids(Some(item_ids[i]), None);
             }
             collection.add(js);
         }

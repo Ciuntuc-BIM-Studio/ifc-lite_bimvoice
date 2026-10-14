@@ -93,7 +93,7 @@ export async function withNative(worker: { remeshNative?: RemeshClient['remeshNa
   if (!worker.remeshNative) throw new Error('native remesh: the remesh worker cannot mesh native elements');
   const native = await worker.remeshNative({
     buffer: split.plan.buffer, expressIds: Uint32Array.from(split.plan.expressIds),
-    ifcTypes: split.plan.ifcTypes, colors: split.colors, layers: split.plan.layers,
+    ifcTypes: split.plan.ifcTypes, colors: split.colors, itemIds: Uint32Array.from(split.plan.itemIds), layers: split.plan.layers,
     materialIds: Uint32Array.from(split.plan.materialIds), materialColors: split.materialColors, frame,
   });
   return {

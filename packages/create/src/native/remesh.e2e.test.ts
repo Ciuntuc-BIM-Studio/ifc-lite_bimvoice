@@ -23,11 +23,11 @@ let create: typeof import('../index.js');
 let resolveAnchor: typeof import('../in-store/resolve-anchor.js');
 let plan: typeof import('./remesh-plan.js');
 
-interface Body { volume: number; min: number[]; max: number[] }
+interface Body { volume: number; min: number[]; max: number[]; item?: number }
 
 /** Each express id's body (all its meshes), from a collection, render frame. */
 function bodies(collection: MeshCollection): Map<string, Body> {
-  const acc = new Map<string, { volume: number; min: number[]; max: number[] }>();
+  const acc = new Map<string, Body>();
   for (let i = 0; i < collection.length; i++) {
     const m = collection.takeMesh(i);
     if (!m) continue;
@@ -45,7 +45,8 @@ function bodies(collection: MeshCollection): Map<string, Body> {
         const [a, c, d] = [p(idx[t]), p(idx[t + 1]), p(idx[t + 2])];
         b.volume += (a[0] * (c[1] * d[2] - c[2] * d[1]) - a[1] * (c[0] * d[2] - c[2] * d[0]) + a[2] * (c[0] * d[1] - c[1] * d[0])) / 6;
       }
-      acc.set(key, b);
+      const item = (m as unknown as { geometryItemId?: number }).geometryItemId;
+      acc.set(key, item === undefined ? b : { ...b, item });
     } finally { m.free(); }
   }
   collection.free();
@@ -111,6 +112,10 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     express.set('plate', addPlateToStore(editor, anchor, { Profile: 'polygon', OuterCurve: [[10, 0], [12, 0], [12, 1.5], [10.5, 2]], Thickness: 0.02 }).plateId);
     express.set('roof', addRoofToStore(editor, anchor, { Position: [10, 3, 3], Width: 4, Depth: 3, Thickness: 0.3 }).roofId);
     express.set('space', addSpaceToStore(editor, anchor, { Position: [14, 0, 0], Width: 3, Depth: 4, Height: 2.6 }).spaceId);
+    // A door and a window without a joinery type: one extruded body each, cutting their host.
+    const { addHostedElementInStore } = await import('../in-store/hosted-element.js');
+    express.set('door', addHostedElementInStore(store, editor, express.get(id(1))!, { kind: 'door', params: { Offset: 4, Width: 0.9, Height: 2.1 } }).expressId);
+    express.set('window', addHostedElementInStore(store, editor, layered, { kind: 'window', params: { Offset: 1, Sill: 0.9, Width: 1, Height: 1.2 } }).expressId);
     express.set('member', addMemberToStore(editor, anchor, { Start: [10, 6, 0], End: [13, 7, 1.8], Width: 0.06, Height: 0.2 }).memberId);
     const sampleWall = [...new resolveAnchor.AnchorEntityReader(store, view).ids('IFCWALL')].find((w) => ![...express.values()].includes(w));
     const targets = new Set([...express.values(), ...(sampleWall ? [sampleWall] : [])]);
@@ -131,7 +136,7 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     const p = plan.planNativeRemesh(store, view, targets);
     expect([...p.fallback.keys()].filter((k) => k !== sampleWall), JSON.stringify([...p.fallback])).toEqual([]);
     const colors = new Float32Array(p.expressIds.length * 4).fill(0.5);
-    const nativeBodies = bodies(runtime.meshNativeElements(p.buffer, Uint32Array.from(p.expressIds), p.ifcTypes, colors, p.layers,
+    const nativeBodies = bodies(runtime.meshNativeElements(p.buffer, Uint32Array.from(p.expressIds), p.ifcTypes, colors, Uint32Array.from(p.itemIds), p.layers,
       Uint32Array.from(p.materialIds), new Float32Array(p.materialIds.length * 4).fill(0.5), 0, 0, 0, false));
     expect([...nativeBodies.keys()].filter((k) => k.startsWith(`${layered}:`)).sort(), 'the layered wall in one mesh per material')
       .toEqual([`${layered}:${brick}`, `${layered}:${plaster}`]);
@@ -139,6 +144,7 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
       const b = ifc.get(key)!;
       expect(b, `IFC mesh ${key}`).toBeDefined();
       if (!key.startsWith(`${layered}:`)) expect(a.volume, `${key} volume`).toBeCloseTo(b.volume, 3);
+      expect(a.item, `${key} geometryItemId`).toBe(b.item);
       for (let k = 0; k < 3; k++) {
         expect(a.min[k], `${key} min ${k}`).toBeCloseTo(b.min[k], 3);
         expect(a.max[k], `${key} max ${k}`).toBeCloseTo(b.max[k], 3);

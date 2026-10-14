@@ -28,6 +28,7 @@ import { resolveLinearElementChain } from '../in-store/edit/linear-element-edit.
 import { readElementPlacement } from '../in-store/element-relocate.js';
 import { placedBodyExtent } from '../in-store/resolve-host.js';
 import { getModelLengthUnitScale } from '../in-store/edit/length-unit-scale.js';
+import { extrusionSolid, multiply, numeric } from './remesh-extrusion.js';
 import { localFrame, worldFrame } from '../in-store/placement-3d.js';
 import { parentPlacementOf } from '../in-store/element-transform-frames.js';
 import type { ProfileSection } from '../in-store/profile.js';
@@ -42,6 +43,8 @@ export interface NativeRemeshPlan {
   ifcTypes: string[];
   /** `meshNativeElements`' solids buffer (one solid per planned element). */
   buffer: Float64Array;
+  /** Per element the Body item its mesh is drawn from (`geometryItemId`, as the IFC path names it), or 0. */
+  itemIds: number[];
   /** Their material layer stacks (`meshNativeElements`' layers buffer). */
   layers: Float64Array;
   /** Every `IfcMaterial` a planned layer stack names: the caller colours them. */
@@ -53,21 +56,17 @@ export interface NativeRemeshPlan {
 const CLASS: Record<string, string> = {
   IFCWALL: 'IfcWall', IFCWALLSTANDARDCASE: 'IfcWallStandardCase', IFCSLAB: 'IfcSlab', IFCBEAM: 'IfcBeam', IFCCOLUMN: 'IfcColumn',
   IFCPLATE: 'IfcPlate', IFCROOF: 'IfcRoof', IFCSPACE: 'IfcSpace', IFCMEMBER: 'IfcMember',
+  IFCDOOR: 'IfcDoor', IFCWINDOW: 'IfcWindow',
 };
 /** Built as a slab is: an outline extruded vertically. */
 const SLAB_LIKE = new Set(['IFCSLAB', 'IFCPLATE', 'IFCROOF', 'IFCSPACE']);
 /** Built as a beam is: a section extruded along an axis. */
 const LINEAR = new Set(['IFCBEAM', 'IFCCOLUMN', 'IFCMEMBER']);
+/** Built from their one Body extrusion as it stands (a door or window without a joinery type). */
+const EXTRUDED = new Set(['IFCDOOR', 'IFCWINDOW']);
 
 type V3 = [number, number, number];
 type Ref = (value: unknown) => number | null;
-
-/** A number as parsed (bare) or authored (`{ real }`, `{ integer }`). */
-const numeric = (value: unknown): number | null => {
-  const v = value && typeof value === 'object' && 'real' in value ? (value as { real: unknown }).real
-    : value && typeof value === 'object' && 'integer' in value ? (value as { integer: unknown }).integer : value;
-  return typeof v === 'number' && Number.isFinite(v) ? v : null;
-};
 
 const refId: Ref = (value) => {
   if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
@@ -79,11 +78,6 @@ function matrix(r: number[][], t: V3): number[] {
   return [r[0][0], r[1][0], r[2][0], 0, r[0][1], r[1][1], r[2][1], 0, r[0][2], r[1][2], r[2][2], 0, t[0], t[1], t[2], 1];
 }
 
-function multiply(a: number[], b: number[]): number[] {
-  const out = new Array<number>(16).fill(0);
-  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) out[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
-  return out;
-}
 const translate = (x: number, y: number, z: number) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1];
 const planTurn = (x: number, y: number, z: number, angle: number) =>
   [Math.cos(angle), Math.sin(angle), 0, 0, -Math.sin(angle), Math.cos(angle), 0, 0, 0, 0, 1, 0, x, y, z, 1];
@@ -248,6 +242,14 @@ function slabSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec |
   return { profile: { kind: 'polygon', outer }, placement: multiply(world, translate(0, 0, base)), depth: chain.thickness, ...(cuts.length ? { cuts } : {}) };
 }
 
+function extrudedSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec | string {
+  const item = plainExtrusion(ctx, id);
+  if (item === null) return 'a body that is not one extrusion (a joinery type, a mapped or composite body)';
+  const own = ownFrame(ctx, id);
+  if (!own) return 'an element whose placement cannot be read';
+  return extrusionSolid(ctx.reader, item, multiply(world, own), ctx.scale);
+}
+
 function linearSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec | string {
   const chain = resolveLinearElementChain(ctx.store, ctx.view, ctx.editor, id, ctx.scale);
   if (!chain || plainExtrusion(ctx, id) !== chain.extrudedSolidId) return 'a member that is not a section extruded along an axis';
@@ -273,22 +275,24 @@ export function planNativeRemesh(
   const solids: NativeSolidSpec[] = [];
   const layers: number[] = [];
   const materials = new Set<number>();
-  const plan: NativeRemeshPlan = { expressIds: [], ifcTypes: [], buffer: new Float64Array(), layers: new Float64Array(), materialIds: [], fallback: new Map() };
+  const plan: NativeRemeshPlan = { expressIds: [], ifcTypes: [], buffer: new Float64Array(), itemIds: [], layers: new Float64Array(), materialIds: [], fallback: new Map() };
   for (const id of expressIds) {
     const type = ctx.reader.entity(id)?.type.toUpperCase() ?? '';
     const ifcClass = CLASS[type];
     const world = ifcClass ? parentWorld(ctx, id) : null;
     const own = world ? ownFrame(ctx, id) : null;
     const stack = world && own ? layerStack(ctx, id, multiply(world, own)) : null;
-    const veto = !ifcClass ? 'not a wall, slab, plate, roof, space, beam, column or member' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id, stack !== null);
+    const veto = !ifcClass ? 'not a class the native path builds' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id, stack !== null);
     const solid = veto ?? (!world ? 'a placement chain that cannot be read'
       : SLAB_LIKE.has(type) ? slabSolid(ctx, id, world)
         : LINEAR.has(type) ? linearSolid(ctx, id, world)
+          : EXTRUDED.has(type) ? extrudedSolid(ctx, id, world)
           : wallSolid(ctx, id, world));
     if (typeof solid === 'string') { plan.fallback.set(id, solid); continue; }
     solids.push(solid);
     plan.expressIds.push(id);
     plan.ifcTypes.push(ifcClass);
+    plan.itemIds.push(plainExtrusion(ctx, id) ?? 0);
     if (stack) {
       layers.push(...stack);
       for (let k = 0; k < stack[0]; k++) materials.add(stack[20 + 2 * k]);
