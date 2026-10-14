@@ -24,3 +24,4 @@ export { nativeIdOf, type LiftResult, type LiftSkip } from './lift-base.js';
 export { encodeNativeSolids, nativeElementSolids, nativeModelSolids, type NativeSolidSpec, type SolidProfile } from './solids.js';
 export { planNativeRemesh, type NativeRemeshPlan } from './remesh-plan.js';
 export { nativePset, nativeQuantities, sectionArea, writeNativeExportSets, type NativeExportSets } from './export-sets.js';
+export { convertToNativeInStore, planNativeConversion, type NativeConversionPlan, type NativeConversionResult } from './convert.js';

@@ -21,6 +21,7 @@ import { useElementTagSync } from '@/project/useElementTagSync';
 import { useFaceSync } from '@/project/useFaceSync';
 import { ProjectNavigatorPanel } from './ProjectNavigatorPanel';
 import { NewProjectHost } from './NewProjectDialog';
+import { NativeConversionPrompt } from './NativeConversionPrompt';
 import { ProjectPackageHost } from './ProjectPackageHost';
 import { ProjectVersionsHost } from './ProjectVersionsHost';
 import { RoofEditBar } from '../roof/RoofEditBar';
@@ -105,6 +106,7 @@ export function LeftNavigator() {
       </div>
       <NewProjectHost />
       <ProjectPackageHost />
+      <NativeConversionPrompt />
       <ProjectVersionsHost />
       <RoofEditBar />
       <CurtainWallDialog />

@@ -30,4 +30,10 @@ export const projectPackageEn = {
   'projectPackage.recoveryText': '"{name}" had unsaved changes when the app closed (copy from {time}).',
   'projectPackage.recoveryOpen': 'Recover',
   'projectPackage.recoveryDiscard': 'Discard',
+  'projectPackage.convertTitle': '"{name}" was loaded as IFC',
+  'projectPackage.convertText': '{joinery} doors and windows can become Lapin joinery ({types} types by size, editable in the joinery configurator). {native} elements are already editable as they are; {remaining} stay IFC geometry.',
+  'projectPackage.convertKeep': 'Keep as IFC',
+  'projectPackage.convertNative': 'Convert to native',
+  'projectPackage.convertDone': 'Converted {converted} doors and windows to {types} joinery types (one undo step).',
+  'projectPackage.convertFailed': 'The model could not be converted: {reason}',
 } as const satisfies Record<string, TranslationValue>;
