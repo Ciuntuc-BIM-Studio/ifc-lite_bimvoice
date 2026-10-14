@@ -161,6 +161,17 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
     express.set('stair', addStairToStore(editor, anchor, { Position: [14, 8, 0], Direction: 0.3, NumberOfRisers: 16, RiserHeight: 0.175, TreadLength: 0.28, Width: 1.1 }).flightId);
     const { addRailingToStore } = await import('../in-store/railing.js');
     express.set('railing', addRailingToStore(editor, anchor, { Path: [[14, 12, 0], [17, 12, 0], [18, 14, 1.2]], Height: 1, PostSpacing: 1.2 }).railingId);
+    // Swept and revolved solids, written as faceted shells, of a generic class.
+    const { addFacetedElementToStore } = await import('../in-store/faceted.js');
+    const { sweepFaces, revolveFaces } = await import('../in-store/sweep-revolve.js');
+    express.set('sweep', addFacetedElementToStore(editor, anchor, {
+      IfcClass: 'IfcBuildingElementProxy', Location: [20, 10, 0],
+      Faces: sweepFaces([[0, 0], [0.3, 0], [0.3, 0.1], [0.1, 0.1], [0.1, 0.4], [0, 0.4]], [[0, 0, 0], [3, 0, 0], [4, 2, 0.5], [4, 4, 0.5]]),
+    }).elementId);
+    express.set('revolve', addFacetedElementToStore(editor, anchor, {
+      IfcClass: 'IfcFurnishingElement', Location: [24, 10, 0],
+      Faces: revolveFaces([[0.2, 0, 0], [0.5, 0, 0], [0.4, 0, 0.8], [0.25, 0, 1]], [0, 0, 0], [0, 0, 1], 2 * Math.PI, 24),
+    }).elementId);
     express.set('member', addMemberToStore(editor, anchor, { Start: [10, 6, 0], End: [13, 7, 1.8], Width: 0.06, Height: 0.2 }).memberId);
     const sampleWall = [...new resolveAnchor.AnchorEntityReader(store, view).ids('IFCWALL')].find((w) => ![...express.values()].includes(w));
     const targets = new Set([...express.values(), ...(sampleWall ? [sampleWall] : [])]);

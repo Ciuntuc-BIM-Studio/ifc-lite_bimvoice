@@ -61,13 +61,16 @@ const CLASS: Record<string, string> = {
   IFCWALL: 'IfcWall', IFCWALLSTANDARDCASE: 'IfcWallStandardCase', IFCSLAB: 'IfcSlab', IFCBEAM: 'IfcBeam', IFCCOLUMN: 'IfcColumn',
   IFCPLATE: 'IfcPlate', IFCROOF: 'IfcRoof', IFCSPACE: 'IfcSpace', IFCMEMBER: 'IfcMember',
   IFCDOOR: 'IfcDoor', IFCWINDOW: 'IfcWindow', IFCSTAIRFLIGHT: 'IfcStairFlight', IFCRAILING: 'IfcRailing',
+  IFCBUILDINGELEMENTPROXY: 'IfcBuildingElementProxy', IFCCOVERING: 'IfcCovering', IFCFURNISHINGELEMENT: 'IfcFurnishingElement',
+  IFCFOOTING: 'IfcFooting', IFCRAMPFLIGHT: 'IfcRampFlight', IFCCHIMNEY: 'IfcChimney', IFCSHADINGDEVICE: 'IfcShadingDevice',
 };
 /** Built as a slab is: an outline extruded vertically. */
 const SLAB_LIKE = new Set(['IFCSLAB', 'IFCPLATE', 'IFCROOF', 'IFCSPACE']);
 /** Built as a beam is: a section extruded along an axis. */
 const LINEAR = new Set(['IFCBEAM', 'IFCCOLUMN', 'IFCMEMBER']);
 /** Built from their body items as they stand (`extrudedParts`). */
-const EXTRUDED = new Set(['IFCDOOR', 'IFCWINDOW', 'IFCSTAIRFLIGHT', 'IFCRAILING']);
+const EXTRUDED = new Set(['IFCDOOR', 'IFCWINDOW', 'IFCSTAIRFLIGHT', 'IFCRAILING', 'IFCBUILDINGELEMENTPROXY', 'IFCCOVERING',
+  'IFCFURNISHINGELEMENT', 'IFCFOOTING', 'IFCRAMPFLIGHT', 'IFCCHIMNEY', 'IFCSHADINGDEVICE']);
 
 type V3 = [number, number, number];
 type Ref = (value: unknown) => number | null;
