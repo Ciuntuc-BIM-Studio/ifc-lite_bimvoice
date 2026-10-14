@@ -174,6 +174,11 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
       IfcClass: 'IfcFurnishingElement', Location: [24, 10, 0],
       Faces: revolveFaces([[0.2, 0, 0], [0.5, 0, 0], [0.4, 0, 0.8], [0.25, 0, 1]], [0, 0, 0], [0, 0, 1], 2 * Math.PI, 24),
     }).elementId);
+    // A cut priority: a column through the first wall is subtracted from it (ImpliedOrder TRUE).
+    const { generateIfcGuid } = await import('@ifc-lite/encoding');
+    const cutter = create.addColumnToStore(editor, anchor, { Position: [3, 0, 0], Width: 0.3, Depth: 0.4, Height: 2.6 }).columnId;
+    express.set('cutter', cutter);
+    editor.addEntity('IfcRelInterferesElements', [generateIfcGuid(), null, null, null, `#${express.get(id(1))}`, `#${cutter}`, null, null, '.T.']);
     express.set('member', addMemberToStore(editor, anchor, { Start: [10, 6, 0], End: [13, 7, 1.8], Width: 0.06, Height: 0.2 }).memberId);
     const sampleWall = [...new resolveAnchor.AnchorEntityReader(store, view).ids('IFCWALL')].find((w) => ![...express.values()].includes(w));
     const targets = new Set([...express.values(), ...(sampleWall ? [sampleWall] : [])]);
@@ -201,6 +206,9 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('native remesh (N3) agai
       Uint32Array.from(p.materialIds), new Float32Array(p.materialIds.length * 4).fill(0.5), 0, 0, 0, false));
     expect([...nativeBodies.keys()].filter((k) => k.startsWith(`${layered}:`)).sort(), 'the layered wall in one mesh per material')
       .toEqual([`${layered}:${brick}`, `${layered}:${plaster}`]);
+    // The cut priority took the column's 0.3 x 0.3 x 2.6 through the wall off it, on both paths.
+    const cutWall = nativeBodies.get(`${express.get(id(1))}:`)!;
+    expect(cutWall.volume, 'the wall the column cuts').toBeLessThan(4.86 - 1.2 * 0.3 * 1.4 - 0.9 * 0.3 * 2.1 - 0.2);
     for (const [key, a] of nativeBodies) {
       const b = ifc.get(key)!;
       expect(b, `IFC mesh ${key}`).toBeDefined();

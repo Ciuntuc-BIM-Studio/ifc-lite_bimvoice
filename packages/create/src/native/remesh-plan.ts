@@ -8,9 +8,10 @@
  * reproduces exactly is planned; everything else is left to the IFC remesh
  * with the reason:
  *
- *  - walls, slabs, beams and columns whose body is a plain extrusion (no roof
- *    trim, no clipping) and that take part in no `IfcRelInterferesElements`
- *    (Studio subtractions, cut priorities);
+ *  - walls, slabs, beams, columns and the classes after them whose body the
+ *    native mesher builds (extrusions, faceted shells, swept disks, mapped
+ *    joinery, roof trims), with what cut priorities subtract from them
+ *    (`IfcRelInterferesElements`, the cutter's own body);
  *  - their openings are axis-aligned boxes in the host's frame (an arched or
  *    turned cut is left to the IFC path, which cuts it exactly).
  *
@@ -19,19 +20,18 @@
  * world frame (`worldFrame`).
  */
 
-import { StoreEditor, type MutablePropertyView } from '@ifc-lite/mutations';
+import type { MutablePropertyView } from '@ifc-lite/mutations';
 import type { IfcDataStore } from '@ifc-lite/parser';
-import { AnchorEntityReader } from '../in-store/resolve-anchor.js';
 import { readWallJoinTarget } from '../in-store/wall-join-read.js';
 import { resolveSlabEditChain } from '../in-store/edit/slab-edit.js';
 import { resolveLinearElementChain } from '../in-store/edit/linear-element-edit.js';
 import { readElementPlacement } from '../in-store/element-relocate.js';
 import { placedBodyExtent } from '../in-store/resolve-host.js';
-import { getModelLengthUnitScale } from '../in-store/edit/length-unit-scale.js';
 import { brepSolid, roofTrimCuts } from './remesh-faces.js';
 import { isAxisRectangle, itemParts, mappedSolids, multiply, numeric, outline, type MappedPart } from './remesh-extrusion.js';
-import { localFrame, worldFrame } from '../in-store/placement-3d.js';
-import { parentPlacementOf } from '../in-store/element-transform-frames.js';
+import {
+  bodyItem, bodyItems, context, layerStack, matrix, ownFrame, parentWorld, plainExtrusion, planTurn, refId, translate, type Context,
+} from './remesh-context.js';
 import type { ProfileSection } from '../in-store/profile.js';
 import { wallBodyOutline } from '../in-store/wall-join.js';
 import { encodeNativeSolids, type NativeSolidSpec } from './solids.js';
@@ -73,128 +73,6 @@ const LINEAR = new Set(['IFCBEAM', 'IFCCOLUMN', 'IFCMEMBER']);
 /** Built from their body items as they stand (`extrudedParts`). */
 const EXTRUDED = new Set(['IFCDOOR', 'IFCWINDOW', 'IFCSTAIRFLIGHT', 'IFCRAILING', 'IFCBUILDINGELEMENTPROXY', 'IFCCOVERING',
   'IFCFURNISHINGELEMENT', 'IFCFOOTING', 'IFCRAMPFLIGHT', 'IFCCHIMNEY', 'IFCSHADINGDEVICE']);
-
-type V3 = [number, number, number];
-type Ref = (value: unknown) => number | null;
-
-const refId: Ref = (value) => {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
-  return typeof value === 'string' && /^#[1-9][0-9]*$/.test(value) ? Number(value.slice(1)) : null;
-};
-
-/** Column-major matrix of a frame (rotation rows `r`, translation `t`). */
-function matrix(r: number[][], t: V3): number[] {
-  return [r[0][0], r[1][0], r[2][0], 0, r[0][1], r[1][1], r[2][1], 0, r[0][2], r[1][2], r[2][2], 0, t[0], t[1], t[2], 1];
-}
-
-const translate = (x: number, y: number, z: number) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1];
-const planTurn = (x: number, y: number, z: number, angle: number) =>
-  [Math.cos(angle), Math.sin(angle), 0, 0, -Math.sin(angle), Math.cos(angle), 0, 0, 0, 0, 1, 0, x, y, z, 1];
-
-interface Context {
-  store: IfcDataStore;
-  view: MutablePropertyView;
-  editor: StoreEditor;
-  reader: AnchorEntityReader;
-  scale: number;
-  /** Host express id -> the openings voiding it. */
-  openingsOf: Map<number, number[]>;
-  /** Elements in an IfcRelInterferesElements. */
-  interfering: Set<number>;
-  /** Element -> its IfcMaterialLayerSetUsage. */
-  usageOf: Map<number, number>;
-}
-
-function context(store: IfcDataStore, view: MutablePropertyView): Context {
-  const reader = new AnchorEntityReader(store, view);
-  const openingsOf = new Map<number, number[]>();
-  for (const relId of reader.ids('IFCRELVOIDSELEMENT')) {
-    const rel = reader.entity(relId);
-    const host = refId(rel?.attributes[4]), opening = refId(rel?.attributes[5]);
-    if (host === null || opening === null) continue;
-    openingsOf.set(host, [...(openingsOf.get(host) ?? []), opening]);
-  }
-  const interfering = new Set<number>();
-  for (const relId of reader.ids('IFCRELINTERFERESELEMENTS')) {
-    const rel = reader.entity(relId);
-    for (const at of [4, 5]) { const id = refId(rel?.attributes[at]); if (id !== null) interfering.add(id); }
-  }
-  const usageOf = new Map<number, number>();
-  for (const relId of reader.ids('IFCRELASSOCIATESMATERIAL')) {
-    const rel = reader.entity(relId);
-    const usage = refId(rel?.attributes[5]);
-    if (usage === null || reader.entity(usage)?.type.toUpperCase() !== 'IFCMATERIALLAYERSETUSAGE') continue;
-    for (const ref of Array.isArray(rel?.attributes[4]) ? rel.attributes[4] : []) { const id = refId(ref); if (id !== null) usageOf.set(id, usage); }
-  }
-  return { store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store), openingsOf, interfering, usageOf };
-}
-
-/** The element's Body items (empty without a Body). */
-function bodyItems(ctx: Context, expressId: number): number[] {
-  const shape = ctx.reader.entity(refId(ctx.reader.entity(expressId)?.attributes[6]) ?? -1);
-  const reps = shape?.attributes[2];
-  if (!Array.isArray(reps)) return [];
-  for (const ref of reps) {
-    const rep = ctx.reader.entity(refId(ref) ?? -1);
-    if (rep?.attributes[1] !== 'Body') continue;
-    const items = Array.isArray(rep.attributes[3]) ? rep.attributes[3].map(refId) : [];
-    return items.every((id) => id !== null) ? items as number[] : [];
-  }
-  return [];
-}
-
-/** The element's one Body item, or null (no Body, or several items). */
-function bodyItem(ctx: Context, expressId: number): number | null {
-  const items = bodyItems(ctx, expressId);
-  return items.length === 1 ? items[0] : null;
-}
-
-/** The element's one Body item, when it is a plain extrusion. */
-function plainExtrusion(ctx: Context, expressId: number): number | null {
-  const item = bodyItem(ctx, expressId);
-  return item !== null && ctx.reader.entity(item)?.type.toUpperCase() === 'IFCEXTRUDEDAREASOLID' ? item : null;
-}
-
-/** The world frame of the element's parent placement, as a column-major matrix. */
-function parentWorld(ctx: Context, expressId: number): number[] | null {
-  const placement = refId(ctx.reader.entity(expressId)?.attributes[5]);
-  const parent = placement === null ? null : parentPlacementOf({ dataStore: ctx.store, view: ctx.view }, placement);
-  if (parent === null) return translate(0, 0, 0);
-  const frame = worldFrame({ dataStore: ctx.store, view: ctx.view }, parent);
-  return frame ? matrix(frame.r, frame.t as V3) : null;
-}
-
-/**
- * The element's layer stack as the IFC path slices it (`MaterialLayerIndex`):
- * a usage on the element over a set of plain `IfcMaterialLayer`s; null for
- * anything that path keeps whole (no usage, layers with offsets, one layer).
- * Lengths in metres; the frame is the element's placement in the world.
- */
-function layerStack(ctx: Context, id: number, elementWorld: number[]): number[] | null {
-  const usage = ctx.reader.entity(ctx.usageOf.get(id) ?? -1);
-  const set = usage ? ctx.reader.entity(refId(usage.attributes[0]) ?? -1) : null;
-  if (!usage || set?.type.toUpperCase() !== 'IFCMATERIALLAYERSET' || !Array.isArray(set.attributes[0])) return null;
-  const layers: number[] = [];
-  for (const ref of set.attributes[0] as unknown[]) {
-    const layer = ctx.reader.entity(refId(ref) ?? -1);
-    const thickness = numeric(layer?.attributes[1]);
-    if (layer?.type.toUpperCase() !== 'IFCMATERIALLAYER' || thickness === null) return null;
-    layers.push(refId(layer.attributes[0]) ?? 0, thickness * ctx.scale);
-  }
-  if (layers.length < 4) return null;
-  const word = (v: unknown) => (typeof v === 'string' ? v.replace(/\./g, '') : '');
-  const axis = { AXIS1: 1, AXIS2: 2, AXIS3: 3 }[word(usage.attributes[1])] ?? 2;
-  const sense = word(usage.attributes[2]) === 'NEGATIVE' ? -1 : 1;
-  const offset = (numeric(usage.attributes[3]) ?? 0) * ctx.scale;
-  return [layers.length / 2, axis, sense, offset, ...elementWorld, ...layers];
-}
-
-/** The element's own placement frame in its parent's (metres), as a column-major matrix. */
-function ownFrame(ctx: Context, expressId: number): number[] | null {
-  const placement = refId(ctx.reader.entity(expressId)?.attributes[5]);
-  const frame = placement === null ? null : localFrame({ dataStore: ctx.store, view: ctx.view }, placement);
-  return frame ? matrix(frame.r, frame.t as V3) : null;
-}
 
 /**
  * An opening's cut: a box in its host's frame (metres), or a reason it is
@@ -322,6 +200,38 @@ function linearSolid(ctx: Context, id: number, world: number[]): NativeSolidSpec
   return { profile: { kind: 'section', section }, placement: multiply(world, own), depth: chain.depth };
 }
 
+/** An element's parts, built by its kind; or a reason the native path cannot. */
+function elementParts(ctx: Context, id: number, type: string, world: number[]): MappedPart[] | string {
+  const built = isFaceted(ctx, id) ? facetedSolid(ctx, id, world)
+    : SLAB_LIKE.has(type) ? slabSolid(ctx, id, world)
+      : LINEAR.has(type) ? linearSolid(ctx, id, world)
+        : EXTRUDED.has(type) ? extrudedParts(ctx, id, world)
+          : wallSolid(ctx, id, world);
+  return typeof built === 'string' || Array.isArray(built) ? built : [{ solid: built, item: bodyItem(ctx, id) ?? 0 }];
+}
+
+/**
+ * `parts` with what a cut priority subtracts from the element (its
+ * IfcRelInterferesElements cutters, `Context.cutters`): each cutter's body as
+ * the native path builds it, its own cuts left off (the IFC pre-pass cuts
+ * with the cutter's body, like an opening's); a reason when a cutter cannot
+ * be built.
+ */
+function withCutters(ctx: Context, id: number, parts: MappedPart[] | string): MappedPart[] | string {
+  if (typeof parts === 'string') return parts;
+  const cutters = (ctx.cutters.get(id) ?? []).filter((c) => ctx.reader.entity(c));
+  if (cutters.length === 0) return parts;
+  const extra: NativeSolidSpec[] = [];
+  for (const cutter of cutters) {
+    const type = ctx.reader.entity(cutter)?.type.toUpperCase() ?? '';
+    const world = CLASS[type] ? parentWorld(ctx, cutter) : null;
+    const body = world ? elementParts(ctx, cutter, type, world) : null;
+    if (!body || typeof body === 'string') return `cut by #${cutter}, which the native path cannot build${typeof body === 'string' ? ` (${body})` : ''}`;
+    for (const part of body) extra.push({ ...part.solid, cuts: undefined });
+  }
+  return parts.map((part) => ({ ...part, solid: { ...part.solid, cuts: [...(part.solid.cuts ?? []), ...extra] } }));
+}
+
 /**
  * Plan the native remesh of `expressIds`. `eligible(id, layered)` lets the
  * caller veto an element: one drawn differently from how the native path
@@ -345,23 +255,18 @@ export function planNativeRemesh(
     const world = ifcClass ? parentWorld(ctx, id) : null;
     const own = world ? ownFrame(ctx, id) : null;
     const stack = world && own ? layerStack(ctx, id, multiply(world, own)) : null;
-    const veto = !ifcClass ? 'not a class the native path builds' : ctx.interfering.has(id) ? 'cut by or cutting another element' : eligible(id, stack !== null);
-    const built = veto ?? (!world ? 'a placement chain that cannot be read'
-      : isFaceted(ctx, id) ? facetedSolid(ctx, id, world)
-      : SLAB_LIKE.has(type) ? slabSolid(ctx, id, world)
-        : LINEAR.has(type) ? linearSolid(ctx, id, world)
-          : EXTRUDED.has(type) ? extrudedParts(ctx, id, world)
-            : wallSolid(ctx, id, world));
+    const veto = !ifcClass ? 'not a class the native path builds' : eligible(id, stack !== null);
+    const built = veto ?? (!world ? 'a placement chain that cannot be read' : withCutters(ctx, id, elementParts(ctx, id, type, world)));
     if (typeof built === 'string') { plan.fallback.set(id, built); continue; }
     // One solid per part: a mapped body's parts are each their own mesh, as the IFC path draws them.
-    const parts = Array.isArray(built) ? built : [{ solid: built, item: bodyItem(ctx, id) ?? 0 }];
+    const parts = built;
     for (const part of parts) {
       solids.push(part.solid);
       plan.expressIds.push(id);
       plan.ifcTypes.push(ifcClass);
       plan.itemIds.push(part.item);
-      // As the IFC path: an element its openings void comes out of the void cut without its frame.
-      const voided = (ctx.openingsOf.get(id) ?? []).some((o) => ctx.reader.entity(o));
+      // As the IFC path: an element its openings void (or a cut priority cuts) comes out of the void cut without its frame.
+      const voided = (ctx.openingsOf.get(id) ?? []).some((o) => ctx.reader.entity(o)) || (ctx.cutters.get(id) ?? []).some((c) => ctx.reader.entity(c));
       frames.push(...(world && own && !voided ? multiply(world, own) : new Array<number>(16).fill(Number.NaN)));
       if (stack && parts.length === 1) {
         layers.push(...stack);
