@@ -62,3 +62,4 @@ export {
 } from './change-set-to-ops.js';
 
 export type { EntityOperation, EntityOperationEffect, EntityPreparationOptions, PreparedEntityOperations } from './cooperative-operation-types.js';
+export type { OverlaySnapshot } from './cooperative-overlay-access.js';

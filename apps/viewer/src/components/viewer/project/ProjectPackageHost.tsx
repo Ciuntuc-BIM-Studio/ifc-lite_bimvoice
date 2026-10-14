@@ -27,6 +27,8 @@ import { loadLinkedModel, type ModelLoader } from '@/project/package/project-ope
 import { saveProject } from '@/project/package/save-actions';
 import { openProjectBytes, useLinkedToLocate } from '@/project/package/open-actions';
 import { clearRecovery, readRecovery, type RecoveryEntry } from '@/project/package/recovery';
+import { clearJournal, readJournal, type JournalEntry } from '@/project/package/journal';
+import { restoreJournal } from '@/project/package/journal-restore';
 import { usePackageSession } from '@/project/package/session';
 import { useAutosaveRecovery, isProjectDirty } from './useAutosaveRecovery';
 
@@ -42,6 +44,7 @@ export function ProjectPackageHost() {
   const setLinked = (next: PackageModel[] | ((list: PackageModel[]) => PackageModel[])) =>
     useLinkedToLocate.setState((s) => ({ models: typeof next === 'function' ? next(s.models) : next }));
   const [recovery, setRecovery] = useState<RecoveryEntry | null>(null);
+  const [journal, setJournal] = useState<JournalEntry | null>(null);
   const progress = usePackageSession((s) => s.progress);
 
   const loader: ModelLoader = {
@@ -129,9 +132,13 @@ export function ProjectPackageHost() {
     return () => { cancelled = true; stop?.(); };
   }, [t, openBytes]);
 
-  // A recovery copy left by a session that ended with unsaved changes.
+  // A recovery copy left by a session that ended with unsaved changes: the journal when it is the newer.
   useEffect(() => {
-    void readRecovery().then((entry) => { if (entry && useViewerStore.getState().models.size === 0) setRecovery(entry); });
+    void Promise.all([readRecovery(), readJournal()]).then(([entry, journalled]) => {
+      if (useViewerStore.getState().models.size > 0) return;
+      if (journalled && (!entry || journalled.at >= entry.savedAt)) setJournal(journalled);
+      else if (entry) setRecovery(entry);
+    });
   }, []);
   useAutosaveRecovery();
 
@@ -162,6 +169,28 @@ export function ProjectPackageHost() {
           <DialogFooter><Button size="sm" variant="ghost" onClick={() => setLinked([])}>{t('projectPackage.skipLinked')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      {journal ? (
+        <output className="fixed bottom-14 left-4 z-50 block w-80 space-y-2 rounded-md border border-primary bg-white p-3 text-xs shadow-lg dark:bg-zinc-900">
+          <p className="font-semibold">{t('projectPackage.recoveryTitle')}</p>
+          <p className="text-muted-foreground">{t('projectPackage.recoveryText', { name: journal.name, time: new Date(journal.at).toLocaleString() })}</p>
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => { setJournal(null); void clearJournal(); void clearRecovery(); }}>{t('projectPackage.recoveryDiscard')}</Button>
+            <Button size="sm" onClick={async () => {
+              const entry = journal;
+              setJournal(null);
+              usePackageSession.setState({ busy: 'opening', progress: t('projectPackage.opening') });
+              try {
+                const failed = await restoreJournal(entry, loader);
+                if (failed.length) toast.error(t('projectPackage.modelsFailed', { names: failed.join(', ') }));
+                // Still unsaved: it came from the journal, not from the file.
+                usePackageSession.setState({ projectId: entry.projectId, fileName: entry.fileName, handle: null, savedMutationVersion: -1 });
+              } finally {
+                usePackageSession.setState({ busy: null, progress: null });
+              }
+            }}>{t('projectPackage.recoveryOpen')}</Button>
+          </div>
+        </output>
+      ) : null}
       {recovery ? (
         <output className="fixed bottom-14 left-4 z-50 block w-80 space-y-2 rounded-md border border-primary bg-white p-3 text-xs shadow-lg dark:bg-zinc-900">
           <p className="font-semibold">{t('projectPackage.recoveryTitle')}</p>

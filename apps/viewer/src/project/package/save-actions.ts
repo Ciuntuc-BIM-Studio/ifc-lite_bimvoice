@@ -9,6 +9,7 @@
  * package with its version info first. Progress shows through the session.
  */
 
+import { clearJournal } from './journal';
 import { useViewerStore } from '@/store';
 import { toast } from '@/components/ui/toast';
 import { resolve } from '@/i18n/registry';
@@ -50,6 +51,7 @@ export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo,
         savedMutationVersion: useViewerStore.getState().mutationVersion, savedDocument: JSON.stringify(projectDocument()),
       });
       await clearRecovery();
+      await clearJournal({ keepSources: true });
       toast.success(resolve('projectPackage.saved', { name: fileName, mb: (packaged.bytes.byteLength / 1e6).toFixed(1) }));
       return packaged;
     } catch (err) {

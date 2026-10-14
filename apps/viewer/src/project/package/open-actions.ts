@@ -9,6 +9,7 @@
  * locate (`useLinkedToLocate`, listed by the package host).
  */
 
+import { clearJournal } from './journal';
 import { create } from 'zustand';
 import { useViewerStore } from '@/store';
 import { toast } from '@/components/ui/toast';
@@ -32,6 +33,7 @@ export async function openProjectBytes(bytes: Uint8Array, source: { fileName: st
       savedMutationVersion: useViewerStore.getState().mutationVersion, savedDocument: JSON.stringify(projectDocument()),
     });
     await clearRecovery();
+    await clearJournal();
     if (result.failed.length) toast.error(resolve('projectPackage.modelsFailed', { names: result.failed.join(', ') }));
     else toast.success(resolve('projectPackage.opened', { name: result.opened.manifest.projectName }));
     useLinkedToLocate.setState({ models: result.linked });

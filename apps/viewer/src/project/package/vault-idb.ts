@@ -5,14 +5,14 @@
 /**
  * The browser's project storage (IndexedDB `bimvoice-projects`): the
  * recovery slot, the content-addressed parts and the version records — the
- * vault `versions.ts` works over. Parts are stored as Blobs (disk-backed).
+ * vault `versions.ts` works over — and the edit journal (`journal.ts`). Parts are stored as Blobs (disk-backed).
  */
 
 import type { ProjectVault, VersionRecord } from './versions';
 
 const DB = 'bimvoice-projects';
-const VERSION = 2;
-export const STORES = { recovery: 'recovery', blobs: 'blobs', versions: 'versions' } as const;
+const VERSION = 3;
+export const STORES = { recovery: 'recovery', blobs: 'blobs', versions: 'versions', journal: 'journal' } as const;
 type StoreName = (typeof STORES)[keyof typeof STORES];
 
 export function openProjectDb(): Promise<IDBDatabase> {

@@ -12,6 +12,7 @@
  * for optimal performance with large models.
  */
 
+import type { OverlaySnapshot } from './cooperative-overlay-access.js';
 import { registerCooperativeOverlay } from './cooperative-overlay-access.js';
 import type { PropertyTable, PropertySet, Property, QuantitySet, Quantity } from '@ifc-lite/data';
 import { quantityHistoryBefore } from './quantity-history-before.js';
@@ -1819,6 +1820,24 @@ export class MutablePropertyView extends MutableOverlayState {
         if (retainHistory) this.mutationHistory.push(mutation);
       },
     );
+  }
+
+  /**
+   * A structured-clone copy of this view's whole overlay (created entities,
+   * attribute, property, quantity and type edits, tombstones, the history):
+   * what the session has changed over its source, and nothing of the
+   * source. It can be stored as is (IndexedDB takes structured clones) and
+   * put back with {@link restoreOverlaySnapshot} on a view over the same
+   * source, which then reads exactly as this one did (the journal, N5).
+   * The history's records keep this view's `modelId`.
+   */
+  captureOverlaySnapshot(): OverlaySnapshot {
+    return this.copyOverlayState();
+  }
+
+  /** Replace this view's overlay with `snapshot` (from {@link captureOverlaySnapshot} over the same source). */
+  restoreOverlaySnapshot(snapshot: OverlaySnapshot): void {
+    this.restoreOverlayState(structuredClone(snapshot));
   }
 
   /**

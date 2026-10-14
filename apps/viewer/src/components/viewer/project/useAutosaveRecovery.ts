@@ -3,11 +3,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * The recovery copy: after a change to the models or the project document,
- * once the user has paused (IDLE_MS) and at most every MIN_INTERVAL_MS, the
- * open project is packaged and written to the browser's storage — only while
- * it differs from what was last saved or opened. Packaging exports the
- * edited native models, so it is kept off the editing hot path.
+ * The recovery copy, while the open project differs from what was last saved
+ * or opened:
+ *  - the edit journal (`journal.ts`, N5): JOURNAL_MS after any change to the
+ *    models or the project document, and when the page is hidden, each
+ *    model's overlay and history are written over its source — milliseconds,
+ *    no export;
+ *  - for a project the journal cannot cover (a streamed source), the whole
+ *    project packaged, once the user has paused (IDLE_MS) and at most every
+ *    MIN_INTERVAL_MS, since packaging exports the edited native models.
  */
 
 import { useEffect } from 'react';
@@ -15,9 +19,11 @@ import { useViewerStore } from '@/store';
 import { projectDocument, useProjectStore } from '@/project/project-store';
 import { packageCurrentProject } from '@/project/package/project-save';
 import { writeRecovery } from '@/project/package/recovery';
+import { captureJournal, journalCovers, writeJournal } from '@/project/package/journal';
 import { newProjectId, usePackageSession } from '@/project/package/session';
 
 const IDLE_MS = 8_000;
+const JOURNAL_MS = 250;
 const MIN_INTERVAL_MS = 60_000;
 
 /** Whether the open project differs from what was last saved or opened. */
@@ -53,12 +59,44 @@ export function useAutosaveRecovery(): void {
         running = false;
       }
     };
+    let journalTimer: ReturnType<typeof setTimeout> | null = null;
+    let journalling = false;
+    const journal = async () => {
+      journalTimer = null;
+      if (journalling || usePackageSession.getState().busy || !isProjectDirty()) return;
+      journalling = true;
+      try {
+        const session = usePackageSession.getState();
+        const projectId = session.projectId ?? newProjectId();
+        if (!session.projectId) usePackageSession.setState({ projectId });
+        await writeJournal(captureJournal(useViewerStore.getState(), { projectId, fileName: session.fileName }));
+      } catch (err) {
+        console.warn('[project] journal write failed', err);
+      } finally {
+        journalling = false;
+      }
+    };
     const touch = () => {
+      if (journalCovers()) {
+        if (journalTimer) clearTimeout(journalTimer);
+        journalTimer = setTimeout(() => void journal(), JOURNAL_MS);
+        return;
+      }
       if (timer) clearTimeout(timer);
       timer = setTimeout(run, IDLE_MS);
     };
+    const flush = () => { if (journalTimer) { clearTimeout(journalTimer); void journal(); } };
+    window.addEventListener('pagehide', flush);
+    const onHidden = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', onHidden);
     const offViewer = useViewerStore.subscribe((s, prev) => { if (s.mutationVersion !== prev.mutationVersion) touch(); });
     const offProject = useProjectStore.subscribe((s, prev) => { if (s !== prev) touch(); });
-    return () => { offViewer(); offProject(); if (timer) clearTimeout(timer); };
+    return () => {
+      offViewer(); offProject();
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHidden);
+      if (timer) clearTimeout(timer);
+      if (journalTimer) clearTimeout(journalTimer);
+    };
   }, []);
 }
