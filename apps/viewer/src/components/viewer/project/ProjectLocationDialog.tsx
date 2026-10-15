@@ -9,7 +9,8 @@
  * The coordinate system is picked by country and zone (`project-location-crs.ts`)
  * or by EPSG code, and the coordinates are asked for as surveys there write
  * them: X north and Y east in Romania and Austria, north first in Romania. Apply writes the IfcProjectedCRS and IfcMapConversion of every model
- * the user may edit (`project-location-store.ts`).
+ * the user may edit (`project-location-store.ts`), then the site's latitude,
+ * longitude and true north (`project-location-geo.ts`).
  */
 
 import { useEffect, useMemo } from 'react';
@@ -27,6 +28,7 @@ import { COUNTRIES, countryOf, customCrs, STEREO_70, surveyedEasting, type Count
 import {
   applyProjectLocation, closeProjectLocation, locationModels, pickLocationPoint, readProjectLocation, useProjectLocationDialog, type LocationDraft,
 } from '@/project/project-location-store';
+import { geolocateProject } from '@/project/project-location-geo';
 
 const num = (s: string): number => (s.trim() === '' ? Number.NaN : Number(s.replace(',', '.')));
 const vec = (v: readonly string[]): Vec3 => [num(v[0] ?? ''), num(v[1] ?? ''), num(v[2] ?? '0')];
@@ -94,6 +96,8 @@ export function ProjectLocationDialog() {
     if (!solved || !crsOk) return;
     const count = applyProjectLocation(draft.crs, solved);
     toast.success(t('location.applied', { count }));
+    // The site's latitude, longitude and true north follow once the projection is resolved.
+    void geolocateProject(locationModels(), draft.crs, solved).then((n) => { if (n === 0 && count > 0) toast.info(t('location.noGeo')); });
     closeProjectLocation();
   };
 

@@ -54,4 +54,10 @@ export const projectLocationEn = {
   'location.apply': 'Apply',
   'location.cancel': 'Cancel',
   'location.applied': 'Project location set on {count} model(s).',
+  'location.readout.x': 'X',
+  'location.readout.y': 'Y',
+  'location.readout.e': 'E',
+  'location.readout.n': 'N',
+  'location.readout.h': 'H',
+  'location.noGeo': 'The coordinate system could not be resolved: the site\'s latitude, longitude and true north were not written.',
 } as const satisfies Record<string, TranslationValue>;

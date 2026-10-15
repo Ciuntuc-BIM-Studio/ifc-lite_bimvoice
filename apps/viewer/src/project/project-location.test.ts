@@ -69,3 +69,22 @@ describe('project location', () => {
     assert.equal(surveyedEasting(STEREO_70, 32_389_000), 32_389_000);
   });
 });
+
+describe('project location on the globe', () => {
+  const UTM_32N = '+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
+
+  it('finds the origin and true north: east of the central meridian true north leans west of grid north', async () => {
+    const { geolocation } = await import('./project-location-geo');
+    // Near Berlin's longitude (13.4° E), 4.4° east of zone 32's meridian: about 3.4° of convergence.
+    const sol = solveLocation({ local: [0, 0, 0], map: [797_000, 5_828_000, 35] }, { kind: 'angle', degrees: 0 }) as LocationSolution;
+    const geo = geolocation(UTM_32N, sol)!;
+    assert.ok(Math.abs(geo.latitude - 52.5) < 0.1 && Math.abs(geo.longitude - 13.4) < 0.2, `${geo.latitude}, ${geo.longitude}`);
+    const lean = (Math.atan2(-geo.trueNorth[0], geo.trueNorth[1]) * 180) / Math.PI;
+    assert.ok(lean > 3 && lean < 4, `true north ${lean}° west of grid north`);
+    assert.equal(geo.elevation, 35);
+    // Turn the project 90° (its X axis grid north): true north then lies along the project's X, leaning the same way.
+    const turned = geolocation(UTM_32N, solveLocation({ local: [0, 0, 0], map: [797_000, 5_828_000, 35] }, { kind: 'angle', degrees: 90 }) as LocationSolution)!;
+    assert.ok(turned.trueNorth[0] > 0.99 * Math.hypot(...turned.trueNorth));
+    assert.ok(turned.trueNorth[1] > 0);
+  });
+});

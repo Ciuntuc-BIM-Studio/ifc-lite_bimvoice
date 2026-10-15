@@ -53,6 +53,7 @@ import { shapeSegments } from '@/hooks/useDraftingLines3D';
 import { screenToDrawing } from '@/drafting/frame';
 import { ModelCommandLayer, useModelCommandBridge } from './ModelCommandLayer';
 import { routeModifyToModel } from '@/project/model-edit-route';
+import { LocationReadout } from './LocationReadout';
 import { ModelHandlesLayer, useModelHandles } from './ModelHandlesLayer';
 import { SlabOutlineGrips } from './SlabOutlineGrips';
 import { OpeningSymbolsLayer } from './OpeningSymbolsLayer';
@@ -337,6 +338,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         ) : null}
         <SlabOutlineGrips handles={modelHandles} />
         <ModelHandlesLayer handles={modelHandles} />
+        <LocationReadout view={view} plane={plane} cursor={state.cursor} />
         <ModelCommandLayer map={bim.map} />
         <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} extraPatterns={extraPatterns} />
       </div>
