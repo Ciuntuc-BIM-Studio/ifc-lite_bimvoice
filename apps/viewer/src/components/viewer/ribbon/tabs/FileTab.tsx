@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { AddFile, CloudSources, Loading, NewProject, OpenFile, ProjectOpen, ProjectSave, LinkModel, ProjectVersion, SaveFederationSetup, Refresh, Share, CollabsRoom } from '@/icons';
+import { AddFile, CloudSources, Loading, NewProject, OpenFile, ProjectOpen, ProjectSave, LinkModel, ProjectVersion, SaveFederationSetup, Refresh, Share, CollabsRoom, TestCubes } from '@/icons';
 import { useViewerStore } from '@/store';
 import { useProjectStore } from '@/project/project-store';
 import { useIfc } from '@/hooks/useIfc';
@@ -99,6 +99,7 @@ export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
             disabled={loading || !canRefresh}
             commandContext={{ refreshModels: handleRefresh }}
           />
+          <RibbonCommandSmallButton commandId="file:test-cubes" icon={TestCubes} disabled={loading} />
         </RibbonSmallStack>
         {[[saveSetup, openSetup], [modelTags]].map((commands) => (
           <RibbonSmallStack key={commands[0].id} className="gap-1">

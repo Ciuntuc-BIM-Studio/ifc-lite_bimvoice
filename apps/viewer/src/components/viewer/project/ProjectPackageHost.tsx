@@ -31,8 +31,10 @@ import { clearJournal, readJournal, type JournalEntry } from '@/project/package/
 import { restoreJournal } from '@/project/package/journal-restore';
 import { usePackageSession } from '@/project/package/session';
 import { useAutosaveRecovery, isProjectDirty } from './useAutosaveRecovery';
+import { testCubesIfc } from '@/project/test-cubes';
 
 const MODEL_FILES = '.ifc,.ifczip,.ifcx';
+const TEST_CUBES = 1_000_000;
 /** The demo project: a package authored in Lapin, shipped with the viewer. */
 const DEMO_PROJECT_PATH = '/samples/demo-project.lapin';
 
@@ -101,6 +103,22 @@ export function ProjectPackageHost() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t, addModel]);
 
+  // A generated stress-test model, added beside what is open (or the first model).
+  const testCubes = useCallback(async () => {
+    const count = TEST_CUBES.toLocaleString('en-US');
+    if (!(await confirmDialog({ title: t('projectPackage.testCubes'), description: t('projectPackage.testCubesConfirm', { count }), confirmLabel: t('projectPackage.testCubesGenerate') }))) return;
+    try {
+      const blob = await testCubesIfc(TEST_CUBES, {
+        onProgress: (done) => usePackageSession.setState({ progress: t('projectPackage.testCubesProgress', { done: done.toLocaleString('en-US'), count }) }),
+      });
+      usePackageSession.setState({ progress: t('projectPackage.testCubesLoading', { count }) });
+      await loader.addModel(new File([blob], 'test-cubes.ifc'), { name: 'test-cubes.ifc' });
+    } finally {
+      usePackageSession.setState({ progress: null });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, addModel, loadFile]);
+
   useEffect(() => {
     const onAction = (e: Event) => {
       const action = (e as CustomEvent<PackageAction>).detail;
@@ -109,6 +127,7 @@ export function ProjectPackageHost() {
       else if (action === 'open') void open();
       else if (action === 'open-demo') void openDemo();
       else if (action === 'link') void link();
+      else if (action === 'test-cubes') void testCubes();
     };
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 's') return;
@@ -118,7 +137,7 @@ export function ProjectPackageHost() {
     window.addEventListener(PACKAGE_ACTION_EVENT, onAction);
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener(PACKAGE_ACTION_EVENT, onAction); window.removeEventListener('keydown', onKey); };
-  }, [save, open, openDemo, link]);
+  }, [save, open, openDemo, link, testCubes]);
 
   // Desktop: projects opened from Finder (at launch or while running) — the last one opens.
   useEffect(() => {

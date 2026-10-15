@@ -5,10 +5,10 @@
 /**
  * Project-level File commands: New Project (a configured blank IFC model),
  * and the project package (`.lapin`, earlier `.bvproj`): Open, Save, Save as, and Link model
- * (a read-only coordination model). The package commands are handled by
- * `ProjectPackageHost`.
+ * (a read-only coordination model), and Test cubes (a generated stress-test
+ * model). The package commands are handled by `ProjectPackageHost`.
  */
-import { LinkModel, NewProject, ProjectOpen, ProjectSave, ProjectVersion } from '@/icons';
+import { LinkModel, NewProject, ProjectOpen, ProjectSave, ProjectVersion, TestCubes } from '@/icons';
 import { requestNewProject } from '@/project/new-project';
 import { requestPackageAction } from '@/project/package/actions';
 import { useProjectStore } from '@/project/project-store';
@@ -50,6 +50,12 @@ export const RIBBON_PROJECT_SURFACE_COMMANDS = [
     keywords: 'link model reference coordination read only federate', category: 'File', icon: LinkModel,
     surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
     run: () => { requestPackageAction('link'); },
+  },
+  {
+    id: 'file:test-cubes', labelKey: 'projectPackage.testCubes', ribbonTooltipKey: 'projectPackage.testCubesTooltip',
+    keywords: 'generate test cubes boxes million stress benchmark performance random', category: 'File', icon: TestCubes,
+    surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
+    run: () => { requestPackageAction('test-cubes'); },
   },
   {
     id: 'file:save-version', labelKey: 'projectVersions.save',

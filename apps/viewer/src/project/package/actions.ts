@@ -4,7 +4,7 @@
 
 /** Project package requests from commands and shortcuts, handled by `ProjectPackageHost`. */
 
-export type PackageAction = 'open' | 'save' | 'save-as' | 'link' | 'save-version' | 'update-version' | 'history' | 'open-demo';
+export type PackageAction = 'open' | 'save' | 'save-as' | 'link' | 'save-version' | 'update-version' | 'history' | 'open-demo' | 'test-cubes';
 export const PACKAGE_ACTION_EVENT = 'bimvoice:project-package';
 
 export function requestPackageAction(action: PackageAction): void {
