@@ -55,6 +55,8 @@ async function nativeModelBytes(modelId: string, dataStore: IfcDataStore, edited
     georefMutations: state.georefMutations.get(modelId),
     scheduleState: null,
     description: 'BIMVoice project',
+    // The project keeps a live Union's tools: they are elements to edit, not only the target's body.
+    keepCombinedTools: true,
   });
   return typeof artifact.content === 'string' ? new TextEncoder().encode(artifact.content) : artifact.content;
 }

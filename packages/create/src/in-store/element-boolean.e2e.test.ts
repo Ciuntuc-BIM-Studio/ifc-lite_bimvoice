@@ -183,4 +183,31 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('boolean operations betw
     expect(combine.rebakeCombinationInStore(store, editor, a).ok).toBe(true);
     expect(bounds(await mesh(a)).x).toEqual([expect.closeTo(1.5, 3), expect.closeTo(2.5, 3)]);
   });
+
+  it('exports a live union once: the tool is part of the target, not an element of its own, nothing pointing at it', async () => {
+    const { store, view, editor, anchor, a, b } = await crossing();
+    const combine = await import('./element-combine.js');
+    expect(combine.combineElementsInStore(store, editor, anchor, a, [b], 'UNION').ok).toBe(true);
+    // As the app exports: on a copy, so the session keeps its tool.
+    const copy = view.detachedCopy();
+    const omitted = combine.omitCombinedToolsInStore(store, new StoreEditor(store, copy));
+    expect(omitted).toContain(b);
+    expect(view.isDeleted(b)).toBe(false);
+    const bytes = new StepExporter(store, copy).export({ schema: 'IFC4', applyMutations: true }).content as Uint8Array;
+    const text = new TextDecoder().decode(bytes);
+    const ids = new Set([...text.matchAll(/^#(\d+)=/gm)].map((m) => Number(m[1])));
+    const dangling = [...text.matchAll(/#(\d+)/g)].map((m) => Number(m[1])).filter((id) => !ids.has(id));
+    expect([...new Set(dangling)]).toEqual([]);
+    expect(ids.has(b)).toBe(false);
+    expect(text).not.toMatch(/Lapin union/);
+    // No orphaned geometry of the tool: every placement, shape and representation is used.
+    const refs = new Set([...text.matchAll(/=.*$/gm)].flatMap((m) => [...m[0].matchAll(/#(\d+)/g)].map((r) => Number(r[1]))));
+    const orphans = [...text.matchAll(/^#(\d+)=(IFCLOCALPLACEMENT|IFCPRODUCTDEFINITIONSHAPE|IFCSHAPEREPRESENTATION)\(/gm)].filter((m) => !refs.has(Number(m[1])));
+    expect(orphans.map((m) => m[0])).toEqual([]);
+    // The target carries the tool's body: as high as the tool.
+    const back = await parse(bytes);
+    const box = bounds(vertices(bytes, back, a));
+    expect(box.up[1]).toBeCloseTo(5, 3);
+    expect(box.x).toEqual([expect.closeTo(0, 3), expect.closeTo(4, 3)]);
+  });
 });

@@ -336,6 +336,8 @@ export function ExportDialog({ surface, trigger, initialChangesOnly = false }: E
             id: entry.model.id, name: entry.model.name, store: entry.dataStore, roomView, applyMutations,
           });
           if (portable) portableByModel.set(entry.model.id, portable);
+          // A model of this session (not a shared room's portable copy) carries its native sets, its combined tools left to their targets.
+          else if (input.mutationView) input.mutationView = withNativeExportSets(input.dataStore, input.mutationView);
           mergeInputs.push(input);
         }
 

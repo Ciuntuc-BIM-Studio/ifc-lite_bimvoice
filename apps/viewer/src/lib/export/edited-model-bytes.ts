@@ -21,6 +21,7 @@ import type { IfcDataStore } from '@ifc-lite/parser';
 import type { MutablePropertyView } from '@ifc-lite/mutations';
 import type { SchemaVersion } from '@/store/types';
 import { resolveEnergyExportMutationSource } from '@/components/viewer/energy-export-source';
+import { withoutCombinedTools } from './native-export-sets.js';
 
 export function editedModelBytes(store: IfcDataStore, view: MutablePropertyView | null): Uint8Array {
   const source = resolveEnergyExportMutationSource({
@@ -29,7 +30,8 @@ export function editedModelBytes(store: IfcDataStore, view: MutablePropertyView 
     schemaVersion: store.schemaVersion as SchemaVersion,
   });
   if (!source) return store.source.materialize();
-  return new StepExporter(source.dataStore, source.mutationView).export({
+  // A live Union's tools are part of their target, not rows of their own.
+  return new StepExporter(source.dataStore, withoutCombinedTools(source.dataStore, source.mutationView)).export({
     schema: source.dataStore.schemaVersion,
     applyMutations: true,
     includeGeometry: true,

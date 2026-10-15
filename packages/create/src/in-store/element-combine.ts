@@ -28,6 +28,8 @@ import { refId } from './host-geometry-frame.js';
 import { compose, invert } from './placement-3d.js';
 import { AnchorEntityReader } from './resolve-anchor.js';
 import { canonicalEntity, schemaAttributes, schemaRegistry } from './schema-attributes.js';
+import { deletionClosure } from './element-deletion.js';
+import { elementGeometryRefs, pruneOrphanOverlay } from './overlay-prune.js';
 
 export type CombineOp = 'UNION' | 'INTERSECTION';
 const NAMES: Readonly<Record<CombineOp, string>> = { UNION: 'Lapin union', INTERSECTION: 'Lapin intersect' };
@@ -146,4 +148,23 @@ export function separateCombinationsInStore(store: IfcDataStore, editor: StoreEd
   for (const c of gone) editor.removeEntity(c.relId);
   for (const t of targets) rebakeCombinationInStore(store, editor, t, written.get(t));
   return [...new Set(gone.flatMap((c) => [c.target, c.tool]))];
+}
+
+/**
+ * For an export (on its own copy of the view): every live combination's
+ * tools written once, as part of their target's body — the tools (with what
+ * hangs on them: openings, fillings, parts) and the ties leave the copy.
+ * Returns the elements omitted.
+ */
+export function omitCombinedToolsInStore(store: IfcDataStore, editor: StoreEditor): number[] {
+  const view = editor.getMutationView();
+  const ties = readCombinations(store, view);
+  if (!ties.length) return [];
+  const plan = deletionClosure(store, [...new Set(ties.map((c) => c.tool))], view);
+  // Their own placements and bodies go too, where nothing else (the target's carried copies) still uses them.
+  const roots = plan.ids.flatMap((id) => elementGeometryRefs(editor, id));
+  for (const tie of ties) editor.removeEntity(tie.relId);
+  for (const id of plan.ids) editor.removeEntity(id);
+  pruneOrphanOverlay(editor, roots);
+  return plan.ids;
 }

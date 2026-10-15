@@ -247,6 +247,8 @@ export interface StepExportInvocation {
   /** Real schedule state ONLY for the schedule-target model; null otherwise. */
   scheduleState: ExportScheduleState | null;
   description: string;
+  /** The project's own copy of the model (a package save): a live Union's tools are kept as the elements they are. */
+  keepCombinedTools?: boolean;
 }
 
 /** IFC5 export request handed to the injected `exportIfcx` dep. */

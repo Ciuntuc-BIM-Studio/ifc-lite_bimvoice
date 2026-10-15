@@ -86,7 +86,7 @@ export {
   bakeBooleanInStore, readSubtractions, removeSubtractionsInStore, subtractElementsInStore, SUBTRACT_NAME, type BakeOutcome, type Subtraction,
 } from './element-boolean.js';
 export {
-  combineElementsInStore, readCombinations, rebakeCombinationInStore, separateCombinationsInStore, type Combination, type CombineOp,
+  combineElementsInStore, omitCombinedToolsInStore, readCombinations, rebakeCombinationInStore, separateCombinationsInStore, type Combination, type CombineOp,
 } from './element-combine.js';
 export {
   gableWallLines, readWallRoofTrim, ROOF_TRIM_PSET, roofOverWall, roofTrimCuts, roofTrimDepth, roofTrimmedWalls, setWallRoofTrimInStore, syncWallRoofTrimInStore,

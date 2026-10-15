@@ -42,7 +42,7 @@ export async function exportChangedModelToStep(
   view: MutablePropertyView | undefined,
   invocation: StepExportInvocation,
 ): Promise<ChangesExportArtifact> {
-  const serialized = prepareAppearanceSerialization(modelId, dataStore, view ? withNativeExportSets(dataStore, view) : view);
+  const serialized = prepareAppearanceSerialization(modelId, dataStore, view ? withNativeExportSets(dataStore, view, { keepCombinedTools: invocation.keepCombinedTools }) : view);
   const exporter = new StepExporter(dataStore, serialized.view);
   const result = await exporter.exportAsync({
     schema: invocation.schema,
