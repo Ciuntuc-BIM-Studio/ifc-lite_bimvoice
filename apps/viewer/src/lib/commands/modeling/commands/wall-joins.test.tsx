@@ -168,10 +168,13 @@ describe('wall.moveEndpoint takes the joined wall along (#6232 B2)', () => {
     commandPointerMove({ local: [x, y], render: plane.localToRender([x, y, 0]), winner: null, guides: [], locked: false });
   };
 
-  it('dragging a shared corner moves both walls and re-cuts the joins, in one undo step', () => {
+  /** Select `walls`, the first the one whose end is dragged. */
+  const select = (...walls: number[]) => state().setSelectedEntityIds(walls.map((id) => toGlobalIdFromModels(state().models, MODEL_ID, id)).reverse());
+
+  it('dragging a shared corner with both walls selected moves both and re-cuts the joins, in one undo step', () => {
     drawRoom();
     const [first, second, third, fourth] = wallIds();
-    state().setSelectedEntityId(toGlobalIdFromModels(state().models, MODEL_ID, first));
+    select(first, second);
     const before = batches();
     beginWallEndpointDrag('end');
     dragTo(7, 1);
@@ -189,6 +192,22 @@ describe('wall.moveEndpoint takes the joined wall along (#6232 B2)', () => {
     undo();
     assert.ok(near(state().readWallEndpoints(MODEL_ID, first)!.end, [6, 0, 0]));
     assert.ok(near(state().readWallEndpoints(MODEL_ID, second)!.start, [6, 0, 0]));
+    assert.equal(rels().length, 4);
+  });
+
+  it('dragging a corner with only its wall selected breaks the join: the neighbour stays and is squared', () => {
+    drawRoom();
+    const [first, second] = wallIds();
+    select(first);
+    const before = batches();
+    beginWallEndpointDrag('end');
+    dragTo(7, 1);
+    release();
+    assert.ok(near(state().readWallEndpoints(MODEL_ID, first)!.end, [7, 1, 0]));
+    assert.ok(near(state().readWallEndpoints(MODEL_ID, second)!.start, [6, 0, 0]), 'the neighbour stays');
+    assert.equal(rels().length, 3, 'the corner join is gone, the others stay');
+    assert.equal(batches(), before + 1, 'one undo step');
+    undo();
     assert.equal(rels().length, 4);
   });
 
@@ -310,8 +329,8 @@ describe('the exported model keeps the joins and meshes clean (#6232 B2)', () =>
     drawRoom();
     expectCleanCorners(api, ROOM);
 
-    const [first] = wallIds();
-    state().setSelectedEntityId(toGlobalIdFromModels(state().models, MODEL_ID, first));
+    const [first, second] = wallIds();
+    state().setSelectedEntityIds([second, first].map((id) => toGlobalIdFromModels(state().models, MODEL_ID, id)));
     beginWallEndpointDrag('end');
     const plane = (getCommandRuntime().gesture as WallEndpointGesture).plane!;
     commandPointerMove({ local: [7, 1], render: plane.localToRender([7, 1, 0]), winner: null, guides: [], locked: false });
