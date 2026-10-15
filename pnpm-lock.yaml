@@ -1126,6 +1126,9 @@ importers:
         specifier: workspace:^
         version: link:../parser
     devDependencies:
+      '@ifc-lite/ids':
+        specifier: workspace:^
+        version: link:../ids
       '@ifc-lite/wasm':
         specifier: workspace:^
         version: link:../wasm

@@ -25,3 +25,4 @@ export { encodeNativeSolids, nativeElementSolids, nativeModelSolids, type Native
 export { planNativeRemesh, type NativeRemeshPlan } from './remesh-plan.js';
 export { nativePset, nativeQuantities, sectionArea, writeNativeExportSets, type NativeExportSets } from './export-sets.js';
 export { convertToNativeInStore, planNativeConversion, type NativeConversionPlan, type NativeConversionResult } from './convert.js';
+export { nativeExportIds } from './export-ids.js';
