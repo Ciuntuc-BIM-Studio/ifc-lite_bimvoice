@@ -11,7 +11,7 @@
 import {
   WallAttachRoof, WallDetachRoof, DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftKnife, DraftWorkplane, DraftExtrude, DraftFace,
-  BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority,
+  BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority, ProjectLocation,
   DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { startBimTool } from '@/project/model-command-bridge';
@@ -19,6 +19,7 @@ import { openJoinery } from '@/joinery/dialog-store';
 import { openElementTypes } from '@/element-types/dialog-store';
 import { openMaterials } from './materials/MaterialsDialog';
 import { applyCutPriorities } from '@/project/cut-priorities';
+import { openProjectLocation } from '@/project/project-location-store';
 import { editSelectedGroup, groupSelection, ungroupSelection, useGroupPrefs, type GroupOutcome } from '@/project/element-groups';
 import { openRoofForSelection } from '@/project/roof-dialog-store';
 import { roofSystemOfRenderId } from '@/project/roof-system-element';
@@ -171,6 +172,7 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:mirror', labelKey: 'drafting.tool.mirror', keywords: 'mirror reflect drafting MI', category: 'Tools', icon: DraftMirror, surfaces: ribbonOnly, enabled: always, run: draft('mirror') },
   { id: 'design:erase', labelKey: 'drafting.tool.erase', keywords: 'erase delete drafting E', category: 'Tools', icon: DraftErase, surfaces: ribbonOnly, enabled: always, run: draft('erase') },
   { id: 'design:offset', labelKey: 'drafting.tool.offset', keywords: 'offset parallel drafting O', category: 'Tools', icon: DraftOffset, surfaces: ribbonOnly, enabled: always, run: draft('offset') },
+  { id: 'design:project-location', labelKey: 'location.command', keywords: 'project location georeferencing georeference survey point coordinates stereo 70 epsg map conversion north', category: 'Tools', icon: ProjectLocation, surfaces: ribbonOnly, enabled: always, run: openProjectLocation },
   { id: 'design:knife', labelKey: 'drafting.tool.knife', keywords: 'knife cut split side edge vertex polygon slab outline KN', category: 'Tools', icon: DraftKnife, surfaces: ribbonOnly, enabled: always, run: draft('knife') },
   { id: 'design:trim', labelKey: 'drafting.tool.trim', keywords: 'trim cut drafting TR', category: 'Tools', icon: DraftTrim, surfaces: ribbonOnly, enabled: always, run: draft('trim') },
   { id: 'design:extend', labelKey: 'drafting.tool.extend', keywords: 'extend lengthen boundary drafting EX', category: 'Tools', icon: DraftExtend, surfaces: ribbonOnly, enabled: always, run: draft('extend') },

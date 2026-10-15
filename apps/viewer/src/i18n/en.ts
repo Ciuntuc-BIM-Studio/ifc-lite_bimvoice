@@ -147,6 +147,7 @@ import { hostedPlaceEn } from './catalogues/hosted-place.en';
 import { stairRailingEn } from './catalogues/stair-railing.en';
 import { profileSectionEn } from './catalogues/profile-section.en';
 import { planHandlesEn } from './catalogues/plan-handles.en';
+import { projectLocationEn } from './catalogues/project-location.en';
 import { multiSplitEn } from './catalogues/multi-split.en';
 import { pushPullAlignEn } from './catalogues/push-pull-align.en';
 import { trimExtendEn } from './catalogues/trim-extend.en';
@@ -236,6 +237,7 @@ export const en = {
   ...stairRailingEn,
   ...profileSectionEn,
   ...planHandlesEn,
+  ...projectLocationEn,
   ...multiSplitEn,
   ...pushPullAlignEn,
   ...trimExtendEn,

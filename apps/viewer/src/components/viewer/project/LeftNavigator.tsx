@@ -29,6 +29,7 @@ import { DraftingStandardsDialog } from '../drafting/standards/DraftingStandards
 import { JoineryDialog } from '../joinery/JoineryDialog';
 import { RoofSystemDialog } from '../roof/RoofSystemDialog';
 import { CorridorDialog } from '../civil/CorridorDialog';
+import { ProjectLocationDialog } from './ProjectLocationDialog';
 import { GroupEditBar } from '../groups/GroupEditBar';
 import { ProfileLibraryDialog } from '../civil/ProfileLibraryDialog';
 import { MoveToStoreyDialog } from '../properties/MoveToStoreyDialog';
@@ -118,6 +119,7 @@ export function LeftNavigator() {
       <TimberFrameDialog />
       <CltDialog />
       <CorridorDialog />
+      <ProjectLocationDialog />
       <GroupEditBar />
       <ProfileLibraryDialog />
       <MaterialsDialog />

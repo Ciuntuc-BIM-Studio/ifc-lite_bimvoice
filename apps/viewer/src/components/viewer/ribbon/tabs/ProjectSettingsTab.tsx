@@ -4,12 +4,13 @@
 
 /**
  * Ribbon · Project settings tab — the project's configurators: element types,
- * building materials, door and window types, cut priorities and the drafting
- * standards (layers, text, dimension, axis and tag styles). Each opens its
+ * building materials, door and window types, cut priorities, the drafting
+ * standards (layers, text, dimension, axis and tag styles) and where the
+ * project is on the map. Each opens its
  * dialog; what is set there is saved with the project.
  */
 
-import { BuildingMaterials, CutPriority, DraftingStandards, ElementTypes, JoineryTypes } from '@/icons';
+import { BuildingMaterials, CutPriority, DraftingStandards, ElementTypes, JoineryTypes, ProjectLocation } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { RibbonGroup, RibbonGroupDivider } from '../primitives';
 import { RibbonCommandLargeButton } from '../command-button';
@@ -27,6 +28,10 @@ export function ProjectSettingsTab() {
       <RibbonGroupDivider />
       <RibbonGroup label={t('standards.title')}>
         <RibbonCommandLargeButton commandId="annotate:standards" icon={DraftingStandards} />
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('location.command')}>
+        <RibbonCommandLargeButton commandId="design:project-location" icon={ProjectLocation} />
       </RibbonGroup>
     </>
   );
