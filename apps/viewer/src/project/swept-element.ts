@@ -52,20 +52,18 @@ function screenProfile(profile: Pt[], plane: SectionPlaneConfig): [number, numbe
 }
 
 export function sweepBuild(profile: Pt[], path: { pts: Pt[]; closed: boolean }, plane: SectionPlaneConfig): FacetedBuild {
-  return (toLocal) => ({
-    faces: sweepFaces(screenProfile(profile, plane), path.pts.map((p) => tuple(toLocal(drawingToWorld(plane, p)))), { closed: path.closed }),
-    location: [0, 0, 0],
-  });
+  return (toLocal) => {
+    const shape = { operation: 'sweep' as const, profile: screenProfile(profile, plane), path: path.pts.map((p) => tuple(toLocal(drawingToWorld(plane, p)))), ...(path.closed ? { closed: true } : {}) };
+    return { faces: sweepFaces(shape.profile, shape.path, { closed: path.closed }), location: [0, 0, 0], history: shape };
+  };
 }
 
 export function revolveBuild(profile: Pt[], axis: [Pt, Pt], angleDeg: number, plane: SectionPlaneConfig): FacetedBuild {
   return (toLocal) => {
     const lift = (p: Pt) => tuple(toLocal(drawingToWorld(plane, p)));
     const a = lift(axis[0]), b = lift(axis[1]);
-    return {
-      faces: revolveFaces(profile.map(lift), a, [b[0] - a[0], b[1] - a[1], b[2] - a[2]], (angleDeg * Math.PI) / 180),
-      location: [0, 0, 0],
-    };
+    const shape = { operation: 'revolve' as const, profile: profile.map(lift), origin: a, direction: [b[0] - a[0], b[1] - a[1], b[2] - a[2]] as V3, angle: (angleDeg * Math.PI) / 180 };
+    return { faces: revolveFaces(shape.profile, shape.origin, shape.direction, shape.angle), location: [0, 0, 0], history: shape };
   };
 }
 

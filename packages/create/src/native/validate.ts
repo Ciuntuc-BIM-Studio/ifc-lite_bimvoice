@@ -11,7 +11,7 @@
  */
 
 import type {
-  NativeElement, NativeId, NativeModel, NativeType, NativeValue, PlanPoint,
+  NativeElement, NativeId, NativeModel, NativeSolidShape, NativeType, NativeValue, PlanPoint,
 } from './schema.js';
 import { NATIVE_PARAMS, nativeParamProblem } from './parameters.js';
 import { NATIVE_IFC } from './ifc-mapping.js';
@@ -69,6 +69,30 @@ export function ringArea2(ring: readonly PlanPoint[]): number {
   return a;
 }
 
+/** What is wrong with a Studio solid's history, or nothing. */
+export function solidShapeProblems(shape: NativeSolidShape | undefined): string[] {
+  if (!shape || typeof shape !== 'object') return ['the solid has no shape'];
+  const ring = (r: readonly (readonly number[])[] | undefined, dims: 2 | 3) => Array.isArray(r) && r.length >= 3 && r.every((p) => finitePoint(p, dims));
+  switch (shape.operation) {
+    case 'extrude':
+      if (!ring(shape.outer, 2) || Math.abs(ringArea2(shape.outer)) <= EPS) return ['an extrusion needs a profile of at least 3 points with an area'];
+      if (!(Number.isFinite(shape.depth) && shape.depth > 0)) return ['an extrusion needs a depth greater than zero'];
+      if (![shape.location, shape.axis, shape.refDirection].every((p) => finitePoint(p, 3))) return ['an extrusion needs its plane (location, axis, direction)'];
+      return [];
+    case 'sweep':
+      if (!ring(shape.profile, 2)) return ['a sweep needs a profile of at least 3 points'];
+      if (!Array.isArray(shape.path) || shape.path.length < 2 || !shape.path.every((p) => finitePoint(p, 3))) return ['a sweep needs a path of at least 2 points'];
+      return [];
+    case 'revolve':
+      if (!ring(shape.profile, 3)) return ['a revolve needs a profile of at least 3 points'];
+      if (!finitePoint(shape.origin, 3) || !finitePoint(shape.direction, 3) || Math.hypot(...shape.direction) <= EPS) return ['a revolve needs an axis'];
+      if (!(Number.isFinite(shape.angle) && shape.angle > 0 && shape.angle <= 2 * Math.PI + EPS)) return ['a revolve needs an angle in (0, 360°]'];
+      return [];
+    default:
+      return ['unknown solid operation'];
+  }
+}
+
 function shapeProblems(element: NativeElement): string[] {
   const out: string[] = [];
   switch (element.kind) {
@@ -83,6 +107,9 @@ function shapeProblems(element: NativeElement): string[] {
       for (const hole of element.holes ?? []) {
         if (hole.length < 3 || !hole.every((p) => finitePoint(p, 2)) || Math.abs(ringArea2(hole)) <= EPS) out.push('every hole must be a ring of at least 3 points with an area');
       }
+      break;
+    case 'solid':
+      out.push(...solidShapeProblems(element.shape));
       break;
     case 'beam':
       if (!finitePoint(element.start, 3) || !finitePoint(element.end, 3)) out.push('start and end must be finite points');

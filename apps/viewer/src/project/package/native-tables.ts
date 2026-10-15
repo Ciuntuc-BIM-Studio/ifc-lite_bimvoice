@@ -75,6 +75,7 @@ const ELEMENT_COLUMNS: Record<NativeKind, Column[]> = {
   opening: [...utf8('host', 'hostId'), ...f64('along', 'sill', 'width', 'height', 'depth', 'rotation'), ...json('center')],
   door: [...utf8('hostId'), ...f64('along', 'sill'), ...bool('flipFacing', 'flipHand')],
   window: [...utf8('hostId'), ...f64('along', 'sill'), ...bool('flipFacing', 'flipHand')],
+  solid: [...utf8('ifcClass'), ...json('shape')],
 };
 
 const ARROW: Record<Kind, () => unknown> = { f64: () => new arrow.Float64(), utf8: () => new arrow.Utf8(), bool: () => new arrow.Bool(), json: () => new arrow.Utf8() };

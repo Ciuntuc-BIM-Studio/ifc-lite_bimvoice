@@ -84,7 +84,23 @@ export const NATIVE_IFC: Readonly<Record<NativeKind, NativeClassMapping>> = {
     representations: ['Body', 'FootPrint'],
     material: 'material', commonPset: 'Pset_WindowCommon', quantitySet: 'Qto_WindowBaseQuantities',
   },
+  solid: {
+    // Written as its own `ifcClass` (`nativeIfcClass`); this row is the fallback and the defaults.
+    ifcClass: 'IfcBuildingElementProxy', ifcTypeClass: 'IfcBuildingElementProxyType',
+    predefinedTypes: ['COMPLEX', 'ELEMENT', 'PARTIAL', 'PROVISIONFORVOID', 'PROVISIONFORSPACE', ...ELEMENT_TYPES],
+    defaultPredefinedType: 'NOTDEFINED',
+    representations: ['Body'],
+    material: 'material', commonPset: 'Pset_BuildingElementProxyCommon', quantitySet: 'Qto_BuildingElementProxyQuantities',
+  },
 };
+
+/** The IFC class an element is written as: a Studio solid's own, else its class's. */
+export function nativeIfcClass(element: Pick<NativeElement, 'kind'> & { ifcClass?: string }): string {
+  return element.kind === 'solid' && element.ifcClass ? element.ifcClass : NATIVE_IFC[element.kind].ifcClass;
+}
+
+/** The property set a Studio solid's history travels in (`NativeSolidShape`, JSON in `Spec`). */
+export const NATIVE_SOLID_PSET = 'Pset_LapinSolid';
 
 /**
  * The property set a native element's parameters travel in on export, so a

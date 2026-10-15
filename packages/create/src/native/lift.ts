@@ -34,6 +34,7 @@ import {
 import { liftBase, nativeIdOf, text, type LiftContext, type LiftResult } from './lift-base.js';
 import { ringArea2 } from './validate.js';
 import { liftMembers, liftHosted } from './lift-members.js';
+import { liftSolids } from './solid.js';
 
 /** Material ids derive from their names in this namespace (a material has no GlobalId of its own). */
 const MATERIAL_NAMESPACE = '6f1d7c2a-58e4-4c39-9a0b-5b7f0f8a2c11';
@@ -173,6 +174,7 @@ export function liftNativeModel(store: IfcDataStore, view: MutablePropertyView, 
   for (const id of ctx.reader.ids('IFCSLAB')) add(id, liftSlab(ctx, id));
   liftMembers(ctx);
   liftHosted(ctx);
+  liftSolids(ctx);
   const expressIds = new Map<NativeId, number>();
   for (const [expressId, element] of ctx.lifted) expressIds.set(element.id, expressId);
   return {

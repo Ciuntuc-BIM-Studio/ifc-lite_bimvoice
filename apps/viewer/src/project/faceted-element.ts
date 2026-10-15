@@ -20,12 +20,16 @@ import type { Vec3 } from '@/drafting/frame';
 import type { Pt } from '@/drafting/types';
 import { findElementByGlobalId, prepare, type ContourElementResult } from './contour-element';
 import type { ProjectView } from './types';
+import type { NativeSolidShape } from '@ifc-lite/create';
+import { writeSolidHistory } from './solid-history';
 
 type V3 = [number, number, number];
 
 export interface FacetedGeometry {
   faces: V3[][];
   location: V3;
+  /** How it was built (a Studio sweep or revolve), written into the model with it. */
+  history?: NativeSolidShape;
 }
 
 /** Faces from shapes, given the world → storey-local mapping of the target storey. */
@@ -53,6 +57,7 @@ export function createFacetedElement(
       const result = addFacetedElementToStore(editor, anchor, {
         IfcClass: spec.ifcClass, PredefinedType: spec.predefinedType, Name: spec.name, Faces: geometry.faces, Location: geometry.location,
       });
+      if (geometry.history) writeSolidHistory(editor, result.elementId, geometry.history);
       editor.addPropertySet(result.elementId, 'Pset_IfcLiteAuthoring', [
         { name: 'SourceContour', value: sourceId, type: 'LABEL' },
         { name: 'SourceView', value: view.name, type: 'LABEL' },
@@ -82,6 +87,7 @@ export function updateFacetedElement(
       ensureStoreyPlacement(ds, editor, ready.storeyId);
       const anchor = resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView());
       replaceFacetedGeometryInStore(editor, anchor, elementId, { IfcClass: ifcClass, Faces: geometry.faces, Location: geometry.location });
+      if (geometry.history) writeSolidHistory(editor, elementId, geometry.history);
     });
     void requestRemesh(useViewerStore.getState, modelId, [elementId], 'shape');
     return { ok: true, modelId, elementId, globalId, ifcClass };

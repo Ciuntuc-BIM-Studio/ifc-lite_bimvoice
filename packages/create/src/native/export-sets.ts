@@ -20,6 +20,7 @@ import { QuantityType, PropertyValueType } from '@ifc-lite/data';
 import type { MutablePropertyView } from '@ifc-lite/mutations';
 import type { ProfileSection } from '../in-store/profile.js';
 import { NATIVE_IFC, NATIVE_PSET } from './ifc-mapping.js';
+import { solidMeasures } from './solid.js';
 import type { NativeElement, NativeId, NativeModel, PlanPoint } from './schema.js';
 import { NATIVE_SCHEMA_VERSION } from './schema.js';
 import { nativeIndex, nativeSection, resolveNativeParam, ringArea2, type NativeIndex } from './validate.js';
@@ -106,6 +107,12 @@ function parametricQuantities(e: NativeElement, index: NativeIndex, hosted: read
     if (len === undefined) return null;
     const a = section ? sectionArea(section) : undefined;
     return { set, quantities: [length('Length', len), ...(a === undefined ? [] : [area('CrossSectionArea', a), volume('GrossVolume', a * len)])] };
+  }
+  if (e.kind === 'solid') {
+    // The proxy's standard set; a solid written as another class (a Studio wall) has its Qto from the Studio builder.
+    if (e.ifcClass.toUpperCase() !== 'IFCBUILDINGELEMENTPROXY') return null;
+    const m = solidMeasures(e.shape);
+    return { set, quantities: [area('NetSurfaceArea', m.surface), volume('NetVolume', m.volume)] };
   }
   if (e.kind === 'opening') {
     return e.host === 'wall'

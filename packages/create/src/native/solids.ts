@@ -22,6 +22,7 @@ import type { ProfileSection } from '../in-store/profile.js';
 import { wallBodyOutline } from '../in-store/wall-join.js';
 import type { NativeElement, NativeId, PlanPoint } from './schema.js';
 import { nativeSection, resolveNativeParam, type NativeIndex } from './validate.js';
+import { solidFaces } from './solid.js';
 
 export type SpacePoint = [number, number, number];
 
@@ -141,6 +142,14 @@ export function nativeElementSolids(element: NativeElement, index: NativeIndex, 
         placement: planFrame(element.position, num(element, 'rotation', index)),
         depth: num(element, 'height', index),
       }];
+    case 'solid': {
+      const s = element.shape;
+      if (s.operation === 'extrude') {
+        const z = norm(s.axis), x = norm(s.refDirection);
+        return [{ profile: { kind: 'polygon', outer: s.outer, ...(s.holes?.length ? { holes: s.holes } : {}) }, placement: frame(s.location, x, cross(z, x), z), depth: s.depth }];
+      }
+      return [{ profile: { kind: 'faces', faces: solidFaces(s).map((outer) => ({ outer })) }, placement: frame([0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]), depth: 0 }];
+    }
     default:
       // Openings, doors and windows are cut into their host; a door's or
       // window's own body is its joinery type's (mapped) geometry, meshed by

@@ -33,8 +33,8 @@ export type PlanPoint = [number, number];
 /** A point in a storey's frame (z up from the storey elevation), metres. */
 export type LocalPoint = [number, number, number];
 
-/** The classes of the first round (docs/format-lapin-nativ.md, decision 4). */
-export type NativeKind = 'wall' | 'slab' | 'beam' | 'column' | 'opening' | 'door' | 'window';
+/** The classes of the first round (docs/format-lapin-nativ.md, decision 4), and Studio's free solids. */
+export type NativeKind = 'wall' | 'slab' | 'beam' | 'column' | 'opening' | 'door' | 'window' | 'solid';
 
 /** The attributes every native element carries, named as IfcRoot / IfcElement name them. */
 export interface NativeElementBase {
@@ -160,7 +160,32 @@ export interface NativeJoinery extends NativeElementBase {
   flipHand?: boolean;
 }
 
-export type NativeElement = NativeWall | NativeSlab | NativeBeam | NativeColumn | NativeOpening | NativeJoinery;
+/**
+ * How a Studio solid is built (its history, FreeCAD-style), in the storey's
+ * frame, metres and radians — the inputs of the builders, from which it is
+ * rebuilt:
+ *  - `extrude`: a profile (outer ring and holes, in the plane at `location`
+ *    with `refDirection` as its x and `axis` as its normal) carried `depth`
+ *    along `axis`;
+ *  - `sweep`: a profile standing upright on a path (its x to the path's
+ *    left, y up, its bounding box's bottom centre on the path);
+ *  - `revolve`: a profile (points in the storey) turned `angle` about the
+ *    line through `origin` along `direction`.
+ */
+export type NativeSolidShape =
+  | { operation: 'extrude'; outer: PlanPoint[]; holes?: PlanPoint[][]; depth: number; location: LocalPoint; axis: LocalPoint; refDirection: LocalPoint }
+  | { operation: 'sweep'; profile: PlanPoint[]; path: LocalPoint[]; closed?: boolean }
+  | { operation: 'revolve'; profile: LocalPoint[]; origin: LocalPoint; direction: LocalPoint; angle: number };
+
+/** A free solid modelled in Studio, of any element class: rebuilt from its operation. */
+export interface NativeSolid extends NativeElementBase {
+  kind: 'solid';
+  /** The IFC class it is written as (IfcBuildingElementProxy, IfcFurnishingElement, IfcWall…). */
+  ifcClass: string;
+  shape: NativeSolidShape;
+}
+
+export type NativeElement = NativeWall | NativeSlab | NativeBeam | NativeColumn | NativeOpening | NativeJoinery | NativeSolid;
 
 /** One layer of a wall or slab type (IfcMaterialLayer). */
 export interface NativeLayer {

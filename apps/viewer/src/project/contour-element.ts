@@ -34,6 +34,8 @@ import { selfIntersects } from '@/drafting/arrangement';
 import { pointInPolygon } from '@/drafting/offset';
 import type { ProjectView } from './types';
 import { ensureEditMode } from '@/project/edit-mode';
+import type { NativeSolidShape } from '@ifc-lite/create';
+import { writeSolidHistory } from './solid-history';
 
 export interface ContourElementSpec {
   ifcClass: string;
@@ -128,6 +130,14 @@ function extrusionParams(
   };
 }
 
+/** An extrusion's history (`NativeSolidShape`), from the params it is written with. */
+function extrusionHistory(p: Omit<ExtrusionInStoreParams, 'IfcClass'>): NativeSolidShape {
+  return {
+    operation: 'extrude', outer: p.Outer.map(([x, y]) => [x, y]), ...(p.Holes?.length ? { holes: p.Holes.map((h) => h.map(([x, y]) => [x, y] as [number, number])) } : {}),
+    depth: p.Depth, location: [...p.Location], axis: [...(p.Axis ?? [0, 0, 1])], refDirection: [...(p.RefDirection ?? [1, 0, 0])],
+  };
+}
+
 export type Prepared =
   | { ok: false; error: string }
   | { ok: true; modelId: string; storeyId: number; edit: NonNullable<ReturnType<typeof modelEditTarget>>; toLocal: (p: Vec3) => Vec3 };
@@ -180,7 +190,9 @@ export function createContourElement(view: ProjectView, plane: SectionPlaneConfi
     const made = recordModellingCommit(useViewerStore, ready.modelId, (editor, ds) => {
       ensureStoreyPlacement(ds, editor, ready.storeyId);
       const anchor = resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView());
-      const result = addExtrusionToStore(editor, anchor, { IfcClass: spec.ifcClass, ...extrusionParams(loops, plane, ready.toLocal, spec) });
+      const params = extrusionParams(loops, plane, ready.toLocal, spec);
+      const result = addExtrusionToStore(editor, anchor, { IfcClass: spec.ifcClass, ...params });
+      writeSolidHistory(editor, result.elementId, extrusionHistory(params));
       editor.addPropertySet(result.elementId, 'Pset_IfcLiteAuthoring', [
         { name: 'SourceContour', value: sourceId, type: 'LABEL' },
         { name: 'SourceView', value: view.name, type: 'LABEL' },
@@ -219,7 +231,9 @@ export function updateContourElement(view: ProjectView, plane: SectionPlaneConfi
     recordModellingCommit(useViewerStore, modelId, (editor, ds) => {
       ensureStoreyPlacement(ds, editor, ready.storeyId);
       const anchor = resolveSpatialAnchor(ds, ready.storeyId, editor.getMutationView());
-      replaceExtrusionGeometryInStore(editor, anchor, elementId, { IfcClass: spec.ifcClass, ...extrusionParams(loops, plane, ready.toLocal, spec) });
+      const params = extrusionParams(loops, plane, ready.toLocal, spec);
+      replaceExtrusionGeometryInStore(editor, anchor, elementId, { IfcClass: spec.ifcClass, ...params });
+      writeSolidHistory(editor, elementId, extrusionHistory(params));
       writeQuantities(editor, anchor, elementId, view, loops, spec);
     });
     void requestRemesh(useViewerStore.getState, modelId, [elementId], 'shape');

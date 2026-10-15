@@ -9,7 +9,7 @@ export {
   type NativeBeam, type NativeColumn, type NativeElement, type NativeElementBase, type NativeId,
   type NativeJoinery, type NativeKind, type NativeLayer, type NativeMaterial, type NativeModel,
   type NativeOpening, type NativeProperty, type NativeRelation, type NativeSlab, type NativeSlabOpening,
-  type NativeStorey, type NativeType, type NativeValue, type NativeWall, type NativeWallOpening,
+  type NativeStorey, type NativeType, type NativeSolid, type NativeSolidShape, type NativeValue, type NativeWall, type NativeWallOpening,
   type PlanPoint as NativePlanPoint, type LocalPoint as NativeLocalPoint,
 } from './schema.js';
 export { NATIVE_IFC, NATIVE_PSET, nativeGlobalId, nativeIdFromGlobalId, nativePredefinedType, type NativeClassMapping } from './ifc-mapping.js';
@@ -27,3 +27,5 @@ export { nativePset, nativeQuantities, sectionArea, writeNativeExportSets, type 
 export { convertToNativeInStore, planNativeConversion, type NativeConversionPlan, type NativeConversionResult } from './convert.js';
 export { nativeExportIds } from './export-ids.js';
 export { nativeElementQuantities, type ElementQuantities } from './element-quantities.js';
+export { liftSolid, readSolidShape, solidFaces, solidMeasures, solidStoreParams } from './solid.js';
+export { NATIVE_SOLID_PSET, nativeIfcClass } from './ifc-mapping.js';

@@ -21,6 +21,7 @@ import { readJoineryType } from '../in-store/joinery-read.js';
 import { nativeQuantities } from './export-sets.js';
 import { liftSlab, liftWall } from './lift.js';
 import { liftHosted, liftLinear } from './lift-members.js';
+import { liftSolid } from './solid.js';
 import { nativeIdOf, type LiftContext } from './lift-base.js';
 import { RelationLookup, type RelationKind } from './relation-lookup.js';
 import { refId } from './remesh-context.js';
@@ -105,6 +106,12 @@ export function nativeElementQuantities(store: IfcDataStore, view: MutableProper
       liftHosted(ctx, [opening], known);
       element = ctx.lifted.get(expressId) ?? null;
     }
+  }
+  // Anything Studio built that is not its class's parametric shape: a solid, from its history.
+  if (!element) {
+    contain(expressId);
+    element = liftSolid(ctx, expressId);
+    if (element) ctx.lifted.set(expressId, element);
   }
   if (!element) return null;
   const elements = [...ctx.lifted.values()];
