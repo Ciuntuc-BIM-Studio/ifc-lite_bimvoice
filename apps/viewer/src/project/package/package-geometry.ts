@@ -41,8 +41,12 @@ export function loadCacheKey(bytes: Uint8Array): string {
   return buildGeometryCacheKey(bytes.byteLength, computeSourceFingerprint(bytes).hex, s.mergeLayers, undefined, s.geometryMode === 'fast', tier);
 }
 
-/** `model`'s meshes as a load-cache entry for its saved IFC `bytes`, or null when the cache would not serve it. */
-export async function packageGeometry(model: FederatedModel, bytes: Uint8Array): Promise<Uint8Array | null> {
+/**
+ * The meshes the load cache would serve for `model` saved as `bytes` (its
+ * scene meshes, GPU-instanced ones drawn out, in the load frame), or null
+ * when it would not serve them.
+ */
+export function packageGeometryFrame(model: FederatedModel, bytes: Uint8Array): Pick<GeometryData, 'meshes' | 'coordinateInfo'> | null {
   const geometry = model.geometryResult;
   if (!geometry || (model.idOffset ?? 0) !== 0 || !servable(bytes)) return null;
   // The cache holds the load frame: a model moved in the scene would come back moved twice.
@@ -52,7 +56,14 @@ export async function packageGeometry(model: FederatedModel, bytes: Uint8Array):
     ? (getGlobalRenderer()?.getScene()?.getAllInstancedMeshData() ?? []).filter((m) => m.expressId > 0 && m.expressId <= (model.maxExpressId ?? Number.POSITIVE_INFINITY))
     : [];
   if (geometry.instancedGeometryHashes?.size && instanced.length === 0) return null;
-  const meshes = instanced.length ? [...geometry.meshes, ...instanced] : geometry.meshes;
+  return { meshes: instanced.length ? [...geometry.meshes, ...instanced] : geometry.meshes, coordinateInfo: geometry.coordinateInfo };
+}
+
+/** `model`'s meshes as a load-cache entry for its saved IFC `bytes` (a compacted export), or null when the cache would not serve it. */
+export async function packageGeometry(model: FederatedModel, bytes: Uint8Array): Promise<Uint8Array | null> {
+  const frame = packageGeometryFrame(model, bytes);
+  if (!frame) return null;
+  const { meshes } = frame;
   // The entry's data tables index the SAVED bytes (ids are kept by the export, the offsets are not).
   const buffer = bytes.slice().buffer;
   const store = await new IfcParser().parseColumnar(buffer);
@@ -60,7 +71,7 @@ export async function packageGeometry(model: FederatedModel, bytes: Uint8Array):
     meshes,
     totalVertices: meshes.reduce((n, m) => n + m.positions.length / 3, 0),
     totalTriangles: meshes.reduce((n, m) => n + m.indices.length / 3, 0),
-    coordinateInfo: geometry.coordinateInfo,
+    coordinateInfo: frame.coordinateInfo,
   };
   const entry = await new BinaryCacheWriter().write(toCacheDataStore(store), data, buffer, {
     includeGeometry: true, compressGeometryChunksInWorker: true, omitSourceHash: true,

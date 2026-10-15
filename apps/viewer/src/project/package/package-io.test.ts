@@ -75,6 +75,22 @@ describe('project package', () => {
     assert.deepEqual(mep, { model: { id: 'mep', name: 'mep.ifc', role: 'linked', source: 'mep.ifc', sha256: 'abc' }, bytes: undefined });
   });
 
+  it('carries a model\'s edits over its IFC beside it (N4b), and refuses a package that lost them', async () => {
+    const overlay = strToU8('{"edits":1}');
+    const { files } = await buildPackage({
+      projectId: 'prj-1', doc,
+      models: [{ id: 'arch', name: 'arch.ifc', role: 'native', bytes: ifc('architecture'), overlay, baseSavedAt: '2026-10-15T08:00:00.000Z' }],
+    });
+    const opened = await readPackage(unzipPackage(zipPackage(files)));
+    const arch = opened.models.find((m) => m.model.id === 'arch')!;
+    assert.equal(arch.model.overlay, 'models/arch.overlay.json');
+    assert.equal(arch.model.baseSavedAt, '2026-10-15T08:00:00.000Z');
+    assert.equal(strFromU8(arch.overlay!), '{"edits":1}');
+    const lost = new Map(files);
+    lost.delete('models/arch.overlay.json');
+    await assert.rejects(readPackage(lost), /overlay\.json is missing/);
+  });
+
   it('splits the document into parts, one draft part per view', async () => {
     const { files, manifest } = await packaged();
     const paths = manifest.parts.map((p) => p.path);

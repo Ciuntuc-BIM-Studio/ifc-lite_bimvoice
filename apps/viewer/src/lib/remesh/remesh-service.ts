@@ -244,17 +244,19 @@ const inFlight = new WeakMap<object, Map<string, Promise<RemeshOutcome>>>();
  * creates, and a modeling transaction re-meshes what its commit reports), so
  * an identical request made before any further edit shares the pending one.
  */
-/** Told of every re-mesh request (the remesh registry ties it to the batch just committed). */
-let observer: ((get: Get, modelId: string, ids: readonly number[], cause: RemeshCause) => void) | null = null;
-export function observeRemeshRequests(next: typeof observer): void {
-  observer = next;
+type RemeshObserver = (get: Get, modelId: string, ids: readonly number[], cause: RemeshCause) => void;
+const observers = new Set<RemeshObserver>();
+/** Told of every re-mesh request (the remesh registry ties it to the batch just committed; a saved delta lists what was re-shaped). */
+export function observeRemeshRequests(next: RemeshObserver): () => void {
+  observers.add(next);
+  return () => { observers.delete(next); };
 }
 
 export function requestRemesh(
   get: Get, modelId: string, expressIds: Iterable<number>, cause: RemeshCause,
 ): Promise<RemeshOutcome> {
   const ids = [...expressIds].sort((a, b) => a - b);
-  observer?.(get, modelId, ids, cause);
+  for (const observe of observers) observe(get, modelId, ids, cause);
   const store = get().models.get(modelId)?.ifcDataStore;
   if (!store) return remesh(get, modelId, ids, cause);
   let pending = inFlight.get(store);

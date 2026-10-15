@@ -5,7 +5,7 @@
 /**
  * Opening a project package: everything loaded is closed, the native models
  * are loaded from their IFC in the package (one after another, as federated
- * models), and only then the project document is put in place — its views,
+ * models) and their edits over it put back (N4b), and only then the project document is put in place — its views,
  * sheets, drafts and settings now refer to models that are there. Linked
  * models are reported back for the user to locate; loaded later with
  * `loadLinkedModel`, they are read-only.
@@ -17,6 +17,10 @@ import type { PackageModel } from './format';
 import { readPackage, unzipPackage, type OpenedPackage } from './package-io';
 import { packageGeometryPath, seedPackageGeometry } from './package-geometry';
 import { segment } from './format';
+import { strFromU8 } from 'fflate';
+import { clearCarriedDeltas, restoreModelDelta, type ModelDelta } from './model-delta';
+import { decodeStructured } from './overlay-codec';
+import { rememberPackageBase } from './package-base';
 
 export interface ModelLoader {
   /** Close every loaded model (and reset the viewer). */
@@ -39,20 +43,29 @@ export async function openPackageBytes(bytes: Uint8Array, loader: ModelLoader, o
   const opened = await readPackage(files);
   loader.clearAll();
   resetProject();
+  clearCarriedDeltas();
   const failed: string[] = [];
-  for (const { model, bytes: ifc } of opened.models) {
+  const restores: Array<{ id: string; delta: ModelDelta }> = [];
+  for (const { model, bytes: ifc, overlay } of opened.models) {
     if (model.role !== 'native' || !ifc) continue;
     onProgress?.(model.name);
     const name = model.name || `${model.id}.ifc`;
-    // The package's save time stands for the model file's: a reopened package then finds its
-    // geometry in the load cache (whose hit is validated by the file's modified time).
-    const lastModified = Date.parse(opened.manifest.savedAt) || undefined;
+    // When its IFC was written stands for the model file's modified time: a reopened package then
+    // finds the geometry in the load cache (whose hit is validated by that time).
+    const savedAt = model.baseSavedAt ?? opened.manifest.savedAt;
+    const lastModified = Date.parse(savedAt) || undefined;
     // Its saved meshes, put where the load looks for them: the model opens without re-meshing.
     const geometry = files.get(packageGeometryPath(segment(model.id)));
     if (geometry) await seedPackageGeometry(name, ifc, geometry, lastModified);
     const id = await loader.addModel(new File([ifc as BlobPart], name, lastModified ? { lastModified } : {}), { name });
-    if (!id) failed.push(model.name);
+    if (!id) { failed.push(model.name); continue; }
+    const store = useViewerStore.getState().models.get(id)?.ifcDataStore;
+    // The next save writes this IFC again as it is, with what is known of it, and only the edits beside it.
+    if (store) rememberPackageBase(store, { bytes: ifc, key: model.id, savedAt, ...(geometry ? { geometry } : {}) });
+    if (overlay) restores.push({ id, delta: decodeStructured(strFromU8(overlay)) as ModelDelta });
   }
+  // Its edits over its IFC (N4b), once every model is in: what they re-mesh meshes against the loaded scene.
+  for (const { id, delta } of restores) restoreModelDelta(delta, id);
   loadProjectDocument(opened.doc);
   return { opened, failed, linked: opened.models.filter((m) => m.model.role === 'linked').map((m) => m.model) };
 }

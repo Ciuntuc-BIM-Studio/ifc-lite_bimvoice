@@ -24,7 +24,7 @@ import { newProjectId, usePackageSession } from './session';
 let busy = false;
 
 /** Save the open project (as: ask where); the package written, or null when cancelled or failed (the reason shown). */
-export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo, options: { analytics?: boolean } = {}): Promise<PackagedProject | null> {
+export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo, options: { analytics?: boolean; compact?: boolean } = {}): Promise<PackagedProject | null> {
   if (busy) return null;
   if (useViewerStore.getState().models.size === 0) { toast.info(resolve('projectPackage.nothingToSave')); return null; }
   busy = true;
@@ -40,7 +40,7 @@ export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo,
     usePackageSession.setState({ busy: 'saving', progress: resolve('projectPackage.saving') });
     try {
       const packaged = await packageCurrentProject(projectId, {
-        versionInfo, analytics: options.analytics, geometry: useProjectStore.getState().packageGeometry !== false, onProgress: (label) => usePackageSession.setState({ progress: resolve('projectPackage.savingModel', { name: label }) }),
+        versionInfo, analytics: options.analytics, compact: options.compact, geometry: useProjectStore.getState().packageGeometry !== false, onProgress: (label) => usePackageSession.setState({ progress: resolve('projectPackage.savingModel', { name: label }) }),
       });
       // Written in place, a file keeps its name; downloaded, an earlier `.bvproj` comes out as `.lapin`.
       const fileName = handle?.name ?? (session.fileName ? withPackageSuffix(session.fileName) : `${name}${PACKAGE_SUFFIX}`);

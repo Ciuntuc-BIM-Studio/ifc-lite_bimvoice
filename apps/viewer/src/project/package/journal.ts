@@ -19,32 +19,21 @@
  * not journalled: the slow full-package recovery copy covers it.
  */
 
-import type { Mutation, OverlaySnapshot } from '@ifc-lite/mutations';
 import { useViewerStore } from '@/store';
 import type { ViewerState } from '@/store';
 import { remeshEntriesOf } from '@/lib/remesh/remesh-registry';
-import type { RemeshCause } from '@/lib/remesh/affected-set';
+import { captureModelDelta, type DeltaHistory, type ModelDelta } from './model-delta';
 import { projectDocument } from '../project-store';
 import type { ProjectDocument } from '../types';
 import { idbRun, STORES } from './vault-idb';
 
 const SLOT = 'current';
 
-export interface JournalModel {
+/** One model: its edits over its source (`model-delta.ts`) with their undo / redo history. */
+export interface JournalModel extends ModelDelta, DeltaHistory {
   /** The model's id in the session that wrote the journal (its source's key). */
   sessionId: string;
   name: string;
-  /** The session's id offset, to carry globally keyed records (mesh translations) over. */
-  idOffset: number;
-  overlay: OverlaySnapshot;
-  undo: Mutation[];
-  redo: Mutation[];
-  /** `[mutation id, batch id]` of its history. */
-  batchTags: Array<[string, string]>;
-  /** `[mutation id, model-local id, renderer delta]`: moves applied to the mesh rather than re-meshed. */
-  meshMoves: Array<[string, number, [number, number, number]]>;
-  /** What each batch re-shaped (`remesh-registry.ts`). */
-  remesh: Array<[string, readonly number[], RemeshCause]>;
 }
 
 export interface JournalEntry {
@@ -75,21 +64,18 @@ export function journalCovers(s: ViewerState = useViewerStore.getState()): boole
 
 /** The entry for the open project now (synchronous: what `writeJournal` stores). */
 export function captureJournal(s: ViewerState, session: { projectId: string; fileName: string | null }): JournalEntry {
-  const models: JournalModel[] = journalModels(s).map((m) => {
-    const view = s.mutationViews.get(m.id);
+  const models: JournalModel[] = journalModels(s).flatMap((m) => {
+    const delta = captureModelDelta(s, m.id);
+    if (!delta) return [];
     const undo = s.undoStacks.get(m.id) ?? [];
     const redo = s.redoStacks.get(m.id) ?? [];
     const ids = new Set([...undo, ...redo].map((x) => x.id));
-    const offset = m.idOffset ?? 0;
-    return {
-      sessionId: m.id, name: m.name, idOffset: offset,
-      overlay: view ? view.captureOverlaySnapshot() : (null as unknown as OverlaySnapshot),
+    return [{
+      ...delta, sessionId: m.id, name: m.name,
       undo: structuredClone(undo), redo: structuredClone(redo),
       batchTags: [...s.mutationBatchTags].filter(([id]) => ids.has(id)),
-      meshMoves: [...s.mutationMeshTranslations].filter(([id]) => ids.has(id))
-        .map(([id, t]) => [id, t.globalId - offset, [...t.rendererDelta] as [number, number, number]]),
       remesh: remeshEntriesOf(useViewerStore.getState, m.id).map(([b, e, c]) => [b, [...e], c]),
-    };
+    }];
   });
   const doc = projectDocument();
   return { projectId: session.projectId, name: doc.name, fileName: session.fileName, at: Date.now(), doc: structuredClone(doc), models };

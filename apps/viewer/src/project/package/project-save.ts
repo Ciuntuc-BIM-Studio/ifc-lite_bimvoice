@@ -4,16 +4,17 @@
 
 /**
  * The open project as a package: the project document, every native model
- * as a complete IFC with all its edits (the same export as "Export modified
- * IFC"; an unedited model is written from its source bytes, at no cost) and
- * the linked models as references. A native model's key in the document
+ * as the IFC it was loaded from plus its edits over it (N4b: what a Save
+ * writes is the edits; `package-base.ts`), or compacted into one IFC with
+ * all its edits (the same export as "Export modified IFC"), and the linked
+ * models as references. A native model's key in the document
  * becomes the identity of the bytes written, which is what the loader
  * computes when the package is opened again.
  */
 
 import { asSourceBytes, type IfcDataStore } from '@ifc-lite/parser';
 import { ParquetExporter } from '@ifc-lite/export';
-import { unzipSync } from 'fflate';
+import { strToU8, unzipSync } from 'fflate';
 import { useViewerStore } from '@/store';
 import { collectChangedModels } from '@/lib/export/model-changes';
 import { exportChangedModelToStep } from '@/lib/export/changed-model-export';
@@ -27,8 +28,22 @@ import { segment, type PackageManifest, type PackageVersionInfo } from './format
 import { packageGeometry, packageGeometryPath } from './package-geometry';
 import { nativeTablesFolder } from './native-tables-path';
 import { uuidV5 } from '@ifc-lite/encoding';
+import { captureModelDelta } from './model-delta';
+import { encodeStructured } from './overlay-codec';
+import { baseGeometry, compactionReason, modelBase } from './package-base';
 
 const APP = { name: 'BIMVoice', version: '4.0.0' };
+
+/** Put a model's geometry entry in the package when it can be had; a model without one still saves. */
+async function addGeometry(extras: Map<string, Uint8Array>, key: string, name: string, make: () => Promise<Uint8Array | null>): Promise<void> {
+  try {
+    const geometry = await make();
+    if (geometry) extras.set(packageGeometryPath(segment(key)), geometry);
+  } catch (err) {
+    // The geometry only speeds the next open up.
+    console.warn('[project] package geometry skipped for', name, err);
+  }
+}
 
 async function nativeModelBytes(modelId: string, dataStore: IfcDataStore, edited: boolean): Promise<Uint8Array> {
   const source = dataStore.source ? asSourceBytes(dataStore.source) : null;
@@ -90,9 +105,12 @@ export async function packageCurrentProject(projectId: string, options: {
   versionInfo?: PackageVersionInfo; onProgress?: (label: string) => void; analytics?: boolean;
   /** Write the primary model's meshes beside its IFC (`package-geometry.ts`): an explicit Save, not a recovery copy. */
   geometry?: boolean;
+  /** Write every edited model as one IFC with its edits (a version), not as its IFC plus a delta. */
+  compact?: boolean;
 } = {}): Promise<PackagedProject> {
   const state = useViewerStore.getState();
   const edited = new Set(collectChangedModels(state).models.map((m) => m.id));
+  const now = new Date().toISOString();
   const doc = projectDocument();
   const renamed = new Map<string, string>();
   const extras = new Map<string, Uint8Array>();
@@ -105,18 +123,29 @@ export async function packageCurrentProject(projectId: string, options: {
       continue;
     }
     options.onProgress?.(model.name);
-    const bytes = await nativeModelBytes(model.id, model.ifcDataStore, edited.has(model.id));
-    const key = (await placementSourceIdentity(new Blob([bytes as BlobPart]), undefined, bytes)) ?? ref.key;
-    renamed.set(ref.key, key);
-    models.push({ id: key, name: model.name, role: 'native', bytes });
-    for (const [path, table] of await nativeTables(projectId, model.id, model.name, model.ifcDataStore)) extras.set(`${nativeTablesFolder(segment(key))}/${path}`, table);
-    if (options.geometry) {
-      try {
-        const geometry = await packageGeometry(model, bytes);
-        if (geometry) extras.set(packageGeometryPath(segment(key)), geometry);
-      } catch (err) {
-        // The geometry only speeds the next open up: a model it cannot be written for still saves.
-        console.warn('[project] package geometry skipped for', model.name, err);
+    const hasEdits = edited.has(model.id);
+    const delta = captureModelDelta(state, model.id);
+    const base = await modelBase(model.ifcDataStore);
+    const reason = !base ? 'its IFC is not in memory' : hasEdits ? compactionReason(model, delta, !!options.compact) : null;
+    if (reason || !base || !delta) {
+      // Compacted: one IFC with every edit, as an export writes it (and the native tables beside it).
+      if (hasEdits) console.log(`[project] ${model.name} saved as one IFC with its edits (${reason})`);
+      const bytes = await nativeModelBytes(model.id, model.ifcDataStore, hasEdits);
+      const key = (await placementSourceIdentity(new Blob([bytes as BlobPart]), undefined, bytes)) ?? ref.key;
+      renamed.set(ref.key, key);
+      models.push({ id: key, name: model.name, role: 'native', bytes, baseSavedAt: now });
+      for (const [path, table] of await nativeTables(projectId, model.id, model.name, model.ifcDataStore)) extras.set(`${nativeTablesFolder(segment(key))}/${path}`, table);
+      if (options.geometry) await addGeometry(extras, key, model.name, () => packageGeometry(model, bytes));
+    } else {
+      // The IFC it was loaded from, unchanged from save to save, and its edits over it (N4b).
+      base.savedAt ??= now;
+      renamed.set(ref.key, base.key);
+      models.push({
+        id: base.key, name: model.name, role: 'native', bytes: base.bytes, baseSavedAt: base.savedAt,
+        ...(hasEdits ? { overlay: strToU8(encodeStructured(delta)) } : {}),
+      });
+      if (options.geometry) {
+        await addGeometry(extras, base.key, model.name, async () => (base.geometry !== undefined ? base.geometry : (base.geometry = await baseGeometry(model, base, delta))));
       }
     }
     if (options.analytics) {

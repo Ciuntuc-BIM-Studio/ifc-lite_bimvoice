@@ -11,7 +11,8 @@
  * storage or in an object store.
  */
 
-import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
+import { strFromU8, strToU8, unzipSync } from 'fflate';
+import { zipParts } from './zip-parts';
 import type { ProjectDocument } from '../types';
 import { parseProjectFile, PROJECT_FILE_FORMAT, PROJECT_FILE_VERSION } from '../project-file';
 import {
@@ -24,8 +25,12 @@ export interface ModelInput {
   id: string;
   name: string;
   role: ModelRole;
-  /** A native model's complete IFC. */
+  /** A native model's IFC: with all its edits, or the one `overlay` applies to. */
   bytes?: Uint8Array;
+  /** Its edits over `bytes` (N4b). */
+  overlay?: Uint8Array;
+  /** When `bytes` were first written (ISO). */
+  baseSavedAt?: string;
   /** A linked model: where it is found, and its hash when known. */
   source?: string;
   sha256?: string;
@@ -60,7 +65,12 @@ export async function buildPackage(input: PackageInput): Promise<{ files: Packag
       for (let i = 2; usedPaths.has(path); i++) path = `models/${segment(m.id)}-${i}.ifc`;
       usedPaths.add(path);
       files.set(path, m.bytes);
-      models.push({ id: m.id, name: m.name, role: 'native', path, sha256: await sha256(m.bytes), size: m.bytes.byteLength });
+      const overlay = m.overlay ? path.replace(/\.ifc$/, '.overlay.json') : undefined;
+      if (overlay && m.overlay) files.set(overlay, m.overlay);
+      models.push({
+        id: m.id, name: m.name, role: 'native', path, sha256: await sha256(m.bytes), size: m.bytes.byteLength,
+        ...(overlay ? { overlay } : {}), ...(m.baseSavedAt ? { baseSavedAt: m.baseSavedAt } : {}),
+      });
     } else {
       models.push({ id: m.id, name: m.name, role: 'linked', ...(m.source ? { source: m.source } : {}), ...(m.sha256 ? { sha256: m.sha256 } : {}) });
     }
@@ -80,11 +90,9 @@ export async function buildPackage(input: PackageInput): Promise<{ files: Packag
   return { files, manifest };
 }
 
-/** IFC text compresses well; already-compressed or tiny parts are stored. */
+/** IFC text and JSON compress well; already-compressed or tiny parts are stored. A large part is compressed once (`zip-parts.ts`). */
 export function zipPackage(files: PackageFiles): Uint8Array {
-  const entries: Zippable = {};
-  for (const [path, bytes] of files) entries[path] = [bytes, { level: path.endsWith('.ifc') || path.endsWith('.json') ? 6 : 0 }];
-  return zipSync(entries);
+  return zipParts(files, (path) => (path.endsWith('.ifc') || path.endsWith('.json') ? 6 : 0));
 }
 
 export function unzipPackage(bytes: Uint8Array): PackageFiles {
@@ -100,8 +108,8 @@ export function unzipPackage(bytes: Uint8Array): PackageFiles {
 export interface OpenedPackage {
   manifest: PackageManifest;
   doc: ProjectDocument;
-  /** Native models with their IFC; linked ones as references. */
-  models: { model: PackageModel; bytes?: Uint8Array }[];
+  /** Native models with their IFC (and their edits over it); linked ones as references. */
+  models: { model: PackageModel; bytes?: Uint8Array; overlay?: Uint8Array }[];
 }
 
 function readManifest(files: PackageFiles): PackageManifest {
@@ -140,9 +148,13 @@ export async function readPackage(files: PackageFiles): Promise<OpenedPackage> {
   }
   // The project file reader validates (and migrates) the merged document.
   const doc = parseProjectFile(JSON.stringify({ format: PROJECT_FILE_FORMAT, version: PROJECT_FILE_VERSION, savedAt: manifest.savedAt, ...mergeParts(parts) }));
-  const models = manifest.models.map((model) => ({ model, bytes: model.role === 'native' && model.path ? files.get(model.path) : undefined }));
-  for (const { model, bytes } of models) {
+  const models = manifest.models.map((model) => {
+    const overlay = model.role === 'native' && model.overlay ? files.get(model.overlay) : undefined;
+    return { model, bytes: model.role === 'native' && model.path ? files.get(model.path) : undefined, ...(model.overlay ? { overlay } : {}) };
+  });
+  for (const { model, bytes, overlay } of models) {
     if (model.role === 'native' && !bytes) throw new Error(`The project package is damaged: model "${model.name}" is missing`);
+    if (model.overlay && !overlay) throw new Error(`The project package is damaged: the edits of model "${model.name}" are missing`);
   }
   return { manifest, doc, models };
 }

@@ -118,7 +118,7 @@ function resolveModel(state: ChangesExportState, id: string): ResolvedModel | nu
   return { name: m.name, schemaVersion: m.schemaVersion, ifcDataStore: m.ifcDataStore };
 }
 
-function hasGeorefFields(gm: GeorefMutationData | undefined): boolean {
+export function hasGeorefFields(gm: GeorefMutationData | undefined): boolean {
   if (!gm) return false;
   const crs = gm.projectedCRS ? Object.keys(gm.projectedCRS).length : 0;
   const map = gm.mapConversion ? Object.keys(gm.mapConversion).length : 0;
