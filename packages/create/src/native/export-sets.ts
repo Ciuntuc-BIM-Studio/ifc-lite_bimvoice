@@ -67,6 +67,12 @@ function cutFace(e: NativeElement, index: NativeIndex): number {
 
 /** The base quantities of `e` (its class's set), or null when it has none to give. */
 export function nativeQuantities(e: NativeElement, index: NativeIndex, hosted: readonly NativeElement[]): { set: string; quantities: Quantity[] } | null {
+  const all = parametricQuantities(e, index, hosted);
+  // A body combined in Studio is more than its parameters: its lengths hold, its areas and volumes would not.
+  return all && e.combined ? { set: all.set, quantities: all.quantities.filter((q) => q.quantityType === QuantityType.Length) } : all;
+}
+
+function parametricQuantities(e: NativeElement, index: NativeIndex, hosted: readonly NativeElement[]): { set: string; quantities: Quantity[] } | null {
   const set = NATIVE_IFC[e.kind].quantitySet;
   if (!set) return null;
   if (e.kind === 'wall') {

@@ -18,7 +18,7 @@
 import type { IfcDataStore } from '@ifc-lite/parser';
 import type { MutablePropertyView } from '@ifc-lite/mutations';
 import { AnchorEntityReader } from './resolve-anchor.js';
-import { untrimmedSolid } from './body-trim.js';
+import { ownSolid } from './body-trim.js';
 import type { WallJoinTarget } from './wall-join-apply.js';
 import type { PlanPoint, WallConnectionType, WallEndCut, WallJoinWall } from './wall-join.js';
 
@@ -189,7 +189,7 @@ export function readWallJoinTarget(
   const bodyItems = reader.entity(bodyRepId)?.attributes[3];
   const itemId = Array.isArray(bodyItems) && bodyItems.length > 0 ? refId(bodyItems[0]) : null;
   // A roof-trimmed wall joins on the solid inside its trim (`body-trim.ts`).
-  const solidId = itemId === null ? null : untrimmedSolid((id) => reader.entity(id), itemId);
+  const solidId = itemId === null ? null : ownSolid((id) => reader.entity(id), itemId);
   const solid = solidId === null ? null : reader.entity(solidId);
   if (solidId === null || solid?.type.toUpperCase() !== 'IFCEXTRUDEDAREASOLID') return null;
   const profileId = refId(solid.attributes[0]);

@@ -53,6 +53,11 @@ export interface NativeElementBase {
   storeyId: NativeId;
   /** The type it instantiates (IfcRelDefinesByType); instance parameters fill what the type leaves open. */
   typeId?: NativeId;
+  /**
+   * Its body was combined in Studio (Unite / Intersect) with other solids,
+   * kept in its frame: the parameters are its own solid's, the body is more.
+   */
+  combined?: 'union' | 'intersection';
 }
 
 /** A straight wall along an axis, extruded up from its base. */

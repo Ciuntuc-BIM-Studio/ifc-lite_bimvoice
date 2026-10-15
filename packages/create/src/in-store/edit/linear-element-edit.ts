@@ -37,6 +37,7 @@ import {
   readAttributes,
   resolvePlacementChain,
 } from './placement-core.js';
+import { ownSolid } from '../body-trim.js';
 
 export const MIN_LINEAR_SEGMENT_LENGTH = 0.05; // metres
 
@@ -191,7 +192,13 @@ export function resolveLinearElementChain(
   if (!shapeRepAttrs) return null;
   const items = shapeRepAttrs[3];
   if (!Array.isArray(items) || items.length === 0) return null;
-  const solidId = asExpressIdRef(items[0]);
+  const itemId = asExpressIdRef(items[0]);
+  // A Studio-combined body is edited on its own solid (`body-trim.ts`).
+  const solidId = itemId === null ? null : ownSolid((id) => {
+    const type = editor.getEntityType(id);
+    const attributes = type ? readAttributes(dataStore, view, editor, id) : null;
+    return type && attributes ? { type, attributes } : null;
+  }, itemId);
   if (solidId === null) return null;
 
   const solidAttrs = readAttributes(dataStore, view, editor, solidId);

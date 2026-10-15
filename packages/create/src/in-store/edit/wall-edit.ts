@@ -25,7 +25,7 @@ import {
   resolveRotationState,
 } from './placement-core.js';
 import { moveWallAxis } from './wall-axis-edit.js';
-import { untrimmedSolid } from '../body-trim.js';
+import { ownSolid } from '../body-trim.js';
 
 /** Only these classes are walls; a beam or member built by the in-store
  * builders carries the same rectangle-profile + explicit-RefDirection shape,
@@ -125,7 +125,7 @@ export function resolveWallEditChain(
   const itemId = asExpressIdRef(items[0]);
   if (itemId === null) return null;
   // A roof-trimmed wall is edited on the solid inside its trim (`body-trim.ts`).
-  const solidId = untrimmedSolid((id) => {
+  const solidId = ownSolid((id) => {
     const type = editor.getEntityType(id);
     const attributes = type ? readAttributes(dataStore, view, editor, id) : null;
     return type && attributes ? { type, attributes } : null;

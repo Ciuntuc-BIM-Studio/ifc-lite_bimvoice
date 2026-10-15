@@ -8,6 +8,7 @@ import { ifcGuidToUuid, isValidIfcGuid } from '@ifc-lite/encoding';
 import type { MutablePropertyView, StoreEditor } from '@ifc-lite/mutations';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import type { AnchorEntityReader } from '../in-store/resolve-anchor.js';
+import { ownSolidOf } from '../in-store/body-trim.js';
 import type { NativeElement, NativeElementBase, NativeId, NativeKind, NativeModel } from './schema.js';
 
 export interface LiftSkip {
@@ -47,6 +48,24 @@ export function nativeIdOf(globalId: unknown): NativeId | null {
   return typeof globalId === 'string' && isValidIfcGuid(globalId) ? ifcGuidToUuid(globalId) : null;
 }
 
+const refId = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isInteger(v) && v > 0) return v;
+  return typeof v === 'string' && /^#\d+$/.test(v) ? Number(v.slice(1)) : null;
+};
+
+/** How the element's Body item was combined in Studio (`body-trim.ts`), or null. */
+function bodyCombination(reader: AnchorEntityReader, shapeRef: unknown): 'union' | 'intersection' | null {
+  const shape = reader.entity(refId(shapeRef) ?? -1);
+  const reps = Array.isArray(shape?.attributes[2]) ? (shape!.attributes[2] as unknown[]) : [];
+  for (const rep of reps) {
+    const r = reader.entity(refId(rep) ?? -1);
+    if (r?.attributes[1] !== 'Body' || !Array.isArray(r.attributes[3])) continue;
+    const item = refId(r.attributes[3][0]);
+    return item === null ? null : ownSolidOf((id) => reader.entity(id), item).combined;
+  }
+  return null;
+}
+
 export const text = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
 const enumValue = (v: unknown): string | undefined => (typeof v === 'string' ? v.replace(/^\.|\.$/g, '') || undefined : undefined);
 
@@ -73,6 +92,8 @@ export function liftBase(ctx: LiftContext, expressId: number, kind: NativeKind):
   if (tag !== undefined) base.tag = tag;
   const typeId = ctx.typeOf.get(expressId);
   if (typeId) base.typeId = typeId;
+  const combined = bodyCombination(ctx.reader, at('Representation', 6));
+  if (combined) base.combined = combined;
   return base;
 }
 

@@ -113,6 +113,27 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('boolean operations betw
     expect(box.z[1] - box.z[0]).toBeCloseTo(2, 3);
   });
 
+  it('a united wall stays a wall: recognized natively, edited on its own solid, the union kept', async () => {
+    const { store, view, editor, a, b, mesh } = await crossing();
+    expect(booleans.bakeBooleanInStore(store, editor, a, [b], 'UNION').ok).toBe(true);
+    editor.deleteEntity?.(b);
+    const { liftNativeModel } = await import('../native/lift.js');
+    const { nativeElementQuantities } = await import('../native/element-quantities.js');
+    const { setWallSectionInStore } = await import('./wall-section-edit.js');
+    const lifted = liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' });
+    const wall = lifted.model.elements.find((e) => lifted.expressIds.get(e.id) === a);
+    expect(wall, JSON.stringify(lifted.skipped.filter((k) => k.expressId === a))).toMatchObject({ kind: 'wall', combined: 'union', thickness: 0.2, height: 3 });
+    // Its quantities: the lengths of its own solid, no area or volume the union would make wrong.
+    expect(nativeElementQuantities(store, view, a)?.quantities.map((q) => q.name)).toEqual(['Length', 'Width', 'Height']);
+    // A height edit reaches its own solid; the tool's part stays 5 m high.
+    expect(setWallSectionInStore({ dataStore: store, view, editor }, a, { height: 3.5 }).ok).toBe(true);
+    const again = liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' });
+    expect(again.model.elements.find((e) => again.expressIds.get(e.id) === a)).toMatchObject({ height: 3.5, combined: 'union' });
+    const box = bounds(await mesh(a));
+    expect(box.up[1]).toBeCloseTo(5, 3);
+    expect(box.x[1]).toBeCloseTo(4, 3);
+  });
+
   it('intersects: only what both hold stays', async () => {
     const { store, editor, a, b, mesh } = await crossing();
     expect(booleans.bakeBooleanInStore(store, editor, a, [b], 'INTERSECTION').ok).toBe(true);

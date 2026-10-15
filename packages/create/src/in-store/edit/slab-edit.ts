@@ -41,6 +41,7 @@ import {
 import { clipPolygonByLine, type Point2D, type PolygonClipResult } from './polygon-clip.js';
 import { polygonArea } from '../room-footprint-offset.js';
 import { resolveSolidPositionXform, slabExtrusionFrame, type Xform2D } from './slab-edit-frame.js';
+import { ownSolid } from '../body-trim.js';
 
 /**
  * Slab-like element types this module handles. Matches the STEP
@@ -252,7 +253,13 @@ export function resolveSlabEditChain(
   if (!shapeRepAttrs) return null;
   const items = shapeRepAttrs[3];
   if (!Array.isArray(items) || items.length === 0) return null;
-  const solidId = bodyItemId ?? asExpressIdRef(items[0]);
+  const itemId = bodyItemId ?? asExpressIdRef(items[0]);
+  // A Studio-combined body is edited on its own solid (`body-trim.ts`).
+  const solidId = itemId === null ? null : ownSolid((id) => {
+    const type = editor.getEntityType(id);
+    const attributes = type ? readAttributes(dataStore, view, editor, id) : null;
+    return type && attributes ? { type, attributes } : null;
+  }, itemId);
   if (solidId === null) return null;
   if (editor.getEntityType(solidId)?.toUpperCase() !== 'IFCEXTRUDEDAREASOLID') return null;
   const solidAttrs = readAttributes(dataStore, view, editor, solidId);

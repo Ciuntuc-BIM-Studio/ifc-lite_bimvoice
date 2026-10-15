@@ -34,7 +34,7 @@ import { curvePoints, numeric, operatorFrame, repCentre, upper } from './element
 import { readJoineryFlips } from './joinery-read.js';
 import { setJoineryFlipsInStore } from './joinery-sync.js';
 import { pruneOrphanOverlay } from './overlay-prune.js';
-import { untrimmedSolid } from './body-trim.js';
+import { ownSolid } from './body-trim.js';
 
 type Attr = Parameters<StoreEditor['addEntity']>[1][number];
 type Reader = AnchorEntityReader;
@@ -140,7 +140,7 @@ function mirrorWallProfile(editor: StoreEditor, r: Reader, body: Body): boolean 
   const items = Array.isArray(rep?.attributes[3]) ? rep.attributes[3] : [];
   if (items.length !== 1) return false;
   // A roof-trimmed wall is flipped on the solid inside its trim (`body-trim.ts`).
-  const solid = r.entity(untrimmedSolid((id) => r.entity(id), refId(items[0]) ?? -1));
+  const solid = r.entity(ownSolid((id) => r.entity(id), refId(items[0]) ?? -1));
   if (upper(solid) !== 'IFCEXTRUDEDAREASOLID') return false;
   const frame = axis3d(r, solid!.attributes[1]);
   // The solid must sit in the wall's own plan frame (only a vertical offset allowed).
