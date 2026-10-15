@@ -15,6 +15,8 @@ import { useViewerStore } from '@/store';
 import { loadProjectDocument, resetProject } from '../project-store';
 import type { PackageModel } from './format';
 import { readPackage, unzipPackage, type OpenedPackage } from './package-io';
+import { packageGeometryPath, seedPackageGeometry } from './package-geometry';
+import { segment } from './format';
 
 export interface ModelLoader {
   /** Close every loaded model (and reset the viewer). */
@@ -33,7 +35,8 @@ export interface OpenResult {
 
 export async function openPackageBytes(bytes: Uint8Array, loader: ModelLoader, onProgress?: (label: string) => void): Promise<OpenResult> {
   // Read and check everything before closing what is open: a bad file leaves the session as it was.
-  const opened = await readPackage(unzipPackage(bytes));
+  const files = unzipPackage(bytes);
+  const opened = await readPackage(files);
   loader.clearAll();
   resetProject();
   const failed: string[] = [];
@@ -41,7 +44,13 @@ export async function openPackageBytes(bytes: Uint8Array, loader: ModelLoader, o
     if (model.role !== 'native' || !ifc) continue;
     onProgress?.(model.name);
     const name = model.name || `${model.id}.ifc`;
-    const id = await loader.addModel(new File([ifc as BlobPart], name), { name });
+    // The package's save time stands for the model file's: a reopened package then finds its
+    // geometry in the load cache (whose hit is validated by the file's modified time).
+    const lastModified = Date.parse(opened.manifest.savedAt) || undefined;
+    // Its saved meshes, put where the load looks for them: the model opens without re-meshing.
+    const geometry = files.get(packageGeometryPath(segment(model.id)));
+    if (geometry) await seedPackageGeometry(name, ifc, geometry, lastModified);
+    const id = await loader.addModel(new File([ifc as BlobPart], name, lastModified ? { lastModified } : {}), { name });
     if (!id) failed.push(model.name);
   }
   loadProjectDocument(opened.doc);

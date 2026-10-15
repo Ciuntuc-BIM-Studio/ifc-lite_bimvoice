@@ -38,7 +38,7 @@ const DEMO_PROJECT_PATH = '/samples/demo-project.lapin';
 
 export function ProjectPackageHost() {
   const { t } = useTranslation();
-  const { addModel, clearAllModels } = useIfc();
+  const { addModel, clearAllModels, loadFile } = useIfc();
   const resetViewerState = useViewerStore((s) => s.resetViewerState);
   const linked = useLinkedToLocate((s) => s.models);
   const setLinked = (next: PackageModel[] | ((list: PackageModel[]) => PackageModel[])) =>
@@ -49,7 +49,16 @@ export function ProjectPackageHost() {
 
   const loader: ModelLoader = {
     clearAll: () => { resetViewerState(); clearAllModels(); },
-    addModel: (file, options) => addModel(file, { name: options.name }),
+    // The first model loads as the primary one, so its geometry is served from (and kept in) the
+    // load cache like any opened file (N4); the others are added to it.
+    addModel: async (file, options) => {
+      if (useViewerStore.getState().models.size > 0) return addModel(file, { name: options.name });
+      const modelId = crypto.randomUUID();
+      await loadFile(file, { kind: 'primary', modelId });
+      if (!useViewerStore.getState().models.has(modelId)) return null;
+      if (options.name) useViewerStore.getState().updateModel(modelId, { name: options.name });
+      return modelId;
+    },
   };
 
   const save = useCallback(async (as: boolean) => { await saveProject(as); }, []);

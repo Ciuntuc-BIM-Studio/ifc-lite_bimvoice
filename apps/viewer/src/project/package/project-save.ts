@@ -24,6 +24,7 @@ import { modelRef } from '../project-sync';
 import type { ProjectDocument } from '../types';
 import { buildPackage, zipPackage, type ModelInput, type PackageFiles } from './package-io';
 import { segment, type PackageManifest, type PackageVersionInfo } from './format';
+import { packageGeometry, packageGeometryPath } from './package-geometry';
 import { nativeTablesFolder } from './native-tables-path';
 import { uuidV5 } from '@ifc-lite/encoding';
 
@@ -85,7 +86,11 @@ function nativeModelId(projectId: string, name: string): string {
   return uuidV5('3b0f4f61-8c5e-4a8e-9f0f-2c6a2f4b7d90', `${projectId}\n${name}`);
 }
 
-export async function packageCurrentProject(projectId: string, options: { versionInfo?: PackageVersionInfo; onProgress?: (label: string) => void; analytics?: boolean } = {}): Promise<PackagedProject> {
+export async function packageCurrentProject(projectId: string, options: {
+  versionInfo?: PackageVersionInfo; onProgress?: (label: string) => void; analytics?: boolean;
+  /** Write the primary model's meshes beside its IFC (`package-geometry.ts`): an explicit Save, not a recovery copy. */
+  geometry?: boolean;
+} = {}): Promise<PackagedProject> {
   const state = useViewerStore.getState();
   const edited = new Set(collectChangedModels(state).models.map((m) => m.id));
   const doc = projectDocument();
@@ -105,6 +110,15 @@ export async function packageCurrentProject(projectId: string, options: { versio
     renamed.set(ref.key, key);
     models.push({ id: key, name: model.name, role: 'native', bytes });
     for (const [path, table] of await nativeTables(projectId, model.id, model.name, model.ifcDataStore)) extras.set(`${nativeTablesFolder(segment(key))}/${path}`, table);
+    if (options.geometry) {
+      try {
+        const geometry = await packageGeometry(model, bytes);
+        if (geometry) extras.set(packageGeometryPath(segment(key)), geometry);
+      } catch (err) {
+        // The geometry only speeds the next open up: a model it cannot be written for still saves.
+        console.warn('[project] package geometry skipped for', model.name, err);
+      }
+    }
     if (options.analytics) {
       try {
         const folder = `analytics/${segment(model.name.replace(/\.[^.]+$/, '') || model.id)}`;

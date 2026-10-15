@@ -40,7 +40,7 @@ export async function saveProject(as: boolean, versionInfo?: PackageVersionInfo,
     usePackageSession.setState({ busy: 'saving', progress: resolve('projectPackage.saving') });
     try {
       const packaged = await packageCurrentProject(projectId, {
-        versionInfo, analytics: options.analytics, onProgress: (label) => usePackageSession.setState({ progress: resolve('projectPackage.savingModel', { name: label }) }),
+        versionInfo, analytics: options.analytics, geometry: true, onProgress: (label) => usePackageSession.setState({ progress: resolve('projectPackage.savingModel', { name: label }) }),
       });
       // Written in place, a file keeps its name; downloaded, an earlier `.bvproj` comes out as `.lapin`.
       const fileName = handle?.name ?? (session.fileName ? withPackageSuffix(session.fileName) : `${name}${PACKAGE_SUFFIX}`);
