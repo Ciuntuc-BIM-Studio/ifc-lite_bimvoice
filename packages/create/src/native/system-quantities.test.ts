@@ -16,6 +16,9 @@ import { addRoofSystemToStore } from '../in-store/roof-system-store.js';
 import { defaultRoofStructure } from '../in-store/roof-structure.js';
 import { addCurtainWallSystemToStore, DEFAULT_CURTAIN_WALL_TYPE } from '../in-store/curtain-wall-system.js';
 import { resolveSpatialAnchor } from '../in-store/resolve-anchor.js';
+import { addStairToStore } from '../in-store/stair.js';
+import { addTrussToStore, trussParts } from '../in-store/truss-store.js';
+import { defaultTimberTruss } from '../in-store/truss.js';
 import { nativeElementQuantities } from './element-quantities.js';
 
 describe('system quantities', () => {
@@ -50,5 +53,21 @@ describe('system quantities', () => {
       ...DEFAULT_CURTAIN_WALL_TYPE, version: 1, name: 'CW', start: [0, 40, 0], end: [6, 40, 0], height: 3,
     }).curtainWallId;
     expect(q(cw)).toMatchObject({ set: 'Qto_CurtainWallQuantities', Length: 6, Height: 3, GrossSideArea: 18 });
+
+    // A stair down to its base: its run, and the steps' area (T·R·n(n+1)/2) across its width.
+    const stair = addStairToStore(editor, anchor, { Position: [0, 50, 0], NumberOfRisers: 4, RiserHeight: 0.18, TreadLength: 0.28, Width: 1.2 }).stairId;
+    const st = q(stair);
+    expect(st.set).toBe('Qto_StairBaseQuantities');
+    expect(st.Length).toBeCloseTo(4 * 0.28, 9);
+    expect(st.GrossVolume).toBeCloseTo(0.28 * 0.18 * 10 * 1.2, 9);
+    // With a waist: less than down to its base.
+    const waisted = addStairToStore(editor, anchor, { Position: [3, 50, 0], NumberOfRisers: 10, RiserHeight: 0.18, TreadLength: 0.28, Width: 1, WaistThickness: 0.15 }).stairId;
+    expect(q(waisted).GrossVolume).toBeLessThan(0.28 * 0.18 * 55);
+
+    // A truss: one member per bar its builder made.
+    const truss = addTrussToStore(store, editor, anchor, { ...defaultTimberTruss(), name: 'T1', start: [0, 60, 3], end: [8, 60, 3] }).trussId;
+    const tq = q(truss);
+    expect(tq).toMatchObject({ set: 'Lapin_TrussQuantities', Span: 8, Rise: 2, Members: trussParts(store, truss, view).length });
+    expect(tq.TimberVolume).toBeGreaterThan(0);
   });
 });
