@@ -149,6 +149,23 @@ describe('reshapeWallsInStore', () => {
     expect(rels.filter((r) => result.relIds.includes(r.relId))).toHaveLength(3);
   });
 
+  it('a corner dragged with only its wall selected lets go of the other wall, which stops square', async () => {
+    const s = await joinedRoom();
+    const result = reshapeWallsInStore(s.editor, s.store, s.joinAnchor, [{ wallId: s.ids[0], end: [7, 0.5] }], { moveJoinedEnds: true, movesWith: new Set([s.ids[0]]) });
+    expect(readWall(s, s.ids[0]).end).toEqual([7, 0.5]);
+    expect(readWall(s, s.ids[0]).endCut).toBeUndefined();
+    // The other wall stays where it was, square at the corner it left.
+    expect(readWall(s, s.ids[1]).start).toEqual([6, 0]);
+    expect(readWall(s, s.ids[1]).startCut).toBeUndefined();
+    expect(result.droppedRelIds).toHaveLength(1);
+    expect(readWallJoinRels(s.store, s.editor.getMutationView())).toHaveLength(3);
+    // Both selected: the corner moves whole.
+    const t = await joinedRoom();
+    reshapeWallsInStore(t.editor, t.store, t.joinAnchor, [{ wallId: t.ids[0], end: [7, 0.5] }], { moveJoinedEnds: true, movesWith: new Set([t.ids[0], t.ids[1]]) });
+    expect(readWall(t, t.ids[1]).start).toEqual([7, 0.5]);
+    expect(readWallJoinRels(t.store, t.editor.getMutationView())).toHaveLength(4);
+  });
+
   it('without moveJoinedEnds the partner holds the corner and the dragged end snaps back to it', async () => {
     const s = await joinedRoom();
     reshapeWallsInStore(s.editor, s.store, s.joinAnchor, [{ wallId: s.ids[0], end: [6.1, 0] }]);

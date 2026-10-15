@@ -138,7 +138,7 @@ export function ModelHandlesLayer({ handles }: { handles: ModelHandles }) {
   return (
     <svg data-bim-handles className="absolute inset-0 h-full w-full pointer-events-none">
       {handles.shown.map(({ handle, x, y }) => {
-        const key = handle.kind === 'wallEnd' ? `end-${handle.which}` : handle.kind;
+        const key = handle.kind === 'wallEnd' ? `end-${handle.wall}-${handle.which}` : handle.kind;
         const title = t(handle.kind === 'move' ? 'planHandles.handle.move' : handle.kind === 'wallEnd' ? 'planHandles.handle.wallEnd'
           : handle.kind === 'flip' ? 'planHandles.handle.flip' : 'planHandles.handle.slide');
         if (handle.kind === 'flip' && handles.map) {

@@ -100,7 +100,7 @@ export function clickPlanHandle(handle: PlanHandle): boolean {
  */
 export function beginPlanHandleDrag(handle: PlanHandle): boolean {
   if (handle.kind === 'flip') return false; // clicked, not dragged
-  if (handle.kind === 'wallEnd') beginWallEndpointDrag(handle.which);
+  if (handle.kind === 'wallEnd') beginWallEndpointDrag(handle.which, handle.wall);
   else if (handle.kind === 'slide') beginHostedSlide();
   else beginPlanMove(handle.at);
   return getCommandRuntime().command !== null;

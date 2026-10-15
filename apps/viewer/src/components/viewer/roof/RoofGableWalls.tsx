@@ -16,7 +16,7 @@ import { useProjectStore } from '@/project/project-store';
 import { gableWallThickness } from '@/project/roof-walls';
 import { INPUT, NumberField, Section } from '../joinery/JoineryFields';
 
-const DEFAULT_GABLE_WALLS: GableWallSpec = { enabled: false, thickness: 0.25, offset: 0, flip: false, top: 'structure' };
+const DEFAULT_GABLE_WALLS: GableWallSpec = { enabled: false, thickness: 0.25, offset: 0, flip: false, top: 'covering' };
 
 export function GableWallFields({ spec, onChange }: { spec: RoofSystemSpec; onChange: (spec: RoofSystemSpec) => void }) {
   const { t } = useTranslation();

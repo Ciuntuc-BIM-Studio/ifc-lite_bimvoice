@@ -35,6 +35,8 @@ describe('gable walls', () => {
   it('cuts under the covering, or under the rafters or chords too', () => {
     const spec = { covering: { thickness: 0.08, color: '#000' }, structure: defaultRoofStructure() };
     expect(roofTrimDepth(spec, 'covering')).toBeCloseTo(0.08);
+    // Under the covering means under its whole build-up: battens and sheathing over the rafters too.
+    expect(roofTrimDepth({ ...spec, structure: { ...spec.structure, coverDepth: 0.12 } }, 'covering')).toBeCloseTo(0.12);
     expect(roofTrimDepth(spec, 'structure')).toBeCloseTo(spec.structure.coverDepth + spec.structure.rafter.depth);
     expect(roofTrimDepth({ ...spec, structure: { ...spec.structure, system: 'none' } }, 'structure')).toBeCloseTo(0.08);
   });

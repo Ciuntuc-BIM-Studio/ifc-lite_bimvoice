@@ -16,8 +16,9 @@
  * solid is kept inside the trim (`body-trim.ts`), so its axis, joins and flip
  * stay editable; the trim is rebuilt after any edit of the wall or the roof.
  *
- * The cut runs under the roof's covering (`covering`) or under its structure
- * too (`structure`: the rafters or the trusses' top chords).
+ * The cut runs under the roof's covering (`covering`: its whole build-up over
+ * the structure, so the wall rises between the rafters to the sheathing) or
+ * under its structure too (`structure`: the rafters or the trusses' top chords).
  */
 
 import { generateIfcGuid } from '@ifc-lite/encoding';
@@ -146,8 +147,9 @@ function roofByGlobalId(store: IfcDataStore, view: MutablePropertyView, reader: 
 /** How far under the roof surface the cut runs, measured across the slope (metres). */
 export function roofTrimDepth(spec: Pick<RoofSystemSpec, 'covering' | 'structure'>, top: RoofTrimTop): number {
   const covering = coveringThickness(spec.covering);
-  if (top === 'covering') return covering;
   const s = spec.structure;
+  // Under the covering: under its whole build-up over the structure (the sheathing the rafters carry), up between them.
+  if (top === 'covering') return s.system === 'none' ? covering : Math.max(covering, s.coverDepth);
   if (s.system === 'rafters') return Math.max(covering, s.coverDepth + s.rafter.depth);
   if (s.system === 'trusses' && s.truss) return Math.max(covering, s.coverDepth + s.truss.chord.depth);
   return covering;

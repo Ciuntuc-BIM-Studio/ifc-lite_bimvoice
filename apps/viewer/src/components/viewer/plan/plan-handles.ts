@@ -11,6 +11,8 @@
  * current zoom), so a handle stays the same size on screen at any zoom.
  *
  * - A wall with an editable axis: an end handle at each end (`wall.moveEndpoint`).
+ *   Several walls selected: each one's end handles (one where ends meet), and
+ *   dragging a corner moves every selected wall joined there.
  * - A door, window or opening placed in a wall: a slide handle at its centre
  *   on the wall's axis (`hosted.slide`).
  * - Anything else the plan can move: a move handle at its centre (a wall's
@@ -18,8 +20,8 @@
  * - A wall: a flip handle beside its middle, off one face; a click flips the
  *   wall across its axis (its layers run from the other face, `flipElements`).
  *
- * Only a single selected element of the session model, on the plan's storey,
- * in Select, and on a model the user may edit, gets handles.
+ * Only a single selected element (or several walls) of the session model, on
+ * the plan's storey, in Select, and on a model the user may edit, gets handles.
  */
 
 import type { ViewerState } from '@/store';
@@ -33,7 +35,8 @@ import { readHostedSlide, slideHandlePoint } from '@/lib/commands/modeling/comma
 import { readPlanMoveTarget } from '@/lib/commands/modeling/commands/plan-move';
 
 export type PlanHandle =
-  | { readonly kind: 'wallEnd'; readonly which: WallEnd; readonly at: Vec2 }
+  /** `wall`: the wall's global id. */
+  | { readonly kind: 'wallEnd'; readonly which: WallEnd; readonly at: Vec2; readonly wall: number }
   /** `axis`: the host wall's direction in the plan (unit), for the handle's arrows. */
   | { readonly kind: 'slide'; readonly at: Vec2; readonly axis: Vec2 }
   | { readonly kind: 'move'; readonly at: Vec2 }
@@ -56,6 +59,23 @@ function singleSelection(s: ViewerState): { modelId: string; expressId: number }
   return resolveEntityRef(id);
 }
 
+/** Several walls selected: each one's end handles, one where ends meet; none unless every selected element is such a wall. */
+function selectedWallEnds(s: ViewerState, plane: Workplane, modelId: string, storeyId: number): PlanHandle[] {
+  const toPlan = storeyToPlan(s, modelId, storeyId, plane);
+  if (!toPlan) return [];
+  const handles: PlanHandle[] = [];
+  for (const id of s.selectedEntityIds) {
+    const ref = resolveEntityRef(id);
+    const wall = ref.modelId === modelId && elementStoreyId(s, modelId, ref.expressId) === storeyId ? s.readWallEndpoints(modelId, ref.expressId) : null;
+    if (!wall) return [];
+    for (const [which, p] of [['start', wall.start], ['end', wall.end]] as const) {
+      const at = toPlan(p);
+      if (!handles.some((h) => Math.hypot(h.at[0] - at[0], h.at[1] - at[1]) < 1e-6)) handles.push({ kind: 'wallEnd', which, at, wall: id });
+    }
+  }
+  return handles;
+}
+
 /** Storey-local → plan-local, through render space (the storey's and the plan's workplanes). */
 function storeyToPlan(s: ViewerState, modelId: string, storeyId: number, plane: Workplane): ((p: Vec3) => Vec2) | null {
   const storey = buildStoreyWorkplane(s, modelId, storeyId, 0);
@@ -74,6 +94,10 @@ function storeyToPlan(s: ViewerState, modelId: string, storeyId: number, plane: 
 export function selectedPlanHandles(s: ViewerState, plane: Workplane | null, outlineCentre: Vec2 | null = null): PlanHandle[] {
   const session = s.session;
   if (!plane || !session || session.storeyId === null || s.activeTool !== 'select') return [];
+  if (s.selectedEntityIds.size > 1) {
+    return session.modelId !== null && s.models.has(session.modelId) && canMutate(s, session.modelId)
+      ? selectedWallEnds(s, plane, session.modelId, session.storeyId) : [];
+  }
   const ref = singleSelection(s);
   if (!ref || ref.modelId !== session.modelId || !s.models.has(ref.modelId) || !canMutate(s, ref.modelId)) return [];
   const { modelId, expressId } = ref;
@@ -100,8 +124,8 @@ export function selectedPlanHandles(s: ViewerState, plane: Workplane | null, out
   if (!wall || !toPlan) return movable && outlineCentre ? [{ kind: 'move', at: outlineCentre }] : [];
   const start = toPlan(wall.start), end = toPlan(wall.end);
   const handles: PlanHandle[] = [
-    { kind: 'wallEnd', which: 'start', at: start },
-    { kind: 'wallEnd', which: 'end', at: end },
+    { kind: 'wallEnd', which: 'start', at: start, wall: s.selectedEntityId! },
+    { kind: 'wallEnd', which: 'end', at: end, wall: s.selectedEntityId! },
   ];
   const mid: Vec2 = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
   if (movable) handles.push({ kind: 'move', at: mid });

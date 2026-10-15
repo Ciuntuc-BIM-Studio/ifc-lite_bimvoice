@@ -37,8 +37,8 @@ export function HandleLayer({ fit, handles, active }: { fit: Fit; handles: reado
     <g data-plan-layer="handles" pointerEvents="none">
       {handles.map((handle) => {
         const [x, y] = toScreen(fit, handle.at);
-        const hot = active !== null && active.kind === handle.kind && (handle.kind !== 'wallEnd' || (active.kind === 'wallEnd' && active.which === handle.which));
-        const key = handle.kind === 'wallEnd' ? `end-${handle.which}` : handle.kind;
+        const hot = active !== null && active.kind === handle.kind && (handle.kind !== 'wallEnd' || (active.kind === 'wallEnd' && active.which === handle.which && active.wall === handle.wall));
+        const key = handle.kind === 'wallEnd' ? `end-${handle.wall}-${handle.which}` : handle.kind;
         if (handle.kind === 'flip') {
           const r = PLAN_HANDLE_RADIUS_PX;
           // Screen y runs down: the plan's +y is the screen's -y.

@@ -11,6 +11,10 @@
  * release writes ONE `resizeWall` — one transaction, one undo step — and the
  * command ends. Escape during the drag cancels with nothing written.
  *
+ * The walls joined at the dragged end move along only when they are selected
+ * too (the whole corner moves); a wall selected alone leaves the corner: the
+ * join at that end is broken and the other wall stops square there.
+ *
  * Started from the endpoint handles in the select tool
  * (`WallEndpointOverlay` → `beginWallEndpointDrag`). The handle unmounts as
  * the tool switches, so the drag is followed through the command pointer
@@ -47,16 +51,25 @@ export interface WallEndpointGesture {
   moving: Vec2 | null;
   /** The moved walls with their real geometry (native preview), when it could be built. */
   preview: MeshData[] | null;
+  /** The selected elements of the wall's model: the walls joined at the dragged end that move along. */
+  movesWith: readonly number[];
 }
 
 const EMPTY: WallEndpointGesture = {
-  target: null, plane: null, start: [0, 0, 0], end: [0, 0, 0], thickness: 0, height: 0, which: null, moving: null, preview: null,
+  target: null, plane: null, start: [0, 0, 0], end: [0, 0, 0], thickness: 0, height: 0, which: null, moving: null, preview: null, movesWith: [],
 };
 
-function init(ctx: CommandContext): WallEndpointGesture {
-  const s = ctx.get();
-  if (s.selectedEntityId === null) return EMPTY;
-  const { modelId, expressId } = resolveEntityRef(s.selectedEntityId);
+/** The selected elements of `modelId`, express ids. */
+function selectedIn(s: ReturnType<CommandContext['get']>, modelId: string): number[] {
+  const ids = new Set(s.selectedEntityIds);
+  if (s.selectedEntityId !== null) ids.add(s.selectedEntityId);
+  return [...ids].map(resolveEntityRef).filter((ref) => ref.modelId === modelId).map((ref) => ref.expressId);
+}
+
+/** The gesture for the wall `globalId` (default: the selected one). */
+function gestureFor(s: ReturnType<CommandContext['get']>, globalId: number | null): WallEndpointGesture {
+  if (globalId === null) return EMPTY;
+  const { modelId, expressId } = resolveEntityRef(globalId);
   const wall = s.models.has(modelId) ? s.readWallEndpoints(modelId, expressId) : null;
   const storeyId = elementStoreyId(s, modelId, expressId);
   if (!wall || storeyId === null) return EMPTY;
@@ -69,8 +82,14 @@ function init(ctx: CommandContext): WallEndpointGesture {
     end: wall.end,
     thickness: wall.thickness,
     height: Number.isFinite(wall.height) ? wall.height : authoringDim(s.authoringDefaults, 'wall', 'Height'),
+    movesWith: selectedIn(s, modelId),
   };
 }
+
+const init = (ctx: CommandContext): WallEndpointGesture => gestureFor(ctx.get(), ctx.get().selectedEntityId);
+
+/** How a moved end treats the walls joined there: the selected ones move along, the others let go. */
+const joinedEnds = (g: WallEndpointGesture) => ({ moveJoinedEnds: true, movesWith: new Set(g.movesWith) });
 
 type Point3 = [number, number, number];
 
@@ -87,7 +106,7 @@ function previewMove(g: WallEndpointGesture): void {
   if (!g.target || !next) return;
   const { modelId, expressId } = g.target;
   schedulePreview(WALL_MOVE_ENDPOINT.id, () => previewEditNatively(modelId, (ctx) => {
-    const result = resizeWallInStore(ctx, expressId, next.start, next.end, { moveJoinedEnds: true });
+    const result = resizeWallInStore(ctx, expressId, next.start, next.end, joinedEnds(g));
     return result.ok ? result.walls : [];
   }));
 }
@@ -121,9 +140,9 @@ export const WALL_MOVE_ENDPOINT: ModelingCommand<WallEndpointGesture> = {
     const { modelId, expressId } = g.target;
     const model = modelEditTarget(tx.store, modelId);
     if (!model) throw new Error(`No model loaded for id "${modelId}"`);
-    // A dragged corner takes the walls joined to it along, and every join that touches a moved
-    // wall is cut again. The transaction's batch id: undo / redo rebuild the meshes by it.
-    const result = resizeWallMetres(tx.api, model, modelId, expressId, next.start, next.end, tx.batchId, { moveJoinedEnds: true });
+    // A dragged corner takes the selected walls joined to it along and lets go of the others;
+    // every join that touches a moved wall is cut again. The transaction's batch id: undo / redo rebuild the meshes by it.
+    const result = resizeWallMetres(tx.api, model, modelId, expressId, next.start, next.end, tx.batchId, joinedEnds(g));
     if (!result.ok) throw new Error(`Couldn't resize the wall: ${result.reason}`);
     // 'hostsChanged': the openings and fillings of every moved wall move with it.
     return { modelId, created: [], deleted: [], remesh: result.walls, remeshCause: 'hostsChanged', select: [expressId] };
@@ -147,11 +166,15 @@ export const WALL_MOVE_ENDPOINT: ModelingCommand<WallEndpointGesture> = {
   },
 };
 
-/** An endpoint handle was grabbed: run the command until the pointer is released. */
-export function beginWallEndpointDrag(which: WallEnd): void {
+/**
+ * An endpoint handle was grabbed: run the command until the pointer is released.
+ * `wallGlobalId`: the wall the handle is on, when several are selected (default: the selected one).
+ */
+export function beginWallEndpointDrag(which: WallEnd, wallGlobalId?: number): void {
   useViewerStore.getState().startCommand(WALL_MOVE_ENDPOINT.id);
   if (getCommandRuntime().command?.id !== WALL_MOVE_ENDPOINT.id) return;
-  updateCommandGesture((g) => ({ ...(g as WallEndpointGesture), which }));
+  const s = useViewerStore.getState();
+  updateCommandGesture((g) => ({ ...(wallGlobalId === undefined ? g as WallEndpointGesture : gestureFor(s, wallGlobalId)), which }));
   window.addEventListener('pointerup', () => {
     const runtime = getCommandRuntime();
     if (runtime.command?.id !== WALL_MOVE_ENDPOINT.id) return; // cancelled with Escape

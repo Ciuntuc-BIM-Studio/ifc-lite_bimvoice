@@ -107,6 +107,13 @@ export interface WallReshape {
 export interface WallReshapeOptions {
   /** A moved end takes the walls joined end to end with it (an L corner or a butt join) along. */
   moveJoinedEnds?: boolean;
+  /**
+   * With `moveJoinedEnds`: only the walls listed here move along with a moved
+   * end. The join of a moved end with any other wall is broken instead: the
+   * relationship goes and that wall stops square there (dragging the end of
+   * one wall out of a corner). Left out, every wall joined there moves along.
+   */
+  movesWith?: ReadonlySet<number>;
   /** Tolerance of the recomputed joins, see `computeWallJoin`. */
   tolerance?: number;
   /**
@@ -153,6 +160,7 @@ export function reshapeWallsInStore(
 
   // The requested axes, then the walls a moved corner drags along.
   const axes = new Map<number, { start: PlanPoint; end: PlanPoint; thickness?: number }>();
+  const detached = new Set<number>();
   for (const edit of edits) {
     const read = load(edit.wallId);
     const start = edit.start ?? read.wall.start;
@@ -171,10 +179,12 @@ export function reshapeWallsInStore(
         [rel.relatedId, rel.relatingId, rel.relatedConnection, rel.relatingConnection],
       ] as const) {
         const moved = axes.get(self);
-        if (!moved || axes.has(other) || selfConn === 'ATPATH' || otherConn === 'ATPATH') continue;
+        if (!moved || axes.has(other) || selfConn === 'ATPATH') continue;
         const from = load(self).wall;
         const key = selfConn === 'ATSTART' ? 'start' : 'end';
         if (Math.hypot(moved[key][0] - from[key][0], moved[key][1] - from[key][1]) <= MOVE_EPS) continue;
+        if (options.movesWith && !options.movesWith.has(other)) { detached.add(rel.relId); continue; }
+        if (otherConn === 'ATPATH') continue;
         const partner = load(other).wall;
         const newAxis: { start: PlanPoint; end: PlanPoint; thickness?: number } = { start: partner.start, end: partner.end };
         newAxis[otherConn === 'ATSTART' ? 'start' : 'end'] = moved[key];
@@ -212,10 +222,14 @@ export function reshapeWallsInStore(
     const b = readOrNull(store, editor, targets, rel.relatedId, scale);
     if (!a || !b) continue;
     const joinOptions = joinOptionsOf(rel, options.tolerance);
+    let meet = !detached.has(rel.relId);
     try {
-      computeWallJoin(a.wall, b.wall, joinOptions);
+      if (meet) computeWallJoin(a.wall, b.wall, joinOptions);
     } catch {
-      // The walls no longer meet: the join goes, and a wall that did not move stops square at that end.
+      meet = false;
+    }
+    if (!meet) {
+      // The join was broken, or the walls no longer meet: it goes, and a wall that did not move stops square at that end.
       editor.removeEntity(rel.relId);
       droppedRelIds.push(rel.relId);
       for (const [wall, connection] of [[a, rel.relatingConnection], [b, rel.relatedConnection]] as const) {

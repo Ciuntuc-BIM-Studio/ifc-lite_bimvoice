@@ -13,7 +13,7 @@ import type { EditTarget } from './edit/target.js';
 type Vec3 = [number, number, number];
 export type WallEditContext = EditTarget;
 export type WallResizeOutcome = { ok: true; newLength: number; walls: number[] } | { ok: false; reason: string };
-export interface WallResizeOptions { moveJoinedEnds?: boolean; }
+export interface WallResizeOptions { moveJoinedEnds?: boolean; movesWith?: ReadonlySet<number>; }
 export interface WallMetres {
   start: Vec3; end: Vec3; thickness: number; height: number;
   chain: WallEditChain | null; read: WallJoinRead | null;

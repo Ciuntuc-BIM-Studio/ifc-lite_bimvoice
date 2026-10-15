@@ -60,8 +60,8 @@ export interface AttachReport {
   noRoof: number;
 }
 
-/** Attach the selected walls to the roof over each (cut under its structure, or its covering only). One undo step per model. */
-export function attachSelectedWallsToRoof(top: RoofTrimTop = 'structure'): AttachReport {
+/** Attach the selected walls to the roof over each (cut under its covering, up to the sheathing, or under its structure). One undo step per model. */
+export function attachSelectedWallsToRoof(top: RoofTrimTop = 'covering'): AttachReport {
   ensureEditMode();
   const report: AttachReport = { attached: 0, noRoof: 0 };
   for (const [modelId, ids] of selectedWalls()) {
