@@ -181,13 +181,23 @@ export function getAttributeNamesAcrossSchemas(type: string): string[] {
 export function getAttributeNamesForSchema(type: string, schema: string | undefined): string[] {
     const normalized = schema?.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (normalized === 'IFC2X3' || normalized === 'IFC4' || normalized === 'IFC4X3') {
-        const registry = getSchemaRegistryForVersion(normalized);
-        const canonical = Object.keys(registry.entities).find(name => name.toUpperCase() === type.toUpperCase());
-        const attributes = canonical ? registry.entities[canonical]?.allAttributes : undefined;
-        if (attributes) return attributes.map(attribute => attribute.name);
+        // Read on every effective entity record: memoised per schema and class, a copy returned.
+        let names = attributeNamesBySchema.get(normalized);
+        if (!names) attributeNamesBySchema.set(normalized, names = new Map());
+        const key = type.toUpperCase();
+        let cached = names.get(key);
+        if (cached === undefined) {
+            const registry = getSchemaRegistryForVersion(normalized);
+            const canonical = Object.keys(registry.entities).find(name => name.toUpperCase() === key);
+            const attributes = canonical ? registry.entities[canonical]?.allAttributes : undefined;
+            names.set(key, cached = attributes ? attributes.map(attribute => attribute.name) : null);
+        }
+        if (cached) return cached.slice();
     }
     return getAttributeNamesAcrossSchemas(type);
 }
+
+const attributeNamesBySchema = new Map<string, Map<string, string[] | null>>();
 
 /**
  * The declared EXPRESS type of one attribute (`IfcDoorPanelProperties.PanelOperation`

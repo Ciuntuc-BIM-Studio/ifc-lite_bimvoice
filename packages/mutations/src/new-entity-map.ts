@@ -20,6 +20,8 @@ export class NewEntityMap extends Map<number, NewEntity> {
   // calls `set` before subclass fields initialise, and an emitted field would
   // then reset whatever `super(entries)` had indexed.
   declare private byType?: Map<string, Map<number, NewEntity>>;
+  /** Per class, every id as it entered the class, append-only (a deleted one stays listed). */
+  declare private added?: Map<string, number[]>;
 
   override set(expressId: number, entity: NewEntity): this {
     const previous = super.get(expressId);
@@ -29,6 +31,11 @@ export class NewEntityMap extends Map<number, NewEntity> {
     const key = entity.type.toUpperCase();
     let bucket = this.byType.get(key);
     if (!bucket) this.byType.set(key, (bucket = new Map()));
+    if (!bucket.has(expressId)) {
+      this.added ??= new Map();
+      const log = this.added.get(key);
+      if (log) log.push(expressId); else this.added.set(key, [expressId]);
+    }
     bucket.set(expressId, entity);
     return this;
   }
@@ -41,6 +48,7 @@ export class NewEntityMap extends Map<number, NewEntity> {
 
   override clear(): void {
     this.byType?.clear();
+    this.added = undefined;
     super.clear();
   }
 
@@ -55,6 +63,20 @@ export class NewEntityMap extends Map<number, NewEntity> {
   /** Created entities authored as `type` (case-insensitive), in creation order. */
   ofType(type: string): IterableIterator<NewEntity> {
     return (this.byType?.get(type.toUpperCase()) ?? new Map<number, NewEntity>()).values();
+  }
+
+  /**
+   * The ids created as `type` in the order they were, append-only: a reader
+   * that remembers how far it read takes only what was created since. The
+   * list is this map's own (a restored overlay starts a new one), and lists
+   * ids deleted since, which the reader checks.
+   */
+  addedOfType(type: string): readonly number[] {
+    const key = type.toUpperCase();
+    this.added ??= new Map();
+    let log = this.added.get(key);
+    if (!log) this.added.set(key, (log = []));
+    return log;
   }
 
   private unindex(entity: NewEntity): void {

@@ -20,6 +20,7 @@ import type { IfcDataStore } from '@ifc-lite/parser';
 import type { MutablePropertyView } from '@ifc-lite/mutations';
 import type { HostAnchor, HostBounds, HostKind } from './anchor.js';
 import { AnchorEntityReader, resolveSpatialAnchor } from './resolve-anchor.js';
+import { containingStructure } from './containment-index.js';
 
 const HOST_KINDS: ReadonlyMap<string, HostKind> = new Map([
   ['IFCWALL', 'wall'],
@@ -48,7 +49,7 @@ export function resolveHostAnchor(
     throw new Error(`resolveHostAnchor: host #${hostExpressId} has no IfcLocalPlacement to cut the opening in`);
   }
 
-  const storeyId = containingStorey(reader, hostExpressId);
+  const storeyId = containingStructure(store, view, reader, hostExpressId);
   if (storeyId === null) {
     throw new Error(`resolveHostAnchor: host #${hostExpressId} is not contained in a spatial structure element (IfcRelContainedInSpatialStructure)`);
   }
@@ -96,16 +97,6 @@ export function localBodyExtent(store: IfcDataStore, productId: number, view?: M
 function named(record: { names: string[]; attributes: unknown[] }, name: string, fallback: number): unknown {
   const index = record.names.indexOf(name);
   return record.attributes[index >= 0 ? index : fallback];
-}
-
-function containingStorey(reader: AnchorEntityReader, hostId: number): number | null {
-  for (const relId of reader.ids('IFCRELCONTAINEDINSPATIALSTRUCTURE')) {
-    const rel = reader.entity(relId);
-    const related = rel ? named(rel, 'RelatedElements', 4) : null;
-    if (!rel || !Array.isArray(related) || !related.some((v) => refId(v) === hostId)) continue;
-    return refId(named(rel, 'RelatingStructure', 5));
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------

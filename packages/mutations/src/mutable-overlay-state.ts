@@ -125,6 +125,9 @@ export class MutableOverlayState {
    */
   getMutationRevision(): number { return this.mutationRevision; }
 
+  /** Ids created as `type`, append-only (`NewEntityMap.addedOfType`). */
+  getNewEntityIdsAddedOfType(type: string): readonly number[] { return this.newEntities.addedOfType(type); }
+
   protected markOverlayChanged(): void { this.mutationRevision++; }
 
   protected setAttributeMutation(entityId: number, key: string, mutation: AttributeMutation): void {

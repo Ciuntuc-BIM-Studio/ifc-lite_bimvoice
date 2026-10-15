@@ -453,11 +453,8 @@ class OverlayIndex implements EffectiveEntityIndex {
 
   get byType(): Map<string, number[]> {
     if (this.cachedByType) return this.cachedByType;
-    // Shallow copy: the arrays are SHARED with the store until a key actually
-    // changes, and every key that changes is replaced with a fresh array. The
-    // store's own index is never mutated.
+    // Shallow copy: arrays SHARED with the store until a key changes, then a fresh one; the store's index is never mutated.
     const out = new Map(this.sourceByType);
-
     const removeByType = new Map<string, Set<number>>();
     const markRemoved = (id: number): void => {
       const sourceType = this.base.get(id)?.type.toUpperCase();
@@ -476,9 +473,11 @@ class OverlayIndex implements EffectiveEntityIndex {
       if (arr) out.set(type, arr.filter((id) => !ids.has(id)));
     }
 
+    const owned = new Set<string>(); // keys whose array is already this copy's own: pushed onto, not copied per id
     const append = (type: string, id: number): void => {
       const arr = out.get(type);
-      out.set(type, arr ? [...arr, id] : [id]);
+      if (arr && owned.has(type)) arr.push(id);
+      else { owned.add(type); out.set(type, arr ? [...arr, id] : [id]); }
     };
     for (const id of this.created.keys()) {
       const type = this.typeOf(id);

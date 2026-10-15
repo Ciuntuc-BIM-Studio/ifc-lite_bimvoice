@@ -4,17 +4,20 @@
 
 /**
  * What the native remesh plan reads an element through (`remesh-plan.ts`):
- * the model's relationships indexed once (openings, cuts, layer usages),
+ * the relationships of the elements it re-meshes (openings, cuts, layer
+ * usages, `relation-lookup.ts`),
  * an element's Body items, its placement frames, its layer stack.
  */
 
 import { StoreEditor, type MutablePropertyView } from '@ifc-lite/mutations';
-import type { IfcDataStore } from '@ifc-lite/parser';
+import { RelationshipType } from '@ifc-lite/data';
+import type { EffectiveEntityRecord, IfcDataStore } from '@ifc-lite/parser';
 import { AnchorEntityReader } from '../in-store/resolve-anchor.js';
 import { getModelLengthUnitScale } from '../in-store/edit/length-unit-scale.js';
 import { localFrame, worldFrame } from '../in-store/placement-3d.js';
 import { parentPlacementOf } from '../in-store/element-transform-frames.js';
 import { numeric } from './remesh-extrusion.js';
+import { RelationLookup, type RelationKind } from './relation-lookup.js';
 
 export type V3 = [number, number, number];
 type Ref = (value: unknown) => number | null;
@@ -40,42 +43,57 @@ export interface Context {
   reader: AnchorEntityReader;
   scale: number;
   /** Host express id -> the openings voiding it. */
-  openingsOf: Map<number, number[]>;
+  openingsOf: { get(id: number): number[] | undefined };
   /**
    * Element -> the elements cut from it (IfcRelInterferesElements with
    * ImpliedOrder TRUE: the RelatedElement is subtracted from the
    * RelatingElement, as the IFC pre-pass reads it; FALSE / UNKNOWN cut nothing).
    */
-  cutters: Map<number, number[]>;
+  cutters: { get(id: number): number[] | undefined };
   /** Element -> its IfcMaterialLayerSetUsage. */
-  usageOf: Map<number, number>;
+  usageOf: { get(id: number): number | undefined };
 }
+
+const implied = (rel: EffectiveEntityRecord) => {
+  const v = rel.attributes[rel.attributes.length - 1];
+  return v === true || (typeof v === 'string' && v.replace(/\./g, '').toUpperCase() === 'T');
+};
+
+const VOIDS: RelationKind = {
+  type: 'IFCRELVOIDSELEMENT', edge: RelationshipType.VoidsElement, direction: 'forward',
+  pairs: (rel) => {
+    const host = refId(rel.attributes[4]), opening = refId(rel.attributes[5]);
+    return host === null || opening === null ? [] : [[host, opening]];
+  },
+};
+
+const INTERFERES: RelationKind = {
+  type: 'IFCRELINTERFERESELEMENTS', edge: RelationshipType.InterferesElements, direction: 'forward',
+  pairs: (rel) => {
+    const cut = refId(rel.attributes[4]), cutter = refId(rel.attributes[5]);
+    return implied(rel) && cut !== null && cutter !== null && cut !== cutter ? [[cut, cutter]] : [];
+  },
+};
+
+const MATERIAL: RelationKind = {
+  type: 'IFCRELASSOCIATESMATERIAL', edge: RelationshipType.AssociatesMaterial, direction: 'inverse',
+  pairs: (rel, reader) => {
+    const usage = refId(rel.attributes[5]);
+    if (usage === null || reader.entity(usage)?.type.toUpperCase() !== 'IFCMATERIALLAYERSETUSAGE') return [];
+    const objects = Array.isArray(rel.attributes[4]) ? rel.attributes[4] : [];
+    return objects.map(refId).filter((id): id is number => id !== null).map((id) => [id, usage]);
+  },
+};
 
 export function context(store: IfcDataStore, view: MutablePropertyView): Context {
   const reader = new AnchorEntityReader(store, view);
-  const openingsOf = new Map<number, number[]>();
-  for (const relId of reader.ids('IFCRELVOIDSELEMENT')) {
-    const rel = reader.entity(relId);
-    const host = refId(rel?.attributes[4]), opening = refId(rel?.attributes[5]);
-    if (host === null || opening === null) continue;
-    openingsOf.set(host, [...(openingsOf.get(host) ?? []), opening]);
-  }
-  const cutters = new Map<number, number[]>();
-  for (const relId of reader.ids('IFCRELINTERFERESELEMENTS')) {
-    const rel = reader.entity(relId);
-    const implied = rel?.attributes[rel.attributes.length - 1];
-    if (!(implied === true || (typeof implied === 'string' && implied.replace(/\./g, '').toUpperCase() === 'T'))) continue;
-    const cut = refId(rel?.attributes[4]), cutter = refId(rel?.attributes[5]);
-    if (cut !== null && cutter !== null && cut !== cutter) cutters.set(cut, [...(cutters.get(cut) ?? []), cutter]);
-  }
-  const usageOf = new Map<number, number>();
-  for (const relId of reader.ids('IFCRELASSOCIATESMATERIAL')) {
-    const rel = reader.entity(relId);
-    const usage = refId(rel?.attributes[5]);
-    if (usage === null || reader.entity(usage)?.type.toUpperCase() !== 'IFCMATERIALLAYERSETUSAGE') continue;
-    for (const ref of Array.isArray(rel?.attributes[4]) ? rel.attributes[4] : []) { const id = refId(ref); if (id !== null) usageOf.set(id, usage); }
-  }
-  return { store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store), openingsOf, cutters, usageOf };
+  const usages = new RelationLookup(store, view, reader, MATERIAL);
+  return {
+    store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store),
+    openingsOf: new RelationLookup(store, view, reader, VOIDS),
+    cutters: new RelationLookup(store, view, reader, INTERFERES),
+    usageOf: { get: (id) => usages.get(id)?.[0] },
+  };
 }
 
 /** The element's Body items (empty without a Body). */
