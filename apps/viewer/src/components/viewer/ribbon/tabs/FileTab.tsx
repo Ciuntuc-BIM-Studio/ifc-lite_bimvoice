@@ -10,6 +10,7 @@
 import React from 'react';
 import { AddFile, CloudSources, Loading, NewProject, OpenFile, ProjectOpen, ProjectSave, LinkModel, ProjectVersion, SaveFederationSetup, Refresh, Share, CollabsRoom } from '@/icons';
 import { useViewerStore } from '@/store';
+import { useProjectStore } from '@/project/project-store';
 import { useIfc } from '@/hooks/useIfc';
 import { isCollabEnabled } from '@/lib/collab/config';
 import { useTranslation } from '@/i18n';
@@ -35,6 +36,7 @@ export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
   const openSetup = surfaceCommand('file:open-federation-setup', 'ribbon');
   const modelTags = surfaceCommand('file:model-tags', 'ribbon');
   const collabRole = useViewerStore((s) => s.collabRole);
+  const packageGeometry = useProjectStore((s) => s.packageGeometry !== false);
   const canEditInSession = collabRole === null || collabRole === 'editor' || collabRole === 'admin';
 
   // Collaboration: the Share cluster is gated behind the collab feature flag.
@@ -62,6 +64,7 @@ export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="file:save-project-as" icon={ProjectSave} />
           <RibbonCommandSmallButton commandId="file:link-model" icon={LinkModel} />
+          <RibbonCommandSmallButton commandId="file:package-geometry" icon={ProjectSave} active={packageGeometry} />
         </RibbonSmallStack>
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="file:save-version" icon={ProjectVersion} />

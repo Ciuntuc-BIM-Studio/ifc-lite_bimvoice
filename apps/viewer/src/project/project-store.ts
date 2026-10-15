@@ -47,7 +47,7 @@ export function projectDocument(state: ProjectState = useProjectStore.getState()
   return {
     name: state.name, models: state.models, views: state.views, sheets: state.sheets,
     drafts: state.drafts, draftLayers: state.draftLayers, hatchPatterns: state.hatchPatterns ?? '',
-    symbolFlips: state.symbolFlips ?? {}, openingLines: state.openingLines ?? 'handle',
+    symbolFlips: state.symbolFlips ?? {}, openingLines: state.openingLines ?? 'handle', packageGeometry: state.packageGeometry ?? true,
     textStyles: state.textStyles ?? [], dimStyles: state.dimStyles ?? [], axisStyles: state.axisStyles ?? [], layerGroups: state.layerGroups ?? [],
     defaultAxisStyle: state.defaultAxisStyle ?? STANDARD, tagTypes: state.tagTypes ?? [],
     joineryTypes: state.joineryTypes ?? [], currentJoinery: state.currentJoinery ?? {}, schedules: state.schedules ?? [],
@@ -67,6 +67,7 @@ export function loadProjectDocument(doc: ProjectDocument, options: { dirty?: boo
     ...doc,
     symbolFlips: doc.symbolFlips ?? {},
     openingLines: doc.openingLines ?? 'handle',
+    packageGeometry: doc.packageGeometry ?? true,
     textStyles: doc.textStyles?.length ? doc.textStyles : [{ ...DEFAULT_TEXT_STYLE }],
     dimStyles: doc.dimStyles?.length ? doc.dimStyles : [{ ...DEFAULT_DIM_STYLE }],
     axisStyles: doc.axisStyles?.length ? doc.axisStyles : [{ ...DEFAULT_AXIS_STYLE }],

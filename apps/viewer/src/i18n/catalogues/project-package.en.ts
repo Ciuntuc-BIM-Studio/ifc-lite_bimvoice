@@ -9,6 +9,8 @@ export const projectPackageEn = {
   'projectPackage.save': 'Save project',
   'projectPackage.saveAs': 'Save project as…',
   'projectPackage.link': 'Link model',
+  'projectPackage.geometry': 'Save geometry in project',
+  'projectPackage.geometryTooltip': 'Save writes the meshes beside the IFC: the project opens in a fraction of the time, on any machine, and the file is a few times larger',
   'projectPackage.nothingToSave': 'Nothing to save yet: open or create a model first',
   'projectPackage.saving': 'Saving the project…',
   'projectPackage.savingModel': 'Saving model {name}…',

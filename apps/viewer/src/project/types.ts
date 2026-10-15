@@ -255,6 +255,8 @@ export interface ProjectDocument {
   /** Element tag types: text templates mapped on element parameters. */
   tagTypes?: TagType[];
   layerGroups?: LayerGroup[];
+  /** Save writes the meshes of the primary model beside its IFC, so the project opens without re-meshing (absent: on). */
+  packageGeometry?: boolean;
   /** Door and window opening symbols in elevation: apex at the handle (default, window makers' sketches) or at the hinges (DIN 1356). */
   openingLines?: 'handle' | 'hinge';
   /** Plan symbol overrides by element GlobalId: bit 1 hinges a door on its other jamb, bit 2 swings it to the other side. */

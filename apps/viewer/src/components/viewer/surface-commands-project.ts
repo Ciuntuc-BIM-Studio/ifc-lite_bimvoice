@@ -11,6 +11,7 @@
 import { LinkModel, NewProject, ProjectOpen, ProjectSave, ProjectVersion } from '@/icons';
 import { requestNewProject } from '@/project/new-project';
 import { requestPackageAction } from '@/project/package/actions';
+import { useProjectStore } from '@/project/project-store';
 import type { SurfaceCommandDefinition } from './surface-command-types';
 
 export const RIBBON_PROJECT_SURFACE_COMMANDS = [
@@ -37,6 +38,12 @@ export const RIBBON_PROJECT_SURFACE_COMMANDS = [
     keywords: 'save project as copy package lapin', category: 'File', icon: ProjectSave,
     surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
     run: () => { requestPackageAction('save-as'); },
+  },
+  {
+    id: 'file:package-geometry', labelKey: 'projectPackage.geometry', ribbonTooltipKey: 'projectPackage.geometryTooltip',
+    keywords: 'save geometry meshes package cache fast open size', category: 'File', icon: ProjectSave,
+    surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
+    run: () => { useProjectStore.setState((s) => ({ packageGeometry: s.packageGeometry === false, dirty: true })); },
   },
   {
     id: 'file:link-model', labelKey: 'projectPackage.link',
