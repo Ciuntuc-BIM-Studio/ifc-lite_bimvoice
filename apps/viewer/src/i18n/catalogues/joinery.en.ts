@@ -162,4 +162,8 @@ export const joineryEn = {
   'joinerySymbol.mapSelection': 'Use for the selected elements',
   'joinerySymbol.nothingSelected': 'Select one or more {kind}s in the model first.',
   'joinerySymbol.mapped': '{count} element(s) now drawn as {name}.',
+  'joinery.untypedTitle': '"{name}" has doors and windows without a joinery type',
+  'joinery.untypedText': '{joinery} doors and windows are plain IFC geometry. Give them a joinery type of their size to make them native (types: {types}, editable in the joinery configurator).',
+  'joinery.untypedApply': 'Give them types',
+  'joinery.untypedKeep': 'Not now',
 } as const satisfies Record<string, TranslationValue>;

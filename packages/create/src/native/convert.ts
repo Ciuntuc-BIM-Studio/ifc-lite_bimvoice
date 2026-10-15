@@ -36,6 +36,18 @@ export interface NativeConversionPlan {
 const NO_TYPE = 'no configured joinery type';
 const mm = (m: number) => Math.round(m * 1000);
 
+/**
+ * The joinery type a door or window of this size takes when it has none
+ * (`Door 900×2100`): one per class and size in millimetres, its id stable so
+ * the conversion and the Door / Window tools share it.
+ */
+export function sizedJoinerySpec(kind: 'door' | 'window', width: number, height: number, sill: number): JoinerySpec {
+  const [w, h] = [mm(width), mm(height)];
+  const base = kind === 'door' ? defaultDoorSpec() : defaultWindowSpec();
+  const name = `${kind === 'door' ? 'Door' : 'Window'} ${w}×${h}`;
+  return { ...base, id: `conv-${kind}-${w}x${h}`, name, width: w / 1000, height: h / 1000, sillHeight: kind === 'window' ? sill : 0 };
+}
+
 /** What converting `store` (with `view`'s edits) would do. */
 export function planNativeConversion(store: IfcDataStore, view: MutablePropertyView): NativeConversionPlan {
   const lifted = liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' });
@@ -51,14 +63,13 @@ export function planNativeConversion(store: IfcDataStore, view: MutablePropertyV
     const fill = readHostedFill(store, skipped.expressId, view);
     const cut = fill ? placedBodyExtent(store, fill.openingId, view) : null;
     if (!fill || !cut) { keep('a door or window whose opening cannot be read'); continue; }
-    const [w, h] = [mm((cut.max[0] - cut.min[0]) * scale), mm((cut.max[2] - cut.min[2]) * scale)];
-    if (w <= 0 || h <= 0) { keep('a door or window whose opening cannot be read'); continue; }
-    const key = `${kind}-${w}x${h}`;
+    const [w, h] = [(cut.max[0] - cut.min[0]) * scale, (cut.max[2] - cut.min[2]) * scale];
+    if (mm(w) <= 0 || mm(h) <= 0) { keep('a door or window whose opening cannot be read'); continue; }
+    const spec = sizedJoinerySpec(kind, w, h, fill.sill);
+    const key = spec.id ?? spec.name;
     let group = groups.get(key);
     if (!group) {
-      const base = kind === 'door' ? defaultDoorSpec() : defaultWindowSpec();
-      const name = `${kind === 'door' ? 'Door' : 'Window'} ${w}×${h}`;
-      group = { spec: { ...base, id: `conv-${key}`, name, width: w / 1000, height: h / 1000, sillHeight: kind === 'window' ? fill.sill : 0 }, ids: [] };
+      group = { spec, ids: [] };
       groups.set(key, group);
     }
     group.ids.push(skipped.expressId);

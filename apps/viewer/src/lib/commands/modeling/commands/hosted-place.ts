@@ -17,7 +17,8 @@
  * and the refusal says why. A commit is the store's `addHostedFill` in one
  * transaction: opening, voids and fills relationships, the door or window,
  * its type default, and the host re-meshed with its true void (#6391), one
- * undo step.
+ * undo step. A door or window always has a joinery type: the catalogue's
+ * chosen entry, else the type of its size (`Door 900×2100`), so it is native.
  */
 
 import type { TranslationKey } from '@/i18n';
@@ -67,7 +68,12 @@ export interface HostedJoinery {
 }
 
 let joineryOf: (kind: 'door' | 'window') => HostedJoinery | null = () => null;
-export function registerHostedJoinery(provider: typeof joineryOf): void { joineryOf = provider; }
+/** With no entry chosen, the joinery type of the placed size (native first: no door or window is left untyped). */
+let sizedJoineryOf: (kind: 'door' | 'window', size: OpeningSize, modelId: string) => HostedJoinery | null = () => null;
+export function registerHostedJoinery(provider: typeof joineryOf, sized?: typeof sizedJoineryOf): void {
+  joineryOf = provider;
+  if (sized) sizedJoineryOf = sized;
+}
 /** Tolerance on the fit checks: a typed value exactly at the wall's edge fits. */
 const FIT_EPS = 1e-6;
 
@@ -181,7 +187,9 @@ function makeHostedPlace(kind: HostedFillKind): ModelingCommand<HostedPlaceGestu
     commit(g, tx) {
       if (!g.host || g.offset === null) throw new Error('Doors, windows and openings go in a wall: point at one on this storey');
       const ctx = { get: () => tx.store };
-      const typed = kind === 'opening' ? null : joineryOf(kind);
+      // The chosen entry; else, unless the inspector names a type for the kind, the type of this size.
+      const typed = kind === 'opening' ? null
+        : joineryOf(kind) ?? (tx.store.authoringDefaults.typeIds[kind] ? null : sizedJoineryOf(kind, hostedSize(kind, g, ctx), tx.modelId));
       let spec = specOf(kind, g, ctx);
       if (typed && spec.kind !== 'opening') {
         const MappedBody = typed.ensureMap(tx.modelId, tx.batchId);

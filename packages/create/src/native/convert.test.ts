@@ -11,7 +11,7 @@ import { addHostedElementInStore } from '../in-store/hosted-element.js';
 import { addWallToStore } from '../in-store/wall.js';
 import { resolveSpatialAnchor } from '../in-store/resolve-anchor.js';
 import { liftNativeModel } from './lift.js';
-import { convertToNativeInStore, planNativeConversion } from './convert.js';
+import { convertToNativeInStore, planNativeConversion, sizedJoinerySpec } from './convert.js';
 
 
 describe('convert to native (N7)', () => {
@@ -42,5 +42,11 @@ describe('convert to native (N7)', () => {
     expect(after.skipped.filter((s) => s.reason === 'no configured joinery type')).toEqual([]);
     // Nothing left to convert: a second plan finds no joinery to type.
     expect(planNativeConversion(store, view).joinery).toEqual([]);
+  });
+
+  it('names the type of a size the same for the conversion and the Door / Window tools', () => {
+    const door = sizedJoinerySpec('door', 0.9004, 2.1, 0.5);
+    expect(door).toMatchObject({ id: 'conv-door-900x2100', name: 'Door 900×2100', kind: 'door', width: 0.9, height: 2.1, sillHeight: 0 });
+    expect(sizedJoinerySpec('window', 1.2, 1.5, 0.9)).toMatchObject({ id: 'conv-window-1200x1500', kind: 'window', sillHeight: 0.9 });
   });
 });
