@@ -62,6 +62,7 @@ import { RawStepCard } from './properties/RawStepCard';
 import { UnitDisplayControl } from './properties/UnitDisplayControl';
 import { EntityHeaderActions } from './properties/EntityHeaderActions';
 import { isMaterialDefinitionType } from '@/utils/materialDefinitionTypes';
+import { overlayTypeProperties } from '@/utils/overlay-sets';
 import { attributesFromOverlayEntity } from './properties/overlayAttributes';
 import { createQueryAdapter } from '@/sdk/adapters/query-adapter';
 import { groupMembersForRef, relationshipsForSelection } from './properties/merge-relationship-data';
@@ -551,14 +552,12 @@ export function PropertiesPanel() {
   // Merges mutated attributes (from bSDD) into the base attribute list.
   // Note: GlobalId is intentionally excluded since it's shown in the dedicated GUID field above
   const attributes = useMemo(() => {
-    const base = entityNode
-      ? entityNode.allAttributes()
-      // Overlay-only entity (duplicate / scripted add) — synthesize the
-      // attribute list from the NewEntity record using the schema's
-      // positional names so the panel still shows Name/Description/etc.
-      : overlayEntity
-        ? attributesFromOverlayEntity(overlayEntity)
-        : [];
+    // An entity created this session first (the query node exists for any id, but reads the
+    // source only): its list is synthesized from the NewEntity record with the schema's
+    // positional names, so it shows Name/Description/etc. as a parsed one does.
+    const base = overlayEntity
+      ? attributesFromOverlayEntity(overlayEntity)
+      : entityNode ? entityNode.allAttributes() : [];
 
     // Merge mutated attributes from bSDD
     let modelId = selectedEntity?.modelId;
@@ -856,12 +855,13 @@ export function PropertiesPanel() {
     if (!selectedEntity) return null;
     const dataStore = model?.ifcDataStore ?? ifcDataStore;
     if (!dataStore) return null;
-    const result = extractTypePropertiesOnDemand(dataStore as IfcDataStore, selectedEntity.expressId);
-    if (!result) return null;
-
     let modelId = selectedEntity.modelId;
     if (modelId === 'legacy') modelId = '__legacy__';
     const mutationView = modelId ? mutationViews.get(modelId) : null;
+    // A type the session assigned (an overlay IfcRelDefinesByType) first, then the file's.
+    const result = (mutationView ? overlayTypeProperties(dataStore as IfcDataStore, mutationView, selectedEntity.expressId) : null)
+      ?? extractTypePropertiesOnDemand(dataStore as IfcDataStore, selectedEntity.expressId);
+    if (!result) return null;
     const mutations = mutationView?.getMutationsForEntity(result.typeId) ?? [];
     const mergedTypeProps = mutationView?.getForEntity(result.typeId) ?? [];
 

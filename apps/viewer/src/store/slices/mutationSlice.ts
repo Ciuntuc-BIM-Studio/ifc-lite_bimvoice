@@ -6,6 +6,7 @@
  * Mutation slice - manages property/quantity mutations for IFC export
  */
 
+import { authoredNominalValue, overlayPropertyMember } from '@/utils/overlay-sets';
 import { type StateCreator } from 'zustand';
 import type { ViewerState } from '../index.js';
 import type { MutablePropertyView, NewEntity, IfcAttributeValue } from '@ifc-lite/mutations';
@@ -1075,7 +1076,13 @@ export const createMutationSlice: StateCreator<
       dataType = declaration.dataType;
       valueType = declaration.valueType;
     }
-    const mutation = view.setProperty(entityId, psetName, propName, value, valueType, undefined, false, dataType);
+    // A set the session wrote as entities (a Lapin tool's): the edit is written on its member entity.
+    const authoredIn = get().models.get(modelId)?.ifcDataStore;
+    const member = authoredIn ? overlayPropertyMember(authoredIn, view, entityId, psetName, propName) : null;
+    const nominal = member ? authoredNominalValue(value, valueType, member.ifcType) : null;
+    const mutation = member && nominal
+      ? view.setPositionalAttribute(member.id, 2, nominal)
+      : view.setProperty(entityId, psetName, propName, value, valueType, undefined, false, dataType);
 
     set((state) => recordHistory(state, modelId, [mutation]));
 
@@ -1094,7 +1101,12 @@ export const createMutationSlice: StateCreator<
     const view = get().mutationViews.get(modelId);
     if (!view) return null;
 
-    const mutation = view.deleteProperty(entityId, psetName, propName);
+    // A set the session wrote as entities: the member leaves its HasProperties.
+    const authoredIn = get().models.get(modelId)?.ifcDataStore;
+    const member = authoredIn ? overlayPropertyMember(authoredIn, view, entityId, psetName, propName) : null;
+    const mutation = member
+      ? view.setPositionalAttribute(member.setId, 4, member.members.filter((id) => id !== member.id).map((id) => `#${id}`))
+      : view.deleteProperty(entityId, psetName, propName);
     if (!mutation) return null;
 
     set((state) => recordHistory(state, modelId, [mutation]));

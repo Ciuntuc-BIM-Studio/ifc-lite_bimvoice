@@ -3,31 +3,36 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import type { NewEntity } from '@ifc-lite/mutations';
-import { getAttributeNames } from '@ifc-lite/parser';
+import { getRawNamedAttributes, type IfcAttributeValue } from '@ifc-lite/parser';
 
-/** Synthesize display attributes for overlay-only duplicates and scripted adds. */
+/** One authored value as the panel shows a parsed one (`EntityNode.allAttributes`): enums bare, references and lists left out. */
+function display(raw: IfcAttributeValue): string | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'number') return String(raw);
+  if (typeof raw === 'boolean') return raw ? 'true' : 'false';
+  if (typeof raw === 'string') {
+    if (raw === '$' || raw === '*' || raw.length === 0 || /^#\d+$/.test(raw) || raw === '.U.' || raw === '.X.') return null;
+    if (raw === '.T.') return 'true';
+    if (raw === '.F.') return 'false';
+    return raw.startsWith('.') && raw.endsWith('.') && raw.length > 2 ? raw.slice(1, -1) : raw;
+  }
+  // A typed value, IFCLABEL('x'): its inner value.
+  if (Array.isArray(raw) && raw.length === 2 && typeof raw[0] === 'string' && !Array.isArray(raw[1])) return display(raw[1] as IfcAttributeValue);
+  return null;
+}
+
+/**
+ * The display attributes of an entity created this session, named by the
+ * schema and skipped as a parsed entity's are (GlobalId, OwnerHistory,
+ * placement and representation), so a native element reads as an IFC one.
+ */
 export function attributesFromOverlayEntity(
   entity: NewEntity,
 ): Array<{ name: string; value: string }> {
-  const names = getAttributeNames(entity.type) ?? [];
-  if (names.length === 0) return [];
   const out: Array<{ name: string; value: string }> = [];
-  const len = Math.min(names.length, entity.attributes.length);
-  for (let i = 0; i < len; i++) {
-    const value = entity.attributes[i];
-    let display: string;
-    if (value === null || value === undefined) continue;
-    if (typeof value === 'string') {
-      if (value === '$' || value.length === 0) continue;
-      display = value;
-    } else if (typeof value === 'number') {
-      display = String(value);
-    } else if (typeof value === 'boolean') {
-      display = value ? 'true' : 'false';
-    } else {
-      continue;
-    }
-    out.push({ name: names[i], value: display });
+  for (const { name, raw } of getRawNamedAttributes({ expressId: entity.expressId, type: entity.type, attributes: entity.attributes })) {
+    const value = display(raw);
+    if (value !== null) out.push({ name, value });
   }
   return out;
 }

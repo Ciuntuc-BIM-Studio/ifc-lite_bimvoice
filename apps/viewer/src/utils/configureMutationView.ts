@@ -4,6 +4,7 @@
 
 import { MutablePropertyView } from '@ifc-lite/mutations';
 import { getInheritanceChainAcrossSchemas } from '@ifc-lite/parser';
+import { overlayPropertySets, overlayQuantitySets } from './overlay-sets';
 import {
   extractPropertiesOnDemand,
   extractQuantitiesOnDemand,
@@ -89,19 +90,20 @@ export function configureMutationView(
   dataStore: IfcDataStore
 ): void {
   baseStoreByView.set(mutationView, dataStore);
+  // The file's sets, and those the session wrote as entities (`overlay-sets.ts`).
   if (dataStore.source?.length > 0) {
     mutationView.setOnDemandExtractor((entityId: number) => {
       const typeName = dataStore.entities?.getTypeName(entityId) ?? '';
-      if (isTypeObjectClass(typeName)) {
-        return extractTypeEntityOwnProperties(dataStore, entityId);
-      }
-      return extractPropertiesOnDemand(dataStore, entityId);
+      const own = isTypeObjectClass(typeName)
+        ? extractTypeEntityOwnProperties(dataStore, entityId)
+        : extractPropertiesOnDemand(dataStore, entityId);
+      const authored = overlayPropertySets(dataStore, mutationView, entityId);
+      return authored.length ? [...own, ...authored] : own;
     });
-  }
-
-  if (dataStore.onDemandQuantityMap && dataStore.source?.length > 0) {
     mutationView.setQuantityExtractor((entityId: number) => {
-      return extractQuantitiesOnDemand(dataStore, entityId);
+      const own = dataStore.onDemandQuantityMap ? extractQuantitiesOnDemand(dataStore, entityId) : [];
+      const authored = overlayQuantitySets(dataStore, mutationView, entityId);
+      return authored.length ? [...own, ...authored] : own;
     });
   }
 
