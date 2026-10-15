@@ -21,6 +21,7 @@ import type { MutablePropertyView } from '@ifc-lite/mutations';
 import type { ProfileSection } from '../in-store/profile.js';
 import { NATIVE_IFC, NATIVE_PSET } from './ifc-mapping.js';
 import { solidMeasures } from './solid.js';
+import { systemQuantities } from './system-quantities.js';
 import type { NativeElement, NativeId, NativeModel, PlanPoint } from './schema.js';
 import { NATIVE_SCHEMA_VERSION } from './schema.js';
 import { nativeIndex, nativeSection, resolveNativeParam, ringArea2, type NativeIndex } from './validate.js';
@@ -74,6 +75,8 @@ export function nativeQuantities(e: NativeElement, index: NativeIndex, hosted: r
 }
 
 function parametricQuantities(e: NativeElement, index: NativeIndex, hosted: readonly NativeElement[]): { set: string; quantities: Quantity[] } | null {
+  // A system's set is its family's (a railing's, a roof's).
+  if (e.kind === 'system') return systemQuantities(e);
   const set = NATIVE_IFC[e.kind].quantitySet;
   if (!set) return null;
   if (e.kind === 'wall') {

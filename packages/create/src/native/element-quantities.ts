@@ -22,6 +22,7 @@ import { nativeQuantities } from './export-sets.js';
 import { liftSlab, liftWall } from './lift.js';
 import { liftHosted, liftLinear } from './lift-members.js';
 import { liftSolid } from './solid.js';
+import { liftSystem } from './lift-system.js';
 import { nativeIdOf, type LiftContext } from './lift-base.js';
 import { RelationLookup, type RelationKind } from './relation-lookup.js';
 import { refId } from './remesh-context.js';
@@ -107,10 +108,10 @@ export function nativeElementQuantities(store: IfcDataStore, view: MutableProper
       element = ctx.lifted.get(expressId) ?? null;
     }
   }
-  // Anything Studio built that is not its class's parametric shape: a solid, from its history.
+  // A system's root (a railing, a roof); anything Studio built that is not its class's parametric shape: a solid, from its history.
   if (!element) {
     contain(expressId);
-    element = liftSolid(ctx, expressId);
+    element = liftSystem(ctx, expressId) ?? liftSolid(ctx, expressId);
     if (element) ctx.lifted.set(expressId, element);
   }
   if (!element) return null;

@@ -192,14 +192,14 @@ export interface NativeSolid extends NativeElementBase {
 }
 
 /** The parametric families that build an assembly of parts from one spec (the root element carries it). */
-export type NativeSystemFamily = 'roof' | 'truss' | 'curtainWall' | 'corridor' | 'stair';
+export type NativeSystemFamily = 'roof' | 'truss' | 'curtainWall' | 'corridor' | 'stair' | 'railing';
 
 /**
  * A parametric system: a roof (its planes and rafters), a truss, a curtain
- * wall, a corridor, a stair. Its `spec` is the family's own (`RoofSystemSpec`,
- * `PlacedTrussSpec`, `CurtainWallSpec`, `CorridorSpec`, the stair's
- * dimensions and placement); its parts are built from it and are not
- * elements of their own.
+ * wall, a corridor, a stair, a railing. Its `spec` is the family's own
+ * (`RoofSystemSpec`, `PlacedTrussSpec`, `CurtainWallSpec`, `CorridorSpec`,
+ * the stair's dimensions and placement, `RailingInStoreParams`); its parts
+ * are built from it and are not elements of their own.
  */
 export interface NativeSystem extends NativeElementBase {
   kind: 'system';
