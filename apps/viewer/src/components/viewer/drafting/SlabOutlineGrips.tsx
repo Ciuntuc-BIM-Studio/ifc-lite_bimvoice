@@ -4,9 +4,12 @@
 
 /**
  * The outline of a selected slab (or flat roof, plate, space) on a floor-plan
- * tab, editable after it is placed, as a roof's outline is: drag a corner to
- * move it, drag an edge's middle to add a corner there, double-click a corner
- * to remove it. Release writes the new outline in one undo step
+ * tab, editable after it is placed: drag a corner to move it, drag a side's
+ * middle to push that side square to itself (its neighbours keep their
+ * direction; a side cut with KNIFE moves only the piece dragged, with a step
+ * at the cut — `drafting/edge-offset.ts`), double-click a corner to remove
+ * it. With KNIFE running, a click on a side cuts it there (a new corner).
+ * Release writes the new outline in one undo step
  * (`reshapeSlabOutlineIn`), and the slab re-meshes with its openings re-cut.
  * Only a slab that is a vertical extrusion of its outline, on the plan's
  * storey, of a model the user may edit, shows them.
@@ -23,14 +26,22 @@ import { getModelLengthUnitScale } from '@/lib/length-unit-scale';
 import { resolveSlabEditChain } from '@/lib/slab-edit';
 import { elementStoreyId } from '@/lib/commands/modeling/workplane';
 import { ensureEditMode } from '@/project/edit-mode';
+import { capturePointer } from '@/lib/pointer-capture';
 import type { Vec2 } from '@/lib/snap/types';
 import type { ModelHandles } from './ModelHandlesLayer';
+import type { Pt } from '@/drafting/types';
+import { edgeFrame, edgeOffsetFor, knifeAt, offsetEdge } from '@/drafting/edge-offset';
+import { useDraftingSession } from '@/drafting/session';
 
 interface Drag {
-  /** Corner being moved; for an edge-middle drag, the new corner's index. */
+  /** The corner being moved, or the side being pushed. */
+  kind: 'corner' | 'side';
   index: number;
   outline: Vec2[];
 }
+
+const toPt = ([x, y]: Vec2): Pt => ({ x, y });
+const toVec = (p: Pt): Vec2 => [p.x, p.y];
 
 /** The selected slab's outline (storey-local metres), or null when it has none to edit here. */
 function useSelectedSlab(handles: ModelHandles): { modelId: string; expressId: number; outline: Vec2[] } | null {
@@ -56,9 +67,11 @@ export function SlabOutlineGrips({ handles }: { handles: ModelHandles }) {
   const { t } = useTranslation();
   const slab = useSelectedSlab(handles);
   const [drag, setDrag] = useState<Drag | null>(null);
+  const knife = useDraftingSession((st) => st.commandId === 'knife');
   const host = useRef<SVGSVGElement>(null);
   const { map } = handles;
-  if (!slab || !map || handles.idle) return null;
+  // While a command runs the grips stand down, KNIFE excepted: it cuts the outline.
+  if (!slab || !map || (handles.idle && !knife)) return null;
 
   const S = (p: Vec2) => map.toScreen(p);
   const toLocal = (e: React.PointerEvent): Vec2 => {
@@ -73,25 +86,31 @@ export function SlabOutlineGrips({ handles }: { handles: ModelHandles }) {
   const begin = (e: React.PointerEvent, next: Drag) => {
     e.stopPropagation();
     e.preventDefault();
-    (e.target as Element).setPointerCapture(e.pointerId);
+    capturePointer(e.target as Element, e.pointerId);
     setDrag(next);
   };
   const move = (e: React.PointerEvent) => {
     if (!drag) return;
     e.stopPropagation();
     const p = toLocal(e);
-    setDrag({ ...drag, outline: drag.outline.map((q, i) => (i === drag.index ? p : q)) });
+    if (drag.kind === 'corner') { setDrag({ ...drag, outline: slab.outline.map((q, i) => (i === drag.index ? p : q)) }); return; }
+    const pts = slab.outline.map(toPt);
+    setDrag({ ...drag, outline: offsetEdge(pts, drag.index, edgeOffsetFor(pts, drag.index, toPt(p)), true).map(toVec) });
   };
   const end = (e: React.PointerEvent) => {
     if (!drag) return;
     e.stopPropagation();
     const done = drag;
     setDrag(null);
-    const moved = done.outline[done.index];
-    const was = slab.outline[done.index];
-    // A click without a move changes nothing (an edge middle not dragged adds no corner).
-    if (done.outline.length === slab.outline.length && was && Math.hypot(moved[0] - was[0], moved[1] - was[1]) < 1e-6) return;
-    apply(done.outline);
+    // A click without a move changes nothing.
+    const same = done.outline.length === slab.outline.length && done.outline.every((q, i) => Math.hypot(q[0] - slab.outline[i][0], q[1] - slab.outline[i][1]) < 1e-6);
+    if (!same) apply(done.outline);
+  };
+  const cut = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const next = knifeAt(slab.outline.map(toPt), toPt(toLocal(e)), true);
+    if (next) apply(next.map(toVec));
   };
   const remove = (e: React.MouseEvent, i: number) => {
     e.stopPropagation();
@@ -104,27 +123,30 @@ export function SlabOutlineGrips({ handles }: { handles: ModelHandles }) {
     <svg ref={host} data-slab-grips className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"
       onPointerMove={move} onPointerUp={end}>
       <path d={path} fill="none" stroke="#2563eb" strokeWidth={1.4} strokeDasharray={drag ? '5 3' : undefined} />
-      {slab.outline.map((p, i) => {
-        const q = slab.outline[(i + 1) % slab.outline.length];
-        const mid: Vec2 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
-        const [x, y] = S(mid);
+      {knife ? slab.outline.map((p, i) => {
+        // With KNIFE running, each side is a wide invisible target: a click cuts it there.
+        const [x1, y1] = S(p), [x2, y2] = S(slab.outline[(i + 1) % slab.outline.length]);
+        return <line key={`k${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={12} className="pointer-events-auto cursor-crosshair" onPointerDown={cut}><title>{t('slabOutline.knife')}</title></line>;
+      }) : null}
+      {!knife ? slab.outline.map((_, i) => {
+        // Every side's grip stays mounted through a drag: the one pressed holds the pointer capture,
+        // and the drag's moves and release bubble up to this layer only from it. The others just fade.
+        const [x, y] = S(toVec(edgeFrame(slab.outline.map(toPt), i).mid));
+        const pressed = drag?.kind === 'side' && drag.index === i;
         return (
-          <circle key={`m${i}`} cx={x} cy={y} r={4} fill="#fff" stroke="#2563eb" strokeWidth={1.2} className="pointer-events-auto cursor-copy"
-            onPointerDown={(e) => {
-              const outline = [...slab.outline];
-              outline.splice(i + 1, 0, mid);
-              begin(e, { index: i + 1, outline });
-            }}>
-            <title>{t('slabOutline.addCorner')}</title>
-          </circle>
+          <path key={`m${i}`} d={`M${x} ${y - 5}L${x + 5} ${y}L${x} ${y + 5}L${x - 5} ${y}Z`} fill={pressed ? '#2563eb' : '#fff'} stroke="#2563eb" strokeWidth={1.2}
+            opacity={drag && !pressed ? 0 : 1} className="pointer-events-auto cursor-move"
+            onPointerDown={(e) => { if (!drag) begin(e, { kind: 'side', index: i, outline: [...slab.outline] }); }}>
+            <title>{t('slabOutline.pushSide')}</title>
+          </path>
         );
-      })}
+      }) : null}
       {shown.map((p, i) => {
         const [x, y] = S(p);
         return (
           <rect key={`v${i}`} x={x - 5} y={y - 5} width={10} height={10} fill="#2563eb" stroke="#fff" strokeWidth={1}
             className="pointer-events-auto cursor-move"
-            onPointerDown={(e) => { if (!drag) begin(e, { index: i, outline: [...slab.outline] }); }}
+            onPointerDown={(e) => { if (!drag && !knife) begin(e, { kind: 'corner', index: i, outline: [...slab.outline] }); }}
             onDoubleClick={(e) => remove(e, i)}>
             <title>{t('slabOutline.corner')}</title>
           </rect>

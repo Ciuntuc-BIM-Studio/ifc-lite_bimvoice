@@ -170,6 +170,8 @@ export const DraftOverlay = memo(function DraftOverlay(props: DraftOverlayProps)
       {grips.map((g) => {
         const p = drawingToScreen(g.at, t, axis);
         const active = gripDrag?.grip.id === g.id && gripDrag.grip.key === g.key;
+        // A side's middle (it pushes the side) is a diamond; a vertex a square.
+        if (g.key.startsWith('edge')) return <path key={`${g.id}:${g.key}`} d={`M${p.x} ${p.y - 5}L${p.x + 5} ${p.y}L${p.x} ${p.y + 5}L${p.x - 5} ${p.y}Z`} fill={active ? '#2563eb' : '#fff'} stroke="#2563eb" strokeWidth={1.5} />;
         return <rect key={`${g.id}:${g.key}`} x={p.x - 4} y={p.y - 4} width={8} height={8} fill={active ? '#2563eb' : '#fff'} stroke="#2563eb" strokeWidth={1.5} />;
       })}
       {preview.map((shape, i) => (

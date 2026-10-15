@@ -26,7 +26,12 @@ import { useDrawingElementPropertiesLookup } from '@/hooks/useDrawingElementProp
 import { markActiveDrawingCanvasRendered, registerActiveDrawingCanvas } from '@/lib/drawing/active-canvas-snapshot';
 import { getFillColorForType } from './drawing/ifc-fill-colors';
 import { resolveDrawingPaperTheme, type DrawingPaperTheme } from './drawing/paper-theme';
+import { traceOutline, traceSeams } from '@/lib/drawing/polygon-outline';
+
 export { getFillColorForType } from './drawing/ifc-fill-colors';
+
+/** Canvas coordinates as they are (the context is already transformed). */
+const sameXY = (x: number, y: number) => ({ x, y });
 
 // ─── IFC annotation overlay helpers (issue #812) ─────────────────────────────
 
@@ -709,6 +714,9 @@ export function Drawing2DCanvas({
             }
           }
           ctx.fill('evenodd');
+          // A seam stroked in the fill colour closes the hairline between two fills of one material.
+          ctx.beginPath();
+          if (traceSeams(ctx, polygon, modelToScreen)) { ctx.strokeStyle = fillColor; ctx.lineWidth = 1; ctx.stroke(); }
           ctx.globalAlpha = 1;
         }
 
@@ -730,28 +738,8 @@ export function Drawing2DCanvas({
           ctx.strokeStyle = strokeColor;
           ctx.lineWidth = Math.max(0.5, mmToScreen(lineWeight) * 0.3);
           ctx.beginPath();
-
-          if (polygon.polygon.outer.length > 0) {
-            const first = modelToScreen(polygon.polygon.outer[0].x, polygon.polygon.outer[0].y);
-            ctx.moveTo(first.x, first.y);
-            for (let i = 1; i < polygon.polygon.outer.length; i++) {
-              const pt = modelToScreen(polygon.polygon.outer[i].x, polygon.polygon.outer[i].y);
-              ctx.lineTo(pt.x, pt.y);
-            }
-            ctx.closePath();
-
-            for (const hole of polygon.polygon.holes) {
-              if (hole.length > 0) {
-                const holeFirst = modelToScreen(hole[0].x, hole[0].y);
-                ctx.moveTo(holeFirst.x, holeFirst.y);
-                for (let i = 1; i < hole.length; i++) {
-                  const pt = modelToScreen(hole[i].x, hole[i].y);
-                  ctx.lineTo(pt.x, pt.y);
-                }
-                ctx.closePath();
-              }
-            }
-          }
+          // Seams (sides shared with a same-material neighbour) are left out.
+          traceOutline(ctx, polygon, modelToScreen);
           ctx.stroke();
         }
 
@@ -1074,6 +1062,9 @@ export function Drawing2DCanvas({
           }
         }
         ctx.fill('evenodd');
+        // A seam stroked in the fill colour closes the hairline between two fills of one material.
+        ctx.beginPath();
+        if (traceSeams(ctx, polygon, sameXY)) { ctx.strokeStyle = fillColor; ctx.lineWidth = 1 / transform.scale; ctx.stroke(); }
         ctx.globalAlpha = 1;
       }
 
@@ -1097,24 +1088,8 @@ export function Drawing2DCanvas({
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = lineWeight / transform.scale;
         ctx.beginPath();
-        if (polygon.polygon.outer.length > 0) {
-          ctx.moveTo(polygon.polygon.outer[0].x, polygon.polygon.outer[0].y);
-          for (let i = 1; i < polygon.polygon.outer.length; i++) {
-            ctx.lineTo(polygon.polygon.outer[i].x, polygon.polygon.outer[i].y);
-          }
-          ctx.closePath();
-
-          // Stroke holes too
-          for (const hole of polygon.polygon.holes) {
-            if (hole.length > 0) {
-              ctx.moveTo(hole[0].x, hole[0].y);
-              for (let i = 1; i < hole.length; i++) {
-                ctx.lineTo(hole[i].x, hole[i].y);
-              }
-              ctx.closePath();
-            }
-          }
-        }
+        // Holes too; seams (sides shared with a same-material neighbour) are left out.
+        traceOutline(ctx, polygon, sameXY);
         ctx.stroke();
       }
 

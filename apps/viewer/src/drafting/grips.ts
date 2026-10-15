@@ -11,10 +11,13 @@
  *  - radial / angular: the line / arc position; text, level: the insertion
  *    point; leader: every vertex;
  *  - axis: its two ends (the bubbles follow);
- *  - line, polyline: every vertex; circle, arc: the centre.
+ *  - line, polyline: every vertex, and each side's middle — dragging it
+ *    pushes that side square to itself (`edge-offset.ts`); circle, arc:
+ *    the centre.
  */
 
 import { dimensionLayout } from './annotation';
+import { edgeFrame, edgeOffsetFor, offsetEdge } from './edge-offset';
 import type { EntityShape, Pt } from './types';
 
 export interface Grip {
@@ -29,7 +32,10 @@ export function gripsOf(id: string, shape: EntityShape): Grip[] {
   switch (shape.type) {
     case 'line':
     case 'axis': return [g('a', shape.a), g('b', shape.b)];
-    case 'polyline': return shape.pts.map((p, i) => g(`pt${i}`, p));
+    case 'polyline': {
+      const sides = shape.closed ? shape.pts.length : shape.pts.length - 1;
+      return [...shape.pts.map((p, i) => g(`pt${i}`, p)), ...Array.from({ length: Math.max(sides, 0) }, (_, i) => g(`edge${i}`, edgeFrame(shape.pts, i).mid))];
+    }
     case 'circle':
     case 'arc': return [g('c', shape.c)];
     case 'text': return [g('p', shape.p)];
@@ -49,9 +55,15 @@ export function moveGrip(shape: EntityShape, key: string, p: Pt): EntityShape {
     case 'line':
     case 'axis': return key === 'a' ? { ...shape, a: p } : key === 'b' ? { ...shape, b: p } : shape;
     case 'polyline':
-    case 'leader':
+    case 'leader': {
+      const side = shape.type === 'polyline' ? /^edge(\d+)$/.exec(key) : null;
+      if (side && shape.type === 'polyline') {
+        const i = Number(side[1]);
+        return { ...shape, pts: offsetEdge(shape.pts, i, edgeOffsetFor(shape.pts, i, p), shape.closed) };
+      }
       if (!vertex) return shape;
       return { ...shape, pts: shape.pts.map((q, i) => (i === Number(vertex[1]) ? p : q)) };
+    }
     case 'circle':
     case 'arc': return key === 'c' ? { ...shape, c: p } : shape;
     case 'text': return key === 'p' ? { ...shape, p } : shape;

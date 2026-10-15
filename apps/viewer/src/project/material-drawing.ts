@@ -10,7 +10,9 @@
  * - each layer band takes its material's hatch, fill and hatch pen;
  * - where bands of the SAME material of two elements touch (insulation round
  *   a mitred corner, a slab's screed into the next), the cut line between
- *   them goes, so the material reads as one;
+ *   them goes — and the sides the two bands share are marked (`seams`) so
+ *   their outlines leave them out — so the material reads as one, on screen
+ *   only: the elements stay apart;
  * - a membrane — a layer under 2 mm (which the geometry engine does not cut
  *   into a band of its own) or a material marked as one — is drawn as a heavy
  *   dashed line where it lies: on the interface between its neighbouring
@@ -56,6 +58,8 @@ export interface MaterialDrawing {
   hidePolygons: Set<DrawingPolygon>;
   /** Membrane lines, drawing coordinates. */
   membranes: DraftShape[];
+  /** Per polygon, the sides (indices over its outer loop then holes) it shares with another element's band of its material. */
+  seams: Map<DrawingPolygon, Set<number>>;
 }
 
 const TOL = 0.002;
@@ -123,7 +127,7 @@ function midline(poly: DrawingPolygon): DraftShape | null {
 }
 
 export function materialDrawing(drawing: Drawing2D, r: MaterialResolver): MaterialDrawing {
-  const out: MaterialDrawing = { hatches: [], dropLines: new Set(), fills: new Map(), hidePolygons: new Set(), membranes: [] };
+  const out: MaterialDrawing = { hatches: [], dropLines: new Set(), fills: new Map(), hidePolygons: new Set(), membranes: [], seams: new Map() };
   const named = drawing.cutPolygons.map((p) => ({ p, g: r.graphics(p) }));
 
   // Bands: hatch and fill, or (a membrane's own band) a line along its middle.
@@ -140,8 +144,31 @@ export function materialDrawing(drawing: Drawing2D, r: MaterialResolver): Materi
   }
 
   // Edges of every band, by material name, to find the boundaries inside one material and between layers.
-  const index = new SegIndex<{ poly: DrawingPolygon; key: string }>();
-  for (const { p, g } of named) if (g && !g.membrane) for (const e of edges(p)) index.add(e, { poly: p, key: g.name.trim().toLowerCase() });
+  const index = new SegIndex<{ poly: DrawingPolygon; key: string; side: number }>();
+  for (const { p, g } of named) if (g && !g.membrane) edges(p).forEach((e, side) => index.add(e, { poly: p, key: g.name.trim().toLowerCase(), side }));
+
+  // Sides two elements' bands of one material share: their outlines leave them out.
+  const seam = (poly: DrawingPolygon, side: number) => {
+    const set = out.seams.get(poly) ?? new Set<number>();
+    set.add(side);
+    out.seams.set(poly, set);
+  };
+  const seamSegs = new SegIndex<true>();
+  for (const { p, g } of named) {
+    if (!g || g.membrane) continue;
+    const key = g.name.trim().toLowerCase();
+    edges(p).forEach((e, side) => {
+      for (const c of index.near(e)) {
+        if (c.item.key !== key || c.item.poly.entityId === p.entityId) continue;
+        if (coincide(e, c.seg) || coincide(c.seg, e)) { seam(p, side); seamSegs.add(e, true); }
+      }
+    });
+  }
+  // Any other line lying on a seam goes too: the edge between the two solids seen from above (a projection line).
+  for (const line of drawing.lines) {
+    const seg = { a: line.line.start, b: line.line.end };
+    if (seamSegs.near(seg).some((c) => coincide(seg, c.seg) || coincide(c.seg, seg))) out.dropLines.add(line);
+  }
   const cutLines = drawing.lines.filter((l) => l.category === 'cut');
   for (const line of cutLines) {
     const seg = { a: line.line.start, b: line.line.end };

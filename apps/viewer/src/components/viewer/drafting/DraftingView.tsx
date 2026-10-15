@@ -203,7 +203,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   useEffect(() => setEditingText(false), [selection]);
   const { state, handlers } = useDraftingPointer({ containerRef, transform: viewTransform, setTransform: setViewTransform, axis, entityShapes, references, grips });
   const workPlane = useMemo(() => viewWorkPlane(view, plane ?? null, levels), [view, plane, levels]);
-  const bim = useModelCommandBridge({ view, plane: workPlane, transform: viewTransform, axis, containerRef });
+  const bim = useModelCommandBridge({ view, plane: workPlane, transform: viewTransform, axis, containerRef, drawing: shown });
   const modelHandles = useModelHandles({ view, plane: workPlane, drawing: shown, transform: viewTransform, axis, drafting: runningCommand() !== null });
   // A running BIM tool takes the left button (a grabbed grip starts one); panning, zoom and the cursor stay the drafting view's.
   const pointer = {

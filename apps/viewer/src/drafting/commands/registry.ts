@@ -18,10 +18,11 @@ import { HOSTED_COMMANDS } from './hosted';
 import { tagCommand } from './tag';
 import { viewportCommand } from './viewport';
 import { faceCommand } from './face';
+import { knifeCommand } from './knife';
 import { TIMBER_COMMANDS } from './timber';
 import type { DraftCommandDef } from './types';
 
-export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand, roofCommand, roadCommand, bridgeCommand, civilDrawingCommand, sweepCommand, revolveCommand, ...HOSTED_COMMANDS, tagCommand, viewportCommand, faceCommand, ...TIMBER_COMMANDS];
+export const DRAFT_COMMANDS: readonly DraftCommandDef[] = [...DRAW_COMMANDS, ...MODIFY_COMMANDS, ...EDIT_COMMANDS, ...ANNOTATE_COMMANDS, sectionLineCommand, extrudeCommand, roofCommand, roadCommand, bridgeCommand, civilDrawingCommand, sweepCommand, revolveCommand, ...HOSTED_COMMANDS, tagCommand, viewportCommand, faceCommand, knifeCommand, ...TIMBER_COMMANDS];
 
 const BY_ID = new Map(DRAFT_COMMANDS.map((c) => [c.id, c]));
 const BY_ALIAS = new Map(DRAFT_COMMANDS.flatMap((c) => c.aliases.map((a) => [a, c] as const)));

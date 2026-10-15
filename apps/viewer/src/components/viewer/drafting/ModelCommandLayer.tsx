@@ -4,13 +4,20 @@
 
 /**
  * A running BIM tool (modeling command) on a floor-plan drawing tab: its
- * pointer routing (`useModelCommandBridge`) and its layers — the ghost
+ * pointer routing (`useModelCommandBridge`), which snaps — besides the wall
+ * axes and grids every command pointer has — to what the drawing shows: the
+ * cut outlines (a wall's faces and corners) and the visible lines (a slab's
+ * edges seen from above), as the plan panel does; and its layers — the ghost
  * footprint, the command's own plan layer, the snap glyph, and the command
  * bar with its typed fields — all through `project/model-command-bridge.ts`.
  */
 
 import { useEffect, useMemo, useRef } from 'react';
-import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
+import type { Drawing2D, SectionPlaneConfig } from '@ifc-lite/drawing-2d';
+import type { Vec2 } from '@/lib/snap/types';
+import { createPlanCutSource, planCutLinework } from '@/components/viewer/plan/plan-cut-source';
+import type { PlanCutLine, PlanCutPolygon } from '@/components/viewer/plan/usePlanCut';
+import { drawingToScreen } from '@/drafting/frame';
 import { useTranslation } from '@/i18n';
 import { useViewerStore } from '@/store';
 import { getCommandRuntime, useCommandRuntime } from '@/lib/commands/modeling/runtime';
@@ -32,7 +39,11 @@ interface BridgeParams {
   transform: ViewTransform;
   axis: SectionAxisName;
   containerRef: React.RefObject<HTMLDivElement | null>;
+  /** The drawing shown on the tab, whose linework the tool snaps to. */
+  drawing: Drawing2D | null;
 }
+
+const UNIT_TRANSFORM: ViewTransform = { x: 0, y: 0, scale: 1 };
 
 export interface ModelCommandBridge {
   map: LocalScreenMap | null;
@@ -40,11 +51,25 @@ export interface ModelCommandBridge {
   feed(kind: 'move' | 'down' | 'up', e: React.PointerEvent): boolean;
 }
 
-export function useModelCommandBridge({ view, plane, transform, axis, containerRef }: BridgeParams): ModelCommandBridge {
+export function useModelCommandBridge({ view, plane, transform, axis, containerRef, drawing }: BridgeParams): ModelCommandBridge {
   const { command, ctx } = useCommandRuntime();
   const workplane = command && view.kind === 'plan' && ctx?.workplane?.spec.kind !== 'section' ? ctx?.workplane ?? null : null;
   const map = useMemo(() => (workplane && plane ? localScreenMap(workplane, plane, transform, axis) : null), [workplane, plane, transform, axis]);
   const lastDown = useRef<{ t: number; x: number; y: number } | null>(null);
+  // The drawing's linework in the tool's workplane frame, worked out once per drawing (not per pan).
+  const cutSource = useMemo(() => {
+    const unit = workplane && plane ? localScreenMap(workplane, plane, UNIT_TRANSFORM, axis) : null;
+    if (!unit || !drawing) return null;
+    const local = (p: { x: number; y: number }): Vec2 => unit.toLocal(drawingToScreen(p, UNIT_TRANSFORM, axis));
+    const polygons: PlanCutPolygon[] = drawing.cutPolygons.map((c) => ({
+      entityId: c.entityId, ifcType: c.ifcType, outer: c.polygon.outer.map(local), holes: c.polygon.holes.map((h) => h.map(local)),
+    }));
+    const lines: PlanCutLine[] = drawing.lines.map((l) => ({
+      a: local(l.line.start), b: local(l.line.end), entityId: l.entityId, category: l.category, hidden: l.visibility === 'hidden',
+    }));
+    const linework = planCutLinework(polygons, lines);
+    return createPlanCutSource(() => linework);
+  }, [workplane, plane, axis, drawing]);
 
   // A tool running while another floor plan comes to the front follows it to that plan's storey.
   const running = command !== null;
@@ -70,7 +95,7 @@ export function useModelCommandBridge({ view, plane, transform, axis, containerR
       metresPerPixel: map.metresPerPixel,
       mods: { shiftKey: e.shiftKey, altKey: e.altKey, detail },
       snapping: useViewerStore.getState().snapEnabled,
-      planSources: [],
+      planSources: cutSource ? [cutSource] : [],
     });
   };
 

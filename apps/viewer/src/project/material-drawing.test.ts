@@ -66,6 +66,24 @@ describe('building materials in a cut', () => {
     assert.equal([...m.fills.values()].filter((f) => f === null).length, 2);
   });
 
+  it('marks the sides two walls\' bands of one material share as seams, so their outlines leave them out', () => {
+    const { drawing, resolver } = scene();
+    const m = materialDrawing(drawing, resolver);
+    // Each band's side 1 (x = 4, wall 1) and side 3 (x = 4, wall 2) touches the other wall's band of its material.
+    const [c1, w1, c2, w2] = drawing.cutPolygons;
+    assert.deepEqual([...(m.seams.get(c1) ?? [])], [1]);
+    assert.deepEqual([...(m.seams.get(w1) ?? [])], [1]);
+    assert.deepEqual([...(m.seams.get(c2) ?? [])], [3]);
+    assert.deepEqual([...(m.seams.get(w2) ?? [])], [3]);
+    // The edge between the two solids seen from above (a projection line on the seam) goes too.
+    const edge = { ...line(1, 4, 0, 4, 0.3), category: 'projection' } as DrawingLine;
+    const withEdge = { ...drawing, lines: [...drawing.lines, edge] } as Drawing2D;
+    assert.ok(materialDrawing(withEdge, resolver).dropLines.has(edge));
+    // The styled drawing carries them on its polygons.
+    const styled = styledDrawing(drawing, undefined, undefined, undefined, m);
+    assert.deepEqual([...((styled.cutPolygons[0] as { seams?: Set<number> }).seams ?? [])], [1]);
+  });
+
   it('a membrane thick enough for its own band is drawn as its middle line, the band left out', () => {
     const { drawing, resolver } = scene();
     drawing.cutPolygons.push(band(3, 13, 0, 6, 1, 1.004));

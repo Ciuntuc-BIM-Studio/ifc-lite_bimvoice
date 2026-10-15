@@ -116,7 +116,9 @@ export function styledDrawing(
       ...drawing,
       cutPolygons: drawing.cutPolygons.filter((p) => !materials.hidePolygons.has(p)).map((p) => {
         const fill = materials.fills.get(p);
-        return fill === undefined ? p : { ...p, color: fill === null ? [1, 1, 1, 1] as [number, number, number, number] : rgba(fill) ?? p.color };
+        const seams = materials.seams.get(p);
+        const filled = fill === undefined ? p : { ...p, color: fill === null ? [1, 1, 1, 1] as [number, number, number, number] : rgba(fill) ?? p.color };
+        return seams ? { ...filled, seams } : filled;
       }),
       lines: materials.dropLines.size ? drawing.lines.filter((l) => !materials.dropLines.has(l)) : drawing.lines,
       materialHatches: materials.hatches.map((h) => ({ ...h, ifcType: hatchOf.get(h.loops[0]) ?? undefined })),

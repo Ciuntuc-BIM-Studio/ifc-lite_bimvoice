@@ -12,7 +12,7 @@
 
 import {
   AnnoAxis, DraftArc, DraftCircle, DraftExtend, DraftFillet, DraftLine, DraftMirror,
-  DraftOffset, DraftPolyline, DraftRectangle, DraftSectionLine, DraftTrim, DraftWorkplane,
+  DraftKnife, DraftOffset, DraftPolyline, DraftRectangle, DraftSectionLine, DraftTrim, DraftWorkplane,
 } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
@@ -47,6 +47,7 @@ export function DesignTab() {
           <RibbonCommandSmallButton commandId="design:extend" icon={DraftExtend} active={on('extend')} />
           <RibbonCommandSmallButton commandId="design:fillet" icon={DraftFillet} active={on('fillet')} />
         </RibbonSmallStack>
+        <RibbonCommandLargeButton commandId="design:knife" icon={DraftKnife} active={on('knife')} />
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('drafting.group.workplane')}>

@@ -112,6 +112,7 @@ export { default as TimberClt } from '~icons/viewer/timber-clt';
 export { default as DraftErase } from '~icons/viewer/draft-erase';
 export { default as DraftOffset } from '~icons/viewer/draft-offset';
 export { default as DraftTrim } from '~icons/viewer/draft-trim';
+export { default as DraftKnife } from '~icons/viewer/draft-knife';
 export { default as DraftExtend } from '~icons/viewer/draft-extend';
 export { default as DraftFillet } from '~icons/viewer/draft-fillet';
 export { default as DraftSnap } from '~icons/viewer/draft-snap';
