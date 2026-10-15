@@ -19,6 +19,8 @@ import type { TranslationValue } from '../types';
 export const propertiesEn = {
   'properties.propertySet.unnamed': 'Unnamed Property Set',
   'properties.quantitySet.unnamed': 'Unnamed Quantity Set',
+  'properties.quantitySet.derived': 'From parameters',
+  'properties.quantitySet.derivedHint': 'Computed from the element\'s parameters as you edit; an IFC export writes this set',
   'properties.quantitySet.type.length': 'Length',
   'properties.quantitySet.type.area': 'Area',
   'properties.quantitySet.type.volume': 'Volume',

@@ -63,6 +63,7 @@ import { UnitDisplayControl } from './properties/UnitDisplayControl';
 import { EntityHeaderActions } from './properties/EntityHeaderActions';
 import { isMaterialDefinitionType } from '@/utils/materialDefinitionTypes';
 import { overlayTypeProperties } from '@/utils/overlay-sets';
+import { withNativeQuantitySets } from './properties/nativeQuantitySets';
 import { attributesFromOverlayEntity } from './properties/overlayAttributes';
 import { createQueryAdapter } from '@/sdk/adapters/query-adapter';
 import { groupMembersForRef, relationshipsForSelection } from './properties/merge-relationship-data';
@@ -520,8 +521,8 @@ export function PropertiesPanel() {
     // The view's answer holds even when empty (a deleted last qset stays deleted).
     const mutationView = modelId ? mutationViews.get(modelId) : null;
     if (!expressId) return entityNode?.quantities() ?? [];
-    return effectiveQuantitySets(mutationView, expressId, (baseId) => (baseId === expressId ? entityNode : modelQuery?.entity(baseId))?.quantities() ?? []);
-  }, [entityNode, modelQuery, selectedEntity, mutationViews, mutationVersion]);
+    return withNativeQuantitySets(effectiveQuantitySets(mutationView, expressId, (baseId) => (baseId === expressId ? entityNode : modelQuery?.entity(baseId))?.quantities() ?? []), model?.ifcDataStore ?? ifcDataStore, mutationView, expressId);
+  }, [entityNode, modelQuery, selectedEntity, mutationViews, mutationVersion, model, ifcDataStore]);
 
   /**
    * The occurrence's quantity sets followed by those it INHERITS from its
@@ -858,8 +859,7 @@ export function PropertiesPanel() {
     let modelId = selectedEntity.modelId;
     if (modelId === 'legacy') modelId = '__legacy__';
     const mutationView = modelId ? mutationViews.get(modelId) : null;
-    // A type the session assigned (an overlay IfcRelDefinesByType) first, then the file's.
-    const result = (mutationView ? overlayTypeProperties(dataStore as IfcDataStore, mutationView, selectedEntity.expressId) : null)
+    const result = (mutationView ? overlayTypeProperties(dataStore as IfcDataStore, mutationView, selectedEntity.expressId) : null) // a type the session assigned first
       ?? extractTypePropertiesOnDemand(dataStore as IfcDataStore, selectedEntity.expressId);
     if (!result) return null;
     const mutations = mutationView?.getMutationsForEntity(result.typeId) ?? [];

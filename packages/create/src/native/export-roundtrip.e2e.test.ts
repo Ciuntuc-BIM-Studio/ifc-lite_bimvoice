@@ -32,6 +32,8 @@ import { beamStoreParams, columnStoreParams, openingStoreParams, slabStoreParams
 import type { NativeElement, NativeModel } from './schema.js';
 import { writeNativeExportSets } from './export-sets.js';
 import { nativeExportIds } from './export-ids.js';
+import { nativeElementQuantities } from './element-quantities.js';
+import { nativeQuantities } from './export-sets.js';
 
 const id = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 const parse = (b: Uint8Array) => new IfcParser().parseColumnar(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, { disableWorkerScan: true });
@@ -82,14 +84,28 @@ describe('native export round trip and IDS (N6)', () => {
     // The sample's own wall (and its openings) is not native; what this test wrote all is.
     expect(before.skipped.filter((k) => view.getNewEntity(k.expressId))).toEqual([]);
     expect(before.model.elements.map((e) => e.kind).sort()).toEqual(['beam', 'column', 'opening', 'opening', 'slab', 'wall', 'wall', 'window']);
+    // One element's quantities, read on their own, are the whole model's for it (in the session and in the file read back).
+    const sameQuantities = (store_: typeof store, view_: MutablePropertyView, lifted: typeof before) => {
+      const index = nativeIndex(lifted.model);
+      for (const e of lifted.model.elements) {
+        const hosted = lifted.model.elements.filter((h) => 'hostId' in h && h.hostId === e.id);
+        const whole = nativeQuantities(e, index, hosted);
+        const one = nativeElementQuantities(store_, view_, lifted.expressIds.get(e.id)!);
+        expect(one?.set, `${e.kind} set`).toBe(whole?.set);
+        whole?.quantities.forEach((q, k) => expect(one!.quantities[k].value, `${e.kind} ${q.name}`).toBeCloseTo(q.value, 9));
+      }
+    };
+    sameQuantities(store, view, before);
     writeNativeExportSets(view, before.model, before.expressIds);
     const bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content as Uint8Array;
 
     // Read back: the same elements, types and materials, under the same ids.
     const reparsed = await parse(bytes);
-    const after = liftNativeModel(reparsed, new MutablePropertyView(null, 'r'), { id: id(100), name: 'rt' });
+    const afterView = new MutablePropertyView(null, 'r');
+    const after = liftNativeModel(reparsed, afterView, { id: id(100), name: 'rt' });
     expect(after.skipped.length).toBe(before.skipped.length);
     expect(canonical(after.model)).toEqual(canonical(before.model));
+    sameQuantities(reparsed, afterView, after);
 
     // The IDS of a Lapin export: every native element it applies to passes.
     const document = parseIDS(nativeExportIds());

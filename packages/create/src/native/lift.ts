@@ -112,7 +112,7 @@ function liftTypes(ctx: LiftContext, materials: Map<string, NativeMaterial>): Na
   return types;
 }
 
-function liftWall(ctx: LiftContext, expressId: number): NativeElement | null {
+export function liftWall(ctx: LiftContext, expressId: number): NativeElement | null {
   const base = liftBase(ctx, expressId, 'wall');
   if (!base) return null;
   const read = readWallJoinTarget(ctx.store, ctx.view, expressId, ctx.scale);
@@ -131,7 +131,7 @@ function liftWall(ctx: LiftContext, expressId: number): NativeElement | null {
   };
 }
 
-function liftSlab(ctx: LiftContext, expressId: number): NativeElement | null {
+export function liftSlab(ctx: LiftContext, expressId: number): NativeElement | null {
   const base = liftBase(ctx, expressId, 'slab');
   if (!base) return null;
   const chain = resolveSlabEditChain(ctx.store, ctx.view, ctx.editor, expressId, ctx.scale);

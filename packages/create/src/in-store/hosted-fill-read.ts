@@ -179,15 +179,24 @@ export function readHostedFill(
  * before the atomic writer starts moving any occurrence (#6232). */
 export function readHostedOpeningBatch(
   store: IfcDataStore, openingIds: ReadonlySet<number>, view?: MutablePropertyView | null,
+  /** Each opening's host and filling when the caller knows them (a few openings): the model's relations are not walked. */
+  known?: { hostOf: (openingId: number) => number | null; fillingOf: (openingId: number) => number | null },
 ): ReadonlyMap<number, HostedFillRead | null> {
   const result = new Map<number, HostedFillRead | null>();
   if (openingIds.size === 0) return result;
   const reader = new AnchorEntityReader(store, view), hosts = new Map<number, number | null>(), fills = new Map<number, number>();
-  for (const id of reader.ids('IFCRELVOIDSELEMENT')) {
+  if (known) {
+    for (const openingId of openingIds) {
+      hosts.set(openingId, known.hostOf(openingId));
+      const fillingId = known.fillingOf(openingId);
+      if (fillingId !== null && reader.entity(fillingId)) fills.set(openingId, fillingId);
+    }
+  }
+  if (!known) for (const id of reader.ids('IFCRELVOIDSELEMENT')) {
     const rel = reader.entity(id), openingId = rel ? refId(rel.attributes[5]) : null;
     if (openingId !== null && openingIds.has(openingId) && !hosts.has(openingId)) hosts.set(openingId, refId(rel!.attributes[4]));
   }
-  for (const id of reader.ids('IFCRELFILLSELEMENT')) {
+  if (!known) for (const id of reader.ids('IFCRELFILLSELEMENT')) {
     const rel = reader.entity(id), openingId = rel ? refId(rel.attributes[4]) : null;
     const fillingId = rel ? refId(rel.attributes[5]) : null;
     if (openingId !== null && openingIds.has(openingId) && !fills.has(openingId) && fillingId !== null && reader.entity(fillingId)) fills.set(openingId, fillingId);

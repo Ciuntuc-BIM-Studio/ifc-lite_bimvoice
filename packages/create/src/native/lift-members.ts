@@ -23,7 +23,7 @@ import { liftBase, type LiftContext } from './lift-base.js';
 const EPS = 1e-6;
 const round = (v: number) => Math.round(v * 1e9) / 1e9;
 
-function liftLinear(ctx: LiftContext, expressId: number, kind: 'beam' | 'column'): NativeElement | null {
+export function liftLinear(ctx: LiftContext, expressId: number, kind: 'beam' | 'column'): NativeElement | null {
   const base = liftBase(ctx, expressId, kind);
   if (!base) return null;
   const ifcType = kind === 'beam' ? 'IfcBeam' : 'IfcColumn';
@@ -64,9 +64,12 @@ export function liftMembers(ctx: LiftContext): void {
  * them. A filled opening is not lifted on its own: the door or window brings
  * it (NativeJoinery). A bare opening is lifted with its cut's size.
  */
-export function liftHosted(ctx: LiftContext): void {
+export function liftHosted(
+  ctx: LiftContext, openings: Iterable<number> = ctx.reader.ids('IFCOPENINGELEMENT'),
+  known?: Parameters<typeof readHostedOpeningBatch>[3],
+): void {
   // One walk over the fill and void relations for every opening (`readHostedFill` walks them per call).
-  const reads = readHostedOpeningBatch(ctx.store, new Set(ctx.reader.ids('IFCOPENINGELEMENT')), ctx.view);
+  const reads = readHostedOpeningBatch(ctx.store, new Set(openings), ctx.view, known);
   for (const [openingId, read] of reads) {
     const skip = (reason: string) => ctx.skipped.push({ expressId: openingId, ifcType: 'IfcOpeningElement', reason });
     if (!read) { skip('not placed in a host'); continue; }

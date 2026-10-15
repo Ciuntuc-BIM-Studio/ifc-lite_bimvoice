@@ -38,4 +38,6 @@ export interface PropertySet {
 export interface QuantitySet {
   name: string;
   quantities: Array<{ name: string; value: number; type: number }>;
+  /** Computed from a native element's parameters (not in the model until an export writes it). */
+  derived?: boolean;
 }
