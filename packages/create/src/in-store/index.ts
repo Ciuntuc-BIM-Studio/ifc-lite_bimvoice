@@ -66,6 +66,7 @@ export {
 } from './catalog-type.js';
 export { CUT_PRIORITY_PROP, CUT_PRIORITY_PSET, DEFAULT_CUT_PRIORITY, cutParticipants, cutPriorityOf, syncCutsInStore, type CutSyncResult } from './cut-priority.js';
 export { compoundAngle, setSiteGeolocationInStore, type SiteGeolocation } from './site-geolocation.js';
+export { aggregationMembers } from './aggregation-members.js';
 export { offsetOutline, roofFacets, roofSolidFaces, type RoofKind, type RoofSurfaceSpec } from './roof-surface.js';
 export { hipRoofFaces, weightedSkeletonFaces } from './straight-skeleton.js';
 // Roof systems: per-edge rules → planes, structure, and the IfcRoof block of slabs and members.

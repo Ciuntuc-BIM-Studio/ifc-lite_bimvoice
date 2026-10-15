@@ -311,6 +311,7 @@ export function windowSelect(a: Pt, b: Pt, crossing: boolean, additive: boolean)
     if (inside || (crossing && touches)) next.add(entity.id);
   }
   set({ selection: next });
+  if (!get().selecting) providers.modelWindow?.(min, max, crossing, additive);
   refresh();
 }
 

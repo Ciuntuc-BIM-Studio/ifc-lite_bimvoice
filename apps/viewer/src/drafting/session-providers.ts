@@ -16,6 +16,8 @@ export const providers = {
   references: (_min: Pt, _max: Pt): DraftShape[] => [],
   /** Picks a model element under an idle click that hit no drafted entity. */
   modelPicker: null as ((p: Pt, tolerance: number, additive: boolean) => void) | null,
+  /** Selects the model elements a window (or crossing) drag that is not a command's takes. */
+  modelWindow: null as ((min: Pt, max: Pt, crossing: boolean, additive: boolean) => void) | null,
   loops: (): Pt[][] => [],
   levelAt: (_p: Pt): number => 0,
   plane: (): SectionPlaneConfig | null => null,
@@ -44,8 +46,9 @@ export function setWorkPlaneProvider(plane: () => SectionPlaneConfig | null, vie
 /** The view in front and its work plane, as the commands see them. */
 export const activeWorkPlane = (): { plane: SectionPlaneConfig | null; view: ProjectView | null } => ({ plane: providers.plane(), view: providers.view() });
 
-export function setModelPicker(picker: typeof providers.modelPicker): void {
+export function setModelPicker(picker: typeof providers.modelPicker, window: typeof providers.modelWindow = null): void {
   providers.modelPicker = picker;
+  providers.modelWindow = window;
 }
 
 export function setElementPicker(picker: ((p: Pt) => number | null) | null): void {

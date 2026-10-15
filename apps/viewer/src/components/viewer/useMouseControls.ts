@@ -41,6 +41,7 @@ import { applyWheelZoom, createFineZoomModifierTracker } from './wheelZoom.js';
 import { createZoomSurfacePicker } from './zoomSurface.js';
 import { createFlyController } from './flyControls.js';
 import { flyLook } from './flyNavigation.js';
+import { selectGlobalIds } from './viewport-selection.js';
 
 export interface MouseState {
   isDragging: boolean;
@@ -701,9 +702,8 @@ export function useMouseControls(params: UseMouseControlsParams): void {
           // untouched on failure (better UX than clearing it).
           void renderer
             .pickRect(x0, y0, x1, y1, getPickOptions())
-            .then((ids) => {
-              useViewerStore.getState().setSelectedEntityIds(Array.from(ids));
-            })
+            // Shift held at release adds to the selection.
+            .then((ids) => { selectGlobalIds(Array.from(ids), e.shiftKey); })
             .catch((error) => {
               console.warn('[useMouseControls] Rectangle selection failed:', error);
             });
@@ -764,6 +764,8 @@ export function useMouseControls(params: UseMouseControlsParams): void {
     const handleContextMenu = async (e: MouseEvent) => {
       // macOS/Linux fire this on PRESS, mid-fly; hold it until release (pointerup replays a plain click).
       if (fly.isActive() || fly.consumeMenuSuppression()) { e.preventDefault(); fly.deferContextMenu(); return; }
+      // macOS reads Ctrl + click as a right click: a Ctrl + drag window select is not one.
+      if (mouseState.isRectSelecting) { e.preventDefault(); return; }
       await handleContextMenuSelection(ctx, e);
     };
 

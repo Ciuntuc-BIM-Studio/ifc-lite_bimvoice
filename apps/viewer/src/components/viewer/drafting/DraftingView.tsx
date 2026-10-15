@@ -31,11 +31,10 @@ import { useProjectStore } from '@/project/project-store';
 import { EMPTY_VIEW_DRAWING, useViewDrawings } from '@/project/view-drawings';
 import type { ProjectView } from '@/project/types';
 import { pickModelElement, referenceSet, referencesIn } from '@/drafting/references';
-import { selectFromPlan } from '@/components/viewer/plan/PlanPointer';
 import { draftsOfView } from '@/drafting/draft-store';
 import { redoEarliest, undoLatest } from '@/project/unified-undo';
 import {
-  attachDraftingView, currentLayerId, setElementPicker, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelEditRoute, setModelPicker, setWorkPlaneProvider, submitCommandLine,
+  attachDraftingView, currentLayerId, setElementPicker, pressEscape, runningCommand, setAnnotationProviders, setCurrentLayer, setModelEditRoute, setWorkPlaneProvider, submitCommandLine,
   toggleOrtho, toggleSnap, useDraftingSession, pickEntity, setDraftSelection,
 } from '@/drafting/session';
 import { DraftOverlay } from './DraftOverlay';
@@ -44,6 +43,7 @@ import { isFace } from '@/drafting/faces';
 import { sketchOfFace } from '@/project/studio-feature';
 import { CommandLine } from './CommandLine';
 import { useDraftingPointer } from './useDraftingPointer';
+import { useModelPicking } from './useModelPicking';
 import { useDraftingKeys } from './useDraftingKeys';
 import { DraftPropertiesPanel } from './DraftPropertiesPanel';
 import { SelectionBar } from './SelectionBar';
@@ -149,15 +149,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
     // Annotation sizes are paper sizes at the view's scale (the settings read as at 1:100).
     attachDraftingView(view.id, axis, (min, max) => (references ? referencesIn(references, min, max) : []), (view.scale ?? 100) / 100);
   }, [view.id, axis, references, view.scale]);
-  // An idle click on the drawing selects the model element under it (both selection channels, as the plan view does).
-  useEffect(() => {
-    setModelPicker((p, tolerance, additive) => {
-      // Nothing cut under the click: a roof whose outline holds it (roofs are drawn over the plan, not cut).
-      const id = (drawing && references ? pickModelElement(drawing, references, p, tolerance) : null) ?? (view.kind === 'plan' && plane ? roofAtPoint(view, plane, p) : null);
-      if (id !== null || !additive) selectFromPlan(id, additive);
-    });
-    return () => setModelPicker(null);
-  }, [drawing, references, view, plane]);
+  useModelPicking(drawing, references, view, plane);
   // MOVE / COPY / ROTATE / ARRAY / ERASE with model elements selected (and nothing drafted) edit the elements.
   useEffect(() => {
     setModelEditRoute(routeModifyToModel);

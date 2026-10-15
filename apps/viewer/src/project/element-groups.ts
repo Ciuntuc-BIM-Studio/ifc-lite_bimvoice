@@ -28,6 +28,7 @@ import { useViewerStore } from '@/store';
 import { toGlobalIdFromModels } from '@/store/globalId';
 import { recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 import { ensureEditMode } from './edit-mode';
+import { inAggregation } from './aggregation-filter';
 
 export interface GroupRef {
   modelId: string;
@@ -79,6 +80,7 @@ export function registerBlockResolver(resolve: BlockResolver): void {
   if (!blockResolvers.includes(resolve)) blockResolvers.push(resolve);
 }
 function blockOf(renderId: number): { members: number[]; primary: number } | null {
+  if (!inAggregation(renderId)) return null;
   for (const resolve of blockResolvers) {
     const block = resolve(renderId);
     if (block) return block;

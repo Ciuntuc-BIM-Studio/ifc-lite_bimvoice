@@ -58,3 +58,12 @@ export function toggleGlobalIdInSelection(globalId: number): void {
     updated.setSelectedEntityId(remaining.length > 0 ? remaining[remaining.length - 1] : null);
   }
 }
+
+/** A region selection (a window drag in 3D or in the plan): `globalIds` replace the selection, or join it when `additive`. */
+export function selectGlobalIds(globalIds: readonly number[], additive: boolean): void {
+  const state = useViewerStore.getState();
+  const ids = additive ? [...new Set([...state.selectedEntityIds, ...globalIds])] : [...new Set(globalIds)];
+  useViewerStore.setState({ selectedEntitiesSet: new Set(), selectedEntity: null });
+  state.setSelectedEntityIds(ids);
+  state.addEntitiesToSelection(ids.map(resolveEntityRef));
+}
