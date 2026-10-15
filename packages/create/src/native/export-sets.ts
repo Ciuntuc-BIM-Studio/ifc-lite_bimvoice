@@ -22,6 +22,7 @@ import type { ProfileSection } from '../in-store/profile.js';
 import { NATIVE_IFC, NATIVE_PSET } from './ifc-mapping.js';
 import { solidMeasures } from './solid.js';
 import { systemQuantities } from './system-quantities.js';
+import type { SystemQuantityContext } from './system-terrain.js';
 import type { NativeElement, NativeId, NativeModel, PlanPoint } from './schema.js';
 import { NATIVE_SCHEMA_VERSION } from './schema.js';
 import { nativeIndex, nativeSection, resolveNativeParam, ringArea2, type NativeIndex } from './validate.js';
@@ -68,15 +69,15 @@ function cutFace(e: NativeElement, index: NativeIndex): number {
 }
 
 /** The base quantities of `e` (its class's set), or null when it has none to give. */
-export function nativeQuantities(e: NativeElement, index: NativeIndex, hosted: readonly NativeElement[]): { set: string; quantities: Quantity[] } | null {
-  const all = parametricQuantities(e, index, hosted);
+export function nativeQuantities(e: NativeElement, index: NativeIndex, hosted: readonly NativeElement[], ctx: SystemQuantityContext = {}): { set: string; quantities: Quantity[] } | null {
+  const all = parametricQuantities(e, index, hosted, ctx);
   // A body combined in Studio is more than its parameters: its lengths hold, its areas and volumes would not.
   return all && e.combined ? { set: all.set, quantities: all.quantities.filter((q) => q.quantityType === QuantityType.Length) } : all;
 }
 
-function parametricQuantities(e: NativeElement, index: NativeIndex, hosted: readonly NativeElement[]): { set: string; quantities: Quantity[] } | null {
+function parametricQuantities(e: NativeElement, index: NativeIndex, hosted: readonly NativeElement[], ctx: SystemQuantityContext): { set: string; quantities: Quantity[] } | null {
   // A system's set is its family's (a railing's, a roof's).
-  if (e.kind === 'system') return systemQuantities(e);
+  if (e.kind === 'system') return systemQuantities(e, ctx);
   const set = NATIVE_IFC[e.kind].quantitySet;
   if (!set) return null;
   if (e.kind === 'wall') {
@@ -144,7 +145,7 @@ export interface NativeExportSets { quantitySets: number; propertySets: number }
  * Write the base quantities and `Pset_LapinNative` of every element of
  * `model` onto `view` (`expressIds`: native id → express id, from the lift).
  */
-export function writeNativeExportSets(view: MutablePropertyView, model: NativeModel, expressIds: ReadonlyMap<NativeId, number>): NativeExportSets {
+export function writeNativeExportSets(view: MutablePropertyView, model: NativeModel, expressIds: ReadonlyMap<NativeId, number>, ctx: SystemQuantityContext = {}): NativeExportSets {
   const index = nativeIndex(model);
   const hostedBy = new Map<NativeId, NativeElement[]>();
   for (const e of model.elements) {
@@ -154,7 +155,7 @@ export function writeNativeExportSets(view: MutablePropertyView, model: NativeMo
   for (const e of model.elements) {
     const id = expressIds.get(e.id);
     if (id === undefined) continue;
-    const quantities = nativeQuantities(e, index, hostedBy.get(e.id) ?? []);
+    const quantities = nativeQuantities(e, index, hostedBy.get(e.id) ?? [], ctx);
     const ours = view.getForEntity(id).some((p) => p.name === NATIVE_PSET);
     const has = (name: string) => (view.getQuantitiesForEntity(id) ?? []).some((q) => q.name === name);
     if (quantities && (!has(quantities.set) || ours)) {

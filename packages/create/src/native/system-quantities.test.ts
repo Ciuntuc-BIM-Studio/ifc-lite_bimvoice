@@ -20,6 +20,10 @@ import { addStairToStore } from '../in-store/stair.js';
 import { addTrussToStore, trussParts } from '../in-store/truss-store.js';
 import { defaultTimberTruss } from '../in-store/truss.js';
 import { nativeElementQuantities } from './element-quantities.js';
+import { addCorridorToStore, addTerrainToStore, readTerrainTin } from '../in-store/corridor-store.js';
+import { defaultAssembly, defaultDesign } from '../civil/assembly.js';
+import { buildCorridor, type CorridorSpec } from '../civil/corridor.js';
+import { delaunay, Terrain, type V3 } from '../civil/tin.js';
 
 describe('system quantities', () => {
   it('come from the family\'s spec', async () => {
@@ -69,5 +73,37 @@ describe('system quantities', () => {
     const tq = q(truss);
     expect(tq).toMatchObject({ set: 'Lapin_TrussQuantities', Span: 8, Rise: 2, Members: trussParts(store, truss, view).length });
     expect(tq.TimberVolume).toBeGreaterThan(0);
+  });
+
+  it('a corridor: its length, pavement and, with its terrain, cut and fill, as its builder makes them', async () => {
+    const bytes = readFileSync(new URL('../../../../apps/viewer/public/samples/hello-wall.ifc', import.meta.url));
+    const store = await new IfcParser().parseColumnar(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, { disableWorkerScan: true });
+    const view = new MutablePropertyView(null, 'm');
+    const editor = new StoreEditor(store, view);
+    const anchor = resolveSpatialAnchor(store, [...store.spatialHierarchy!.storeyElevations.keys()][0], view);
+    const pts: V3[] = [];
+    for (let x = -50; x <= 250; x += 25) for (let y = -50; y <= 250; y += 25) pts.push([x, y, 0.5 + x * 0.01]);
+    const terrain = addTerrainToStore(editor, anchor, { Name: 'EG', tin: delaunay(pts) });
+    const tin = readTerrainTin(store, anchor, terrain.elementId, view)!;
+    const spec: CorridorSpec = {
+      name: 'Road', alignment: { pis: [{ x: 0, y: 0 }, { x: 150, y: 0, radius: 60 }, { x: 150, y: 150 }] },
+      profile: { pvis: [{ station: 0, elevation: 2 }, { station: 300, elevation: 3 }] }, assembly: defaultAssembly(), design: defaultDesign(), interval: 10,
+      terrainGlobalId: terrain.globalId,
+    };
+    const corridor = addCorridorToStore(store, editor, anchor, spec, tin).corridorId;
+    const out = nativeElementQuantities(store, view, corridor);
+    const q = Object.fromEntries((out?.quantities ?? []).map((x) => [x.name, x.value]));
+    expect(out?.set).toBe('Lapin_CorridorQuantities');
+    const model = buildCorridor(spec, new Terrain(tin));
+    expect(q.Length).toBeCloseTo(model.alignment.length, 6);
+    // Two lanes of 3.5 and two shoulders of 1: 9 m across (a curve widens and narrows it a little).
+    expect(q.PavementArea / q.Length).toBeGreaterThan(8.5);
+    expect(q.PavementArea / q.Length).toBeLessThan(9.5);
+    // The courses (0.6 m in all) under it.
+    expect(q.PavementVolume / q.PavementArea).toBeGreaterThan(0.5);
+    expect(q.PavementVolume / q.PavementArea).toBeLessThan(0.7);
+    expect(q.CutVolume).toBeCloseTo(model.volumes.cut, 6);
+    expect(q.FillVolume).toBeCloseTo(model.volumes.fill, 6);
+    expect(q.CutVolume + q.FillVolume).toBeGreaterThan(0);
   });
 });

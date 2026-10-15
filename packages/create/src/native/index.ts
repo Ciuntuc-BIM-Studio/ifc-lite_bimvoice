@@ -29,3 +29,4 @@ export { nativeExportIds } from './export-ids.js';
 export { nativeElementQuantities, nativeSolidOf, type ElementQuantities } from './element-quantities.js';
 export { liftSolid, readSolidShape, solidFaces, solidMeasures, solidStoreParams } from './solid.js';
 export { NATIVE_SOLID_PSET, nativeIfcClass } from './ifc-mapping.js';
+export { systemQuantityContext, type SystemQuantityContext } from './system-terrain.js';

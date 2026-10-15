@@ -11,7 +11,7 @@
  * overlay and history never see them.
  */
 
-import { liftNativeModel, omitCombinedToolsInStore, writeNativeExportSets } from '@ifc-lite/create';
+import { liftNativeModel, omitCombinedToolsInStore, systemQuantityContext, writeNativeExportSets } from '@ifc-lite/create';
 import type { IfcDataStore } from '@ifc-lite/parser';
 import { StoreEditor, type MutablePropertyView } from '@ifc-lite/mutations';
 
@@ -29,7 +29,7 @@ export function withNativeExportSets(dataStore: IfcDataStore, view: MutablePrope
     // The project's own copy keeps them: they are editable elements there.
     if (!options.keepCombinedTools) omitCombinedToolsInStore(dataStore, new StoreEditor(dataStore, copy));
     const lifted = liftNativeModel(dataStore, copy, { id: EXPORT_MODEL_ID, name: '' });
-    writeNativeExportSets(copy, lifted.model, lifted.expressIds);
+    writeNativeExportSets(copy, lifted.model, lifted.expressIds, systemQuantityContext(dataStore, copy));
     return copy;
   } catch (error) {
     console.warn('[export] native quantities and parameters were not written', error);

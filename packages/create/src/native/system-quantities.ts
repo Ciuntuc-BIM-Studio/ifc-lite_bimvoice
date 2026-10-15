@@ -9,14 +9,19 @@
  * height and face; a stair's run and volume from the stepped profile its
  * builder extrudes (`stairFlightOutline`); a truss's timber from the bars its
  * builder makes (`trussBars`), in a Lapin set (IFC4 has no standard one for
- * an element assembly). A corridor gives none.
+ * an element assembly); a corridor's length, pavement and, with the terrain
+ * it daylights to (`SystemQuantityContext`), its cut and fill, from the
+ * model its builder makes (`buildCorridor`), in a Lapin set too.
  */
 
 import { QuantityType } from '@ifc-lite/data';
 import { roofGeometry, type RoofEdgeRule } from '../in-store/roof-system.js';
 import { stairFlightOutline } from '../in-store/stair.js';
 import { trussBars, trussProblem, type TimberTrussSpec } from '../in-store/truss.js';
+import { buildCorridor, type CorridorSpec } from '../civil/corridor.js';
+import { Terrain } from '../civil/tin.js';
 import type { NativeSystem } from './schema.js';
+import type { SystemQuantityContext } from './system-terrain.js';
 
 type V3 = readonly [number, number, number];
 interface Quantity { name: string; value: number; quantityType: QuantityType }
@@ -50,8 +55,50 @@ function polygonArea(pts: readonly V3[]): number {
 
 const planArea = (pts: readonly V3[]) => polygonArea(pts.map(([x, y]) => [x, y, 0] as const));
 
+/** A closed triangle mesh's volume (divergence theorem). */
+function meshVolume(points: readonly V3[], triangles: readonly (readonly number[])[]): number {
+  let v = 0;
+  for (const [i, j, k] of triangles) {
+    const [a, b, c] = [points[i], points[j], points[k]];
+    v += (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6;
+  }
+  return Math.abs(v);
+}
+
+/** The area of the strip between two polylines walked side by side. */
+function stripArea(left: readonly V3[], right: readonly V3[]): number {
+  let a = 0;
+  for (let i = 1; i < Math.min(left.length, right.length); i++) {
+    a += polygonArea([left[i - 1], right[i - 1], right[i]]) + polygonArea([left[i - 1], right[i], left[i]]);
+  }
+  return a;
+}
+
+const isCorridorSpec = (v: Record<string, unknown>): v is Record<string, unknown> & CorridorSpec =>
+  !!v.alignment && typeof v.alignment === 'object' && !!v.profile && typeof v.profile === 'object'
+  && !!v.assembly && typeof v.assembly === 'object' && positive(v.interval) !== null;
+
+function corridorQuantities(e: NativeSystem, ctx: SystemQuantityContext): { set: string; quantities: Quantity[] } | null {
+  if (!isCorridorSpec(e.spec)) return null;
+  const terrainId = typeof e.spec.terrainGlobalId === 'string' ? e.spec.terrainGlobalId : null;
+  const tin = terrainId && ctx.terrain ? ctx.terrain(terrainId, e.storeyId) : null;
+  let model: ReturnType<typeof buildCorridor>;
+  try {
+    model = buildCorridor(e.spec, tin ? new Terrain(tin) : null);
+  } catch {
+    return null;
+  }
+  const courses = model.solids.filter((s) => s.kind === 'course' && s.closed);
+  return { set: 'Lapin_CorridorQuantities', quantities: [
+    length('Length', model.alignment.length),
+    area('PavementArea', stripArea(model.edges.left, model.edges.right)),
+    volume('PavementVolume', courses.reduce((sum, s) => sum + meshVolume(s.points, s.triangles), 0)),
+    ...(tin ? [volume('CutVolume', model.volumes.cut), volume('FillVolume', model.volumes.fill)] : []),
+  ] };
+}
+
 /** `e`'s base quantity set, or null when its family gives none (or its spec cannot be read). */
-export function systemQuantities(e: NativeSystem): { set: string; quantities: Quantity[] } | null {
+export function systemQuantities(e: NativeSystem, ctx: SystemQuantityContext = {}): { set: string; quantities: Quantity[] } | null {
   const spec = e.spec;
   if (e.family === 'railing') {
     const path = points(spec.Path, 3);
@@ -86,6 +133,7 @@ export function systemQuantities(e: NativeSystem): { set: string; quantities: Qu
     const profile = Math.abs(outline.reduce((a, p, i) => { const q = outline[(i + 1) % outline.length]; return a + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
     return { set: 'Qto_StairBaseQuantities', quantities: [length('Length', risers * tread), volume('GrossVolume', profile * width), volume('NetVolume', profile * width)] };
   }
+  if (e.family === 'corridor') return corridorQuantities(e, ctx);
   if (e.family === 'truss') {
     if (!isTrussSpec(spec) || trussProblem(spec)) return null;
     const bars = trussBars(spec);

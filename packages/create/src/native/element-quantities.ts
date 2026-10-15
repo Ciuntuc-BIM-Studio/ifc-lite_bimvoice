@@ -23,6 +23,7 @@ import { liftSlab, liftWall } from './lift.js';
 import { liftHosted, liftLinear } from './lift-members.js';
 import { liftSolid, recordedSolidShape } from './solid.js';
 import { liftSystem } from './lift-system.js';
+import { systemQuantityContext } from './system-terrain.js';
 import { nativeIdOf, type LiftContext } from './lift-base.js';
 import { RelationLookup, type RelationKind } from './relation-lookup.js';
 import { refId } from './remesh-context.js';
@@ -118,7 +119,7 @@ export function nativeElementQuantities(store: IfcDataStore, view: MutableProper
   const elements = [...ctx.lifted.values()];
   const index = nativeIndex({ elements, types: [...types.values()], storeys });
   const hosted = elements.filter((e) => 'hostId' in e && e.hostId === element!.id);
-  const out = nativeQuantities(element, index, hosted);
+  const out = nativeQuantities(element, index, hosted, systemQuantityContext(store, view));
   return out ? { set: out.set, quantities: out.quantities.map((q) => ({ name: q.name, value: q.value, quantityType: q.quantityType })) } : null;
 }
 
