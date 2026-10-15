@@ -80,7 +80,7 @@ export function useLinkedElementSync(): void {
       // A plain extrusion also follows its holes: the closed contours drawn inside it.
       const holesChanged = !roof && !draft.params.roofSystem && !draft.params.corridor && typeof draft.params.solid !== 'string'
         && JSON.stringify(contourLoops(old, prev.drafts)?.slice(1)) !== JSON.stringify(contourLoops(draft, state.drafts)?.slice(1));
-      if (old.shape === draft.shape && old.params.depth === draft.params.depth && !roofChanged && !sweptChanged && !holesChanged) continue;
+      if (old.shape === draft.shape && old.params.depth === draft.params.depth && old.params.offset === draft.params.offset && !roofChanged && !sweptChanged && !holesChanged) continue;
       const view = state.views.find((v) => v.id === draft.viewId);
       if (!view) continue;
       const viewer = useViewerStore.getState();
@@ -115,7 +115,9 @@ export function useLinkedElementSync(): void {
       const loops = contourLoops(draft, state.drafts);
       const depth = Number(draft.params.depth);
       if (!plane || !loops || !Number.isFinite(depth) || depth === 0) continue;
-      const result = updateContourElement(view, plane, loops, { ifcClass, depth }, modelId, globalId);
+      // A sketch drawn again from a solid's history keeps where the solid starts off the work plane.
+      const offset = typeof draft.params.offset === 'number' ? draft.params.offset : undefined;
+      const result = updateContourElement(view, plane, loops, { ifcClass, depth, ...(offset ? { offset } : {}) }, modelId, globalId);
       if (!result.ok) toast.error(resolve('drafting.msg.extrudeFailed', { detail: result.error }));
     }
   }), []);

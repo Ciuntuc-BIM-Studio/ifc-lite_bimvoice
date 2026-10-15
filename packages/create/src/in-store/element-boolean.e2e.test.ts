@@ -143,4 +143,44 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('boolean operations betw
     expect(box.up[1]).toBeCloseTo(3, 3);
     expect(box.z[1] - box.z[0]).toBeCloseTo(0.2, 3);
   });
+
+  it('unites live: the tool stays an element, edited the union follows it; separated the target is its own again', async () => {
+    const { store, view, editor, anchor, a, b, mesh } = await crossing();
+    const combine = await import('./element-combine.js');
+    const { setWallSectionInStore } = await import('./wall-section-edit.js');
+    expect(combine.combineElementsInStore(store, editor, anchor, a, [b], 'UNION')).toEqual({ ok: true, remesh: [a, b] });
+    // Tied once: again is refused, and the tool cannot be another's tool too.
+    expect(combine.combineElementsInStore(store, editor, anchor, a, [b], 'UNION').ok).toBe(false);
+    expect(combine.readCombinations(store, view)).toMatchObject([{ target: a, tool: b, op: 'UNION' }]);
+    expect(bounds(await mesh(a)).up[1]).toBeCloseTo(5, 3);
+    // The tool is still a wall, still editable; the target follows when written again.
+    expect(setWallSectionInStore({ dataStore: store, view, editor }, b, { height: 6 }).ok).toBe(true);
+    expect(combine.rebakeCombinationInStore(store, editor, a).ok).toBe(true);
+    expect(bounds(await mesh(a)).up[1]).toBeCloseTo(6, 3);
+    expect(bounds(await mesh(b)).up[1]).toBeCloseTo(6, 3);
+    // Written again twice: still one union over its own body, not a union of unions.
+    expect(combine.rebakeCombinationInStore(store, editor, a).ok).toBe(true);
+    const { combinationOf } = await import('./body-trim.js');
+    const { AnchorEntityReader } = await import('./resolve-anchor.js');
+    const r = new AnchorEntityReader(store, view);
+    const top = booleans.bodyOf(r, a)!.items[0];
+    expect(combinationOf((id) => r.entity(id), top)).toBe('union');
+    expect(combinationOf((id) => r.entity(id), Number(String(r.entity(top)!.attributes[1]).replace('#', '')))).toBeNull();
+    // Separated: the target is its own 3 m wall again, the tool untouched.
+    expect(combine.separateCombinationsInStore(store, editor, [a]).sort()).toEqual([a, b].sort());
+    expect(combine.readCombinations(store, view)).toEqual([]);
+    expect(bounds(await mesh(a)).up[1]).toBeCloseTo(3, 3);
+    expect(bounds(await mesh(b)).up[1]).toBeCloseTo(6, 3);
+  });
+
+  it('intersects live: what both hold, following the tool', async () => {
+    const { store, view, editor, anchor, a, b, mesh } = await crossing();
+    const combine = await import('./element-combine.js');
+    const { setWallSectionInStore } = await import('./wall-section-edit.js');
+    expect(combine.combineElementsInStore(store, editor, anchor, a, [b], 'INTERSECTION').ok).toBe(true);
+    expect(bounds(await mesh(a)).x).toEqual([expect.closeTo(1.8, 3), expect.closeTo(2.2, 3)]);
+    expect(setWallSectionInStore({ dataStore: store, view, editor }, b, { thickness: 1 }).ok).toBe(true);
+    expect(combine.rebakeCombinationInStore(store, editor, a).ok).toBe(true);
+    expect(bounds(await mesh(a)).x).toEqual([expect.closeTo(1.5, 3), expect.closeTo(2.5, 3)]);
+  });
 });

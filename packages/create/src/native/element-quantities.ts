@@ -21,12 +21,12 @@ import { readJoineryType } from '../in-store/joinery-read.js';
 import { nativeQuantities } from './export-sets.js';
 import { liftSlab, liftWall } from './lift.js';
 import { liftHosted, liftLinear } from './lift-members.js';
-import { liftSolid } from './solid.js';
+import { liftSolid, recordedSolidShape } from './solid.js';
 import { liftSystem } from './lift-system.js';
 import { nativeIdOf, type LiftContext } from './lift-base.js';
 import { RelationLookup, type RelationKind } from './relation-lookup.js';
 import { refId } from './remesh-context.js';
-import type { NativeElement, NativeType } from './schema.js';
+import type { NativeElement, NativeSolid, NativeType } from './schema.js';
 import { nativeIndex } from './validate.js';
 
 const pairsOf = (relating: number, related: number, flip: boolean) =>
@@ -120,4 +120,24 @@ export function nativeElementQuantities(store: IfcDataStore, view: MutableProper
   const hosted = elements.filter((e) => 'hostId' in e && e.hostId === element!.id);
   const out = nativeQuantities(element, index, hosted);
   return out ? { set: out.set, quantities: out.quantities.map((q) => ({ name: q.name, value: q.value, quantityType: q.quantityType })) } : null;
+}
+
+/**
+ * `expressId` as a solid (its history in its storey's frame), for Studio to
+ * draw its sketch again: `recorded` when Studio wrote the history, else read
+ * from a plain extrusion body. Null when it is neither.
+ */
+export function nativeSolidOf(store: IfcDataStore, view: MutablePropertyView, expressId: number): { solid: NativeSolid; storey: number; recorded: boolean } | null {
+  const reader = new AnchorEntityReader(store, view);
+  const ctx: LiftContext = {
+    store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store),
+    storeyOf: new Map(), storeyExpressOf: new Map(), typeOf: new Map(), lifted: new Map(), skipped: [], partOf: new Map(),
+  };
+  const storey = containingStructure(store, view, reader, expressId);
+  const storeyId = storey === null ? null : nativeIdOf(reader.entity(storey)?.attributes[0]);
+  if (storey === null || !storeyId) return null;
+  ctx.storeyOf.set(expressId, storeyId);
+  ctx.storeyExpressOf.set(storeyId, storey);
+  const solid = liftSolid(ctx, expressId);
+  return solid ? { solid, storey, recorded: recordedSolidShape(ctx, expressId) !== null } : null;
 }

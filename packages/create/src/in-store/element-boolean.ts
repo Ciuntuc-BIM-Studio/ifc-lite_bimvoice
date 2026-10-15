@@ -89,9 +89,10 @@ export function removeSubtractionsInStore(store: IfcDataStore, editor: StoreEdit
 
 type BakedOp = 'UNION' | 'INTERSECTION';
 
-interface Body { repId: number; items: number[] }
+export interface Body { repId: number; items: number[] }
 
-function bodyOf(r: AnchorEntityReader, id: number): Body | null {
+/** `id`'s Body representation and its items. */
+export function bodyOf(r: AnchorEntityReader, id: number): Body | null {
   const shape = r.entity(refId(r.entity(id)?.attributes[6]) ?? -1);
   if (shape?.type.toUpperCase() !== 'IFCPRODUCTDEFINITIONSHAPE' || !Array.isArray(shape.attributes[2])) return null;
   const reps = (shape.attributes[2] as unknown[]).map(refId).filter((x): x is number => x !== null);
@@ -121,7 +122,7 @@ const BOOLEANS = new Set(['IFCBOOLEANRESULT', 'IFCBOOLEANCLIPPINGRESULT']);
  * operands carried. Null for what cannot be carried (a mapped item, a half
  * space bounded by a plane in another frame…).
  */
-function carried(r: AnchorEntityReader, editor: StoreEditor, id: number, f: Frame3D): number | null {
+export function carried(r: AnchorEntityReader, editor: StoreEditor, id: number, f: Frame3D): number | null {
   const e = r.entity(id);
   const type = e?.type.toUpperCase();
   if (!e || !type) return null;
@@ -173,8 +174,17 @@ function carried(r: AnchorEntityReader, editor: StoreEditor, id: number, f: Fram
 }
 
 /** `ids` folded into one operand by `op` (one id: itself). */
-function fold(editor: StoreEditor, ids: readonly number[], op: BakedOp | 'UNION'): number {
+export function fold(editor: StoreEditor, ids: readonly number[], op: BakedOp | 'UNION'): number {
   return ids.slice(1).reduce((acc, id) => editor.addEntity('IfcBooleanResult', [`.${op}.`, `#${acc}`, `#${id}`] as Attr).expressId, ids[0]);
+}
+
+/** `id`'s placement in the world, native units. */
+export function nativeFrameOf(store: IfcDataStore, view: MutablePropertyView, r: AnchorEntityReader, id: number): Frame3D | null {
+  const placement = refId(r.entity(id)?.attributes[5]);
+  const f = placement === null ? null : worldFrame({ dataStore: store, view }, placement);
+  const scale = getModelLengthUnitScale(store);
+  // Native units: the world frames are in metres.
+  return f ? { r: f.r, t: [f.t[0] / scale, f.t[1] / scale, f.t[2] / scale] } : null;
 }
 
 export type BakeOutcome = { ok: true; remesh: number[] } | { ok: false; reason: string };
@@ -187,13 +197,7 @@ export type BakeOutcome = { ok: true; remesh: number[] } | { ok: false; reason: 
 export function bakeBooleanInStore(store: IfcDataStore, editor: StoreEditor, target: number, tools: readonly number[], op: BakedOp): BakeOutcome {
   const view = editor.getMutationView();
   const r = new AnchorEntityReader(store, view);
-  const scale = getModelLengthUnitScale(store);
-  const frameOf = (id: number): Frame3D | null => {
-    const placement = refId(r.entity(id)?.attributes[5]);
-    const f = placement === null ? null : worldFrame({ dataStore: store, view }, placement);
-    // Native units: the world frames are in metres.
-    return f ? { r: f.r, t: [f.t[0] / scale, f.t[1] / scale, f.t[2] / scale] } : null;
-  };
+  const frameOf = (id: number) => nativeFrameOf(store, view, r, id);
   const body = bodyOf(r, target);
   const targetFrame = frameOf(target);
   if (!body || !targetFrame) return { ok: false, reason: `#${target} has no body to combine` };

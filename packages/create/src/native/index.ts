@@ -26,6 +26,6 @@ export { planNativeRemesh, type NativeRemeshPlan } from './remesh-plan.js';
 export { nativePset, nativeQuantities, sectionArea, writeNativeExportSets, type NativeExportSets } from './export-sets.js';
 export { convertToNativeInStore, planNativeConversion, sizedJoinerySpec, type NativeConversionPlan, type NativeConversionResult } from './convert.js';
 export { nativeExportIds } from './export-ids.js';
-export { nativeElementQuantities, type ElementQuantities } from './element-quantities.js';
+export { nativeElementQuantities, nativeSolidOf, type ElementQuantities } from './element-quantities.js';
 export { liftSolid, readSolidShape, solidFaces, solidMeasures, solidStoreParams } from './solid.js';
 export { NATIVE_SOLID_PSET, nativeIfcClass } from './ifc-mapping.js';

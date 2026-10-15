@@ -53,11 +53,21 @@ export function remeshAfterCommit(
   void requestRemesh(get, modelId, expressIds, cause);
 }
 
+let replaying = 0;
+/** Whether the re-mesh being requested is undo's or redo's (observers must not commit on top of it). */
+export const remeshIsReplay = (): boolean => replaying > 0;
+
 /** Re-mesh what `batchId` re-shaped, after undo or redo restored its view. */
 export function remeshForBatch(get: Get, modelId: string, batchId: string | undefined): void {
   const entry = batchId === undefined ? undefined : entries(get).get(batchId);
   if (!entry || entry.modelId !== modelId) return;
-  void requestRemesh(get, entry.modelId, entry.expressIds, entry.cause);
+  // Observers run while the request is made: they see the flag.
+  replaying++;
+  try {
+    void requestRemesh(get, entry.modelId, entry.expressIds, entry.cause);
+  } finally {
+    replaying--;
+  }
 }
 
 /** What `modelId`'s batches re-shaped, for the journal (N5): `[batchId, model-local ids, cause]`. */

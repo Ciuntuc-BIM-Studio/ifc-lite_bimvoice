@@ -4,18 +4,19 @@
 
 /**
  * Studio's boolean operations on the selection: the element selected first is
- * the target; Subtract is live and taken back by Remove subtraction; Union
- * bakes the tools into the target and deletes them, one Undo restoring both.
+ * the target; Subtract is live and taken back by Remove operation; Union is
+ * live too: the tool stays, hidden as part of the target, shown by Show
+ * operands, set free by Remove operation; one Undo takes the union back.
  */
 
 import { beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { addWallToStore, readSubtractions, resolveSpatialAnchor } from '@ifc-lite/create';
+import { addWallToStore, readCombinations, readSubtractions, resolveSpatialAnchor } from '@ifc-lite/create';
 import { useViewerStore } from '@/store';
 import { toGlobalIdFromModels } from '@/store/globalId';
 import { recordModellingCommit } from '@/store/slices/mutation-modelling-records';
 import { MODEL_ID, STOREY, seedModelingSession } from '@/test/modeling-session-fixture';
-import { bakeSelection, booleanSelection, removeSubtractionsOfSelection, subtractSelection } from './element-boolean';
+import { bakeSelection, booleanSelection, removeSubtractionsOfSelection, subtractSelection, toggleOperandsOfSelection } from './element-boolean';
 
 const live = () => {
   const s = useViewerStore.getState();
@@ -66,14 +67,27 @@ describe('Studio boolean operations', () => {
     assert.equal(readSubtractions(live().dataStore, live().view).length, 0);
   });
 
-  it('unites into the target and deletes the tool; one Undo brings both back', () => {
+  it('unites live: the tool stays, hidden; Show operands shows it, Remove operation sets it free, Undo takes the union back', () => {
     const { a, b } = crossing();
     select(a, b);
     assert.deepEqual(bakeSelection('UNION').error, null);
-    assert.equal(exists(a), true);
-    assert.equal(exists(b), false, 'the tool is consumed');
+    assert.ok(exists(a) && exists(b), 'the tool stays an element');
+    assert.deepEqual(readCombinations(live().dataStore, live().view).map((c) => [c.target, c.tool, c.op]), [[a, b, 'UNION']]);
+    const hidden = () => useViewerStore.getState().hiddenEntities.has(gid(b));
+    assert.equal(hidden(), true, 'drawn as part of the target');
     assert.equal(useViewerStore.getState().selectedEntityId, gid(a));
+    select(a);
+    assert.equal(toggleOperandsOfSelection(), 1);
+    assert.equal(hidden(), false, 'shown for editing');
+    toggleOperandsOfSelection();
+    assert.equal(hidden(), true);
+    assert.equal(removeSubtractionsOfSelection(), 2);
+    assert.equal(readCombinations(live().dataStore, live().view).length, 0);
+    assert.equal(hidden(), false, 'set free, drawn again');
     useViewerStore.getState().undo(MODEL_ID);
-    assert.equal(exists(b), true, 'one undo restores the tool');
+    assert.equal(readCombinations(live().dataStore, live().view).length, 1, 'undo brings the union back');
+    useViewerStore.getState().undo(MODEL_ID);
+    assert.equal(readCombinations(live().dataStore, live().view).length, 0, 'and the next takes it away');
+    assert.ok(exists(b));
   });
 });

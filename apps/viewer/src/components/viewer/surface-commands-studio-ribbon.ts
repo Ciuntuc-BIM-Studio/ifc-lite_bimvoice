@@ -4,14 +4,18 @@
 
 /**
  * The Studio tab's own commands: boolean operations between elements
- * (`project/element-boolean.ts`). Extrude, Sweep and Revolve are the
+ * (`project/element-boolean.ts`) and opening a solid's sketch
+ * (`project/sketch-recovery.ts`). Extrude, Sweep and Revolve are the
  * `design:*` drafting commands, shown on Studio.
  */
 
-import { BooleanIntersect, BooleanRemove, BooleanSubtract, BooleanUnion } from '@/icons';
+import { BooleanIntersect, BooleanRemove, BooleanSubtract, BooleanUnion, EditElement } from '@/icons';
+import { useViewerStore } from '@/store';
+import { openSolidSketch } from '@/project/sketch-recovery';
+import { openProjectView } from '@/project/open-view';
 import { toast } from '@/components/ui/toast';
 import { resolve } from '@/i18n/registry';
-import { bakeSelection, removeSubtractionsOfSelection, subtractSelection, type BooleanSelection } from '@/project/element-boolean';
+import { bakeSelection, removeSubtractionsOfSelection, subtractSelection, toggleOperandsOfSelection, type BooleanSelection } from '@/project/element-boolean';
 import type { SurfaceCommandDefinition } from './surface-command-types';
 
 const ribbonOnly = ['ribbon'] as const;
@@ -37,14 +41,38 @@ function bake(op: 'UNION' | 'INTERSECTION'): () => void {
   };
 }
 
+function toggleOperands(): void {
+  const count = toggleOperandsOfSelection();
+  if (!count) toast.info(resolve('studio.boolean.noOperands'));
+}
+
 function removeSubtraction(): void {
   const count = removeSubtractionsOfSelection();
   toast.info(resolve(count ? 'studio.boolean.removed' : 'studio.boolean.noneToRemove'));
 }
 
+/** Open the selected solid's sketch on its view, drawn again from its history when the project has none. */
+function editSketch(): void {
+  const s = useViewerStore.getState();
+  const ref = s.selectedEntityId === null || s.selectedEntityId === undefined ? null : s.resolveGlobalIdFromModels(s.selectedEntityId);
+  if (!ref) {
+    toast.info(resolve('studio.sketch.select'));
+    return;
+  }
+  const outcome = openSolidSketch(ref.modelId, ref.expressId);
+  if (!outcome.ok) {
+    toast.error(resolve('studio.sketch.failed', { reason: outcome.error }));
+    return;
+  }
+  openProjectView(outcome.viewId);
+  if (outcome.drawn) toast.success(resolve('studio.sketch.drawn'));
+}
+
 export const RIBBON_STUDIO_SURFACE_COMMANDS = [
+  { id: 'studio:edit-sketch', labelKey: 'studio.sketch.edit', keywords: 'sketch edit profile contour history solid extrude sweep revolve', category: 'Tools', icon: EditElement, surfaces: ribbonOnly, enabled: always, run: editSketch },
   { id: 'studio:subtract', labelKey: 'studio.boolean.subtract', keywords: 'boolean subtract difference cut solid element operation SEO', category: 'Tools', icon: BooleanSubtract, surfaces: ribbonOnly, enabled: always, run: subtract },
   { id: 'studio:union', labelKey: 'studio.boolean.union', keywords: 'boolean union add merge join solid', category: 'Tools', icon: BooleanUnion, surfaces: ribbonOnly, enabled: always, run: bake('UNION') },
   { id: 'studio:intersect', labelKey: 'studio.boolean.intersect', keywords: 'boolean intersect intersection common solid', category: 'Tools', icon: BooleanIntersect, surfaces: ribbonOnly, enabled: always, run: bake('INTERSECTION') },
+  { id: 'studio:operands', labelKey: 'studio.boolean.operands', keywords: 'boolean union intersect operands tools show hide edit', category: 'Tools', icon: BooleanUnion, surfaces: ribbonOnly, enabled: always, run: toggleOperands },
   { id: 'studio:remove-subtraction', labelKey: 'studio.boolean.removeSubtraction', keywords: 'boolean subtract remove undo cut', category: 'Tools', icon: BooleanRemove, surfaces: ribbonOnly, enabled: always, run: removeSubtraction },
 ] as const satisfies readonly SurfaceCommandDefinition[];

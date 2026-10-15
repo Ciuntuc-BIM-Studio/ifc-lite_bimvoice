@@ -80,6 +80,8 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('Studio solids as native
     };
     const session = create.liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' });
     check(session, 'session');
+    // One element on its own (Studio's "Edit sketch"): its history, as Studio recorded it.
+    expect(create.nativeSolidOf(store, view, ids.get('sweep')!)).toMatchObject({ storey, recorded: true, solid: { shape: SHAPES.sweep.shape } });
 
     // Quantities from the history: the block's net volume (2 x 1 less 0.5 x 0.5, by 0.5) and the proxy set.
     expect(create.solidMeasures(SHAPES.block.shape).volume).toBeCloseTo((2 - 0.25) * 0.5, 9);
@@ -124,6 +126,8 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('Studio solids as native
       for (const [key, id] of Object.entries(ids)) {
         const e = lifted.model.elements.find((x) => lifted.expressIds.get(x.id) === id);
         expect(e?.kind, `${key}: ${JSON.stringify(lifted.skipped.filter((k) => k.expressId === id))}`).toBe('solid');
+        // Read from its body, not recorded: "Edit sketch" draws it from that.
+        expect(create.nativeSolidOf(store, view, id)?.recorded, key).toBe(false);
         const [native] = runtime.meshNativeSolids(create.encodeNativeSolids(create.nativeElementSolids(e!, create.nativeIndex(lifted.model)))) as Array<{ positions: Float32Array; indices: Uint32Array }>;
         const ref = reparsed.entityIndex.byId.get(id)!;
         const c = api.processGeometryBatch(bytes, new Uint32Array([id, ref.byteOffset, ref.byteOffset + ref.byteLength]), pre.unitScale, 0, 0, 0, false, pre.voidKeys, pre.voidCounts, pre.voidValues, pre.styleIds, pre.styleColors);

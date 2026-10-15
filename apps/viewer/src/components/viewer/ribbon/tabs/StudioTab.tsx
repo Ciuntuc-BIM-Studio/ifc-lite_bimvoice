@@ -4,12 +4,12 @@
 
 /**
  * Ribbon · Studio tab — free modelling: solids from 2D contours (Extrude,
- * Sweep along a path, Revolve about an axis) and boolean operations between
- * elements (Subtract, live; Union and Intersect, baked into the element
- * selected first; Remove subtraction).
+ * Sweep along a path, Revolve about an axis), Edit sketch, and boolean
+ * operations between elements, all live (Subtract, Union, Intersect; Show
+ * operands; Remove operation).
  */
 
-import { BooleanIntersect, BooleanRemove, BooleanSubtract, BooleanUnion, DraftExtrude, DraftFace, DraftRevolve, DraftSweep } from '@/icons';
+import { BooleanIntersect, BooleanRemove, BooleanSubtract, BooleanUnion, DraftExtrude, DraftFace, DraftRevolve, DraftSweep, EditElement } from '@/icons';
 import { useTranslation } from '@/i18n';
 import { useDraftingSession } from '@/drafting/session';
 import { RibbonGroup, RibbonGroupDivider, RibbonSmallStack } from '../primitives';
@@ -26,6 +26,7 @@ export function StudioTab() {
         <RibbonCommandLargeButton commandId="design:extrude" icon={DraftExtrude} active={on('extrude')} />
         <RibbonCommandLargeButton commandId="design:sweep" icon={DraftSweep} active={on('sweep')} />
         <RibbonCommandLargeButton commandId="design:revolve" icon={DraftRevolve} active={on('revolve')} />
+        <RibbonCommandLargeButton commandId="studio:edit-sketch" icon={EditElement} />
       </RibbonGroup>
       <RibbonGroupDivider />
       <RibbonGroup label={t('studio.group.boolean')}>
@@ -33,6 +34,7 @@ export function StudioTab() {
         <RibbonCommandLargeButton commandId="studio:union" icon={BooleanUnion} />
         <RibbonCommandLargeButton commandId="studio:intersect" icon={BooleanIntersect} />
         <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="studio:operands" icon={BooleanUnion} />
           <RibbonCommandSmallButton commandId="studio:remove-subtraction" icon={BooleanRemove} />
         </RibbonSmallStack>
       </RibbonGroup>

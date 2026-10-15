@@ -72,6 +72,11 @@ const DEFINES: ConstructorParameters<typeof RelationLookup>[3] = {
   },
 };
 
+/** The history Studio recorded on `expressId` (`Pset_LapinSolid`), or null (it may still be a plain extrusion). */
+export function recordedSolidShape(ctx: LiftContext, expressId: number): NativeSolidShape | null {
+  return readSolidShape(solidSpec(ctx, new RelationLookup(ctx.store, ctx.view, ctx.reader, DEFINES), expressId));
+}
+
 /** Lift `expressId` as a Studio solid, when it carries its history; null otherwise. */
 export function liftSolid(ctx: LiftContext, expressId: number, psets = new RelationLookup(ctx.store, ctx.view, ctx.reader, DEFINES)): NativeSolid | null {
   // Its history as Studio wrote it; else a plain extrusion on its storey, read from its body.
