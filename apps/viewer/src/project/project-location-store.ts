@@ -12,7 +12,7 @@
 
 import { create } from 'zustand';
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
-import { fromStoreyLocal } from '@ifc-lite/create';
+import { fromStoreyLocal, toStoreyLocal } from '@ifc-lite/create';
 import { useViewerStore } from '@/store';
 import { canMutate } from '@/store/mutation-permission';
 import { getEffectiveGeoreference } from '@/lib/geo/effective-georef';
@@ -25,6 +25,7 @@ import { resolveTarget } from './contour-element';
 import { isDrawingTabActive } from './document-tabs';
 import { startDraftCommand } from '@/drafting/session';
 import { ensureEditMode } from './edit-mode';
+import { useProjectStore } from './project-store';
 import type { ProjectView } from './types';
 import type { LocationSolution, MapConversionFields, Vec3 } from './project-location';
 import { crsFromStored, type LocationCrs } from './project-location-crs';
@@ -93,9 +94,10 @@ export function readProjectLocation(): { crs: LocationCrs; conversion: MapConver
   return null;
 }
 
-/** Write the location to every model it applies to. The number of models written. */
-export function applyProjectLocation(crs: LocationCrs, solution: LocationSolution): number {
+/** Write the location to every model it applies to, and keep its known point (`base`) with the project. The number of models written. */
+export function applyProjectLocation(crs: LocationCrs, solution: LocationSolution, base: { local: Vec3; map: Vec3 }): number {
   if (!ensureEditMode()) return 0;
+  useProjectStore.setState({ surveyPoint: { local: [...base.local], map: [...base.map] }, dirty: true });
   const s = useViewerStore.getState();
   const ids = locationModels();
   for (const id of ids) {
@@ -136,4 +138,20 @@ export function planPointToProject(view: ProjectView, plane: SectionPlaneConfig,
   const [x, y] = fromStoreyLocal(plan, [local[0], local[1]]);
   // The level itself: the floor of the plan's storey (the cut height is where the view looks, not the point).
   return [x, y, effectiveStoreyElevation(model.ifcDataStore, s.mutationViews.get(target.modelId), target.storeyId)];
+}
+
+/** A point in project coordinates in the viewer's render space (through the first located model's lowest storey), or null. */
+export function projectToRender(p: Vec3): Vec3 | null {
+  const s = useViewerStore.getState();
+  const modelId = locationModels()[0];
+  const ds = modelId ? s.models.get(modelId)?.ifcDataStore : null;
+  const elevations = ds?.spatialHierarchy?.storeyElevations;
+  if (!modelId || !ds || !elevations?.size) return null;
+  const storeyId = [...elevations.entries()].sort((a, b) => a[1] - b[1])[0][0];
+  const workplane = buildStoreyWorkplane(s, modelId, storeyId, 0);
+  if (!isWorkplane(workplane)) return null;
+  const { plan } = storeyAuthoringFrame(ds, storeyId, undefined);
+  const [x, y] = toStoreyLocal(plan, [p[0], p[1]]);
+  const [rx, ry, rz] = workplane.localToRender([x, y, p[2] - effectiveStoreyElevation(ds, s.mutationViews.get(modelId), storeyId)]);
+  return [rx, ry, rz];
 }

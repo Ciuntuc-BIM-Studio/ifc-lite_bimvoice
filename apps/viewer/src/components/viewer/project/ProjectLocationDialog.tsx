@@ -94,7 +94,8 @@ export function ProjectLocationDialog() {
   };
   const apply = () => {
     if (!solved || !crsOk) return;
-    const count = applyProjectLocation(draft.crs, solved);
+    const base = vec(draft.base.map);
+    const count = applyProjectLocation(draft.crs, solved, { local: vec(draft.base.local), map: [surveyedEasting(draft.crs, base[0]), base[1], base[2]] });
     toast.success(t('location.applied', { count }));
     // The site's latitude, longitude and true north follow once the projection is resolved.
     void geolocateProject(locationModels(), draft.crs, solved).then((n) => { if (n === 0 && count > 0) toast.info(t('location.noGeo')); });

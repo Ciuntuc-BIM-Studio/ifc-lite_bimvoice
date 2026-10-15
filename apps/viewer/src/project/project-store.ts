@@ -57,6 +57,7 @@ export function projectDocument(state: ProjectState = useProjectStore.getState()
     civilDrawings: state.civilDrawings ?? [],
     typicalSections: state.typicalSections ?? [],
     materials: state.materials ?? [],
+    ...(state.surveyPoint ? { surveyPoint: state.surveyPoint } : {}),
   };
 }
 
@@ -84,6 +85,7 @@ export function loadProjectDocument(doc: ProjectDocument, options: { dirty?: boo
     civilDrawings: doc.civilDrawings ?? [],
     typicalSections: doc.typicalSections ?? [],
     materials: doc.materials ?? [],
+    surveyPoint: doc.surveyPoint,
     draftLayers: doc.draftLayers.length > 0 ? doc.draftLayers : [{ ...DEFAULT_DRAFT_LAYER }],
     views: [...syncDefaultViews(doc.views, levels)],
     activeItemId: null,

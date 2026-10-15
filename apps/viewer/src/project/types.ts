@@ -280,4 +280,11 @@ export interface ProjectDocument {
   typicalSections?: ProjectTypicalSection[];
   /** Building materials: how each IfcMaterial draws where it is cut. */
   materials?: ProjectMaterial[];
+  /** Project location's known point: where it is in the model (project coordinates) and where the survey puts it (E, N, H). */
+  surveyPoint?: SurveyPointRecord;
+}
+
+export interface SurveyPointRecord {
+  local: [number, number, number];
+  map: [number, number, number];
 }

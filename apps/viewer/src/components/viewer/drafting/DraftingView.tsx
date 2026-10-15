@@ -338,7 +338,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
         ) : null}
         <SlabOutlineGrips handles={modelHandles} />
         <ModelHandlesLayer handles={modelHandles} />
-        <LocationReadout view={view} plane={plane} cursor={state.cursor} />
+        <LocationReadout view={view} plane={plane} cursor={state.cursor} transform={viewTransform} axis={axis} />
         <ModelCommandLayer map={bim.map} />
         <DraftPropertiesPanel entities={entities.filter((e) => selection.has(e.id))} layers={layers} extraPatterns={extraPatterns} />
       </div>

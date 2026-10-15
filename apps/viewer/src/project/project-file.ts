@@ -139,7 +139,15 @@ export function parseProjectFile(text: string): ProjectDocument {
     civilDrawings: list('civilDrawings').flatMap((v) => readCivilDrawing(v)),
     typicalSections: list('typicalSections').flatMap((v) => readTypicalSection(v)),
     materials: list('materials').flatMap((v) => readMaterial(v)),
+    ...readSurveyPoint(raw.surveyPoint),
   };
+}
+
+const triple = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === 'number' && Number.isFinite(n));
+
+/** Project location's known point; dropped when malformed. */
+function readSurveyPoint(v: unknown): { surveyPoint?: ProjectDocument['surveyPoint'] } {
+  return isObject(v) && triple(v.local) && triple(v.map) ? { surveyPoint: { local: v.local, map: v.map } } : {};
 }
 
 const WEIGHTS = new Set(['heavy', 'medium', 'light', 'hairline']);

@@ -54,6 +54,8 @@ export const projectLocationEn = {
   'location.apply': 'Apply',
   'location.cancel': 'Cancel',
   'location.applied': 'Project location set on {count} model(s).',
+  'location.marker.base': '±0.00 base point',
+  'location.marker.survey': 'Survey point',
   'location.readout.x': 'X',
   'location.readout.y': 'Y',
   'location.readout.e': 'E',

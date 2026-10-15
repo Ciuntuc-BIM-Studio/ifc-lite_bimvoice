@@ -88,3 +88,15 @@ describe('project location on the globe', () => {
     assert.ok(turned.trueNorth[1] > 0);
   });
 });
+
+describe('the survey point in the project file', () => {
+  it('is saved and read back, and a malformed one is dropped', async () => {
+    const { parseProjectFile, serializeProject } = await import('./project-file');
+    const { EMPTY_PROJECT } = await import('./project-store');
+    const surveyPoint = { local: [-2.268, 4.538, 0] as Vec3, map: [389_000.25, 5_800_000.5, 35.2] as Vec3 };
+    assert.deepEqual(parseProjectFile(serializeProject({ ...EMPTY_PROJECT, surveyPoint })).surveyPoint, surveyPoint);
+    const broken = JSON.parse(serializeProject(EMPTY_PROJECT));
+    broken.surveyPoint = { local: [1, 2], map: [1, 2, 3] };
+    assert.equal(parseProjectFile(JSON.stringify(broken)).surveyPoint, undefined);
+  });
+});

@@ -5,7 +5,8 @@
 /**
  * `BasepointOverlay` — a `Pin` + `WorldLabel` at the viewer-space position
  * of each loaded model's IFC (0,0,0) point, on the shared scene-overlay
- * kernel (#5486/#5512, charter #5478).
+ * kernel (#5486/#5512, charter #5478); with them, a georeferenced project's
+ * base and survey points (`ProjectLocationOverlay`).
  *
  * Helps users diagnose federation alignment problems by showing where each
  * model THINKS its origin is in the displayed scene. For a correctly
@@ -36,6 +37,7 @@ import {
 import { extractModelSpatialPlacement, findReferenceSpatialModel } from '@/hooks/ingest/federationAlign';
 import type { FederatedModel } from '@/store/types';
 import type { IfcDataStore } from '@ifc-lite/parser';
+import { ProjectLocationOverlay } from './ProjectLocationOverlay';
 
 interface BasepointDot {
   modelId: string;
@@ -122,6 +124,7 @@ export function BasepointOverlay() {
 
   return (
     <>
+      <ProjectLocationOverlay />
       {dots.map((dot) => {
         const colour = STATUS_COLOUR[dot.status ?? 'none'];
         return (
