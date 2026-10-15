@@ -6,7 +6,10 @@
  * Studio's free solids as native elements: their history (`NativeSolidShape`)
  * travels with the model in `Pset_LapinSolid` (JSON in `Spec`, written by
  * the Studio builders), so a solid is recognized wherever its IFC goes, is
- * rebuilt from it (`solidStoreParams`), and has its quantities from it.
+ * rebuilt from it (`solidStoreParams`), and has its quantities from it. An
+ * element without one whose body is a plain extrusion on its storey (a
+ * plate, a member, a footing) is a solid too, its history read from that
+ * body (`solid-geometry.ts`).
  */
 
 import { RelationshipType } from '@ifc-lite/data';
@@ -19,6 +22,7 @@ import { liftBase, type LiftContext } from './lift-base.js';
 import { RelationLookup } from './relation-lookup.js';
 import type { NativeSolid, NativeSolidShape, PlanPoint } from './schema.js';
 import { solidShapeProblems } from './validate.js';
+import { extrusionShape } from './solid-geometry.js';
 
 const refId = (v: unknown): number | null => {
   if (typeof v === 'number' && Number.isInteger(v) && v > 0) return v;
@@ -70,7 +74,10 @@ const DEFINES: ConstructorParameters<typeof RelationLookup>[3] = {
 
 /** Lift `expressId` as a Studio solid, when it carries its history; null otherwise. */
 export function liftSolid(ctx: LiftContext, expressId: number, psets = new RelationLookup(ctx.store, ctx.view, ctx.reader, DEFINES)): NativeSolid | null {
-  const shape = readSolidShape(solidSpec(ctx, psets, expressId));
+  // Its history as Studio wrote it; else a plain extrusion on its storey, read from its body.
+  const storey = ctx.storeyExpressOf.get(ctx.storeyOf.get(expressId) ?? '');
+  const shape = readSolidShape(solidSpec(ctx, psets, expressId))
+    ?? (storey === undefined ? null : extrusionShape(ctx, expressId, ctx.reader.storeyPlacementId(storey)));
   if (!shape) return null;
   const skipped = ctx.skipped.length;
   const base = liftBase(ctx, expressId, 'solid');
@@ -85,7 +92,7 @@ export function liftSolids(ctx: LiftContext): void {
   const psets = new RelationLookup(ctx.store, ctx.view, ctx.reader, DEFINES);
   for (const type of STUDIO_CLASSES) {
     for (const id of ctx.reader.ids(type)) {
-      if (ctx.lifted.has(id)) continue;
+      if (ctx.lifted.has(id) || ctx.partOf.has(id)) continue;
       const solid = liftSolid(ctx, id, psets);
       if (!solid) continue;
       ctx.lifted.set(id, solid);

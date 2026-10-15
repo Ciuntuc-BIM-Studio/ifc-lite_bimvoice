@@ -22,6 +22,8 @@ export interface LiftResult {
   /** Native id -> express id, for every lifted element. */
   expressIds: Map<NativeId, number>;
   skipped: LiftSkip[];
+  /** Elements built from a system's (or a wall's) spec, by express id: the system they belong to. */
+  parts: Map<number, NativeId>;
 }
 
 /** What the per-class lifters share. */
@@ -41,6 +43,8 @@ export interface LiftContext {
   /** Lifted elements by express id (hosts for openings). */
   lifted: Map<number, NativeElement>;
   skipped: LiftSkip[];
+  /** Parts of a system or a timber-framed wall, by express id: the native id of what they belong to. */
+  partOf: Map<number, NativeId>;
 }
 
 /** The native id of an IFC GlobalId, or null when it is not a valid one. */

@@ -73,6 +73,7 @@ export const NATIVE_PARAMS: Readonly<Record<NativeKind, readonly NativeParam[]>>
     { key: 'flipHand', quantity: 'boolean', scope: 'instance', default: false },
   ],
   solid: [],
+  system: [],
   window: [
     { key: 'along', quantity: 'length', scope: 'instance', required: true },
     { key: 'sill', quantity: 'length', scope: 'instanceOrType' },

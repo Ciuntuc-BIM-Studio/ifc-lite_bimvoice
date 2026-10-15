@@ -54,7 +54,7 @@ export function nativeElementQuantities(store: IfcDataStore, view: MutableProper
   const [openingsOf, hostOf, fillingOf, filledBy, typeOf] = [look(OPENINGS), look(HOST), look(FILLING), look(FILLED), look(TYPE)];
   const ctx: LiftContext = {
     store, view, editor: new StoreEditor(store, view), reader, scale: getModelLengthUnitScale(store),
-    storeyOf: new Map(), storeyExpressOf: new Map(), typeOf: new Map(), lifted: new Map(), skipped: [],
+    storeyOf: new Map(), storeyExpressOf: new Map(), typeOf: new Map(), lifted: new Map(), skipped: [], partOf: new Map(),
   };
   const types = new Map<string, NativeType>();
   const storeys: Array<{ id: string; name: string; elevation: number }> = [];

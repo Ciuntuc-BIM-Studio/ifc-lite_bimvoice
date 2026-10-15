@@ -21,6 +21,8 @@
 import type { ProfileSection } from '../in-store/profile.js';
 import type { JoinerySpec } from '../in-store/joinery-spec.js';
 import type { WallAlignment, WallEndCut } from '../in-store/wall-join.js';
+import type { TimberFrameSpec } from '../in-store/timber-frame.js';
+import type { WallRoofTrim } from '../in-store/wall-roof-trim.js';
 
 /** Bumped when a reader of an older schema could misread a newer file; migrations take older files forward. */
 export const NATIVE_SCHEMA_VERSION = 1;
@@ -34,7 +36,7 @@ export type PlanPoint = [number, number];
 export type LocalPoint = [number, number, number];
 
 /** The classes of the first round (docs/format-lapin-nativ.md, decision 4), and Studio's free solids. */
-export type NativeKind = 'wall' | 'slab' | 'beam' | 'column' | 'opening' | 'door' | 'window' | 'solid';
+export type NativeKind = 'wall' | 'slab' | 'beam' | 'column' | 'opening' | 'door' | 'window' | 'solid' | 'system';
 
 /** The attributes every native element carries, named as IfcRoot / IfcElement name them. */
 export interface NativeElementBase {
@@ -79,6 +81,10 @@ export interface NativeWall extends NativeElementBase {
   endCut?: WallEndCut;
   /** Layers in reverse order (Flip Y): the type's right face becomes the left one. */
   flipLayers?: boolean;
+  /** Built as a timber frame (studs, plates, sheathing: its parts), as `TimberFrameSpec` describes it. */
+  timberFrame?: TimberFrameSpec;
+  /** Cut to the roof over it, as `WallRoofTrim` describes it. */
+  roofTrim?: WallRoofTrim;
 }
 
 /** A slab: a closed plan outline, with holes, extruded down or up by its thickness. */
@@ -185,7 +191,25 @@ export interface NativeSolid extends NativeElementBase {
   shape: NativeSolidShape;
 }
 
-export type NativeElement = NativeWall | NativeSlab | NativeBeam | NativeColumn | NativeOpening | NativeJoinery | NativeSolid;
+/** The parametric families that build an assembly of parts from one spec (the root element carries it). */
+export type NativeSystemFamily = 'roof' | 'truss' | 'curtainWall' | 'corridor' | 'stair';
+
+/**
+ * A parametric system: a roof (its planes and rafters), a truss, a curtain
+ * wall, a corridor, a stair. Its `spec` is the family's own (`RoofSystemSpec`,
+ * `PlacedTrussSpec`, `CurtainWallSpec`, `CorridorSpec`, the stair's
+ * dimensions and placement); its parts are built from it and are not
+ * elements of their own.
+ */
+export interface NativeSystem extends NativeElementBase {
+  kind: 'system';
+  family: NativeSystemFamily;
+  /** The IFC class of the root it is written as (IfcRoof, IfcElementAssembly, IfcCurtainWall, IfcStair). */
+  ifcClass: string;
+  spec: Record<string, unknown>;
+}
+
+export type NativeElement = NativeWall | NativeSlab | NativeBeam | NativeColumn | NativeOpening | NativeJoinery | NativeSolid | NativeSystem;
 
 /** One layer of a wall or slab type (IfcMaterialLayer). */
 export interface NativeLayer {

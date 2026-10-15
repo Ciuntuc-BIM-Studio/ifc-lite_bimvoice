@@ -68,7 +68,7 @@ const utf8 = (...fields: string[]): Column[] => fields.map((field) => ({ name: f
 
 /** The columns of each class's table, after BASE. */
 const ELEMENT_COLUMNS: Record<NativeKind, Column[]> = {
-  wall: [...point('start', 2), ...point('end', 2), ...f64('baseOffset', 'height', 'thickness', 'offset'), ...utf8('alignment'), ...json('startCut', 'endCut'), ...bool('flipLayers')],
+  wall: [...point('start', 2), ...point('end', 2), ...f64('baseOffset', 'height', 'thickness', 'offset'), ...utf8('alignment'), ...json('startCut', 'endCut', 'timberFrame', 'roofTrim'), ...bool('flipLayers')],
   slab: [...json('outline', 'holes'), ...f64('topOffset', 'thickness')],
   beam: [...point('start', 3), ...point('end', 3), ...json('section'), ...f64('rotation')],
   column: [...point('position', 3), ...f64('height', 'rotation'), ...json('section')],
@@ -76,6 +76,7 @@ const ELEMENT_COLUMNS: Record<NativeKind, Column[]> = {
   door: [...utf8('hostId'), ...f64('along', 'sill'), ...bool('flipFacing', 'flipHand')],
   window: [...utf8('hostId'), ...f64('along', 'sill'), ...bool('flipFacing', 'flipHand')],
   solid: [...utf8('ifcClass'), ...json('shape')],
+  system: [...utf8('family', 'ifcClass'), ...json('spec')],
 };
 
 const ARROW: Record<Kind, () => unknown> = { f64: () => new arrow.Float64(), utf8: () => new arrow.Utf8(), bool: () => new arrow.Bool(), json: () => new arrow.Utf8() };

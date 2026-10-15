@@ -111,6 +111,9 @@ function shapeProblems(element: NativeElement): string[] {
     case 'solid':
       out.push(...solidShapeProblems(element.shape));
       break;
+    case 'system':
+      if (!element.spec || typeof element.spec !== 'object') out.push('a system needs its family\'s spec');
+      break;
     case 'beam':
       if (!finitePoint(element.start, 3) || !finitePoint(element.end, 3)) out.push('start and end must be finite points');
       else if (Math.hypot(element.end[0] - element.start[0], element.end[1] - element.start[1], element.end[2] - element.start[2]) <= EPS) out.push('start and end must be distinct');

@@ -35,6 +35,7 @@ import { liftBase, nativeIdOf, text, type LiftContext, type LiftResult } from '.
 import { ringArea2 } from './validate.js';
 import { liftMembers, liftHosted } from './lift-members.js';
 import { liftSolids } from './solid.js';
+import { forgetParts, liftSystems, liftWallExtras } from './lift-system.js';
 
 /** Material ids derive from their names in this namespace (a material has no GlobalId of its own). */
 const MATERIAL_NAMESPACE = '6f1d7c2a-58e4-4c39-9a0b-5b7f0f8a2c11';
@@ -123,13 +124,13 @@ export function liftWall(ctx: LiftContext, expressId: number): NativeElement | n
   if (read.parentPlacementId !== storeyPlacement) return skip('not placed on its storey');
   const w = read.wall;
   const baseOffset = Math.round(read.location[2] * ctx.scale * 1e9) / 1e9;
-  return {
+  return liftWallExtras(ctx, expressId, {
     ...base, kind: 'wall', start: w.start, end: w.end, thickness: w.thickness, height: read.height,
     ...(baseOffset !== 0 ? { baseOffset } : {}),
     ...(w.offset ? { offset: w.offset } : {}),
     ...(w.startCut ? { startCut: w.startCut } : {}),
     ...(w.endCut ? { endCut: w.endCut } : {}),
-  };
+  });
 }
 
 export function liftSlab(ctx: LiftContext, expressId: number): NativeElement | null {
@@ -157,7 +158,7 @@ function contained(ctx: LiftContext, expressId: number): number {
 export function liftNativeModel(store: IfcDataStore, view: MutablePropertyView, meta: { id: NativeId; name: string }): LiftResult {
   const ctx: LiftContext = {
     store, view, editor: new StoreEditor(store, view), reader: new AnchorEntityReader(store, view),
-    scale: getModelLengthUnitScale(store), storeyOf: new Map(), storeyExpressOf: new Map(), typeOf: new Map(), lifted: new Map(), skipped: [],
+    scale: getModelLengthUnitScale(store), storeyOf: new Map(), storeyExpressOf: new Map(), typeOf: new Map(), lifted: new Map(), skipped: [], partOf: new Map(),
   };
   const storeys = liftStoreys(ctx);
   const storeyExpress = new Map<number, NativeId>();
@@ -174,7 +175,9 @@ export function liftNativeModel(store: IfcDataStore, view: MutablePropertyView, 
   for (const id of ctx.reader.ids('IFCSLAB')) add(id, liftSlab(ctx, id));
   liftMembers(ctx);
   liftHosted(ctx);
+  liftSystems(ctx);
   liftSolids(ctx);
+  forgetParts(ctx);
   const expressIds = new Map<NativeId, number>();
   for (const [expressId, element] of ctx.lifted) expressIds.set(element.id, expressId);
   return {
@@ -184,5 +187,6 @@ export function liftNativeModel(store: IfcDataStore, view: MutablePropertyView, 
     },
     expressIds,
     skipped: ctx.skipped,
+    parts: ctx.partOf,
   };
 }

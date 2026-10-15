@@ -101,4 +101,42 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('Studio solids as native
     const fresh = new mutations.MutablePropertyView(null, 'r');
     check(create.liftNativeModel(reparsed, fresh, { id: '00000000-0000-4000-8000-000000000000', name: '' }), 'read back');
   });
+
+  it('reads a plain extrusion without history (a plate, a member, a simple roof) as a solid of the same body', async () => {
+    const store = await parse(readFileSync(new URL('../../../../apps/viewer/public/samples/hello-wall.ifc', import.meta.url)));
+    const view = new mutations.MutablePropertyView(null, 'm');
+    const editor = new mutations.StoreEditor(store, view);
+    const anchor = create.resolveSpatialAnchor(store, [...store.spatialHierarchy!.storeyElevations.keys()][0], view);
+    const { addPlateToStore } = await import('../in-store/plate.js');
+    const { addMemberToStore } = await import('../in-store/member.js');
+    const { addRoofToStore } = await import('../in-store/roof.js');
+    const ids = {
+      plate: addPlateToStore(editor, anchor, { Profile: 'polygon', OuterCurve: [[10, 0], [12, 0], [12, 1.5], [10.5, 2]], Thickness: 0.02 }).plateId,
+      member: addMemberToStore(editor, anchor, { Start: [10, 6, 0], End: [13, 7, 1.8], Width: 0.06, Height: 0.2 }).memberId,
+      roof: addRoofToStore(editor, anchor, { Position: [10, 3, 3], Width: 4, Depth: 3, Thickness: 0.3 }).roofId,
+    };
+    const lifted = create.liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' });
+    const bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content as Uint8Array;
+    const reparsed = await parse(bytes);
+    const api = new runtime.IfcAPI();
+    try {
+      const pre = api.buildPrePassOnce(bytes);
+      for (const [key, id] of Object.entries(ids)) {
+        const e = lifted.model.elements.find((x) => lifted.expressIds.get(x.id) === id);
+        expect(e?.kind, `${key}: ${JSON.stringify(lifted.skipped.filter((k) => k.expressId === id))}`).toBe('solid');
+        const [native] = runtime.meshNativeSolids(create.encodeNativeSolids(create.nativeElementSolids(e!, create.nativeIndex(lifted.model)))) as Array<{ positions: Float32Array; indices: Uint32Array }>;
+        const ref = reparsed.entityIndex.byId.get(id)!;
+        const c = api.processGeometryBatch(bytes, new Uint32Array([id, ref.byteOffset, ref.byteOffset + ref.byteLength]), pre.unitScale, 0, 0, 0, false, pre.voidKeys, pre.voidCounts, pre.voidValues, pre.styleIds, pre.styleColors);
+        const m = c.takeMesh(0)!;
+        const ifcPositions = Float32Array.from(m.positions, (v, i) => v + m.origin[i % 3]);
+        expect(meshVolume(native.positions, native.indices), `${key} volume`).toBeCloseTo(meshVolume(ifcPositions, m.indices), 4);
+        // In the same place: the storey frame (z up) is the render frame (y up) with z -> y, y -> -z.
+        const centre = (p: ArrayLike<number>) => [0, 1, 2].map((a) => { let sum = 0; for (let i = a; i < p.length; i += 3) sum += p[i]; return sum / (p.length / 3); });
+        const [nx, ny, nz] = centre(native.positions), [ix, iy, iz] = centre(ifcPositions);
+        expect([nx, nz, -ny].map((v, k) => Math.abs(v - [ix, iy, iz][k]) < 1e-3), `${key} centre ${[nx, ny, nz]} vs ${[ix, iy, iz]}`).toEqual([true, true, true]);
+        m.free(); c.free();
+      }
+      api.clearPrePassCache();
+    } finally { api.free(); }
+  });
 });

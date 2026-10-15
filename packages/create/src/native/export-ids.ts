@@ -25,6 +25,7 @@ const ALWAYS: Record<NativeKind, readonly string[]> = {
   window: ['Width', 'Height', 'Area'],
   // Its quantity set depends on the class it is written as.
   solid: [],
+  system: [],
 };
 
 const value = (v: string) => `<simpleValue>${v}</simpleValue>`;
@@ -40,7 +41,7 @@ function specification(kind: NativeKind): string {
     ...(quantitySet ? ALWAYS[kind].map((q) => property(quantitySet, q, 'required')) : []),
   ];
   // A Studio solid is written as any class (`nativeIfcClass`): it applies by its Class alone.
-  const entity = kind === 'solid' ? '' : `<entity><name>${value(ifcClass.toUpperCase())}</name></entity>`;
+  const entity = kind === 'solid' || kind === 'system' ? '' : `<entity><name>${value(ifcClass.toUpperCase())}</name></entity>`;
   return `<specification name="Lapin native ${kind}" ifcVersion="IFC2X3 IFC4 IFC4X3_ADD2">`
     + `<applicability minOccurs="0" maxOccurs="unbounded">${entity}${property(NATIVE_PSET, 'Class', null, kind)}</applicability>`
     + `<requirements>${requirements.join('')}</requirements></specification>`;

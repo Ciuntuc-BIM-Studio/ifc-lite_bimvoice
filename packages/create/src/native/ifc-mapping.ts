@@ -92,11 +92,19 @@ export const NATIVE_IFC: Readonly<Record<NativeKind, NativeClassMapping>> = {
     representations: ['Body'],
     material: 'material', commonPset: 'Pset_BuildingElementProxyCommon', quantitySet: 'Qto_BuildingElementProxyQuantities',
   },
+  system: {
+    // Written as its root's class (`nativeIfcClass`); its parts come from its family's builder.
+    ifcClass: 'IfcElementAssembly', ifcTypeClass: 'IfcElementAssemblyType',
+    predefinedTypes: ['ACCESSORY_ASSEMBLY', 'ARCH', 'BEAM_GRID', 'BRACED_FRAME', 'GIRDER', 'REINFORCEMENT_UNIT', 'RIGID_FRAME', 'SLAB_FIELD', 'TRUSS', ...ELEMENT_TYPES],
+    defaultPredefinedType: 'NOTDEFINED',
+    representations: [],
+    material: 'none', commonPset: 'Pset_ElementAssemblyCommon', quantitySet: null,
+  },
 };
 
-/** The IFC class an element is written as: a Studio solid's own, else its class's. */
+/** The IFC class an element is written as: a Studio solid's or a system root's own, else its class's. */
 export function nativeIfcClass(element: Pick<NativeElement, 'kind'> & { ifcClass?: string }): string {
-  return element.kind === 'solid' && element.ifcClass ? element.ifcClass : NATIVE_IFC[element.kind].ifcClass;
+  return (element.kind === 'solid' || element.kind === 'system') && element.ifcClass ? element.ifcClass : NATIVE_IFC[element.kind].ifcClass;
 }
 
 /** The property set a Studio solid's history travels in (`NativeSolidShape`, JSON in `Spec`). */
