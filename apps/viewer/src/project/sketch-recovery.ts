@@ -9,7 +9,8 @@
  * member that never had one) has it drawn again from its history
  * (`Pset_LapinSolid`, or its plain extrusion body): an extrusion's contour
  * and holes, a sweep's path and profile, a revolve's profile and axis, on a
- * view whose work plane holds them and builds into the same storey, linked
+ * view whose work plane holds them and builds into the same storey (a new
+ * section through them when no view does, `sketch-section.ts`), linked
  * to the element as the Studio commands link them. Editing them then
  * rebuilds it in place (`useLinkedElementSync`).
  */
@@ -23,11 +24,12 @@ import { drawingToWorld, userToDrawingVec, worldToDrawing, type SectionAxisName,
 import { editDrafts, newDraft } from '@/drafting/draft-store';
 import { currentLayerId } from '@/drafting/session';
 import type { DraftEntity, DraftParamValue, EntityShape, Pt } from '@/drafting/types';
-import { useProjectStore } from './project-store';
+import { removeProjectItem, useProjectStore } from './project-store';
 import { useViewDrawings } from './view-drawings';
 import { viewPlaneConfig, viewWorkPlane } from './view-plane-config';
 import { resolveTarget, towardViewer } from './contour-element';
 import type { ProjectView } from './types';
+import { addSketchSection } from './sketch-section';
 
 type V3 = [number, number, number];
 const EPS = 1e-4;
@@ -165,11 +167,20 @@ export function openSolidSketch(modelId: string, expressId: number): SketchOutco
   if (!read.recorded && PARAMETRIC.has(read.solid.ifcClass.toUpperCase())) {
     return { ok: false, error: `A ${read.solid.ifcClass} is edited with its own tool, not a sketch.` };
   }
-  const best = candidateViews(modelId, read.storey)
+  const pick = (): { c: Placed; drawn: Drawn } | undefined => candidateViews(modelId, read.storey)
     .map((c) => ({ c, drawn: draw(c, read.solid.shape) }))
     .filter((x): x is { c: Placed; drawn: Drawn } => x.drawn !== null && buildsInto(x.c, x.drawn, modelId, read.storey))
     .sort((a, b) => a.drawn.score - b.drawn.score)[0];
-  if (!best) return { ok: false, error: 'No view of the project lies in the plane of its sketch: add a section or elevation through it.' };
+  let best = pick();
+  if (!best) {
+    // No view holds it: a section through its sketch plane does.
+    const section = addSketchSection(modelId, read.storey, read.solid.shape, `Sketch ${read.solid.name ?? read.solid.ifcClass}`);
+    best = section ? pick() : undefined;
+    if (!best || best.c.view.id !== section) {
+      if (section) removeProjectItem(section);
+      return { ok: false, error: 'No view of the project lies in the plane of its sketch, and a section through it would not build into its storey.' };
+    }
+  }
 
   const layer = currentLayerId();
   const ids = new Map<string, string>();
