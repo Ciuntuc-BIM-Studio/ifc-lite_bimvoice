@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { confirmDialog } from '@/components/ui/confirm-dialog';
+import { confirmDialog, promptDialog } from '@/components/ui/confirm-dialog';
 import { toast } from '@/components/ui/toast';
 import { useIfc } from '@/hooks/useIfc';
 import { useViewerStore } from '@/store';
@@ -34,7 +34,8 @@ import { useAutosaveRecovery, isProjectDirty } from './useAutosaveRecovery';
 import { testCubesIfc } from '@/project/test-cubes';
 
 const MODEL_FILES = '.ifc,.ifczip,.ifcx';
-const TEST_CUBES = 1_000_000;
+const TEST_CUBES = 500_000;
+const TEST_CUBES_MAX = 2_000_000;
 /** The demo project: a package authored in Lapin, shipped with the viewer. */
 const DEMO_PROJECT_PATH = '/samples/demo-project.lapin';
 
@@ -105,14 +106,21 @@ export function ProjectPackageHost() {
 
   // A generated stress-test model, added beside what is open (or the first model).
   const testCubes = useCallback(async () => {
-    const count = TEST_CUBES.toLocaleString('en-US');
-    if (!(await confirmDialog({ title: t('projectPackage.testCubes'), description: t('projectPackage.testCubesConfirm', { count }), confirmLabel: t('projectPackage.testCubesGenerate') }))) return;
+    const answer = await promptDialog({ title: t('projectPackage.testCubes'), description: t('projectPackage.testCubesConfirm', { max: TEST_CUBES_MAX.toLocaleString('en-US') }), confirmLabel: t('projectPackage.testCubesGenerate'), defaultValue: String(TEST_CUBES) });
+    if (answer === null) return;
+    const n = Number(answer.replace(/[\s,._]/g, ''));
+    if (!Number.isInteger(n) || n < 1 || n > TEST_CUBES_MAX) {
+      toast.error(t('projectPackage.testCubesInvalid', { max: TEST_CUBES_MAX.toLocaleString('en-US') }));
+      return;
+    }
+    const count = n.toLocaleString('en-US');
+    const name = `test-cubes-${n}.ifc`;
     try {
-      const blob = await testCubesIfc(TEST_CUBES, {
+      const blob = await testCubesIfc(n, {
         onProgress: (done) => usePackageSession.setState({ progress: t('projectPackage.testCubesProgress', { done: done.toLocaleString('en-US'), count }) }),
       });
       usePackageSession.setState({ progress: t('projectPackage.testCubesLoading', { count }) });
-      const modelId = await loader.addModel(new File([blob], 'test-cubes.ifc'), { name: 'test-cubes.ifc' });
+      const modelId = await loader.addModel(new File([blob], name), { name });
       // Added beside an open model, it would not be the active one: Export (which follows the active model) would write that one instead.
       if (modelId) useViewerStore.getState().setActiveModel(modelId);
     } finally {
