@@ -37,6 +37,7 @@ export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
   const modelTags = surfaceCommand('file:model-tags', 'ribbon');
   const collabRole = useViewerStore((s) => s.collabRole);
   const packageGeometry = useProjectStore((s) => s.packageGeometry !== false);
+  const ifcStorage = useProjectStore((s) => s.storage === 'ifc');
   const canEditInSession = collabRole === null || collabRole === 'editor' || collabRole === 'admin';
 
   // Collaboration: the Share cluster is gated behind the collab feature flag.
@@ -71,6 +72,9 @@ export function FileTab({ fileCommands }: { fileCommands: FileCommands }) {
           <RibbonCommandSmallButton commandId="file:save-version" icon={ProjectVersion} />
           <RibbonCommandSmallButton commandId="file:update-version" icon={ProjectVersion} />
           <RibbonCommandSmallButton commandId="file:version-history" icon={ProjectVersion} />
+        </RibbonSmallStack>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="file:ifc-storage" icon={ProjectSave} active={ifcStorage} />
         </RibbonSmallStack>
         <RibbonCommandLargeButton
           commandId="file:open"

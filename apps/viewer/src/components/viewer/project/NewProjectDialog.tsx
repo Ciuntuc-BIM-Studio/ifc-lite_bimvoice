@@ -19,7 +19,7 @@ import { toast } from '@/components/ui/toast';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useIfc } from '@/hooks/useIfc';
 import { resetPackageSession } from '@/project/package/session';
-import { setProjectName } from '@/project/project-store';
+import { setProjectName, useProjectStore } from '@/project/project-store';
 import {
   defaultNewProjectSpec, generateLevels, NEW_PROJECT_EVENT, newProjectFile, validateNewProject, type NewProjectSpec,
 } from '@/project/new-project';
@@ -51,6 +51,7 @@ export function NewProjectHost() {
   const [geo, setGeo] = useState({ lat: '', lon: '', elev: '' });
   const [gen, setGen] = useState({ above: '2', below: '0', height: '3' });
   const [busy, setBusy] = useState(false);
+  const [storage, setStorage] = useState<'lapin' | 'ifc'>('lapin');
 
   useEffect(() => {
     const onRequest = () => {
@@ -72,6 +73,7 @@ export function NewProjectHost() {
     try {
       await loadFile(newProjectFile(full), { kind: 'primary', modelId: crypto.randomUUID() });
       setProjectName(full.projectName);
+      useProjectStore.setState({ storage });
       resetPackageSession();
       setOpen(false);
       toast.success(t('newProject.created', { name: full.projectName }));
@@ -155,6 +157,13 @@ export function NewProjectHost() {
               {SCHEMAS.map((schema) => <option key={schema} value={schema}>{schema}</option>)}
             </select>
           </Field>
+          <Field label={t('newProject.storage')}>
+            <select aria-label={t('newProject.storage')} className={INPUT} value={storage} onChange={(e) => setStorage(e.target.value === 'ifc' ? 'ifc' : 'lapin')}>
+              <option value="lapin">{t('newProject.storage.lapin')}</option>
+              <option value="ifc">{t('newProject.storage.ifc')}</option>
+            </select>
+          </Field>
+          <p className="col-span-2 text-xs text-muted-foreground">{t(storage === 'ifc' ? 'newProject.storage.ifcHint' : 'newProject.storage.lapinHint')}</p>
         </section>
         {problems.length > 0 ? <p role="alert" className="text-sm text-destructive">{t('newProject.incomplete')}</p> : null}
         <DialogFooter>

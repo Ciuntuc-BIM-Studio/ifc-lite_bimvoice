@@ -53,6 +53,12 @@ export const RIBBON_PROJECT_SURFACE_COMMANDS = [
     run: () => { useProjectStore.setState((s) => ({ packageGeometry: s.packageGeometry === false, dirty: true })); },
   },
   {
+    id: 'file:ifc-storage', labelKey: 'projectPackage.ifcStorage', ribbonTooltipKey: 'projectPackage.ifcStorageTooltip',
+    keywords: 'ifc project format storage save native tables compact complete', category: 'File', icon: ProjectSave,
+    surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
+    run: () => { useProjectStore.setState((s) => ({ storage: s.storage === 'ifc' ? 'lapin' : 'ifc', dirty: true })); },
+  },
+  {
     id: 'file:link-model', labelKey: 'projectPackage.link',
     keywords: 'link model reference coordination read only federate', category: 'File', icon: LinkModel,
     surfaces: ['ribbon', 'palette'] as const, enabled: () => true,

@@ -257,6 +257,14 @@ export interface ProjectDocument {
   layerGroups?: LayerGroup[];
   /** Save writes the meshes of the primary model beside its IFC, so the project opens without re-meshing (absent: on). */
   packageGeometry?: boolean;
+  /**
+   * What a model is kept as in the package (absent: 'lapin'). 'lapin': the IFC
+   * it was loaded from plus its edits, and the native tables when it is
+   * compacted. 'ifc': always one complete IFC with every edit, no native
+   * tables — the package's IFC is the model, for tools that read it directly.
+   * The project works the same in both.
+   */
+  storage?: 'lapin' | 'ifc';
   /** Door and window opening symbols in elevation: apex at the handle (default, window makers' sketches) or at the hinges (DIN 1356). */
   openingLines?: 'handle' | 'hinge';
   /** Plan symbol overrides by element GlobalId: bit 1 hinges a door on its other jamb, bit 2 swings it to the other side. */

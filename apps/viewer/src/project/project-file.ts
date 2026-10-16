@@ -127,6 +127,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     hatchPatterns: isString(raw.hatchPatterns) ? raw.hatchPatterns : '',
     symbolFlips: readFlips(raw.symbolFlips),
     ...(typeof raw.packageGeometry === 'boolean' ? { packageGeometry: raw.packageGeometry } : {}),
+    ...(raw.storage === 'ifc' || raw.storage === 'lapin' ? { storage: raw.storage } : {}),
     ...(raw.openingLines === 'hinge' || raw.openingLines === 'handle' ? { openingLines: raw.openingLines } : {}),
     ...readStandards(raw),
     joineryTypes: readJoineryList(raw.joineryTypes),

@@ -23,6 +23,8 @@ export const projectPackageEn = {
   'projectPackage.testCubesProgress': 'Generating boxes… {done} / {count}',
   'projectPackage.testCubesLoading': 'Loading {count} boxes…',
   'projectPackage.geometry': 'Save geometry in project',
+  'projectPackage.ifcStorage': 'Save model as IFC',
+  'projectPackage.ifcStorageTooltip': 'Save writes each edited model as one complete IFC with every edit, and no native tables (an IFC project). Off: its IFC plus the edits, and the native tables (a Lapin project).',
   'projectPackage.geometryTooltip': 'Save writes the meshes beside the IFC: the project opens in a fraction of the time, on any machine, and the file is a few times larger',
   'projectPackage.nothingToSave': 'Nothing to save yet: open or create a model first',
   'projectPackage.saving': 'Saving the project…',

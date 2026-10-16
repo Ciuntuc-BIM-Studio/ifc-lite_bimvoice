@@ -109,6 +109,8 @@ export async function packageCurrentProject(projectId: string, options: {
   geometry?: boolean;
   /** Write every edited model as one IFC with its edits (a version), not as its IFC plus a delta. */
   compact?: boolean;
+  /** An IFC project (`ProjectDocument.storage`): every edited model as one IFC with its edits, and no native tables. */
+  ifc?: boolean;
 } = {}): Promise<PackagedProject> {
   const state = useViewerStore.getState();
   const edited = new Set(collectChangedModels(state).models.map((m) => m.id));
@@ -128,15 +130,15 @@ export async function packageCurrentProject(projectId: string, options: {
     const hasEdits = edited.has(model.id);
     const delta = captureModelDelta(state, model.id);
     const base = await modelBase(model.ifcDataStore);
-    const reason = !base ? 'its IFC is not in memory' : hasEdits ? compactionReason(model, delta, !!options.compact) : null;
+    const reason = !base ? 'its IFC is not in memory' : hasEdits ? (options.ifc ? 'an IFC project' : compactionReason(model, delta, !!options.compact)) : null;
     if (reason || !base || !delta) {
-      // Compacted: one IFC with every edit, as an export writes it (and the native tables beside it).
+      // Compacted: one IFC with every edit, as an export writes it (and, in a Lapin project, the native tables beside it).
       if (hasEdits) console.log(`[project] ${model.name} saved as one IFC with its edits (${reason})`);
       const bytes = await nativeModelBytes(model.id, model.ifcDataStore, hasEdits);
       const key = (await placementSourceIdentity(new Blob([bytes as BlobPart]), undefined, bytes)) ?? ref.key;
       renamed.set(ref.key, key);
       models.push({ id: key, name: model.name, role: 'native', bytes, baseSavedAt: now });
-      for (const [path, table] of await nativeTables(projectId, model.id, model.name, model.ifcDataStore)) extras.set(`${nativeTablesFolder(segment(key))}/${path}`, table);
+      if (!options.ifc) for (const [path, table] of await nativeTables(projectId, model.id, model.name, model.ifcDataStore)) extras.set(`${nativeTablesFolder(segment(key))}/${path}`, table);
       if (options.geometry) await addGeometry(extras, key, model.name, () => packageGeometry(model, bytes));
     } else {
       // The IFC it was loaded from, unchanged from save to save, and its edits over it (N4b).
