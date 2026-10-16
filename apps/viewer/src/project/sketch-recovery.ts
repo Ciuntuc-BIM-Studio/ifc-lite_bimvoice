@@ -16,7 +16,7 @@
  */
 
 import type { SectionPlaneConfig } from '@ifc-lite/drawing-2d';
-import { nativeSolidOf, type NativeSolidShape } from '@ifc-lite/create';
+import { nativeSolidOf, readCombinations, type NativeSolidShape } from '@ifc-lite/create';
 import { useViewerStore } from '@/store';
 import { mergedSectionBounds } from '@/lib/section/section-distance';
 import { buildStoreyWorkplane } from '@/lib/commands/modeling/workplane';
@@ -167,6 +167,10 @@ export function openSolidSketch(modelId: string, expressId: number): SketchOutco
   if (!read.recorded && PARAMETRIC.has(read.solid.ifcClass.toUpperCase())) {
     return { ok: false, error: `A ${read.solid.ifcClass} is edited with its own tool, not a sketch.` };
   }
+  // A union baked before they were live: its tools are gone, a rebuild from the sketch would lose them.
+  if (read.solid.combined && ds && mview && !readCombinations(ds, mview, new Set([expressId])).some((c) => c.target === expressId)) {
+    return { ok: false, error: 'It was united or intersected before those operations were live: its own sketch would rebuild it without the rest.' };
+  }
   const pick = (): { c: Placed; drawn: Drawn } | undefined => candidateViews(modelId, read.storey)
     .map((c) => ({ c, drawn: draw(c, read.solid.shape) }))
     .filter((x): x is { c: Placed; drawn: Drawn } => x.drawn !== null && buildsInto(x.c, x.drawn, modelId, read.storey))
@@ -196,4 +200,28 @@ export function openSolidSketch(modelId: string, expressId: number): SketchOutco
   };
   editDrafts({ add: drafts });
   return { ok: true, viewId: best.c.view.id, drawn: true };
+}
+
+export interface SketchesOutcome {
+  /** The view to open: the element's own sketch's. */
+  viewId: string | null;
+  /** Sketches drawn again from history (the element's and its operands'). */
+  drawn: number;
+  errors: string[];
+}
+
+/**
+ * The element's sketch and, for a live Union / Intersect, its operands'
+ * (hidden or not: editing one rebuilds them, and the target follows).
+ */
+export function openSolidSketches(modelId: string, expressId: number, operands: readonly number[]): SketchesOutcome {
+  const out: SketchesOutcome = { viewId: null, drawn: 0, errors: [] };
+  for (const [i, id] of [expressId, ...operands].entries()) {
+    const one = openSolidSketch(modelId, id);
+    if (!one.ok) { out.errors.push(i === 0 ? one.error : `#${id}: ${one.error}`); continue; }
+    if (i === 0) out.viewId = one.viewId;
+    else out.viewId ??= one.viewId;
+    if (one.drawn) out.drawn++;
+  }
+  return out;
 }

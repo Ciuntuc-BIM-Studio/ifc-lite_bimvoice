@@ -11,7 +11,8 @@
 
 import { BooleanIntersect, BooleanRemove, BooleanSubtract, BooleanUnion, EditElement } from '@/icons';
 import { useViewerStore } from '@/store';
-import { openSolidSketch } from '@/project/sketch-recovery';
+import { openSolidSketches } from '@/project/sketch-recovery';
+import { operandsOf } from '@/project/combination-sync';
 import { openProjectView } from '@/project/open-view';
 import { toast } from '@/components/ui/toast';
 import { resolve } from '@/i18n/registry';
@@ -59,13 +60,15 @@ function editSketch(): void {
     toast.info(resolve('studio.sketch.select'));
     return;
   }
-  const outcome = openSolidSketch(ref.modelId, ref.expressId);
-  if (!outcome.ok) {
-    toast.error(resolve('studio.sketch.failed', { reason: outcome.error }));
+  // A live Union's operands have sketches too: drawn beside the target's.
+  const outcome = openSolidSketches(ref.modelId, ref.expressId, operandsOf(ref.modelId, [ref.expressId]));
+  if (!outcome.viewId) {
+    toast.error(resolve('studio.sketch.failed', { reason: outcome.errors[0] ?? '' }));
     return;
   }
   openProjectView(outcome.viewId);
-  if (outcome.drawn) toast.success(resolve('studio.sketch.drawn'));
+  if (outcome.errors.length) toast.info(resolve('studio.sketch.partly', { reason: outcome.errors[0] }));
+  else if (outcome.drawn) toast.success(resolve('studio.sketch.drawn'));
 }
 
 export const RIBBON_STUDIO_SURFACE_COMMANDS = [

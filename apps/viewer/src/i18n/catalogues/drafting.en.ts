@@ -77,6 +77,7 @@ export const draftingEn = {
   'studio.sketch.select': 'Select a solid first: its sketch opens on its view.',
   'studio.sketch.drawn': 'The sketch was drawn again from the solid\'s history: edit it and the solid follows.',
   'studio.sketch.failed': 'The sketch cannot be opened: {reason}',
+  'studio.sketch.partly': 'The sketch is open, but not every operand\'s: {reason}',
   'studio.boolean.subtract': 'Subtract',
   'studio.boolean.union': 'Union',
   'studio.boolean.intersect': 'Intersect',

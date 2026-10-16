@@ -14,6 +14,7 @@
 import type { LiftContext } from './lift-base.js';
 import { axis2d, axis3d, pointOf, refId } from '../in-store/host-geometry-frame.js';
 import { localFrame } from '../in-store/placement-3d.js';
+import { combinationOf } from '../in-store/body-trim.js';
 import type { NativeSolidShape, PlanPoint } from './schema.js';
 
 type V3 = [number, number, number];
@@ -64,7 +65,11 @@ export function extrusionShape(ctx: LiftContext, expressId: number, storeyPlacem
   const reps = Array.isArray(shape?.attributes[2]) ? (shape!.attributes[2] as unknown[]) : [];
   const body = reps.map((r) => ctx.reader.entity(refId(r) ?? -1)).find((r) => r?.attributes[1] === 'Body');
   const items = Array.isArray(body?.attributes[3]) ? (body!.attributes[3] as unknown[]) : [];
-  const solid = items.length === 1 ? ctx.reader.entity(refId(items[0]) ?? -1) : null;
+  // A body combined in Studio (Union / Intersect) is its own extrusion first.
+  let item = items.length === 1 ? refId(items[0]) : null;
+  const read = (id: number) => ctx.reader.entity(id);
+  while (item !== null && combinationOf(read, item)) item = refId(read(item)!.attributes[1]);
+  const solid = item === null ? null : ctx.reader.entity(item);
   if (solid?.type.toUpperCase() !== 'IFCEXTRUDEDAREASOLID') return null;
   // Extruded along the solid's own +Z only.
   const dir = pointOf(ctx.reader, solid.attributes[2], 'IFCDIRECTION');
