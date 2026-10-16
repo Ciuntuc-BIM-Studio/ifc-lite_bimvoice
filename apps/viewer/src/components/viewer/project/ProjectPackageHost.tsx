@@ -112,7 +112,9 @@ export function ProjectPackageHost() {
         onProgress: (done) => usePackageSession.setState({ progress: t('projectPackage.testCubesProgress', { done: done.toLocaleString('en-US'), count }) }),
       });
       usePackageSession.setState({ progress: t('projectPackage.testCubesLoading', { count }) });
-      await loader.addModel(new File([blob], 'test-cubes.ifc'), { name: 'test-cubes.ifc' });
+      const modelId = await loader.addModel(new File([blob], 'test-cubes.ifc'), { name: 'test-cubes.ifc' });
+      // Added beside an open model, it would not be the active one: Export (which follows the active model) would write that one instead.
+      if (modelId) useViewerStore.getState().setActiveModel(modelId);
     } finally {
       usePackageSession.setState({ progress: null });
     }

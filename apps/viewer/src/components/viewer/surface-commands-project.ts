@@ -5,10 +5,11 @@
 /**
  * Project-level File commands: New Project (a configured blank IFC model),
  * and the project package (`.lapin`, earlier `.bvproj`): Open, Save, Save as, and Link model
- * (a read-only coordination model), and Test cubes (a generated stress-test
- * model). The package commands are handled by `ProjectPackageHost`.
+ * (a read-only coordination model), Export IFC (the active model, one
+ * click), and Test cubes (a generated stress-test model). The package commands are handled by `ProjectPackageHost`.
  */
-import { LinkModel, NewProject, ProjectOpen, ProjectSave, ProjectVersion, TestCubes } from '@/icons';
+import { FileIfc, LinkModel, NewProject, ProjectOpen, ProjectSave, ProjectVersion, TestCubes } from '@/icons';
+import { exportActiveModelIfc } from '@/lib/export/quick-ifc-export';
 import { requestNewProject } from '@/project/new-project';
 import { requestPackageAction } from '@/project/package/actions';
 import { useProjectStore } from '@/project/project-store';
@@ -38,6 +39,12 @@ export const RIBBON_PROJECT_SURFACE_COMMANDS = [
     keywords: 'save project as copy package lapin', category: 'File', icon: ProjectSave,
     surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
     run: () => { requestPackageAction('save-as'); },
+  },
+  {
+    id: 'file:export-ifc', labelKey: 'projectPackage.exportIfc', ribbonTooltipKey: 'projectPackage.exportIfcTooltip',
+    keywords: 'export ifc step download model file', category: 'File', icon: FileIfc,
+    surfaces: ['ribbon', 'palette'] as const, enabled: () => true,
+    run: () => { void exportActiveModelIfc(); },
   },
   {
     id: 'file:package-geometry', labelKey: 'projectPackage.geometry', ribbonTooltipKey: 'projectPackage.geometryTooltip',
