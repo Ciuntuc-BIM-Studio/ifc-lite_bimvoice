@@ -34,14 +34,23 @@ describe('levelsFromStoreys', () => {
 });
 
 describe('defaultViews', () => {
-  it('creates one plan per level, four elevations and a 3D view', () => {
+  it('creates one plan per level, a foundation plan, four elevations and a 3D view', () => {
     const views = defaultViews(levelsFromStoreys(storeys), 1);
-    assert.deepEqual(views.map((v) => v.kind), ['plan', 'plan', 'elevation', 'elevation', 'elevation', 'elevation', '3d']);
+    assert.deepEqual(views.map((v) => v.kind), ['plan', 'plan', 'plan', 'elevation', 'elevation', 'elevation', 'elevation', '3d']);
     assert.deepEqual(views.filter((v) => v.kind === 'elevation').map((v) => v.name), ['North Elevation', 'East Elevation', 'South Elevation', 'West Elevation']);
     const plan = views[0] as PlanProjectView;
     assert.equal(plan.cutHeight, 1.2);
     assert.equal(plan.auto, true);
     assert.equal(new Set(views.map((v) => v.id)).size, views.length);
+  });
+
+  it('cuts the foundation plan below the lowest level and looks down past the footings', () => {
+    const views = defaultViews(levelsFromStoreys([...storeys, { name: 'Basement 1', elevation: -3, globalId: 'B1' }]), 1);
+    const plan = views.find((v) => v.name === 'Foundation Plan') as PlanProjectView;
+    assert.equal(plan.level.name, 'Basement 1');
+    assert.equal(plan.cutHeight, -0.5);
+    assert.equal(plan.viewDepth, 2.5);
+    assert.equal(plan.auto, true);
   });
 });
 
@@ -56,7 +65,7 @@ describe('syncDefaultViews', () => {
     const views = defaultViews(levelsFromStoreys(storeys.slice(0, 1)));
     const next = syncDefaultViews(views, levelsFromStoreys([{ name: 'Roof', elevation: 9, globalId: 'R' }]));
     const plans = next.filter((v) => v.kind === 'plan').map((v) => v.name);
-    assert.deepEqual(plans, ['Ground Floor', 'Roof']);
+    assert.deepEqual(plans, ['Ground Floor', 'Foundation Plan', 'Roof']);
   });
 
   it('matches a plan to its level by storey GlobalId even when the elevation moved', () => {

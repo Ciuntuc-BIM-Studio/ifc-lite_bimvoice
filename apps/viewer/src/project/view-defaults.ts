@@ -3,8 +3,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /**
- * The views a project starts with: one floor plan per building level, the
- * four elevations and a default 3D view. `syncDefaultViews` keeps the plan
+ * The views a project starts with: one floor plan per building level, a
+ * foundation plan, the four elevations and a default 3D view. `syncDefaultViews` keeps the plan
  * list in step with the loaded models without ever deleting a view: a plan
  * whose level is gone stays (the navigator shows it as unresolved), so a
  * project file opened before its models load loses nothing.
@@ -14,6 +14,15 @@ import type { ElevationDirection, ProjectLevel, ProjectView, PlanProjectView } f
 
 /** Standard architectural plan-cut height above the floor, metres. */
 export const DEFAULT_PLAN_CUT_HEIGHT_M = 1.2;
+
+/**
+ * The foundation plan: the lowest level cut below its floor, through the
+ * foundation walls, seeing down past the footings (their default underside
+ * is 1.80 m below the level).
+ */
+export const FOUNDATION_PLAN_CUT_HEIGHT_M = -0.5;
+export const FOUNDATION_PLAN_VIEW_DEPTH_M = 2.5;
+export const FOUNDATION_PLAN_NAME = 'Foundation Plan';
 
 /** Levels closer than this are the same level (federated models repeat them). */
 export const LEVEL_MATCH_TOLERANCE_M = 0.25;
@@ -92,10 +101,24 @@ export function planViewFor(level: ProjectLevel, views: readonly ProjectView[], 
   };
 }
 
+/** The foundation plan of the lowest of `levels`, or null without levels. */
+export function foundationPlanFor(levels: readonly ProjectLevel[], views: readonly ProjectView[], now = Date.now()): PlanProjectView | null {
+  const lowest = [...levels].sort((a, b) => a.elevation - b.elevation)[0];
+  if (!lowest) return null;
+  return {
+    ...planViewFor(lowest, views, now),
+    name: uniqueViewName(FOUNDATION_PLAN_NAME, views),
+    cutHeight: FOUNDATION_PLAN_CUT_HEIGHT_M,
+    viewDepth: FOUNDATION_PLAN_VIEW_DEPTH_M,
+  };
+}
+
 /** The views a brand-new project gets for `levels`. */
 export function defaultViews(levels: readonly ProjectLevel[], now = Date.now()): ProjectView[] {
   const views: ProjectView[] = [];
   for (const level of levels) views.push(planViewFor(level, views, now));
+  const foundations = foundationPlanFor(levels, views, now);
+  if (foundations) views.push(foundations);
   for (const direction of ELEVATION_DIRECTIONS) {
     views.push({ id: freshProjectId('view'), kind: 'elevation', name: ELEVATION_NAMES[direction], direction, auto: true, createdAt: now });
   }
