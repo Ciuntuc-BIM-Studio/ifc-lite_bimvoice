@@ -84,7 +84,9 @@ function nextMark(kind: ElementTypeKind, list: readonly ElementTypeSpec[]): stri
   for (let n = 1; ; n++) if (!used.has(`${MARK_PREFIX[kind]}${n}`)) return `${MARK_PREFIX[kind]}${n}`;
 }
 
-const KIND_NAME: Readonly<Record<ElementTypeKind, string>> = { wall: 'Wall', slab: 'Slab', column: 'Column', beam: 'Beam', roof: 'Roof', opening: 'Opening', curtainWall: 'Curtain wall' };
+const KIND_NAME: Readonly<Record<ElementTypeKind, string>> = { wall: 'Wall', slab: 'Slab', column: 'Column', beam: 'Beam', roof: 'Roof', opening: 'Opening', curtainWall: 'Curtain wall',
+  stripFoundation: 'Strip foundation', padFooting: 'Pad footing',
+};
 
 export function addElementType(kind: ElementTypeKind, from?: ElementTypeSpec): string {
   const list = elementTypes();

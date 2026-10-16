@@ -12,7 +12,7 @@ import {
   WallAttachRoof, WallDetachRoof, DraftArc, DraftArray, DraftCircle, DraftCopy, DraftErase, DraftExtend, DraftFillet, DraftLine, DraftMirror, DraftMove,
   DraftOffset, DraftOrtho, DraftPolyline, DraftRectangle, DraftRotate, DraftSectionLine, DraftSnap, DraftTrim, DraftKnife, DraftWorkplane, DraftExtrude, DraftFace,
   BuildingMaterials, JoinAuto, JoinButt, JoinMitre, JoinSwap, GroupMake, GroupUngroup, GroupEdit, GroupSelect, MoveToStorey, DoorFlipHand, DoorFlipSide, JoineryTypes, ElementTypes, RoofSystem, CutPriority, ProjectLocation,
-  DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
+  DraftSweep, DraftRevolve, BimRoof, BimBeam, BimColumn, BimCurtainWall, BimPadFooting, BimStripFoundation, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
 } from '@/icons';
 import { startBimTool } from '@/project/model-command-bridge';
 import { openJoinery } from '@/joinery/dialog-store';
@@ -140,6 +140,8 @@ export const RIBBON_DESIGN_SURFACE_COMMANDS = [
   { id: 'design:bim-stair', labelKey: 'drafting.bim.stair', keywords: 'stair steps bim place', category: 'Tools', icon: BimStair, surfaces: ribbonOnly, enabled: always, run: bim('stair.place') },
   { id: 'design:bim-railing', labelKey: 'drafting.bim.railing', keywords: 'railing guard bim place', category: 'Tools', icon: BimRailing, surfaces: ribbonOnly, enabled: always, run: bim('railing.place') },
   { id: 'design:bim-curtain-wall', labelKey: 'drafting.bim.curtainWall', keywords: 'curtain wall facade glazing bim place', category: 'Tools', icon: BimCurtainWall, surfaces: ribbonOnly, enabled: always, run: bim('curtainwall.place') },
+  { id: 'design:bim-strip-foundation', labelKey: 'foundation.strip.command', keywords: 'strip foundation footing foundation wall continuous bim place', category: 'Tools', icon: BimStripFoundation, surfaces: ribbonOnly, enabled: always, run: bim('foundation.strip.place') },
+  { id: 'design:bim-pad-footing', labelKey: 'foundation.pad.command', keywords: 'pad footing isolated stepped foundation column base bim place', category: 'Tools', icon: BimPadFooting, surfaces: ribbonOnly, enabled: always, run: bim('foundation.pad.place') },
   { id: 'design:bim-grid', labelKey: 'drafting.bim.grid', keywords: 'grid axis bim place', category: 'Tools', icon: BimGrid, surfaces: ribbonOnly, enabled: always, run: bim('grid.place') },
   { id: 'design:join-mitre', labelKey: 'drafting.join.mitre', keywords: 'wall join corner mitre miter diagonal', category: 'Tools', icon: JoinMitre, surfaces: ribbonOnly, enabled: always, run: joins({ style: 'mitre' }) },
   { id: 'design:join-butt', labelKey: 'drafting.join.butt', keywords: 'wall join corner butt square', category: 'Tools', icon: JoinButt, surfaces: ribbonOnly, enabled: always, run: joins({ style: 'butt' }) },

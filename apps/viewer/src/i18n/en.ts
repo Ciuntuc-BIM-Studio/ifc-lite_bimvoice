@@ -148,6 +148,7 @@ import { stairRailingEn } from './catalogues/stair-railing.en';
 import { profileSectionEn } from './catalogues/profile-section.en';
 import { planHandlesEn } from './catalogues/plan-handles.en';
 import { projectLocationEn } from './catalogues/project-location.en';
+import { foundationEn } from './catalogues/foundation.en';
 import { multiSplitEn } from './catalogues/multi-split.en';
 import { pushPullAlignEn } from './catalogues/push-pull-align.en';
 import { trimExtendEn } from './catalogues/trim-extend.en';
@@ -238,6 +239,7 @@ export const en = {
   ...profileSectionEn,
   ...planHandlesEn,
   ...projectLocationEn,
+  ...foundationEn,
   ...multiSplitEn,
   ...pushPullAlignEn,
   ...trimExtendEn,

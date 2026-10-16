@@ -4,7 +4,7 @@
 
 /**
  * The project's element types (walls, slabs, columns, beams, roofs,
- * openings): what each kind's entry describes, its defaults, and a tolerant
+ * openings, curtain walls, strip foundations, pad footings): what each kind's entry describes, its defaults, and a tolerant
  * reader for project files and imported catalogues (a field that does not
  * read falls back to the kind's default; an entry with no kind is dropped).
  *
@@ -12,11 +12,14 @@
  * become IFC type objects the same way (`model-sync.ts`).
  */
 
-import { DEFAULT_CURTAIN_WALL_TYPE, defaultRoofStructure, type CurtainWallTypeSpec, type ProfileSection, type RoofStructureSpec } from '@ifc-lite/create';
+import {
+  DEFAULT_CURTAIN_WALL_TYPE, DEFAULT_PAD_FOOTING, DEFAULT_STRIP_FOUNDATION, defaultRoofStructure,
+  type CurtainWallTypeSpec, type PadStep, type ProfileSection, type RoofStructureSpec,
+} from '@ifc-lite/create';
 import { DEFAULT_SECTIONS } from '@/lib/profile-section/profile-kinds';
 
-export type ElementTypeKind = 'wall' | 'slab' | 'column' | 'beam' | 'roof' | 'opening' | 'curtainWall';
-export const ELEMENT_TYPE_KINDS: readonly ElementTypeKind[] = ['wall', 'slab', 'column', 'beam', 'roof', 'opening', 'curtainWall'];
+export type ElementTypeKind = 'wall' | 'slab' | 'column' | 'beam' | 'roof' | 'opening' | 'curtainWall' | 'stripFoundation' | 'padFooting';
+export const ELEMENT_TYPE_KINDS: readonly ElementTypeKind[] = ['wall', 'slab', 'column', 'beam', 'roof', 'opening', 'curtainWall', 'stripFoundation', 'padFooting'];
 
 export interface TypeLayer {
   name: string;
@@ -24,6 +27,8 @@ export interface TypeLayer {
   thickness: number;
   /** #rrggbb. */
   color?: string;
+  /** A foundation wall's structural core, which carries its axis. */
+  core?: boolean;
 }
 
 interface TypeBase {
@@ -53,14 +58,35 @@ export interface OpeningTypeSpec extends TypeBase { kind: 'opening'; width: numb
 /** A curtain wall type: its grid, sections, panels and colours (`curtain`); the height new curtain walls of it take. Each curtain wall keeps its own line and height. */
 export interface CurtainWallElementTypeSpec extends TypeBase { kind: 'curtainWall'; height: number; curtain: CurtainWallTypeSpec }
 
-export type ElementTypeSpec = WallTypeSpec | SlabTypeSpec | ColumnTypeSpec | BeamTypeSpec | RoofTypeSpec | OpeningTypeSpec | CurtainWallElementTypeSpec;
+/**
+ * A strip foundation: the foundation wall's layers (as a wall's, one of them
+ * the core on the axis), its height on the footing, the footing's width and
+ * height, and the footing's underside below the storey (negative).
+ */
+export interface StripFoundationTypeSpec extends TypeBase {
+  kind: 'stripFoundation';
+  layers: TypeLayer[];
+  stemHeight: number;
+  footingWidth: number;
+  footingHeight: number;
+  bottom: number;
+}
+/** A stepped pad footing: its steps from the bottom up, and its underside below the storey. */
+export interface PadFootingTypeSpec extends TypeBase { kind: 'padFooting'; steps: PadStep[]; bottom: number }
 
-/** The IFC type class an entry is written as. A roof system names its entry in its own spec; an opening has no type class. */
+export type ElementTypeSpec = WallTypeSpec | SlabTypeSpec | ColumnTypeSpec | BeamTypeSpec | RoofTypeSpec | OpeningTypeSpec | CurtainWallElementTypeSpec
+  | StripFoundationTypeSpec | PadFootingTypeSpec;
+
+/**
+ * The IFC type class an entry is written as. A roof system names its entry in its own spec; an opening has no type class;
+ * a foundation writes its own types (`foundation-element.ts`).
+ */
 export const TYPE_CLASS: Readonly<Record<ElementTypeKind, string | null>> = {
   wall: 'IfcWallType', slab: 'IfcSlabType', column: 'IfcColumnType', beam: 'IfcBeamType', roof: null, opening: null, curtainWall: null,
+  stripFoundation: null, padFooting: null,
 };
 
-export const MARK_PREFIX: Readonly<Record<ElementTypeKind, string>> = { wall: 'WT', slab: 'ST', column: 'C', beam: 'B', roof: 'R', opening: 'O', curtainWall: 'CW' };
+export const MARK_PREFIX: Readonly<Record<ElementTypeKind, string>> = { wall: 'WT', slab: 'ST', column: 'C', beam: 'B', roof: 'R', opening: 'O', curtainWall: 'CW', stripFoundation: 'SF', padFooting: 'PF' };
 
 export const layersThickness = (layers: readonly TypeLayer[]) => layers.reduce((s, l) => s + l.thickness, 0);
 
@@ -83,6 +109,11 @@ export function defaultTypeSpec(kind: ElementTypeKind): ElementTypeBody {
     };
     case 'opening': return { kind, width: 1, height: 1, sill: 1 };
     case 'curtainWall': return { kind, height: 3, curtain: structuredClone(DEFAULT_CURTAIN_WALL_TYPE) };
+    case 'stripFoundation': {
+      const { layers, stemHeight, footingWidth, footingHeight, bottom } = DEFAULT_STRIP_FOUNDATION;
+      return { kind, layers: layers.map((l) => ({ ...l })), stemHeight, footingWidth, footingHeight, bottom };
+    }
+    case 'padFooting': return { kind, steps: DEFAULT_PAD_FOOTING.steps.map((s) => ({ ...s })), bottom: DEFAULT_PAD_FOOTING.bottom };
   }
 }
 
@@ -91,6 +122,14 @@ export function defaultTypeSpec(kind: ElementTypeKind): ElementTypeBody {
 type Raw = Record<string, unknown>;
 const isObject = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, fallback: number, min = 0) => (typeof v === 'number' && Number.isFinite(v) && v >= min ? v : fallback);
+const signed = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+
+function readSteps(v: unknown, fallback: PadStep[]): PadStep[] {
+  if (!Array.isArray(v)) return fallback;
+  const out = v.flatMap((s): PadStep[] => (isObject(s) && [s.length, s.width, s.height].every((x) => typeof x === 'number' && x > 0)
+    ? [{ length: s.length as number, width: s.width as number, height: s.height as number }] : []));
+  return out.length ? out : fallback;
+}
 const str = (v: unknown, fallback: string) => (typeof v === 'string' ? v : fallback);
 const hex = (v: unknown): string | undefined => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : undefined);
 
@@ -99,7 +138,7 @@ function readLayers(v: unknown, fallback: TypeLayer[]): TypeLayer[] {
   const out = v.flatMap((l): TypeLayer[] => {
     if (!isObject(l) || !(typeof l.thickness === 'number' && l.thickness > 0)) return [];
     const color = hex(l.color);
-    return [{ name: str(l.name, 'Layer') || 'Layer', thickness: l.thickness, ...(color ? { color } : {}) }];
+    return [{ name: str(l.name, 'Layer') || 'Layer', thickness: l.thickness, ...(color ? { color } : {}), ...(l.core === true ? { core: true } : {}) }];
   });
   return out.length ? out : fallback;
 }
@@ -136,6 +175,11 @@ export function readElementTypeSpec(raw: unknown): ElementTypeSpec | null {
     case 'opening': return { ...base, kind: 'opening', width: num(raw.width, d.width, 0.01), height: num(raw.height, d.height, 0.01), sill: num(raw.sill, d.sill) };
     // The curtain wall configurator's own fields: kept as written, over the defaults for anything missing.
     case 'curtainWall': return { ...base, kind: 'curtainWall', height: num(raw.height, d.height, 0.01), curtain: isObject(raw.curtain) ? { ...d.curtain, ...(raw.curtain as Partial<CurtainWallTypeSpec>) } : d.curtain };
+    case 'stripFoundation': return {
+      ...base, kind: 'stripFoundation', layers: readLayers(raw.layers, d.layers), stemHeight: num(raw.stemHeight, d.stemHeight, 0.01),
+      footingWidth: num(raw.footingWidth, d.footingWidth, 0.01), footingHeight: num(raw.footingHeight, d.footingHeight, 0.01), bottom: signed(raw.bottom, d.bottom),
+    };
+    case 'padFooting': return { ...base, kind: 'padFooting', steps: readSteps(raw.steps, d.steps), bottom: signed(raw.bottom, d.bottom) };
   }
 }
 

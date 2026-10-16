@@ -37,6 +37,7 @@ import { MaterialsDialog } from '../materials/MaterialsDialog';
 import { installGroupBehaviour } from '@/project/element-groups';
 import { installRoofBlocks } from '@/project/roof-block';
 import { installCurtainWallBlocks } from '@/project/curtain-wall-element';
+import { installFoundationBlocks } from '@/project/foundation-element';
 import { CurtainWallDialog } from '../curtain-wall/CurtainWallDialog';
 import '@/joinery/placement';
 import '@/element-types/model-sync';
@@ -48,6 +49,7 @@ import { installStudioFeatures } from '@/project/studio-feature';
 installGroupBehaviour();
 installRoofBlocks();
 installCurtainWallBlocks();
+installFoundationBlocks();
 installStudioFeatures();
 
 type LeftTab = 'model' | 'project';

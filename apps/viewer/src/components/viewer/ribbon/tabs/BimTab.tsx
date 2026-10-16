@@ -5,14 +5,14 @@
 /**
  * Ribbon · BIM tab — modelling with the predefined BIM elements and
  * transforming them: place walls, slabs, columns, beams, curtain walls,
- * doors, windows, openings, stairs, railings, rooms and grids; move, copy,
+ * doors, windows, openings, stairs, railings, rooms and grids, and foundations; move, copy,
  * rotate, array and erase them (the same commands as on Draft, which act on
  * selected elements); flip, joins, groups and storey; work planes and aids.
  * Roofs are on the Wood tab.
  */
 
 import {
-  BimBeam, BimColumn, BimCurtainWall, BimDoor, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
+  BimBeam, BimColumn, BimCurtainWall, BimDoor, BimPadFooting, BimStripFoundation, BimGrid, BimOpening, BimRailing, BimRoom, BimSlab, BimStair, BimWall, BimWindow,
   DoorFlipHand, DoorFlipSide, DraftWorkplane, GroupEdit, GroupMake, GroupSelect, GroupUngroup, JoinAuto, JoinButt, JoinMitre, JoinSwap, MoveToStorey,
 } from '@/icons';
 import { useViewerStore } from '@/store';
@@ -53,6 +53,13 @@ export function BimTab() {
         </RibbonSmallStack>
         <RibbonSmallStack>
           <RibbonCommandSmallButton commandId="design:bim-grid" icon={BimGrid} active={bim('grid.place')} />
+        </RibbonSmallStack>
+      </RibbonGroup>
+      <RibbonGroupDivider />
+      <RibbonGroup label={t('foundation.group')}>
+        <RibbonSmallStack>
+          <RibbonCommandSmallButton commandId="design:bim-strip-foundation" icon={BimStripFoundation} active={bim('foundation.strip.place')} />
+          <RibbonCommandSmallButton commandId="design:bim-pad-footing" icon={BimPadFooting} active={bim('foundation.pad.place')} />
         </RibbonSmallStack>
       </RibbonGroup>
       <RibbonGroupDivider />

@@ -178,14 +178,18 @@ export function TypeFields({ spec, onChange }: { spec: ElementTypeSpec; onChange
           <p className="text-zinc-500">{t('elementTypes.roof.configuratorHint')}</p>
         </>
       );
+    // Their own fields (FoundationTypeFields).
+    case 'stripFoundation':
+    case 'padFooting':
+      return null;
   }
 }
 
-/** The build-up drawn to scale: a wall's layers across it, a slab's or roof's down through it. */
+/** The build-up drawn to scale: a wall's (or foundation wall's) layers across it, a slab's or roof's down through it. */
 export function LayerPreview({ spec }: { spec: ElementTypeSpec }) {
-  if (spec.kind !== 'wall' && spec.kind !== 'slab' && spec.kind !== 'roof') return null;
+  if (spec.kind !== 'wall' && spec.kind !== 'slab' && spec.kind !== 'roof' && spec.kind !== 'stripFoundation') return null;
   const total = layersThickness(spec.layers) || 1;
-  const across = spec.kind === 'wall';
+  const across = spec.kind === 'wall' || spec.kind === 'stripFoundation';
   const W = 220, H = 160;
   let at = 0;
   return (

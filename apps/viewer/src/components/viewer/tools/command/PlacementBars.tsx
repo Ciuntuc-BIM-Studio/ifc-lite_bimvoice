@@ -44,6 +44,16 @@ const ALIGN_KEYS: Record<WallAlign, TranslationKey> = {
   right: 'modelingCommand.wall.alignRight',
 };
 
+/** Strip foundations chain like walls; their section is the type's. */
+export function FoundationPlaceBar() {
+  return (
+    <>
+      <HudDivider />
+      <ChainToggle />
+    </>
+  );
+}
+
 export function WallPlaceBar() {
   const { t } = useTranslation();
   const align = useViewerStore((s) => s.authoringDefaults.wallAlign);

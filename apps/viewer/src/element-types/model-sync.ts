@@ -17,6 +17,7 @@
  */
 
 import { applyCurtainWall, curtainWallOfRenderId, pushCurtainWallType, specFromType } from '@/project/curtain-wall-element';
+import { applyFoundationTypeToSelection, pushFoundationType } from '@/project/foundation-element';
 import {
   assignMaterialInStore, assignTypeInStore, catalogTypeOfElement, ensureCatalogTypeInStore, findCatalogTypeInStore,
   occurrencesOfTypeInStore, readRelatedLists, readRoofSystem, resolveJoineryAnchor, rewriteCatalogTypeInStore, setLayerUsageOffset,
@@ -121,6 +122,11 @@ export function pushElementType(spec: ElementTypeSpec): TypePushReport {
     const pushed = pushCurtainWallType({ id: spec.id, spec: spec.curtain, height: spec.height });
     return { models: pushed.updated > 0 ? 1 : 0, elements: pushed.updated, refused: pushed.failed };
   }
+  if (spec.kind === 'stripFoundation' || spec.kind === 'padFooting') {
+    // Foundations name their type in their own spec too.
+    const pushed = pushFoundationType(spec);
+    return { models: pushed.updated > 0 ? 1 : 0, elements: pushed.updated, refused: pushed.failed };
+  }
   for (const [modelId, model] of s.models) {
     const ds = model.ifcDataStore;
     if (!ds) continue;
@@ -209,6 +215,7 @@ export function applyTypeToSelection(spec: ElementTypeSpec): { updated: number; 
   const s = useViewerStore.getState();
   const ids = new Set<number>(s.selectedEntityIds ?? []);
   if (s.selectedEntityId !== null && s.selectedEntityId !== undefined) ids.add(s.selectedEntityId);
+  if (spec.kind === 'stripFoundation' || spec.kind === 'padFooting') return applyFoundationTypeToSelection(spec, ids);
   const out = { updated: 0, refused: [] as string[] };
   const byModel = new Map<string, number[]>();
   const doneCurtainWalls = new Set<string>();

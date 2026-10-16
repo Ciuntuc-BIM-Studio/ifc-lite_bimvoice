@@ -148,6 +148,8 @@ export { default as BimOpening } from '~icons/viewer/bim-opening';
 export { default as BimStair } from '~icons/viewer/bim-stair';
 export { default as BimRailing } from '~icons/viewer/bim-railing';
 export { default as BimCurtainWall } from '~icons/viewer/bim-curtain-wall';
+export { default as BimStripFoundation } from '~icons/viewer/bim-strip-foundation';
+export { default as BimPadFooting } from '~icons/viewer/bim-pad-footing';
 export { default as BimGrid } from '~icons/viewer/bim-grid';
 export { default as BimRoom } from '~icons/viewer/bim-room';
 export { default as JoinMitre } from '~icons/viewer/join-mitre';

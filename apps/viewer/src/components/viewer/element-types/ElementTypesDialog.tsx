@@ -24,6 +24,7 @@ import { applyTypeToSelection, pushElementType } from '@/element-types/model-syn
 import { closeElementTypes, useTypesDialog } from '@/element-types/dialog-store';
 import { ELEMENT_TYPE_KINDS, layersThickness, type ElementTypeKind, type ElementTypeSpec } from '@/element-types/spec';
 import { Field, LayerPreview, TypeFields } from './TypeFields';
+import { PadFootingFields, PadFootingPreview, StripFoundationFields } from './FoundationTypeFields';
 
 function download(name: string, text: string): void {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -42,6 +43,8 @@ function summary(spec: ElementTypeSpec): string {
     case 'roof': return `${spec.pitch}° · ${mm(layersThickness(spec.layers))} mm`;
     case 'opening': return `${mm(spec.width)}×${mm(spec.height)}`;
     case 'curtainWall': return `${mm(spec.curtain.mullion.width)}×${mm(spec.curtain.mullion.depth)} · ${spec.curtain.panel.kind}`;
+    case 'stripFoundation': return `${mm(layersThickness(spec.layers))} mm · ${mm(spec.footingWidth)}×${mm(spec.footingHeight)}`;
+    case 'padFooting': return `${spec.steps.map((st) => `${mm(st.length)}×${mm(st.width)}`).join(' / ')}`;
     default: return spec.section.Type === 'Rectangle' ? `${mm(spec.section.XDim)}×${mm(spec.section.YDim)}` : spec.section.Type;
   }
 }
@@ -148,10 +151,12 @@ export function ElementTypesDialog() {
                   <input aria-label={t('elementTypes.mark')} className="h-6 w-full rounded-sm border border-zinc-300 bg-transparent px-1 dark:border-zinc-700" value={draft.mark}
                     onChange={(e) => setDraft({ ...draft, mark: e.target.value })} />
                 </Field>
-                <TypeFields spec={draft} onChange={setDraft} />
+                {draft.kind === 'stripFoundation' ? <StripFoundationFields spec={draft} onChange={setDraft} />
+                  : draft.kind === 'padFooting' ? <PadFootingFields spec={draft} onChange={setDraft} />
+                  : <TypeFields spec={draft} onChange={setDraft} />}
               </div>
               <div className="min-h-0 space-y-2 overflow-y-auto">
-                <LayerPreview spec={draft} />
+                {draft.kind === 'padFooting' ? <PadFootingPreview spec={draft} /> : <LayerPreview spec={draft} />}
                 <p className="text-zinc-500">{t(`elementTypes.hint.${draft.kind}`)}</p>
               </div>
             </>
