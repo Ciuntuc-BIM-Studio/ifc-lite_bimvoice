@@ -19,6 +19,7 @@ import { roofGeometry, type RoofEdgeRule } from '../in-store/roof-system.js';
 import { stairFlightOutline } from '../in-store/stair.js';
 import { trussBars, trussProblem, type TimberTrussSpec } from '../in-store/truss.js';
 import { buildCorridor, type CorridorSpec } from '../civil/corridor.js';
+import { padFootingProblems, padFootingQuantities, stripFoundationProblems, stripFoundationQuantities, type PadStep, type StripFoundationSpec } from '../in-store/foundation-spec.js';
 import { Terrain } from '../civil/tin.js';
 import type { NativeSystem } from './schema.js';
 import type { SystemQuantityContext } from './system-terrain.js';
@@ -134,6 +135,24 @@ export function systemQuantities(e: NativeSystem, ctx: SystemQuantityContext = {
     return { set: 'Qto_StairBaseQuantities', quantities: [length('Length', risers * tread), volume('GrossVolume', profile * width), volume('NetVolume', profile * width)] };
   }
   if (e.family === 'corridor') return corridorQuantities(e, ctx);
+  if (e.family === 'padFooting') {
+    if (!Array.isArray(spec.steps) || padFootingProblems({ steps: spec.steps as PadStep[], bottom: Number(spec.bottom) }).length) return null;
+    const q = padFootingQuantities({ steps: spec.steps as PadStep[] });
+    return { set: 'Qto_FootingBaseQuantities', quantities: [
+      length('Length', q.length), length('Width', q.width), length('Height', q.height),
+      area('CrossSectionArea', q.footprint), area('OuterSurfaceArea', q.outerSurface), volume('GrossVolume', q.volume), volume('NetVolume', q.volume),
+    ] };
+  }
+  if (e.family === 'stripFoundation') {
+    const s = spec as unknown as StripFoundationSpec;
+    if (!isPoint(spec.start, 3) || !isPoint(spec.end, 3) || !Array.isArray(spec.layers) || stripFoundationProblems(s).length) return null;
+    const q = stripFoundationQuantities(s);
+    return { set: 'Lapin_StripFoundationQuantities', quantities: [
+      length('Length', q.length), length('FootingWidth', s.footingWidth), length('FootingHeight', s.footingHeight), length('StemHeight', s.stemHeight),
+      area('FootingArea', q.footingArea), area('StemSideArea', q.stemSideArea),
+      volume('FootingVolume', q.footingVolume), volume('StemVolume', q.stemVolume), volume('CoreVolume', q.coreVolume), volume('ConcreteVolume', q.footingVolume + q.coreVolume),
+    ] };
+  }
   if (e.family === 'truss') {
     if (!isTrussSpec(spec) || trussProblem(spec)) return null;
     const bars = trussBars(spec);

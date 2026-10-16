@@ -102,6 +102,8 @@ export interface WallReshape {
   start?: PlanPoint;
   end?: PlanPoint;
   thickness?: number;
+  /** The body's shift to the left of its axis (`WallInStoreParams.Offset`), metres. */
+  offset?: number;
 }
 
 export interface WallReshapeOptions {
@@ -159,7 +161,7 @@ export function reshapeWallsInStore(
   };
 
   // The requested axes, then the walls a moved corner drags along.
-  const axes = new Map<number, { start: PlanPoint; end: PlanPoint; thickness?: number }>();
+  const axes = new Map<number, { start: PlanPoint; end: PlanPoint; thickness?: number; offset?: number }>();
   const detached = new Set<number>();
   for (const edit of edits) {
     const read = load(edit.wallId);
@@ -170,7 +172,8 @@ export function reshapeWallsInStore(
     if (edit.thickness !== undefined && !(Number.isFinite(edit.thickness) && edit.thickness > 0)) {
       throw new Error(`${op}: wall #${edit.wallId} thickness must be positive`);
     }
-    axes.set(edit.wallId, { start, end, thickness: edit.thickness });
+    if (edit.offset !== undefined && !Number.isFinite(edit.offset)) throw new Error(`${op}: wall #${edit.wallId} offset must be finite`);
+    axes.set(edit.wallId, { start, end, thickness: edit.thickness, offset: edit.offset });
   }
   if (options.moveJoinedEnds) {
     for (const rel of readWallJoinRels(store, view(), new Set(axes.keys()))) {
@@ -211,7 +214,7 @@ export function reshapeWallsInStore(
   const placementIds = [...axes].flatMap(([id, ends]) => holdsPlacement(load(id).wall, ends.start, ends.end) ? [] : [load(id).axisPlacementId]);
   const placementOwnership = editOwnershipRefusal(store, view(), placementIds, expandAffectedSet(store, view(), targets.keys(), 'hostsChanged'));
   if (placementOwnership) throw new Error(`${op}: ${placementOwnership}`);
-  for (const [id, { start, end, thickness }] of axes) targets.set(id, writeAxis(editor, anchor, load(id), start, end, thickness));
+  for (const [id, { start, end, thickness, offset }] of axes) targets.set(id, writeAxis(editor, anchor, load(id), start, end, thickness, offset));
 
   // Recompute every join that touches a moved wall: the joined end snaps to the
   // crossing and is cut to the other wall's face. The relating wall runs through.
@@ -285,10 +288,10 @@ function holdsPlacement(old: WallJoinWall, start: PlanPoint, end: PlanPoint): bo
       + ((end[1] - start[1]) / length) * ((old.end[1] - old.start[1]) / oldLength)) > 1 - 1e-12;
 }
 
-function writeAxis(editor: StoreEditor, anchor: JoinAnchor, read: WallJoinRead, start: PlanPoint, end: PlanPoint, thickness = read.wall.thickness): WallJoinRead {
+function writeAxis(editor: StoreEditor, anchor: JoinAnchor, read: WallJoinRead, start: PlanPoint, end: PlanPoint, thickness = read.wall.thickness, offset = read.wall.offset): WallJoinRead {
   const length = Math.hypot(end[0] - start[0], end[1] - start[1]);
   const native = (v: number) => toNativeLength(anchor, v);
-  const reshaped = reshapeWallAxis({ ...read.wall, thickness }, start, end);
+  const reshaped = reshapeWallAxis({ ...read.wall, thickness, offset }, start, end);
 
   const ux = (end[0] - start[0]) / length;
   const uy = (end[1] - start[1]) / length;
