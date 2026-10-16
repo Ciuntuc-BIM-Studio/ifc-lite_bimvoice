@@ -17,7 +17,7 @@
  */
 
 import { StepExporter, Ifc5Exporter } from '@ifc-lite/export';
-import { withNativeExportSets } from './native-export-sets.js';
+import { withNativeExportSets, withoutCombinedTools } from './native-export-sets.js';
 import { prepareAppearanceSerialization } from '../appearance/serialization.js';
 import { packagePortableIfcAsync } from './portable-ifc.js';
 import type { IfcDataStore } from '@ifc-lite/parser';
@@ -91,7 +91,8 @@ export async function exportChangedModelToIfcx(
       )
     : invocation.geometryResult;
 
-  const exporter = new Ifc5Exporter(dataStore, exportGeometry, view, invocation.idOffset);
+  // A live Union's tools are part of their target's mesh, not nodes of their own.
+  const exporter = new Ifc5Exporter(dataStore, exportGeometry, view ? withoutCombinedTools(dataStore, view) : view, invocation.idOffset);
   const result = exporter.export({
     includeGeometry: true,
     includeProperties: true,

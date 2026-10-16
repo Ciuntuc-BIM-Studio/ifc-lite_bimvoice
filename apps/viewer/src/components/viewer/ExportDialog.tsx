@@ -5,7 +5,7 @@
 import type { ExportFormat, ExportSurface } from '@/lib/analytics-export-events';
 import { modelDisplayLabels } from '@/lib/model-labels.js';
 import { stepExportProgress } from '@/lib/export/step-progress.js';
-import { withNativeExportSets } from '@/lib/export/native-export-sets.js';
+import { withNativeExportSets, withoutCombinedTools } from '@/lib/export/native-export-sets.js';
 import { exportModelStep } from '@/lib/export/model-step-export';
 import { packagePortableIfcAsync, assertPortableMergeSupported } from '@/lib/export/portable-ifc';
 import { lostPropertyCollisionsNote, unrepresentedPsetsNote } from '@/lib/export/changed-model-export';
@@ -331,13 +331,13 @@ export function ExportDialog({ surface, trigger, initialChangesOnly = false }: E
           if (!entry.dataStore) {
             continue;
           }
-          const roomView = applyMutations ? (getMutationView(entry.model.id) ?? undefined) : undefined;
+          const sessionView = applyMutations ? (getMutationView(entry.model.id) ?? undefined) : undefined;
+          // As a single-model export: native sets, combined tools left to their targets (a shared room's copy is made from it).
+          const roomView = sessionView ? withNativeExportSets(entry.dataStore, sessionView) : undefined;
           const { input, portable } = roomMergeInput({
             id: entry.model.id, name: entry.model.name, store: entry.dataStore, roomView, applyMutations,
           });
           if (portable) portableByModel.set(entry.model.id, portable);
-          // A model of this session (not a shared room's portable copy) carries its native sets, its combined tools left to their targets.
-          else if (input.mutationView) input.mutationView = withNativeExportSets(input.dataStore, input.mutationView);
           mergeInputs.push(input);
         }
 
@@ -433,7 +433,8 @@ export function ExportDialog({ surface, trigger, initialChangesOnly = false }: E
         const exporter = new Ifc5Exporter(
           selectedModel.ifcDataStore,
           exportGeometry,
-          mutationView || undefined,
+          // A live Union's tools are part of their target's mesh, not nodes of their own.
+          mutationView ? withoutCombinedTools(selectedModel.ifcDataStore, mutationView) : undefined,
           idOffset,
         );
 
