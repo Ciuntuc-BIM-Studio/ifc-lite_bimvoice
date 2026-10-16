@@ -23,6 +23,8 @@ import { NATIVE_IFC, NATIVE_PSET } from './ifc-mapping.js';
 import { solidMeasures } from './solid.js';
 import { systemQuantities } from './system-quantities.js';
 import type { SystemQuantityContext } from './system-terrain.js';
+import type { IfcDataStore } from '@ifc-lite/parser';
+import { quantitiesInModelUnits } from './quantity-units.js';
 import type { NativeElement, NativeId, NativeModel, PlanPoint } from './schema.js';
 import { NATIVE_SCHEMA_VERSION } from './schema.js';
 import { nativeIndex, nativeSection, resolveNativeParam, ringArea2, type NativeIndex } from './validate.js';
@@ -145,7 +147,11 @@ export interface NativeExportSets { quantitySets: number; propertySets: number }
  * Write the base quantities and `Pset_LapinNative` of every element of
  * `model` onto `view` (`expressIds`: native id → express id, from the lift).
  */
-export function writeNativeExportSets(view: MutablePropertyView, model: NativeModel, expressIds: ReadonlyMap<NativeId, number>, ctx: SystemQuantityContext = {}): NativeExportSets {
+export function writeNativeExportSets(
+  view: MutablePropertyView, model: NativeModel, expressIds: ReadonlyMap<NativeId, number>, ctx: SystemQuantityContext = {},
+  /** The model written: its quantities in its project's units (SI without it). */
+  store?: IfcDataStore,
+): NativeExportSets {
   const index = nativeIndex(model);
   const hostedBy = new Map<NativeId, NativeElement[]>();
   for (const e of model.elements) {
@@ -160,7 +166,7 @@ export function writeNativeExportSets(view: MutablePropertyView, model: NativeMo
     const has = (name: string) => (view.getQuantitiesForEntity(id) ?? []).some((q) => q.name === name);
     if (quantities && (!has(quantities.set) || ours)) {
       if (has(quantities.set)) view.deleteQuantitySet(id, quantities.set);
-      view.createQuantitySet(id, quantities.set, quantities.quantities);
+      view.createQuantitySet(id, quantities.set, store ? quantitiesInModelUnits(store, quantities.quantities) : quantities.quantities);
       out.quantitySets++;
     }
     if (ours) view.deletePropertySet(id, NATIVE_PSET);

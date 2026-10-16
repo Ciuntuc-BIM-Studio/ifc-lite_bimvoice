@@ -29,7 +29,7 @@ export function withNativeExportSets(dataStore: IfcDataStore, view: MutablePrope
     // The project's own copy keeps them: they are editable elements there.
     if (!options.keepCombinedTools) omitCombinedToolsInStore(dataStore, new StoreEditor(dataStore, copy));
     const lifted = liftNativeModel(dataStore, copy, { id: EXPORT_MODEL_ID, name: '' });
-    writeNativeExportSets(copy, lifted.model, lifted.expressIds, systemQuantityContext(dataStore, copy));
+    writeNativeExportSets(copy, lifted.model, lifted.expressIds, systemQuantityContext(dataStore, copy), dataStore);
     return copy;
   } catch (error) {
     console.warn('[export] native quantities and parameters were not written', error);

@@ -30,3 +30,4 @@ export { nativeElementQuantities, nativeSolidOf, type ElementQuantities } from '
 export { liftSolid, readSolidShape, solidFaces, solidMeasures, solidStoreParams } from './solid.js';
 export { NATIVE_SOLID_PSET, nativeIfcClass } from './ifc-mapping.js';
 export { systemQuantityContext, type SystemQuantityContext } from './system-terrain.js';
+export { quantitiesInModelUnits } from './quantity-units.js';

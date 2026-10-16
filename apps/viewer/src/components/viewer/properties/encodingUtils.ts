@@ -40,4 +40,6 @@ export interface QuantitySet {
   quantities: Array<{ name: string; value: number; type: number }>;
   /** Computed from a native element's parameters (not in the model until an export writes it). */
   derived?: boolean;
+  /** The model's own set of a native element: the values its parameters give where they differ (by quantity name). */
+  parametric?: Record<string, number>;
 }

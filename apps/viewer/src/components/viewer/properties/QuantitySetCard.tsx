@@ -51,6 +51,12 @@ export function QuantitySetCard({ qset, projectUnits, unitDisplayOverrides, sear
             <TooltipContent side="top" className="text-2xs"><span className="text-muted-foreground">{t('properties.quantitySet.derivedHint')}</span></TooltipContent>
           </Tooltip>
         )}
+        {qset.parametric && (
+          <Tooltip>
+            <TooltipTrigger asChild><span className="text-2xs bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.5 text-amber-800 dark:text-amber-300 shrink-0 cursor-help">{t('properties.quantitySet.differs')}</span></TooltipTrigger>
+            <TooltipContent side="top" className="text-2xs"><span className="text-muted-foreground">{t('properties.quantitySet.differsHint')}</span></TooltipContent>
+          </Tooltip>
+        )}
         <span className="text-2xs font-mono bg-blue-100 dark:bg-blue-900/50 px-1.5 py-0.5 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 shrink-0">{formatLocaleNumber(locale, qset.quantities.length)}</span>
         <ChevronDown className="size-3 shrink-0 transition-transform group-data-[state=closed]/disclosure:-rotate-90" aria-hidden="true" />
       </CollapsibleTrigger>
@@ -89,6 +95,11 @@ export function QuantitySetCard({ qset, projectUnits, unitDisplayOverrides, sear
                   <span className="font-mono text-blue-700 dark:text-blue-400 select-all break-words">
                     <PropertySearchHighlight text={display} query={searchQuery} />
                   </span>
+                  {qset.parametric?.[q.name] !== undefined && (
+                    <span className="font-mono text-2xs text-amber-700 dark:text-amber-400 break-words">
+                      {t('properties.quantitySet.fromParameters', { value: quantityDisplayValue({ ...q, value: qset.parametric[q.name] }, projectUnits, unitDisplayOverrides ?? {}, locale) })}
+                    </span>
+                  )}
                 </div>
                 <CopyValueButton name={q.name} value={display} />
               </div>
