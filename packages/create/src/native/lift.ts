@@ -155,10 +155,15 @@ function contained(ctx: LiftContext, expressId: number): number {
 }
 
 /** Lift a model's store (with its overlay) into the native schema. */
-export function liftNativeModel(store: IfcDataStore, view: MutablePropertyView, meta: { id: NativeId; name: string }): LiftResult {
+export function liftNativeModel(
+  store: IfcDataStore, view: MutablePropertyView, meta: { id: NativeId; name: string },
+  /** `geometrySolids: false` (an export): plain extrusions without a Studio history are not read as solids. */
+  options: { geometrySolids?: boolean } = {},
+): LiftResult {
   const ctx: LiftContext = {
     store, view, editor: new StoreEditor(store, view), reader: new AnchorEntityReader(store, view),
     scale: getModelLengthUnitScale(store), storeyOf: new Map(), storeyExpressOf: new Map(), typeOf: new Map(), lifted: new Map(), skipped: [], partOf: new Map(),
+    ...(options.geometrySolids === false ? { geometrySolids: false } : {}),
   };
   const storeys = liftStoreys(ctx);
   const storeyExpress = new Map<number, NativeId>();

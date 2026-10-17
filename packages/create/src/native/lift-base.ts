@@ -45,6 +45,8 @@ export interface LiftContext {
   skipped: LiftSkip[];
   /** Parts of a system or a timber-framed wall, by express id: the native id of what they belong to. */
   partOf: Map<number, NativeId>;
+  /** Lift plain extrusions without a Studio history as solids too (default); off, only recorded solids are read. */
+  geometrySolids?: boolean;
 }
 
 /** The native id of an IFC GlobalId, or null when it is not a valid one. */

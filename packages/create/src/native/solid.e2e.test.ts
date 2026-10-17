@@ -102,6 +102,9 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('Studio solids as native
     const reparsed = await parse(bytes);
     const fresh = new mutations.MutablePropertyView(null, 'r');
     check(create.liftNativeModel(reparsed, fresh, { id: '00000000-0000-4000-8000-000000000000', name: '' }), 'read back');
+    // Without plain extrusions (an export's lift): the recorded solids are found from their sets, in the session and in the file.
+    check(create.liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' }, { geometrySolids: false }), 'session, recorded only');
+    check(create.liftNativeModel(reparsed, new mutations.MutablePropertyView(null, 'r2'), { id: '00000000-0000-4000-8000-000000000000', name: '' }, { geometrySolids: false }), 'read back, recorded only');
   });
 
   it('reads a plain extrusion without history (a plate, a member, a simple roof) as a solid of the same body', async () => {
@@ -118,6 +121,9 @@ describe.skipIf(!existsSync(WASM) || !existsSync(GLUE))('Studio solids as native
       roof: addRoofToStore(editor, anchor, { Position: [10, 3, 3], Width: 4, Depth: 3, Thickness: 0.3 }).roofId,
     };
     const lifted = create.liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' });
+    // Without plain extrusions (an export's lift), none of them is a solid: their body says it again on re-import.
+    const recordedOnly = create.liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' }, { geometrySolids: false });
+    expect(Object.values(ids).filter((id) => recordedOnly.model.elements.some((e) => recordedOnly.expressIds.get(e.id) === id))).toEqual([]);
     const bytes = new StepExporter(store, view).export({ schema: 'IFC4', applyMutations: true }).content as Uint8Array;
     const reparsed = await parse(bytes);
     const api = new runtime.IfcAPI();

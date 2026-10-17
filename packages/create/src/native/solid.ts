@@ -82,7 +82,7 @@ export function liftSolid(ctx: LiftContext, expressId: number, psets = new Relat
   // Its history as Studio wrote it; else a plain extrusion on its storey, read from its body.
   const storey = ctx.storeyExpressOf.get(ctx.storeyOf.get(expressId) ?? '');
   const shape = readSolidShape(solidSpec(ctx, psets, expressId))
-    ?? (storey === undefined ? null : extrusionShape(ctx, expressId, ctx.reader.storeyPlacementId(storey)));
+    ?? (storey === undefined || ctx.geometrySolids === false ? null : extrusionShape(ctx, expressId, ctx.reader.storeyPlacementId(storey)));
   if (!shape) return null;
   const skipped = ctx.skipped.length;
   const base = liftBase(ctx, expressId, 'solid');
@@ -92,11 +92,35 @@ export function liftSolid(ctx: LiftContext, expressId: number, psets = new Relat
   return { ...base, kind: 'solid', ifcClass: entity.type, shape };
 }
 
+/**
+ * The elements a Studio history is recorded on: the session's `Pset_LapinSolid`
+ * edits and the file's sets of that name, found from the sets (not by reading
+ * every element of the model).
+ */
+function recordedSolidIds(ctx: LiftContext): number[] {
+  const out = new Set<number>();
+  for (const m of ctx.view.getMutations()) if (m.psetName === NATIVE_SOLID_PSET) out.add(m.entityId);
+  const sets = new Set([...ctx.reader.ids('IFCPROPERTYSET')].filter((id) => ctx.reader.entity(id)?.attributes[2] === NATIVE_SOLID_PSET));
+  if (sets.size) {
+    for (const relId of ctx.reader.ids('IFCRELDEFINESBYPROPERTIES')) {
+      const rel = ctx.reader.entity(relId);
+      if (!rel || !sets.has(refId(rel.attributes[5]) ?? -1) || !Array.isArray(rel.attributes[4])) continue;
+      for (const o of rel.attributes[4] as unknown[]) { const id = refId(o); if (id !== null) out.add(id); }
+    }
+  }
+  return [...out];
+}
+
 /** Every element Studio built that the class lifters did not take: lifted as a solid (its earlier skip dropped). */
 export function liftSolids(ctx: LiftContext): void {
   const psets = new RelationLookup(ctx.store, ctx.view, ctx.reader, DEFINES);
-  for (const type of STUDIO_CLASSES) {
-    for (const id of ctx.reader.ids(type)) {
+  const studio = new Set(STUDIO_CLASSES);
+  // Without plain extrusions, only the elements a history is recorded on (a large imported model is not walked).
+  const candidates = ctx.geometrySolids === false
+    ? [recordedSolidIds(ctx).filter((id) => studio.has(ctx.reader.entity(id)?.type.toUpperCase() ?? ''))]
+    : STUDIO_CLASSES.map((type) => ctx.reader.ids(type));
+  for (const ids of candidates) {
+    for (const id of ids) {
       if (ctx.lifted.has(id) || ctx.partOf.has(id)) continue;
       const solid = liftSolid(ctx, id, psets);
       if (!solid) continue;

@@ -43,6 +43,9 @@ export function useAutosaveRecovery(): void {
     const run = async () => {
       timer = null;
       if (running || usePackageSession.getState().busy || !isProjectDirty()) return;
+      // Scheduled while a model was still loading (its source not yet resident), the journal may cover
+      // it by now: milliseconds instead of packaging the whole project (seconds for a large model).
+      if (journalCovers()) { void journal(); return; }
       const wait = last + MIN_INTERVAL_MS - Date.now();
       if (wait > 0) { timer = setTimeout(run, wait); return; }
       running = true;

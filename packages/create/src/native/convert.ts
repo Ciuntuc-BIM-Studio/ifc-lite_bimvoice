@@ -23,6 +23,7 @@ import { placedBodyExtent } from '../in-store/resolve-host.js';
 import { defaultDoorSpec, defaultWindowSpec, type JoinerySpec } from '../in-store/joinery-spec.js';
 import { retypeOccurrencesInStore } from '../in-store/joinery-sync.js';
 import { liftNativeModel } from './lift.js';
+import { AnchorEntityReader } from '../in-store/resolve-anchor.js';
 
 export interface NativeConversionPlan {
   /** Elements the native schema describes as they are. */
@@ -34,6 +35,7 @@ export interface NativeConversionPlan {
 }
 
 const NO_TYPE = 'no configured joinery type';
+const JOINERY_CLASSES = ['IFCDOOR', 'IFCDOORSTANDARDCASE', 'IFCWINDOW', 'IFCWINDOWSTANDARDCASE'];
 const mm = (m: number) => Math.round(m * 1000);
 
 /**
@@ -50,7 +52,12 @@ export function sizedJoinerySpec(kind: 'door' | 'window', width: number, height:
 
 /** What converting `store` (with `view`'s edits) would do. */
 export function planNativeConversion(store: IfcDataStore, view: MutablePropertyView): NativeConversionPlan {
-  const lifted = liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' });
+  // Only doors and windows can be converted: a model without any is not lifted at all (a whole lift of
+  // a large model is seconds on the main thread). Its `native` count is then not known, and not needed.
+  const reader = new AnchorEntityReader(store, view);
+  if (!JOINERY_CLASSES.some((type) => !reader.ids(type).next().done)) return { native: 0, joinery: [], remaining: [] };
+  // Only its doors and windows matter here: plain extrusions are not read as solids.
+  const lifted = liftNativeModel(store, view, { id: '00000000-0000-4000-8000-000000000000', name: '' }, { geometrySolids: false });
   const scale = getModelLengthUnitScale(store);
   const groups = new Map<string, { spec: JoinerySpec; ids: number[] }>();
   const remaining = new Map<string, number>();

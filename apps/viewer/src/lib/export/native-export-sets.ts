@@ -28,7 +28,9 @@ export function withNativeExportSets(dataStore: IfcDataStore, view: MutablePrope
     const copy = view.detachedCopy();
     // The project's own copy keeps them: they are editable elements there.
     if (!options.keepCombinedTools) omitCombinedToolsInStore(dataStore, new StoreEditor(dataStore, copy));
-    const lifted = liftNativeModel(dataStore, copy, { id: EXPORT_MODEL_ID, name: '' });
+    // Plain extrusions without a Studio history are read again from their body on re-import: they need no
+    // parameters in the file, and reading every element of a large imported model is seconds on the main thread.
+    const lifted = liftNativeModel(dataStore, copy, { id: EXPORT_MODEL_ID, name: '' }, { geometrySolids: false });
     writeNativeExportSets(copy, lifted.model, lifted.expressIds, systemQuantityContext(dataStore, copy), dataStore);
     return copy;
   } catch (error) {

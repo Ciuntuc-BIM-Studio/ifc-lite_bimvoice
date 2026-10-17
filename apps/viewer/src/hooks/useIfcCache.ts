@@ -35,7 +35,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useViewerStore } from '../store/index.js';
 import { getCached, setCached, deleteCached, type CacheResult } from '../services/cacheService.js';
 import { rebuildSpatialHierarchy, rebuildOnDemandMaps } from '../utils/spatialHierarchy.js';
-import { calculateStoreyHeights } from '../utils/localParsingUtils.js';
+import { calculateStoreyHeights, getRenderIntervalMs } from '../utils/localParsingUtils.js';
 import { recordFirstVisible } from '../lib/perf/loadTrace.js';
 
 // Re-export types for convenience
@@ -385,6 +385,10 @@ export function useIfcCache() {
         const allMeshes: MeshData[] = [];
         let superseded = false;
         let firstVisible: Promise<void> | undefined;
+        // Appended at the fresh stream's pace, not per chunk: each append re-renders the UI (1000+ chunks).
+        const renderIntervalMs = getRenderIntervalMs(cacheBuffer.byteLength / (1024 * 1024));
+        let pending: MeshData[] = [], lastAppend = 0;
+        const flush = () => { if (pending.length) { appendGeometryBatch(modelId, pending, open.coordinateInfo); pending = []; lastAppend = performance.now(); } };
         try {
           for (let i = 0; i < open.chunks.length; i++) {
             const chunkMeshes = await open.readChunk(i);
@@ -397,7 +401,8 @@ export function useIfcCache() {
               break;
             }
             allMeshes.push(...chunkMeshes);
-            appendGeometryBatch(modelId, chunkMeshes, open.coordinateInfo);
+            for (const mesh of chunkMeshes) pending.push(mesh);
+            if (i === 0 || i === open.chunks.length - 1 || performance.now() - lastAppend >= renderIntervalMs) flush();
             if (i === 0) firstVisible = recordFirstVisible(trace, trace.milestone('geometry.firstAppend')); // every load: ifc_model_loaded reads it (#6961)
             if ((i & 3) === 3 || i === open.chunks.length - 1) {
               setProgress({
