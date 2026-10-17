@@ -6,11 +6,14 @@
  * The package's ZIP, with each large part compressed once (N4b): a model's
  * IFC and geometry are the same bytes from save to save, so their deflated
  * form and CRC are kept and written again as they are — a save then costs
- * the parts that changed, not the model's size. Standard ZIP (deflate or
- * stored entries), read by any unzip.
+ * the parts that changed, not the model's size; the first time, they are
+ * packed in a worker (`prepackParts`). Standard ZIP (deflate or stored
+ * entries), read by any unzip.
  */
 
 import { deflateSync, Zip, type ZipInputFile } from 'fflate';
+import { crc32 } from './zip-crc';
+import type { ZipPackRequest, ZipPackResponse } from '@/workers/zipPack.worker';
 
 interface Packed { crc: number; size: number; data: Uint8Array<ArrayBuffer>; compression: 0 | 8 }
 
@@ -18,38 +21,60 @@ interface Packed { crc: number; size: number; data: Uint8Array<ArrayBuffer>; com
 const KEEP = 1 << 20;
 const packed = new WeakMap<Uint8Array, Map<number, Packed>>();
 
-let table: Uint32Array | null = null;
-function crc32(bytes: Uint8Array): number {
-  if (!table) {
-    table = new Uint32Array(256);
-    for (let n = 0; n < 256; n++) {
-      let c = n;
-      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-      table[n] = c >>> 0;
-    }
-  }
-  let c = 0xffffffff;
-  for (let i = 0; i < bytes.length; i++) c = table[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
 /** The same bytes over a plain ArrayBuffer (a shared one copied). */
 const plain = (bytes: Uint8Array): Uint8Array<ArrayBuffer> =>
   bytes.buffer instanceof ArrayBuffer ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength) : new Uint8Array(bytes);
 
-function pack(bytes: Uint8Array, level: number): Packed {
-  const known = packed.get(bytes)?.get(level);
-  if (known) return known;
-  const deflated = level > 0 ? deflateSync(bytes, { level: level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 }) : null;
+/** A part's packed form from its CRC and deflated bytes (stored when deflating does not pay). */
+function packedOf(bytes: Uint8Array, level: number, crc: number, deflated: Uint8Array<ArrayBuffer> | null): Packed {
   const out: Packed = deflated && deflated.byteLength < bytes.byteLength
-    ? { crc: crc32(bytes), size: bytes.byteLength, data: deflated, compression: 8 }
-    : { crc: crc32(bytes), size: bytes.byteLength, data: plain(bytes), compression: 0 };
+    ? { crc, size: bytes.byteLength, data: deflated, compression: 8 }
+    : { crc, size: bytes.byteLength, data: plain(bytes), compression: 0 };
   if (bytes.byteLength >= KEEP) {
     let levels = packed.get(bytes);
     if (!levels) packed.set(bytes, (levels = new Map()));
     levels.set(level, out);
   }
   return out;
+}
+
+function pack(bytes: Uint8Array, level: number): Packed {
+  const known = packed.get(bytes)?.get(level);
+  if (known) return known;
+  return packedOf(bytes, level, crc32(bytes), level > 0 ? deflateSync(bytes, { level: level as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 }) : null);
+}
+
+/**
+ * Pack the large parts `zipParts` has not packed yet off the main thread (one
+ * worker for the call), so the ZIP itself is then only assembled. Without
+ * workers (tests, old browsers) `zipParts` packs them itself.
+ */
+export async function prepackParts(files: ReadonlyMap<string, Uint8Array>, levelOf: (path: string, bytes: Uint8Array) => number): Promise<void> {
+  const todo = [...files].filter(([path, bytes]) => bytes.byteLength >= KEEP && !packed.get(bytes)?.has(levelOf(path, bytes)));
+  if (todo.length === 0 || typeof Worker === 'undefined') return;
+  let worker: Worker;
+  try {
+    worker = new Worker(new URL('../../workers/zipPack.worker.ts', import.meta.url), { type: 'module' });
+  } catch {
+    return;
+  }
+  try {
+    for (const [i, [path, bytes]] of todo.entries()) {
+      const level = levelOf(path, bytes);
+      const reply = await new Promise<ZipPackResponse>((resolve, reject) => {
+        worker.onmessage = (e: MessageEvent<ZipPackResponse>) => resolve(e.data);
+        worker.onerror = (e) => reject(new Error(e.message));
+        worker.postMessage({ id: i, bytes, level } satisfies ZipPackRequest);
+      });
+      if (reply.error) throw new Error(reply.error);
+      packedOf(bytes, level, reply.crc, reply.deflated);
+    }
+  } catch (err) {
+    // The parts not packed here are packed on the main thread by `zipParts`.
+    console.warn('[project] packing the package off the main thread failed', err);
+  } finally {
+    worker.terminate();
+  }
 }
 
 /** A ZIP of `files`, each deflated at `levelOf(path, bytes)` (0: stored). */

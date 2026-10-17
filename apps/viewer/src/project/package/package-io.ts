@@ -12,7 +12,7 @@
  */
 
 import { strFromU8, strToU8, unzipSync } from 'fflate';
-import { zipParts } from './zip-parts';
+import { prepackParts, zipParts } from './zip-parts';
 import type { ProjectDocument } from '../types';
 import { parseProjectFile, PROJECT_FILE_FORMAT, PROJECT_FILE_VERSION } from '../project-file';
 import {
@@ -91,8 +91,16 @@ export async function buildPackage(input: PackageInput): Promise<{ files: Packag
 }
 
 /** IFC text and JSON compress well; already-compressed or tiny parts are stored. A large part is compressed once (`zip-parts.ts`). */
+const packageLevel = (path: string) => (path.endsWith('.ifc') || path.endsWith('.json') ? 6 : 0);
+
+/** `zipPackage`, its large parts packed off the main thread first. */
+export async function zipPackageAsync(files: PackageFiles): Promise<Uint8Array> {
+  await prepackParts(files, packageLevel);
+  return zipPackage(files);
+}
+
 export function zipPackage(files: PackageFiles): Uint8Array {
-  return zipParts(files, (path) => (path.endsWith('.ifc') || path.endsWith('.json') ? 6 : 0));
+  return zipParts(files, packageLevel);
 }
 
 export function unzipPackage(bytes: Uint8Array): PackageFiles {

@@ -23,7 +23,7 @@ import { placementSourceIdentity } from '@/lib/model-placement/source-identity';
 import { projectDocument } from '../project-store';
 import { modelRef } from '../project-sync';
 import type { ProjectDocument } from '../types';
-import { buildPackage, zipPackage, type ModelInput, type PackageFiles } from './package-io';
+import { buildPackage, zipPackageAsync, type ModelInput, type PackageFiles } from './package-io';
 import { segment, type PackageManifest, type PackageVersionInfo } from './format';
 import { packageGeometry, packageGeometryPath } from './package-geometry';
 import { nativeTablesFolder } from './native-tables-path';
@@ -166,5 +166,5 @@ export async function packageCurrentProject(projectId: string, options: {
   // Keep a reference the document had to a model not loaded right now.
   for (const ref of doc.models) if (!renamed.has(ref.key) && !saved.models.some((m) => m.key === ref.key)) saved.models.push(ref);
   const { files, manifest } = await buildPackage({ projectId, doc: saved, models, app: APP, versionInfo: options.versionInfo, extras });
-  return { bytes: zipPackage(files), files, manifest, doc: saved };
+  return { bytes: await zipPackageAsync(files), files, manifest, doc: saved };
 }
