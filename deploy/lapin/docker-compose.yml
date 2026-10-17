@@ -1,0 +1,13 @@
+# Lapin on the Hetzner server beside BubbleBIM: one nginx, local port only
+# (the Cloudflare tunnel serves lapin.ciuntucbimstudio.ro from it).
+services:
+  web:
+    image: nginx:1.27-alpine
+    container_name: lapin-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3461:80"
+    volumes:
+      - ./www:/usr/share/nginx/html:ro
+      # The folder, not single files: rsync replaces a file, and a file mount keeps the old one.
+      - ./nginx:/etc/nginx/conf.d:ro
