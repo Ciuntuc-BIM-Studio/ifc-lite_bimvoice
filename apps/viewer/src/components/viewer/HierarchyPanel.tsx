@@ -41,6 +41,7 @@ import { StoreyDisplayControls } from './hierarchy/StoreyDisplayControls';
 import { HierarchySortControl } from './hierarchy/HierarchySortControl';
 import { hierarchyRowSelection } from './hierarchy/rowSelection';
 import type { HierarchyRowAction } from './hierarchy/HierarchyRowActions';
+import { residencyActions, setGeometryLoaded, useGeometryResidency } from '@/project/geometry-residency';
 import { applyLevelDisplayMode } from '@/store/levelDisplay';
 import { createHierarchyModelsSelector, selectLegacyHierarchyGeometry } from './hierarchy/hierarchy-models-selector';
 import { TOUR_ANCHORS, tourAnchor } from '@/lib/tours/anchors';
@@ -324,10 +325,8 @@ export function HierarchyPanel() {
     const storeyRefs = isStorey
       ? node.expressIds.map((expressId, index) => ({ modelId: node.modelIds[index] ?? 'legacy', expressId }))
       : [];
-    if (action === 'solo') {
-      if (storeyRefs.length > 0) applyLevelDisplayMode('solo', storeyRefs);
-      return;
-    }
+    if (action === 'solo') { if (storeyRefs.length > 0) applyLevelDisplayMode('solo', storeyRefs); return; }
+    if (action === 'unload' || action === 'load') return setGeometryLoaded(getNodeElements(node), action === 'load');
     if (action === 'isolate') {
       const elements = getNodeElements(node);
       if (elements.length === 0) return;
@@ -368,17 +367,18 @@ export function HierarchyPanel() {
     }
   }, [getNodeElements, models, ifcDataStore, typeVisibility, toggleTypeVisibility, isolateEntities, setClassFilter, upsertSearchRule]);
 
+  const residency = useGeometryResidency((s) => s.unloaded);
   const rowActions = useCallback((node: TreeNode): HierarchyRowAction[] => {
     if (node.type === 'model-header' || node.type === 'model-tag-group') return [];
     if (node.type === 'unified-storey' || node.type === 'IfcBuildingStorey') {
-      return ['solo', 'filter'];
+      return ['solo', 'filter', ...residencyActions(getNodeElements(node))];
     }
     const actions: HierarchyRowAction[] = [];
     if (getNodeElements(node).length > 0) actions.push('isolate');
     if (node.type === 'type-group' || node.type === 'ifc-type' ||
         node.type === 'material-group' || node.type === 'group') actions.push('filter');
-    return actions;
-  }, [getNodeElements]);
+    return node.type === 'type-group' ? [...actions, ...residencyActions(getNodeElements(node))] : actions;
+  }, [getNodeElements, residency]);
 
   // ARIA tree semantics + roving-tabIndex keyboard nav (#5883), see `useHierarchyTreeKeyboard.ts`.
   const {

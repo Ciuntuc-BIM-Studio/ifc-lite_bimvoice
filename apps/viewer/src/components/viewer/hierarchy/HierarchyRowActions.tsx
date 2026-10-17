@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { Eye, ListFilter, MoreHorizontal, SquareStack } from 'lucide-react';
+import { Eye, HardDriveDownload, HardDriveUpload, ListFilter, MoreHorizontal, SquareStack } from 'lucide-react';
 import { useTranslation } from '@/i18n';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-export type HierarchyRowAction = 'isolate' | 'filter' | 'solo';
+export type HierarchyRowAction = 'isolate' | 'filter' | 'solo' | 'unload' | 'load';
 
 interface HierarchyRowActionsProps {
   name: string;
@@ -16,7 +16,7 @@ interface HierarchyRowActionsProps {
   onAction: (action: HierarchyRowAction) => void;
 }
 
-const ICONS = { isolate: Eye, filter: ListFilter, solo: SquareStack } as const;
+const ICONS = { isolate: Eye, filter: ListFilter, solo: SquareStack, unload: HardDriveUpload, load: HardDriveDownload } as const;
 
 /** Row actions are explicit; a row click or Enter only selects entities. */
 export function HierarchyRowActions({ name, actions, open, onOpenChange, onAction }: HierarchyRowActionsProps) {
