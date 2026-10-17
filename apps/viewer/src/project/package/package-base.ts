@@ -13,6 +13,7 @@
  */
 
 import type { GeometryData } from '@ifc-lite/cache';
+import type { MeshData } from '@ifc-lite/geometry';
 import { asSourceBytes, type IfcDataStore } from '@ifc-lite/parser';
 import { useViewerStore } from '@/store';
 import type { FederatedModel } from '@/store/types';
@@ -75,8 +76,8 @@ export function compactionReason(model: FederatedModel, delta: ModelDelta | null
  * the model's own tables (they index those same bytes). Null when the cache
  * would not serve them.
  */
-export async function baseGeometry(model: FederatedModel, base: ModelBase, delta: ModelDelta): Promise<PackagedGeometry | null> {
-  const frame = packageGeometryFrame(model, base.bytes);
+export async function baseGeometry(model: FederatedModel, base: ModelBase, delta: ModelDelta, unloaded: readonly MeshData[] = []): Promise<PackagedGeometry | null> {
+  const frame = packageGeometryFrame(model, base.bytes, unloaded);
   if (!frame || !model.ifcDataStore) return null;
   const changed = new Set<number>([...delta.touched, ...delta.overlay.newEntities.keys(), ...delta.overlay.tombstones, ...delta.meshMoves.map(([, id]) => id)]);
   // A merged mesh with a changed element in it cannot be split here.

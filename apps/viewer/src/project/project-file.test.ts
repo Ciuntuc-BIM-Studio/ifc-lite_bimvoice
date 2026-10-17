@@ -18,7 +18,7 @@ const doc: ProjectDocument = {
   name: 'House',
   models: [{ key: 'hash-arch', name: 'arch.ifc' }],
   views: [
-    { id: 'p1', name: 'Level 1', kind: 'plan', level: { name: 'Level 1', elevation: 3, storeyGlobalIds: ['G1'] }, cutHeight: 1.2, auto: true, createdAt: 1, graphics: { presetId: null, categories: { walls: { fillColor: '#ff0000', cutHatch: 'ANSI31', hatchScale: 2 }, doors: { visible: false } } } },
+    { id: 'p1', name: 'Level 1', kind: 'plan', level: { name: 'Level 1', elevation: 3, storeyGlobalIds: ['G1'] }, cutHeight: 1.2, auto: true, createdAt: 1, graphics: { presetId: null, categories: { walls: { fillColor: '#ff0000', cutHatch: 'ANSI31', hatchScale: 2 }, doors: { visible: false } }, classes: { IFCRAILING: { visible: false } }, layers: { 'A-FURN': { visible: false } } } },
     { id: 's1', name: 'Section A', kind: 'section', plane: { axis: 'front', offset: -2.5, flipped: true }, auto: false, createdAt: 2 },
     { id: 'e1', name: 'North Elevation', kind: 'elevation', direction: 'north', auto: true, createdAt: 3, viewDepth: 12 },
     { id: 'd1', name: '{3D}', kind: '3d', viewpoint: null, auto: true, createdAt: 4 },
@@ -30,6 +30,7 @@ const doc: ProjectDocument = {
   ],
   draftLayers: [{ id: '0', name: '0', color: '#18181b', visible: true, locked: false }],
   hatchPatterns: '*MY-LINES, test\n0, 0,0, 0,2\n',
+  unloadedGeometry: { 'hash-arch': ['G1|IFCWINDOW', 'G1|IFCDOOR'] },
   symbolFlips: { '2O2Fr$t4X7Zf8NOew3FLOH': 3 },
   textStyles: [{ ...DEFAULT_TEXT_STYLE }, { ...DEFAULT_TEXT_STYLE, id: 'big', name: 'Big', height: 5, bold: true, color: '#aa0000' }],
   dimStyles: [{ ...DEFAULT_DIM_STYLE }, { ...DEFAULT_DIM_STYLE, id: 'arch', name: 'Arch', arrow: 'arrow', placement: 'below', unit: 'mm', precision: 0 }],

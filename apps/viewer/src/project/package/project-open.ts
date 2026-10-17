@@ -15,8 +15,9 @@ import { useViewerStore } from '@/store';
 import { loadProjectDocument, resetProject } from '../project-store';
 import type { PackageModel } from './format';
 import { readPackage, unzipPackage, type OpenedPackage } from './package-io';
-import { loadCacheKey, packageGeometryGroupsPath, packageGeometryPath, seedPackageGeometry } from './package-geometry';
-import { registerGeometryGroups } from '../geometry-residency';
+import { geometryGroupOf, loadCacheKey, packageGeometryGroupsPath, packageGeometryPath, seedPackageGeometry } from './package-geometry';
+import { markUnloaded, registerGeometryGroups, setGeometryLoaded } from '../geometry-residency';
+import { setCacheLoadFilter, takeCacheLoadDrops } from '@/hooks/cache-load-filter';
 import { segment } from './format';
 import { strFromU8 } from 'fflate';
 import { clearCarriedDeltas, restoreModelDelta, type ModelDelta } from './model-delta';
@@ -36,6 +37,19 @@ export interface OpenResult {
   failed: string[];
   /** Linked models to locate. */
   linked: PackageModel[];
+}
+
+/** A model opened with geometry groups unloaded: what the cache hit left out is marked so; a fresh load has them unloaded now. */
+function leaveUnloaded(modelId: string, skip: ReadonlySet<string>, dropped: number[] | null): void {
+  const model = useViewerStore.getState().models.get(modelId);
+  const store = model?.ifcDataStore;
+  if (!model || !store) return;
+  const offset = model.idOffset ?? 0;
+  if (dropped) { markUnloaded(dropped.map((id) => id + offset)); return; }
+  const groupOf = geometryGroupOf(store);
+  const ids = new Set<number>();
+  for (const mesh of model.geometryResult?.meshes ?? []) if (skip.has(groupOf({ expressId: mesh.expressId - offset, ifcType: mesh.ifcType }))) ids.add(mesh.expressId);
+  setGeometryLoaded([...ids], false);
 }
 
 /** The chunk groups a package wrote beside a model's geometry (none when unreadable). */
@@ -74,8 +88,14 @@ export async function openPackageBytes(bytes: Uint8Array, loader: ModelLoader, o
     // Its saved meshes, put where the load looks for them: the model opens without re-meshing.
     const geometry = files.get(packageGeometryPath(segment(model.id)));
     if (geometry) await seedPackageGeometry(name, ifc, geometry, lastModified);
+    // Its geometry groups unloaded when it was saved stay out: a cache hit never puts them in.
+    const skip = new Set(opened.doc.unloadedGeometry?.[model.id] ?? []);
+    const cacheKey = skip.size ? loadCacheKey(ifc) : '';
+    if (skip.size) setCacheLoadFilter(cacheKey, (store) => { const groupOf = geometryGroupOf(store); return (mesh) => !skip.has(groupOf(mesh)); });
     const id = await loader.addModel(new File([ifc as BlobPart], name, lastModified ? { lastModified } : {}), { name });
+    const dropped = skip.size ? takeCacheLoadDrops(cacheKey) : null;
     if (!id) { failed.push(model.name); continue; }
+    if (skip.size) leaveUnloaded(id, skip, dropped);
     loadedIds.set(model.id, id);
     const store = useViewerStore.getState().models.get(id)?.ifcDataStore;
     // The next save writes this IFC again as it is, with what is known of it, and only the edits beside it.

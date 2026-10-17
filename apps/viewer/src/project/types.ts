@@ -261,6 +261,8 @@ export interface ProjectDocument {
   layerGroups?: LayerGroup[];
   /** Save writes the meshes of the primary model beside its IFC, so the project opens without re-meshing (absent: on). */
   packageGeometry?: boolean;
+  /** By package model key: the storey × IFC class groups whose geometry was unloaded at save; the open leaves them unloaded. */
+  unloadedGeometry?: Record<string, string[]>;
   /**
    * What a model is kept as in the package (absent: 'lapin'). 'lapin': the IFC
    * it was loaded from plus its edits, and the native tables when it is

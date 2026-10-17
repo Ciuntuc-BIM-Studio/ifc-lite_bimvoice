@@ -127,6 +127,7 @@ export function parseProjectFile(text: string): ProjectDocument {
     hatchPatterns: isString(raw.hatchPatterns) ? raw.hatchPatterns : '',
     symbolFlips: readFlips(raw.symbolFlips),
     ...(typeof raw.packageGeometry === 'boolean' ? { packageGeometry: raw.packageGeometry } : {}),
+    ...readUnloadedGeometry(raw.unloadedGeometry),
     ...(raw.storage === 'ifc' || raw.storage === 'lapin' ? { storage: raw.storage } : {}),
     ...(raw.openingLines === 'hinge' || raw.openingLines === 'handle' ? { openingLines: raw.openingLines } : {}),
     ...readStandards(raw),
@@ -172,6 +173,13 @@ function readGraphics(raw: Record<string, unknown>): ViewGraphics {
       if (Object.keys(g).length > 0) categories[id] = g;
     }
     out.categories = categories;
+  }
+  // Class by class and layer by layer: only what is hidden is kept.
+  for (const key of ['classes', 'layers'] as const) {
+    const value = raw[key];
+    if (!isObject(value)) continue;
+    const hidden = Object.fromEntries(Object.entries(value).filter(([, g]) => isObject(g) && g.visible === false).map(([k]) => [k, { visible: false }]));
+    if (Object.keys(hidden).length) out[key] = hidden;
   }
   return out;
 }
@@ -260,4 +268,15 @@ function readSchedule(raw: unknown): ProjectSchedule[] {
   const out: ProjectSchedule = { id: raw.id, name: isString(raw.name) && raw.name ? raw.name : 'Schedule', kind, createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : 0 };
   if (typeof raw.scale === 'number' && raw.scale > 0) out.scale = raw.scale;
   return [out];
+}
+
+/** `unloadedGeometry`: by model key, the geometry groups (strings) left unloaded; anything else dropped. */
+function readUnloadedGeometry(value: unknown): { unloadedGeometry?: Record<string, string[]> } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: Record<string, string[]> = {};
+  for (const [key, groups] of Object.entries(value)) {
+    const list = Array.isArray(groups) ? groups.filter((g): g is string => typeof g === 'string') : [];
+    if (list.length) out[key] = list;
+  }
+  return Object.keys(out).length ? { unloadedGeometry: out } : {};
 }

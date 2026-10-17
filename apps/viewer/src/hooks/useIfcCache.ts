@@ -37,6 +37,7 @@ import { getCached, setCached, deleteCached, type CacheResult } from '../service
 import { rebuildSpatialHierarchy, rebuildOnDemandMaps } from '../utils/spatialHierarchy.js';
 import { calculateStoreyHeights, getRenderIntervalMs } from '../utils/localParsingUtils.js';
 import { recordFirstVisible } from '../lib/perf/loadTrace.js';
+import { filterCachedMeshes } from './cache-load-filter.js';
 
 // Re-export types for convenience
 export type { CacheResult } from '../services/cacheService.js';
@@ -391,7 +392,7 @@ export function useIfcCache() {
         const flush = () => { if (pending.length) { appendGeometryBatch(modelId, pending, open.coordinateInfo); pending = []; lastAppend = performance.now(); } };
         try {
           for (let i = 0; i < open.chunks.length; i++) {
-            const chunkMeshes = await open.readChunk(i);
+            const chunkMeshes = cacheKey ? filterCachedMeshes(cacheKey, dataStore, await open.readChunk(i)) : await open.readChunk(i);
             // Per-chunk re-check: every iteration awaits `readChunk` AND yields
             // to the event loop at the end of the body, so supersession can
             // land BETWEEN chunks. Without this, the remaining chunks of the

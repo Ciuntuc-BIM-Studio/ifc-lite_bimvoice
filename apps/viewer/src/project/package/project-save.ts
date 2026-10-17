@@ -31,6 +31,7 @@ import { uuidV5 } from '@ifc-lite/encoding';
 import { captureModelDelta } from './model-delta';
 import { encodeStructured } from './overlay-codec';
 import { baseGeometry, compactionReason, modelBase } from './package-base';
+import { unloadedGroupsOf, unloadedMeshesOf } from '../geometry-residency';
 
 const APP = { name: 'BIMVoice', version: '4.0.0' };
 
@@ -120,6 +121,8 @@ export async function packageCurrentProject(projectId: string, options: {
   const now = new Date().toISOString();
   const doc = projectDocument();
   const renamed = new Map<string, string>();
+  // The geometry groups the user unloaded, by package model key: the next open leaves them out.
+  const unloadedGeometry: Record<string, string[]> = {};
   const extras = new Map<string, Uint8Array>();
   const models: ModelInput[] = [];
   for (const model of state.models.values()) {
@@ -140,19 +143,21 @@ export async function packageCurrentProject(projectId: string, options: {
       const bytes = await nativeModelBytes(model.id, model.ifcDataStore, hasEdits);
       const key = (await placementSourceIdentity(new Blob([bytes as BlobPart]), undefined, bytes)) ?? ref.key;
       renamed.set(ref.key, key);
+      if (unloadedGroupsOf(model.id).length) unloadedGeometry[key] = unloadedGroupsOf(model.id);
       models.push({ id: key, name: model.name, role: 'native', bytes, baseSavedAt: now });
       if (!options.ifc) for (const [path, table] of await nativeTables(projectId, model.id, model.name, model.ifcDataStore)) extras.set(`${nativeTablesFolder(segment(key))}/${path}`, table);
-      if (options.geometry) await addGeometry(extras, key, model.name, () => packageGeometry(model, bytes));
+      if (options.geometry) await addGeometry(extras, key, model.name, async () => packageGeometry(model, bytes, await unloadedMeshesOf(model.id)));
     } else {
       // The IFC it was loaded from, unchanged from save to save, and its edits over it (N4b).
       base.savedAt ??= now;
       renamed.set(ref.key, base.key);
+      if (unloadedGroupsOf(model.id).length) unloadedGeometry[base.key] = unloadedGroupsOf(model.id);
       models.push({
         id: base.key, name: model.name, role: 'native', bytes: base.bytes, baseSavedAt: base.savedAt,
         ...(hasEdits ? { overlay: strToU8(encodeStructured(delta)) } : {}),
       });
       if (options.geometry) {
-        await addGeometry(extras, base.key, model.name, async () => (base.geometry !== undefined ? base.geometry : (base.geometry = await baseGeometry(model, base, delta))));
+        await addGeometry(extras, base.key, model.name, async () => (base.geometry !== undefined ? base.geometry : (base.geometry = await baseGeometry(model, base, delta, await unloadedMeshesOf(model.id)))));
       }
     }
     if (options.analytics) {
@@ -165,7 +170,10 @@ export async function packageCurrentProject(projectId: string, options: {
       }
     }
   }
-  const saved: ProjectDocument = { ...doc, models: models.map((m) => ({ key: m.id, name: m.name })) };
+  const saved: ProjectDocument = {
+    ...doc, models: models.map((m) => ({ key: m.id, name: m.name })),
+    unloadedGeometry: Object.keys(unloadedGeometry).length ? unloadedGeometry : undefined,
+  };
   // Keep a reference the document had to a model not loaded right now.
   for (const ref of doc.models) if (!renamed.has(ref.key) && !saved.models.some((m) => m.key === ref.key)) saved.models.push(ref);
   const { files, manifest } = await buildPackage({ projectId, doc: saved, models, app: APP, versionInfo: options.versionInfo, extras });

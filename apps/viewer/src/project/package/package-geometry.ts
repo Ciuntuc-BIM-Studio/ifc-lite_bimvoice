@@ -20,6 +20,7 @@
 
 import { BinaryCacheWriter, computeSourceFingerprint, toCacheDataStore, type GeometryData } from '@ifc-lite/cache';
 import type { IfcDataStore } from '@ifc-lite/parser';
+import type { MeshData } from '@ifc-lite/geometry';
 import { IfcParser } from '@ifc-lite/parser';
 import { useViewerStore } from '@/store';
 import { getGlobalRenderer } from '@/hooks/useBCF';
@@ -71,7 +72,7 @@ export function loadCacheKey(bytes: Uint8Array): string {
  * scene meshes, GPU-instanced ones drawn out, in the load frame), or null
  * when it would not serve them.
  */
-export function packageGeometryFrame(model: FederatedModel, bytes: Uint8Array): Pick<GeometryData, 'meshes' | 'coordinateInfo'> | null {
+export function packageGeometryFrame(model: FederatedModel, bytes: Uint8Array, unloaded: readonly MeshData[] = []): Pick<GeometryData, 'meshes' | 'coordinateInfo'> | null {
   const geometry = model.geometryResult;
   if (!geometry || (model.idOffset ?? 0) !== 0 || !servable(bytes)) return null;
   // The cache holds the load frame: a model moved in the scene would come back moved twice.
@@ -83,12 +84,13 @@ export function packageGeometryFrame(model: FederatedModel, bytes: Uint8Array): 
   if (geometry.instancedGeometryHashes?.size && instanced.length === 0) return null;
   // The scene's instanced meshes carry no IFC class: the model's own (a group, a view filter, reads it).
   const typed = instanced.map((m) => (m.ifcType ? m : { ...m, ifcType: model.ifcDataStore?.entities.getTypeName(m.expressId) || undefined }));
-  return { meshes: typed.length ? [...geometry.meshes, ...typed] : geometry.meshes, coordinateInfo: geometry.coordinateInfo };
+  // The elements whose geometry is unloaded keep their meshes in the package: they load back from it.
+  return { meshes: typed.length || unloaded.length ? [...geometry.meshes, ...typed, ...unloaded] : geometry.meshes, coordinateInfo: geometry.coordinateInfo };
 }
 
 /** `model`'s meshes as a load-cache entry for its saved IFC `bytes` (a compacted export), or null when the cache would not serve it. */
-export async function packageGeometry(model: FederatedModel, bytes: Uint8Array): Promise<PackagedGeometry | null> {
-  const frame = packageGeometryFrame(model, bytes);
+export async function packageGeometry(model: FederatedModel, bytes: Uint8Array, unloaded: readonly MeshData[] = []): Promise<PackagedGeometry | null> {
+  const frame = packageGeometryFrame(model, bytes, unloaded);
   if (!frame) return null;
   const { meshes } = frame;
   // The entry's data tables index the SAVED bytes (ids are kept by the export, the offsets are not).

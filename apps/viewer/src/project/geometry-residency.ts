@@ -37,16 +37,15 @@ export function registerGeometryGroups(modelId: string, cacheKey: string, chunks
 }
 
 /**
- * Put `expressIds`' meshes back from the load cache: only their groups'
- * chunks when the chunk groups are known, else every chunk, keeping only
- * theirs. The ids it found none for (null: no cache entry for the model).
+ * `expressIds`' meshes in the load cache: only their groups' chunks when
+ * the chunk groups are known, else every chunk, keeping only theirs (null:
+ * no cache entry for the model).
  */
-async function reloadFromCache(modelId: string, expressIds: number[]): Promise<number[] | null> {
-  const s = useViewerStore.getState();
-  const model = s.models.get(modelId);
+async function cachedMeshes(modelId: string, expressIds: readonly number[]): Promise<Map<number, MeshData[]> | null> {
+  const model = useViewerStore.getState().models.get(modelId);
   const store = model?.ifcDataStore;
   // The load cache holds the primary model only (no id offset).
-  if (!model || !store || (model.idOffset ?? 0) !== 0) return null;
+  if (!model || !store || (model.idOffset ?? 0) !== 0 || expressIds.length === 0) return null;
   const known = groupIndexes.get(modelId);
   const cached = await getCached(known?.cacheKey ?? loadCacheKey(store.source.materialize()));
   if (!cached) return null;
@@ -70,8 +69,28 @@ async function reloadFromCache(modelId: string, expressIds: number[]): Promise<n
       if (list) list.push(mesh); else byId.set(mesh.expressId, [mesh]);
     }
   }
+  return byId;
+}
+
+/** Put `expressIds`' meshes back from the load cache; the ids it found none for (null: no cache entry). */
+async function reloadFromCache(modelId: string, expressIds: number[]): Promise<number[] | null> {
+  const byId = await cachedMeshes(modelId, expressIds);
+  if (!byId) return null;
   if (byId.size) useViewerStore.getState().replaceEntityMeshes(modelId, byId);
   return expressIds.filter((id) => !byId.has(id));
+}
+
+/** The meshes of `modelId`'s unloaded elements, from the load cache: a save keeps them in the package geometry. */
+export async function unloadedMeshesOf(modelId: string): Promise<MeshData[]> {
+  const model = useViewerStore.getState().models.get(modelId);
+  const offset = model?.idOffset ?? 0;
+  const ids = [...useGeometryResidency.getState().unloaded].map((id) => id - offset).filter((id) => id > 0 && id <= (model?.maxExpressId ?? Number.POSITIVE_INFINITY));
+  try {
+    return [...(await cachedMeshes(modelId, ids))?.values() ?? []].flat();
+  } catch (err) {
+    console.warn('[geometry] unloaded meshes not read from the cache', err);
+    return [];
+  }
 }
 
 /** The row action a group of elements (renderer ids) takes: unload while any is loaded, else load. */
@@ -83,6 +102,40 @@ export function residencyActions(ids: readonly number[]): Array<'unload' | 'load
 
 /** Whether the element drawn as `renderId` has its geometry unloaded. */
 export const isUnloaded = (renderId: number): boolean => useGeometryResidency.getState().unloaded.has(renderId);
+
+/** Record `ids` (renderer ids) as unloaded: their meshes were never put in (a project opened with them unloaded). */
+export function markUnloaded(ids: readonly number[]): void {
+  if (!ids.length) return;
+  useGeometryResidency.setState((s) => ({ unloaded: new Set([...s.unloaded, ...ids]) }));
+}
+
+/**
+ * The storey × IFC class groups of `modelId` whose elements are all unloaded
+ * (a group is counted over the elements contained in storeys and the
+ * unloaded ones), for a save to keep.
+ */
+export function unloadedGroupsOf(modelId: string): string[] {
+  const model = useViewerStore.getState().models.get(modelId);
+  const store = model?.ifcDataStore;
+  const { unloaded } = useGeometryResidency.getState();
+  if (!model || !store || unloaded.size === 0) return [];
+  const offset = model.idOffset ?? 0;
+  const max = model.maxExpressId ?? Number.POSITIVE_INFINITY;
+  const groupOf = geometryGroupOf(store);
+  const group = (id: number) => groupOf({ expressId: id, ifcType: store.entities.getTypeName(id) });
+  const off = new Map<string, number>();
+  for (const renderId of unloaded) {
+    const id = renderId - offset;
+    if (id > 0 && id <= max) off.set(group(id), (off.get(group(id)) ?? 0) + 1);
+  }
+  if (off.size === 0) return [];
+  const total = new Map<string, number>();
+  for (const id of store.spatialHierarchy?.elementToStorey.keys() ?? []) {
+    const g = group(id);
+    if (off.has(g)) total.set(g, (total.get(g) ?? 0) + 1);
+  }
+  return [...off].filter(([g, n]) => n >= (total.get(g) ?? 0)).map(([g]) => g);
+}
 
 /** Unload (`load` false) or load the geometry of `ids` (renderer ids). */
 export function setGeometryLoaded(ids: readonly number[], load: boolean): void {
