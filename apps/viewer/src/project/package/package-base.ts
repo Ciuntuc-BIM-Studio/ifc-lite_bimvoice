@@ -12,14 +12,14 @@
  * memory), when they outgrow the IFC, or when asked (a version).
  */
 
-import { BinaryCacheWriter, toCacheDataStore, type GeometryData } from '@ifc-lite/cache';
+import type { GeometryData } from '@ifc-lite/cache';
 import { asSourceBytes, type IfcDataStore } from '@ifc-lite/parser';
 import { useViewerStore } from '@/store';
 import type { FederatedModel } from '@/store/types';
 import { hasGeorefFields } from '@/lib/export/model-changes';
 import { modelAppearanceAssets } from '@/lib/appearance/model-assets';
 import { placementSourceIdentity } from '@/lib/model-placement/source-identity';
-import { packageGeometryFrame } from './package-geometry';
+import { packageGeometryFrame, writeGroupedGeometry, type PackagedGeometry } from './package-geometry';
 import type { ModelDelta } from './model-delta';
 
 export interface ModelBase {
@@ -30,7 +30,7 @@ export interface ModelBase {
   /** When it was first written to a package (ISO); the load cache validates its geometry against it. */
   savedAt?: string;
   /** Its meshes as a load-cache entry, once written or opened. */
-  geometry?: Uint8Array | null;
+  geometry?: PackagedGeometry | null;
 }
 
 const bases = new WeakMap<IfcDataStore, ModelBase>();
@@ -75,7 +75,7 @@ export function compactionReason(model: FederatedModel, delta: ModelDelta | null
  * the model's own tables (they index those same bytes). Null when the cache
  * would not serve them.
  */
-export async function baseGeometry(model: FederatedModel, base: ModelBase, delta: ModelDelta): Promise<Uint8Array | null> {
+export async function baseGeometry(model: FederatedModel, base: ModelBase, delta: ModelDelta): Promise<PackagedGeometry | null> {
   const frame = packageGeometryFrame(model, base.bytes);
   if (!frame || !model.ifcDataStore) return null;
   const changed = new Set<number>([...delta.touched, ...delta.overlay.newEntities.keys(), ...delta.overlay.tombstones, ...delta.meshMoves.map(([, id]) => id)]);
@@ -88,8 +88,5 @@ export async function baseGeometry(model: FederatedModel, base: ModelBase, delta
     totalTriangles: meshes.reduce((n, m) => n + m.indices.length / 3, 0),
     coordinateInfo: frame.coordinateInfo,
   };
-  const entry = await new BinaryCacheWriter().write(toCacheDataStore(model.ifcDataStore), data, base.bytes.slice().buffer, {
-    includeGeometry: true, compressGeometryChunksInWorker: true, omitSourceHash: true,
-  });
-  return new Uint8Array(entry);
+  return writeGroupedGeometry(model.ifcDataStore, data, base.bytes.slice().buffer);
 }

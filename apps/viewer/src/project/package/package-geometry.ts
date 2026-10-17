@@ -19,6 +19,7 @@
  */
 
 import { BinaryCacheWriter, computeSourceFingerprint, toCacheDataStore, type GeometryData } from '@ifc-lite/cache';
+import type { IfcDataStore } from '@ifc-lite/parser';
 import { IfcParser } from '@ifc-lite/parser';
 import { useViewerStore } from '@/store';
 import { getGlobalRenderer } from '@/hooks/useBCF';
@@ -31,6 +32,30 @@ import { setCached } from '@/services/cacheService';
 import { CACHE_MAX_SOURCE_SIZE, CACHE_SIZE_THRESHOLD } from '@/utils/ifcConfig';
 
 export const packageGeometryPath = (modelKey: string) => `models/${modelKey}/geometry.bin`;
+/** The storey × IFC class group of each of its chunks, in chunk order (`geometry-residency.ts` reads one group's chunks). */
+export const packageGeometryGroupsPath = (modelKey: string) => `models/${modelKey}/geometry-groups.json`;
+
+/** A package model's geometry entry, and the group (storey × IFC class) of each of its chunks. */
+export interface PackagedGeometry { entry: Uint8Array; groups: string[] }
+
+/** The group a mesh's element belongs to: its storey's GlobalId and its IFC class. */
+export function geometryGroupOf(store: IfcDataStore): (mesh: { expressId: number; ifcType?: string }) => string {
+  const storeyOf = store.spatialHierarchy?.elementToStorey;
+  return (mesh) => {
+    const storey = storeyOf?.get(mesh.expressId);
+    return `${storey !== undefined ? store.entities.getGlobalId(storey) || storey : '-'}|${(mesh.ifcType ?? '').toUpperCase()}`;
+  };
+}
+
+/** Write `data` as a load-cache entry for `buffer`, its chunks grouped by storey × IFC class. */
+export async function writeGroupedGeometry(store: IfcDataStore, data: GeometryData, buffer: ArrayBuffer): Promise<PackagedGeometry> {
+  let groups: string[] = [];
+  const entry = await new BinaryCacheWriter().write(toCacheDataStore(store), data, buffer, {
+    includeGeometry: true, compressGeometryChunksInWorker: true, omitSourceHash: true,
+    geometryChunkGroup: geometryGroupOf(store), onGeometryChunkGroups: (g) => { groups = g; },
+  });
+  return { entry: new Uint8Array(entry), groups };
+}
 
 const servable = (bytes: Uint8Array) => bytes.byteLength >= CACHE_SIZE_THRESHOLD && bytes.byteLength <= CACHE_MAX_SOURCE_SIZE;
 
@@ -56,11 +81,13 @@ export function packageGeometryFrame(model: FederatedModel, bytes: Uint8Array): 
     ? (getGlobalRenderer()?.getScene()?.getAllInstancedMeshData() ?? []).filter((m) => m.expressId > 0 && m.expressId <= (model.maxExpressId ?? Number.POSITIVE_INFINITY))
     : [];
   if (geometry.instancedGeometryHashes?.size && instanced.length === 0) return null;
-  return { meshes: instanced.length ? [...geometry.meshes, ...instanced] : geometry.meshes, coordinateInfo: geometry.coordinateInfo };
+  // The scene's instanced meshes carry no IFC class: the model's own (a group, a view filter, reads it).
+  const typed = instanced.map((m) => (m.ifcType ? m : { ...m, ifcType: model.ifcDataStore?.entities.getTypeName(m.expressId) || undefined }));
+  return { meshes: typed.length ? [...geometry.meshes, ...typed] : geometry.meshes, coordinateInfo: geometry.coordinateInfo };
 }
 
 /** `model`'s meshes as a load-cache entry for its saved IFC `bytes` (a compacted export), or null when the cache would not serve it. */
-export async function packageGeometry(model: FederatedModel, bytes: Uint8Array): Promise<Uint8Array | null> {
+export async function packageGeometry(model: FederatedModel, bytes: Uint8Array): Promise<PackagedGeometry | null> {
   const frame = packageGeometryFrame(model, bytes);
   if (!frame) return null;
   const { meshes } = frame;
@@ -73,10 +100,7 @@ export async function packageGeometry(model: FederatedModel, bytes: Uint8Array):
     totalTriangles: meshes.reduce((n, m) => n + m.indices.length / 3, 0),
     coordinateInfo: frame.coordinateInfo,
   };
-  const entry = await new BinaryCacheWriter().write(toCacheDataStore(store), data, buffer, {
-    includeGeometry: true, compressGeometryChunksInWorker: true, omitSourceHash: true,
-  });
-  return new Uint8Array(entry);
+  return writeGroupedGeometry(store, data, buffer);
 }
 
 /** Put a package model's geometry in the load cache for its IFC `bytes`, valid for a file of `lastModified`. */

@@ -27,7 +27,7 @@ import { writeEntities } from './sections/entities.js';
 import { writeProperties } from './sections/properties.js';
 import { writeQuantities } from './sections/quantities.js';
 import { writeRelationships } from './sections/relationships.js';
-import { buildGeometrySectionV13 } from './sections/geometry-chunks.js';
+import { buildGeometrySectionV13, type GeometryChunkGrouping } from './sections/geometry-chunks.js';
 import { writeInstancedShards } from './sections/instanced-shards.js';
 import { writeEntityIndex } from './sections/entity-index.js';
 
@@ -55,7 +55,7 @@ export class BinaryCacheWriter {
     dataStore: CacheDataStore,
     geometry: GeometryData | undefined,
     sourceBuffer: ArrayBuffer,
-    options: CacheWriteOptions = {}
+    options: CacheWriteOptions & GeometryChunkGrouping = {}
   ): Promise<ArrayBuffer> {
     const {
       includeGeometry = true,
@@ -130,7 +130,10 @@ export class BinaryCacheWriter {
       const geometryBuffer = await buildGeometrySectionV13(
         geometry.meshes,
         geometry.coordinateInfo,
-        { compress: options.compressGeometryChunks ?? true, compressInWorker: options.compressGeometryChunksInWorker }
+        {
+          compress: options.compressGeometryChunks ?? true, compressInWorker: options.compressGeometryChunksInWorker,
+          chunkGroup: options.geometryChunkGroup, onChunkGroups: options.onGeometryChunkGroups,
+        }
       );
       sectionBuffers.push({ type: SectionType.Geometry, buffer: geometryBuffer });
       totalVertices = geometry.totalVertices;

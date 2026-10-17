@@ -95,31 +95,43 @@ interface PendingChunk {
   bytes: number;
 }
 
-/** Group meshes into spatially coherent, byte-capped chunks (order-stable). */
+/**
+ * Group meshes into spatially coherent, byte-capped chunks (order-stable).
+ * With `groupOf`, a chunk only holds meshes of one group (and `groupsOut`
+ * gets each chunk's group, in chunk order): a caller can then read one
+ * group's chunks without the rest.
+ */
 export function groupMeshesIntoChunks(
   meshes: MeshData[],
   softBytes: number = GEOMETRY_CHUNK_SOFT_BYTES,
-  pool?: AppearanceSourcePool
+  pool?: AppearanceSourcePool,
+  groupOf?: (mesh: MeshData) => string,
+  groupsOut?: string[]
 ): MeshData[][] {
-  const open = new Map<string, PendingChunk>();
+  const open = new Map<string, PendingChunk & { group: string }>();
   const closed: MeshData[][] = [];
+  const close = (chunk: PendingChunk & { group: string }) => {
+    closed.push(chunk.meshes);
+    groupsOut?.push(chunk.group);
+  };
   for (const mesh of meshes) {
-    const key = cellKeyOf(mesh);
+    const group = groupOf ? groupOf(mesh) : '';
+    const key = groupOf ? `${group}\u0000${cellKeyOf(mesh)}` : cellKeyOf(mesh);
     let chunk = open.get(key);
     const bytes = meshRecordByteLength(mesh, pool);
     if (chunk && chunk.bytes > 0 && chunk.bytes + bytes > softBytes) {
-      closed.push(chunk.meshes);
+      close(chunk);
       chunk = undefined;
     }
     if (!chunk) {
-      chunk = { meshes: [], bytes: 0 };
+      chunk = { meshes: [], bytes: 0, group };
       open.set(key, chunk);
     }
     chunk.meshes.push(mesh);
     chunk.bytes += bytes;
   }
   for (const chunk of open.values()) {
-    if (chunk.meshes.length > 0) closed.push(chunk.meshes);
+    if (chunk.meshes.length > 0) close(chunk);
   }
   return closed;
 }
@@ -143,6 +155,12 @@ function chunkAabb(meshes: MeshData[]): { min: [number, number, number]; max: [n
   return { min: [minX, minY, minZ], max: [maxX, maxY, maxZ] };
 }
 
+/** Keep each geometry chunk to one group of meshes (e.g. a storey × IFC class), the chunks' groups reported in chunk order. */
+export interface GeometryChunkGrouping {
+  geometryChunkGroup?: (mesh: MeshData) => string;
+  onGeometryChunkGroups?: (groups: string[]) => void;
+}
+
 /**
  * Build the complete v13 geometry section buffer. Async because per-chunk
  * compression uses the (browser/Node-native) CompressionStream.
@@ -150,12 +168,18 @@ function chunkAabb(meshes: MeshData[]): { min: [number, number, number]; max: [n
 export async function buildGeometrySectionV13(
   meshes: MeshData[],
   coordinateInfo: CoordinateInfo,
-  options: { compress?: boolean; compressInWorker?: boolean } = {}
+  options: {
+    compress?: boolean; compressInWorker?: boolean;
+    /** Keep each chunk to one group (`groupMeshesIntoChunks`), reporting the chunks' groups in order. */
+    chunkGroup?: (mesh: MeshData) => string; onChunkGroups?: (groups: string[]) => void;
+  } = {}
 ): Promise<ArrayBuffer> {
   const compress = options.compress ?? true;
   const { validMeshes, actualTotalVertices, actualTotalTriangles } = validateMeshes(meshes);
   const pool = collectSourcePool(validMeshes);
-  const groups = groupMeshesIntoChunks(validMeshes, undefined, pool);
+  const chunkGroups: string[] = [];
+  const groups = groupMeshesIntoChunks(validMeshes, undefined, pool, options.chunkGroup, chunkGroups);
+  if (options.chunkGroup) options.onChunkGroups?.(chunkGroups);
 
   // Serialize (and optionally compress) every chunk record. Concurrency is
   // BOUNDED: a large model produces hundreds of chunks, and an unbounded

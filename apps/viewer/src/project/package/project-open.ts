@@ -15,7 +15,8 @@ import { useViewerStore } from '@/store';
 import { loadProjectDocument, resetProject } from '../project-store';
 import type { PackageModel } from './format';
 import { readPackage, unzipPackage, type OpenedPackage } from './package-io';
-import { packageGeometryPath, seedPackageGeometry } from './package-geometry';
+import { loadCacheKey, packageGeometryGroupsPath, packageGeometryPath, seedPackageGeometry } from './package-geometry';
+import { registerGeometryGroups } from '../geometry-residency';
 import { segment } from './format';
 import { strFromU8 } from 'fflate';
 import { clearCarriedDeltas, restoreModelDelta, type ModelDelta } from './model-delta';
@@ -35,6 +36,16 @@ export interface OpenResult {
   failed: string[];
   /** Linked models to locate. */
   linked: PackageModel[];
+}
+
+/** The chunk groups a package wrote beside a model's geometry (none when unreadable). */
+function readChunkGroups(bytes: Uint8Array): string[] {
+  try {
+    const parsed = JSON.parse(strFromU8(bytes)) as { chunks?: unknown };
+    return Array.isArray(parsed.chunks) && parsed.chunks.every((c) => typeof c === 'string') ? parsed.chunks : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function openPackageBytes(bytes: Uint8Array, loader: ModelLoader, onProgress?: (label: string) => void): Promise<OpenResult> {
@@ -68,7 +79,11 @@ export async function openPackageBytes(bytes: Uint8Array, loader: ModelLoader, o
     loadedIds.set(model.id, id);
     const store = useViewerStore.getState().models.get(id)?.ifcDataStore;
     // The next save writes this IFC again as it is, with what is known of it, and only the edits beside it.
-    if (store) rememberPackageBase(store, { bytes: ifc, key: model.id, savedAt, ...(geometry ? { geometry } : {}) });
+    const groupsFile = files.get(packageGeometryGroupsPath(segment(model.id)));
+    const groups = groupsFile ? readChunkGroups(groupsFile) : [];
+    if (store) rememberPackageBase(store, { bytes: ifc, key: model.id, savedAt, ...(geometry ? { geometry: { entry: geometry, groups } } : {}) });
+    // A group of its elements (a storey, an IFC class) unloaded and loaded again reads only its chunks.
+    if (geometry && groups.length) registerGeometryGroups(id, loadCacheKey(ifc), groups);
     if (overlay) restores.push({ id, delta: decodeStructured(strFromU8(overlay)) as ModelDelta });
   }
   // Its edits over its IFC (N4b), once every model is in: what they re-mesh meshes against the loaded scene.

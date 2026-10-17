@@ -25,7 +25,7 @@ import { modelRef } from '../project-sync';
 import type { ProjectDocument } from '../types';
 import { buildPackage, zipPackageAsync, type ModelInput, type PackageFiles } from './package-io';
 import { segment, type PackageManifest, type PackageVersionInfo } from './format';
-import { packageGeometry, packageGeometryPath } from './package-geometry';
+import { packageGeometry, packageGeometryGroupsPath, packageGeometryPath, type PackagedGeometry } from './package-geometry';
 import { nativeTablesFolder } from './native-tables-path';
 import { uuidV5 } from '@ifc-lite/encoding';
 import { captureModelDelta } from './model-delta';
@@ -35,10 +35,13 @@ import { baseGeometry, compactionReason, modelBase } from './package-base';
 const APP = { name: 'BIMVoice', version: '4.0.0' };
 
 /** Put a model's geometry entry in the package when it can be had; a model without one still saves. */
-async function addGeometry(extras: Map<string, Uint8Array>, key: string, name: string, make: () => Promise<Uint8Array | null>): Promise<void> {
+async function addGeometry(extras: Map<string, Uint8Array>, key: string, name: string, make: () => Promise<PackagedGeometry | null>): Promise<void> {
   try {
     const geometry = await make();
-    if (geometry) extras.set(packageGeometryPath(segment(key)), geometry);
+    if (!geometry) return;
+    extras.set(packageGeometryPath(segment(key)), geometry.entry);
+    // Which storey × IFC class each chunk holds: a group's geometry is read again on its own.
+    extras.set(packageGeometryGroupsPath(segment(key)), strToU8(JSON.stringify({ version: 1, chunks: geometry.groups })));
   } catch (err) {
     // The geometry only speeds the next open up.
     console.warn('[project] package geometry skipped for', name, err);

@@ -77,6 +77,16 @@ describe('deflateRaw/inflateRaw', () => {
 });
 
 describe('groupMeshesIntoChunks', () => {
+  it('keeps each chunk to one group when given one, and reports the chunks\' groups in order', () => {
+    const meshes = [mesh(1, [0, 0, 0], { ifcType: 'IfcWall' }), mesh(2, [1, 0, 0], { ifcType: 'IfcSlab' }), mesh(3, [2, 0, 0], { ifcType: 'IfcWall' })];
+    const groupsOut: string[] = [];
+    const chunks = groupMeshesIntoChunks(meshes, undefined, undefined, (m) => m.ifcType ?? '', groupsOut);
+    expect(chunks.map((c) => c.map((m) => m.expressId))).toEqual([[1, 3], [2]]);
+    expect(groupsOut).toEqual(['IfcWall', 'IfcSlab']);
+    // Without a group: as before, one spatial cell.
+    expect(groupMeshesIntoChunks(meshes).map((c) => c.length)).toEqual([3]);
+  });
+
   it('groups by grid cell and never splits a mesh', () => {
     const meshes = [
       mesh(1, [0, 0, 0]),
