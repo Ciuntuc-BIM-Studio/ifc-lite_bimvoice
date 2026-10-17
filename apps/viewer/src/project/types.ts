@@ -72,6 +72,10 @@ export interface ViewGraphics {
   presetId?: string | null;
   /** By category id (`VIEW_CATEGORIES`). */
   categories?: Record<string, CategoryGraphics>;
+  /** By IFC class (upper case), any class of the model: shown or hidden in this view. */
+  classes?: Record<string, { visible?: boolean }>;
+  /** By IFC presentation layer name (`IfcPresentationLayerAssignment`): shown or hidden in this view. */
+  layers?: Record<string, { visible?: boolean }>;
 }
 
 export interface PlanProjectView extends ProjectViewBase {

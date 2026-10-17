@@ -35,6 +35,7 @@ import type { ProjectSheet, SheetViewport } from '@/project/types';
 import type { Drawing2D } from '@ifc-lite/drawing-2d';
 import { hiddenClasses, styledDrawing } from '@/project/view-graphics';
 import { partHostType } from '@/project/part-host';
+import { layersOfRenderId } from '@/project/model-classes-layers';
 import { drawnBySymbol } from '@/project/view-symbols';
 import { viewMaterials } from '@/project/material-resolver';
 import { membraneOverlays } from '@/project/membrane-overlays';
@@ -153,7 +154,7 @@ export function SheetView({ sheet }: { sheet: ProjectSheet }) {
       if (out.has(vp.viewId)) continue;
       const view = views.find((v) => v.id === vp.viewId);
       const raw = (byView[vp.viewId] ?? EMPTY_VIEW_DRAWING).drawing;
-      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(raw, view?.kind)) : null;
+      const drawing = raw ? styledDrawing(raw, view?.graphics, partHostType, view?.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(raw, view?.kind), layersOfRenderId) : null;
       const overlays = [...(view && raw ? planOverlays(view, raw.config.plane, geometryResult?.meshes, flips, hiddenClasses(view.graphics), raw) : []), ...membraneOverlays(drawing)];
       out.set(vp.viewId, { drawing, overlays });
     }

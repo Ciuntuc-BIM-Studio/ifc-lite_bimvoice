@@ -5,7 +5,8 @@
 /**
  * Visibility / Graphics of one view (`project/view-graphics.ts`): its
  * graphic preset, and per category its visibility, line colour, cut fill,
- * line weight and cut hatch. Every change applies to the view at once.
+ * line weight and cut hatch; then its visibility by any IFC class and by IFC
+ * presentation layer. Every change applies to the view at once.
  */
 
 import { useMemo } from 'react';
@@ -20,6 +21,7 @@ import { DEFAULT_VIEW_PRESET, VIEW_CATEGORIES } from '@/project/view-graphics';
 import { builtInPatterns } from '@/drafting/hatch/library';
 import { parsePat } from '@/drafting/hatch/pattern';
 import type { CategoryGraphics, CategoryLineWeight, ProjectView } from '@/project/types';
+import { ViewFilterLists } from './ViewFilterLists';
 
 const WEIGHTS: readonly CategoryLineWeight[] = ['heavy', 'medium', 'light', 'hairline'];
 const NONE = '__none__';
@@ -125,6 +127,7 @@ export function ViewGraphicsDialog({ view, open, onOpenChange }: Props) {
             })}
           </tbody>
         </table>
+        <ViewFilterLists view={view} open={open} />
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>{t('viewGraphics.close')}</Button>
         </DialogFooter>

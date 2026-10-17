@@ -5,7 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { GraphicOverrideEngine, type Drawing2D } from '@ifc-lite/drawing-2d';
-import { cutHatches, DEFAULT_VIEW_PRESET, styledDrawing, viewOverrideRules } from './view-graphics';
+import { cutHatches, DEFAULT_VIEW_PRESET, hiddenByLayers, hiddenClasses, styledDrawing, viewOverrideRules } from './view-graphics';
 
 const square = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
 const drawing = {
@@ -52,5 +52,23 @@ describe('view graphics', () => {
     const hatches = cutHatches(drawing, { categories: { walls: { cutHatch: 'ANSI31', lineColor: '#123456', hatchScale: 2 } } });
     assert.equal(hatches.length, 1);
     assert.deepEqual([hatches[0].pattern, hatches[0].scale, hatches[0].color], ['ANSI31', 2, '#123456']);
+  });
+
+  it('hides any IFC class of the model, beside the categories', () => {
+    const hidden = hiddenClasses({ categories: { doors: { visible: false } }, classes: { IFCSLAB: { visible: false }, IFCWALL: {} } });
+    assert.deepEqual([...hidden].sort(), ['IFCDOOR', 'IFCSLAB']);
+    const d = styledDrawing(drawing, { classes: { IFCSLAB: { visible: false } } });
+    assert.deepEqual(d.lines.map((l) => l.ifcType), ['IfcDoor']);
+  });
+
+  it('hides an element by IFC layer only when every layer it is on is hidden', () => {
+    const off = new Set(['A-WALL']);
+    assert.equal(hiddenByLayers(['A-WALL'], off), true);
+    assert.equal(hiddenByLayers(['A-WALL', 'S-STRUCT'], off), false);
+    assert.equal(hiddenByLayers([], off), false);
+    const layersOf = (id: number) => (id === 1 ? ['A-WALL'] : id === 2 ? ['A-WALL', 'A-DOOR'] : []);
+    const d = styledDrawing(drawing, { layers: { 'A-WALL': { visible: false } } }, undefined, undefined, null, layersOf);
+    assert.deepEqual(d.cutPolygons.map((p) => p.entityId), [2]);
+    assert.deepEqual(d.lines.map((l) => l.entityId), [2, 3]);
   });
 });

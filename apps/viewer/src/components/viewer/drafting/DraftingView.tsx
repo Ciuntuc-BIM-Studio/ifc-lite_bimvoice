@@ -72,6 +72,7 @@ import { planOverlays } from '@/project/plan-overlays';
 import { viewMaterials } from '@/project/material-resolver';
 import { membraneOverlays } from '@/project/membrane-overlays';
 import { partHostType } from '@/project/part-host';
+import { layersOfRenderId } from '@/project/model-classes-layers';
 import { cutHatches, hiddenClasses, DEFAULT_VIEW_PRESET, styledDrawing, viewOverrideRules } from '@/project/view-graphics';
 import { capturePointer } from '@/lib/pointer-capture';
 import { useCommandRuntime } from '@/lib/commands/modeling/runtime';
@@ -130,7 +131,7 @@ export function DraftingView({ view }: { view: Exclude<ProjectView, { kind: '3d'
   const mutationVersionForMaterials = useViewerStore((st) => st.mutationVersion);
   const shown = useMemo(() => {
     void materialsTable; void mutationVersionForMaterials;
-    return drawing ? styledDrawing(drawing, graphics, partHostType, view.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(drawing, view.kind)) : null;
+    return drawing ? styledDrawing(drawing, graphics, partHostType, view.kind === 'plan' ? drawnBySymbol : undefined, viewMaterials(drawing, view.kind), layersOfRenderId) : null;
   }, [drawing, graphics, view.kind, materialsTable, mutationVersionForMaterials]);
   const overrideRules = useMemo(() => viewOverrideRules(graphics), [graphics]);
   const overrideEngine = useMemo(() => new GraphicOverrideEngine(overrideRules), [overrideRules]);

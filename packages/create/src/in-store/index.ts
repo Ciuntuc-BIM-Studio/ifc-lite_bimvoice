@@ -180,6 +180,7 @@ export {
 } from './cost.js';
 export { removeCostEntityInStore, type CostRemovalReferrers } from './cost-removal.js';
 export { resolveSpatialAnchor } from './resolve-anchor.js';
+export { PresentationLayerIndex } from './presentation-layers.js';
 export { placedBodyExtent, resolveHostAnchor } from './resolve-host.js';
 export { toNativeLength, fromNativeLength } from './anchor.js';
 export type { SpatialAnchor, HostAnchor, HostBounds, HostKind } from './anchor.js';

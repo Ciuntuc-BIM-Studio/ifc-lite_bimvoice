@@ -79,13 +79,27 @@ export function viewOverrideRules(graphics: ViewGraphics | undefined): GraphicOv
   return rules;
 }
 
-/** Upper-case IFC classes of the categories the view hides. */
+/** Upper-case IFC classes the view hides: by category, and class by class. */
 export function hiddenClasses(graphics: ViewGraphics | undefined): Set<string> {
   const hidden = new Set<string>();
   for (const category of VIEW_CATEGORIES) {
     if (graphics?.categories?.[category.id]?.visible === false) for (const k of category.classes) hidden.add(k.toUpperCase());
   }
+  for (const [k, g] of Object.entries(graphics?.classes ?? {})) if (g.visible === false) hidden.add(k.toUpperCase());
   return hidden;
+}
+
+/** The IFC presentation layers the view hides. */
+export function hiddenLayers(graphics: ViewGraphics | undefined): Set<string> {
+  return new Set(Object.entries(graphics?.layers ?? {}).filter(([, g]) => g.visible === false).map(([name]) => name));
+}
+
+/**
+ * Whether an element on `layers` is hidden by the view: it is on at least one
+ * layer, and every one of them is hidden (one shown layer keeps it).
+ */
+export function hiddenByLayers(layers: readonly string[], hidden: ReadonlySet<string>): boolean {
+  return hidden.size > 0 && layers.length > 0 && layers.every((l) => hidden.has(l));
 }
 
 function rgba(hex: string): [number, number, number, number] | null {
@@ -109,6 +123,8 @@ export function styledDrawing(
   replaced?: (entityId: number, ifcType: string | undefined) => boolean,
   /** The cut by building materials (`material-drawing.ts`), computed on this same drawing. */
   materials?: MaterialDrawing | null,
+  /** The IFC presentation layers of a drawn element (renderer id), for the view's hidden layers. */
+  layersOf?: (entityId: number) => readonly string[],
 ): StyledDrawing {
   if (materials) {
     const hatchOf = new Map<unknown, string | undefined>(drawing.cutPolygons.map((p) => [p.polygon.outer, p.ifcType]));
@@ -133,13 +149,18 @@ export function styledDrawing(
     };
   }
   const hidden = hiddenClasses(graphics);
+  const offLayers = layersOf ? hiddenLayers(graphics) : new Set<string>();
+  if (offLayers.size && layersOf) {
+    const onShownLayer = (entityId: number) => !hiddenByLayers(layersOf(entityId), offLayers);
+    drawing = { ...drawing, cutPolygons: drawing.cutPolygons.filter((p) => onShownLayer(p.entityId)), lines: drawing.lines.filter((l) => onShownLayer(l.entityId)) };
+  }
   const fills = new Map<string, [number, number, number, number]>();
   for (const category of VIEW_CATEGORIES) {
     const fill = graphics?.categories?.[category.id]?.fillColor;
     const color = fill ? rgba(fill) : null;
     if (color) for (const k of category.classes) fills.set(k.toUpperCase(), color);
   }
-  if (hidden.size === 0 && fills.size === 0 && !graphics?.categories) return drawing as StyledDrawing;
+  if (hidden.size === 0 && fills.size === 0 && !graphics?.categories && !graphics?.classes) return drawing as StyledDrawing;
   const shown = (type: string | undefined) => !type || !hidden.has(type.toUpperCase());
   // A layer part takes its host's class here, so a category's graphics reach it.
   const relabel = <T extends { entityId: number; ifcType?: string }>(item: T): T => {
